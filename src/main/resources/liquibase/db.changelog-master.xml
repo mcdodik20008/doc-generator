@@ -15,4 +15,13 @@
                 stripComments="true"/>
     </changeSet>
 
+    <changeSet id="01-chat-memory" author="kaspshitskii">
+        <sqlFile
+                path="./migration/01_spring_ai_chat_memory.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
+
 </databaseChangeLog>

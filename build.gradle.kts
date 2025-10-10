@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm") version "2.0.21"
     kotlin("plugin.spring") version "2.0.21"
+    kotlin("plugin.jpa") version "2.0.21"
     id("org.springframework.boot") version "3.5.6"
     id("io.spring.dependency-management") version "1.1.7"
 }
@@ -34,7 +35,8 @@ dependencies {
 
     // ===== Spring Web / Validation / Observability =====
     implementation("org.springframework.boot:spring-boot-starter")
-    implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
+    implementation("jakarta.persistence:jakarta.persistence-api")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
@@ -42,6 +44,8 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:2.6.0")
 
     // ===== DB / Migrations =====
+    implementation("io.hypersistence:hypersistence-utils-hibernate-62:3.7.2")
+//    implementation("com.vladmihalcea:hibernate-types-60:2.21.1")
     implementation("org.postgresql:postgresql")
     implementation("org.liquibase:liquibase-core")
 

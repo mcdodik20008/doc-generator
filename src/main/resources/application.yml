@@ -11,6 +11,9 @@ spring:
   liquibase:
     change-log: classpath:/liquibase/db.changelog-master.xml
 
+  jpa:
+    properties:
+      hibernate.type.preferred_json_mapper: jackson
   ai:
     ollama:
       base-url: http://192.168.0.15:11434
@@ -25,6 +28,7 @@ spring:
       pgvector:
         initialize-schema: false
         table-name: ai_documents
+        schema-name: doc_generator
         index-type: HNSW
         distance-type: COSINE_DISTANCE
         dimensions: 1024
