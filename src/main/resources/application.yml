@@ -1,0 +1,43 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: doc-generator
+  datasource:
+    url: jdbc:postgresql://localhost:5434/docgen
+    username: docgen
+    password: docgen
+  liquibase:
+    change-log: classpath:/liquibase/db.changelog-master.xml
+
+  ai:
+    ollama:
+      base-url: http://192.168.0.15:11434
+      chat:
+        options:
+          model: qwen2.5:7b
+          temperature: 0.2
+      embedding:
+        options:
+          model: mxbai-embed-large
+    vectorstore:
+      pgvector:
+        initialize-schema: false
+        table-name: ai_documents
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: 1024
+    chat:
+      memory:
+        repository:
+          jdbc:
+            table-name: ai_chat_memory
+
+management:
+  endpoints.web.exposure.include: health,info,prometheus
+  metrics.tags.application: ${spring.application.name}
+
+springdoc:
+  api-docs.enabled: true
+  swagger-ui.path: /swagger
