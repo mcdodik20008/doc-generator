@@ -6,12 +6,20 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface ChunkRepository : JpaRepository<Chunk, Long> {
+    fun findAllByApplicationId(
+        applicationId: Long,
+        pageable: Pageable,
+    ): Page<Chunk>
 
-    fun findAllByApplicationId(applicationId: Long, pageable: Pageable): Page<Chunk>
+    fun findAllByNodeId(
+        nodeId: Long,
+        pageable: Pageable,
+    ): Page<Chunk>
 
-    fun findAllByNodeId(nodeId: Long, pageable: Pageable): Page<Chunk>
-
-    fun findByApplicationIdAndContentHash(applicationId: Long, contentHash: String): Chunk?
+    fun findByApplicationIdAndContentHash(
+        applicationId: Long,
+        contentHash: String,
+    ): Chunk?
 
     fun deleteByApplicationId(applicationId: Long): Long
 }

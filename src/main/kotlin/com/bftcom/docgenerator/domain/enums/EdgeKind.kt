@@ -27,5 +27,5 @@ enum class EdgeKind {
     LOCKS,
     OPENTELEMETRY,
     USES_FEATURE,
-    DEPENDS_ON
+    DEPENDS_ON,
 }

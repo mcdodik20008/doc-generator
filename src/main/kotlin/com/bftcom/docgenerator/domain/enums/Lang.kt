@@ -2,7 +2,7 @@ package com.bftcom.docgenerator.domain.enums
 
 /**
  * Язык исходного артефакта.
- * 
+ *
  * Возможные значения:
  * - kotlin — код на Kotlin
  * - java — код на Java
@@ -17,5 +17,5 @@ enum class Lang {
     sql,
     yaml,
     md,
-    other
+    other,
 }

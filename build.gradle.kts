@@ -28,6 +28,10 @@ repositories {
 }
 
 dependencies {
+    // === AST/PSI для нашего графового билдера ===
+    implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21")
+    // Для K2-резолва позже включим строку ниже (и только когда дойдём до него):
+    // implementation("org.jetbrains.kotlin:kotlin-analysis-api-standalone:2.0.21")
 
     // ===== Core / Kotlin / JSON =====
     implementation("org.jetbrains.kotlin:kotlin-reflect")
@@ -45,16 +49,14 @@ dependencies {
 
     // ===== DB / Migrations =====
     implementation("io.hypersistence:hypersistence-utils-hibernate-62:3.7.2")
-//    implementation("com.vladmihalcea:hibernate-types-60:2.21.1")
     implementation("org.postgresql:postgresql")
     implementation("org.liquibase:liquibase-core")
 
-    // ===== Spring AI: models / vector store / memory / readers =====
+    // ===== Spring AI =====
     implementation("org.springframework.ai:spring-ai-starter-model-ollama")
     implementation("org.springframework.ai:spring-ai-starter-vector-store-pgvector")
     implementation("org.springframework.ai:spring-ai-starter-model-chat-memory-repository-jdbc")
     implementation("org.springframework.ai:spring-ai-markdown-document-reader")
-    // implementation("org.springframework.ai:spring-ai-tika-document-reader")
 
     // ===== Dev-only =====
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
@@ -62,18 +64,26 @@ dependencies {
 
     // ===== Testing =====
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.assertj:assertj-core:3.26.3")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation("io.mockk:mockk:1.13.13")
+    testImplementation("org.mockito:mockito-core:5.12.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.3.1")
 }
 
 dependencyManagement {
     imports { mavenBom("org.springframework.ai:spring-ai-bom:$springAiVersion") }
 }
 
-kotlin { compilerOptions { freeCompilerArgs.addAll("-Xjsr305=strict") } }
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xjsr305=strict")
+    }
+}
 
-tasks.withType<Test> { useJUnitPlatform() }
+tasks.test { useJUnitPlatform() }
