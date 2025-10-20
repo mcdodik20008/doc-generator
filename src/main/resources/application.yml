@@ -1,6 +1,17 @@
 server:
   port: 8080
 
+gitlab:
+  repoUrl: "https://gitlab.com/your-group/your-repo.git"
+  branch: "main"
+  username: "${GITLAB_USER}"     # можно задать env-переменными
+  password: "${GITLAB_TOKEN}"    # personal access token или пароль
+
+docgen:
+  appKey: "doc-generator-demo"   # ключ приложения для таблицы application
+  checkoutDir: "/tmp/docgen/repos/your-repo"  # локальная директория
+
+
 spring:
   application:
     name: doc-generator

@@ -47,6 +47,9 @@ dependencies {
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:2.6.0")
 
+    // ===== Git =====
+    implementation("org.eclipse.jgit:org.eclipse.jgit:6.10.0.202406032230-r")
+
     // ===== DB / Migrations =====
     implementation("io.hypersistence:hypersistence-utils-hibernate-62:3.7.2")
     implementation("org.postgresql:postgresql")

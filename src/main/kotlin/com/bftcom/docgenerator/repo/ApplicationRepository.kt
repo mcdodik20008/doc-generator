@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import java.util.Optional
 
 interface ApplicationRepository : JpaRepository<Application, Long> {
-    fun findByKey(key: String): Optional<Application>
+    fun findByKey(key: String): Application?
 
     fun existsByKey(key: String): Boolean
 }

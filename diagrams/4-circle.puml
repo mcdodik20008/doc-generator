@@ -1,0 +1,27 @@
+@startuml
+title Feedback Loop: Telemetry → Regenerate → Improve Profiles
+
+participant "UI" as UI
+participant "FeedbackAPI" as FB
+database "DB\n(node_doc_profiles.quality)" as DB
+participant "Scheduler\n(CRON)" as SCH
+participant "DriftDetector\n(staleness, diff)" as DRF
+participant "RegenOrchestrator\n(targeted)" as RG
+participant "LLM pool\n(Coder/Instruct/Speaker)" as LLM
+participant "Verifier\n(tests+facts)" as VF
+
+UI -> FB : POST /feedback {nodeId, goal, rating, comment, clickStats}
+FB -> DB : UPDATE quality JSONB\n(incr counts, helpfulness)
+
+SCH -> DRF : periodic check(appKey)
+DRF -> DB : compare code hashes vs profiles, low ratings, time decay
+DB --> DRF : stats
+DRF --> SCH : staleTargets[nodeIds by profile]
+
+SCH -> RG : run(staleTargets)
+RG -> LLM : regenerate(target.profile, freshContext)
+LLM --> RG : new_md
+RG -> VF : verify(new_md)
+VF --> RG : pass/fail + fixes
+RG -> DB : UPSERT node_doc_profiles (bump version, quality)
+@enduml
