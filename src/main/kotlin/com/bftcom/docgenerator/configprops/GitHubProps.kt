@@ -4,8 +4,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Configuration
 
 @Configuration
-@ConfigurationProperties(prefix = "gitlab")
-data class GitLabProps(
+@ConfigurationProperties(prefix = "github")
+data class GitHubProps(
     /** HTTPS URL репозитория */
     var repoUrl: String = "",
 
@@ -22,5 +22,5 @@ data class GitLabProps(
     var password: String = "",
 
     /** Путь, куда будет клонироваться проект */
-    var basePath: String = "/tmp/docgen/gitlab"
+    var basePath: String = "/tmp/docgen/github"
 )

@@ -1,0 +1,74 @@
+version: "3.9"
+
+name: doc-generator-stack
+
+services:
+  db:
+    image: pgvector/pgvector:pg16  # Postgres 16 + pgvector
+    container_name: docgen-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PG_DB}
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      TZ: Europe/Riga
+    ports:
+      - "${PG_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./infra/db/init:/docker-entrypoint-initdb.d:ro
+
+  # опционально: Qdrant (если планируешь гибридный поиск/векторы вне pgvector)
+#  qdrant:
+#    image: qdrant/qdrant:v1.11.0
+#    container_name: docgen-qdrant
+#    restart: unless-stopped
+#    volumes:
+#      - qdrant-data:/qdrant/storage
+#    ports:
+#      - "${QDRANT_PORT:-6333}:6333"
+
+  app:
+    # Вариант 1: у тебя есть Dockerfile в корне проекта
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Вариант 2 (закомментируй build): готовый образ, если собираешь Jib'ом в CI
+    # image: registry.local/doc-generator:latest
+    container_name: docgen-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${PG_DB}
+      SPRING_DATASOURCE_USERNAME: ${PG_USER}
+      SPRING_DATASOURCE_PASSWORD: ${PG_PASSWORD}
+      TZ: Europe/Riga
+
+      # ---- Git-интеграция (заполни по своему приложению) ----
+      DOCGEN_GIT_REMOTE: ${DOCGEN_GIT_REMOTE}            # ssh url: git@github.com:org/repo.git
+      DOCGEN_GIT_BRANCH: ${DOCGEN_GIT_BRANCH:-main}
+      DOCGEN_GIT_DEPTH: ${DOCGEN_GIT_DEPTH:-1}           # shallow clone
+      DOCGEN_GIT_POLL_INTERVAL: ${DOCGEN_GIT_POLL_INTERVAL:-PT5M}  # ISO-8601
+
+      # Если используешь PAT вместо SSH:
+      # DOCGEN_GIT_PAT: ${DOCGEN_GIT_PAT}
+
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      # кеш для git-клонов/индексации (ускоряет ingest)
+      - app-cache:/var/opt/docgen-cache
+      # SSH ключ как секрет (если идёшь через SSH-deploy key)
+      - github-deploy-key:/run/secrets/github_deploy_key:ro
+      - ./infra/ssh/known_hosts:/etc/ssh/ssh_known_hosts:ro
+
+volumes:
+  db-data:
+  qdrant-data:
+  app-cache:
+  github-deploy-key:

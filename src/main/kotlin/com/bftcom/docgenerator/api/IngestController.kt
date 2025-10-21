@@ -1,14 +1,24 @@
 package com.bftcom.docgenerator.api
 
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import com.bftcom.docgenerator.api.dto.IngestRunRequest
+import com.bftcom.docgenerator.ingest.IngestSummary
+import com.bftcom.docgenerator.ingest.GitLabIngestOrchestrator
+import jakarta.validation.Valid
+import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/internal/ingest")
 class IngestController(
-    private val orchestrator: IngestOrchestrator
+    private val orchestrator: GitLabIngestOrchestrator
 ) {
     @PostMapping("/run")
-    fun run(): IngestReport = orchestrator.runOnce()
+    fun run(@RequestBody @Valid req: IngestRunRequest): IngestSummary {
+        val summary: IngestSummary = orchestrator.runOnce(
+            appKey = req.appKey,
+            repoPath = req.repoPath(),
+            branch = req.branch,
+            depth = req.depth ?: 1
+        )
+        return summary
+    }
 }
