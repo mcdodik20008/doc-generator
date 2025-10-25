@@ -22,4 +22,6 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
     ): Chunk?
 
     fun deleteByApplicationId(applicationId: Long): Long
+
+    fun findTopByNodeIdOrderByCreatedAtDesc(nodeId: Long): Chunk?
 }

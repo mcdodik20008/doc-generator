@@ -23,6 +23,11 @@ class GitLabIngestOrchestrator(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    private fun resolveRepoUrl(baseUrlOrFull: String, repoPath: String): String =
+        if (repoPath.startsWith("http://") || repoPath.startsWith("https://") || repoPath.endsWith(".git"))
+            repoPath
+        else baseUrlOrFull.trimEnd('/') + "/" + repoPath.trimStart('/') + ".git"
+
     /**
      * 1) clone/pull GitLab (token ИЛИ username/password)
      * 2) ensure Application (key = repoName)
@@ -33,7 +38,7 @@ class GitLabIngestOrchestrator(
     fun runOnce(
         appKey: String,
         repoPath: String,        // "<group>/<name>"
-        branch: String? = null,
+        branch: String = "develop",
         depth: Int = 1
     ): IngestSummary {
         // --- 1) определить appKey и каталог выгрузки ---
@@ -41,9 +46,10 @@ class GitLabIngestOrchestrator(
 
         // --- 2) checkout (clone/pull) ---
         val localPath: Path = git.checkoutOrUpdate(
-            repoUrl = gitProps.repoUrl,
-            branch = gitProps.branch,
-            token = gitProps.token,            username = gitProps.username,
+            repoUrl = resolveRepoUrl(gitProps.url, repoPath),
+            branch = branch,
+            token = gitProps.token,
+            username = gitProps.username,
             password = gitProps.password,
             checkoutDir = checkoutDir
         )
@@ -58,23 +64,23 @@ class GitLabIngestOrchestrator(
         }
 
         // --- 3) ensure Application по ключу ---
-        val parsed = RepoUrlParser.parse(gitProps.repoUrl)
+        val parsed = RepoUrlParser.parse(gitProps.url)
         val app: Application = (appRepo.findByKey(appKey)
             ?: Application(
                 key = appKey,
                 name = parsed.name ?: appKey,
-                repoUrl = gitProps.repoUrl,
+                repoUrl = gitProps.url,
                 repoProvider = parsed.provider,
                 repoOwner = parsed.owner,
                 repoName = parsed.name,
-                defaultBranch = gitProps.branch,
+                defaultBranch = branch,
             )).apply {
             // держим актуальные метаданные
-            repoUrl = gitProps.repoUrl
+            repoUrl = gitProps.url
             repoProvider = parsed.provider
             repoOwner = parsed.owner
             repoName = parsed.name
-            defaultBranch = gitProps.branch
+            defaultBranch = branch
             lastCommitSha = headSha
             lastIndexedAt = OffsetDateTime.now()
             lastIndexStatus = "running"

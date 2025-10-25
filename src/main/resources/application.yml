@@ -2,18 +2,11 @@ server:
   port: 8080
 
 gitlab:
-  repoUrl: "https://gitlab.com/org/my-service.git"
-  branch: "main"
-#  token: "${GITLAB_TOKEN}"    # вариант с токеном
-  username: "${GITLAB_USER}"  # вариант user/pass
-  password: "${GITLAB_PASS}"
-  path: "/var/docgen/gitlab-repos"
-
-github:
-  repoUrl: "https://github.com/org/other-repo.git"
-  branch: "develop"
-  token: "${GITHUB_TOKEN}"
-  path: "/var/docgen/github-repos"
+  url: ${GITLAB_URL}
+  token: ${GITLAB_TOKEN}
+  username: ${GITLAB_USER_NAME}
+  password: ${GITLAB_PASSWORD}
+  base-path: ${GITLAB_STORE_PATH}
 
 spring:
   application:
@@ -38,6 +31,28 @@ spring:
       embedding:
         options:
           model: mxbai-embed-large
+
+    clients:
+      coder:
+        model: qwen2.5:7b
+        temperature: 0.1
+        top-p: 0.9
+        seed: 42
+        system: |
+          Ты — строгий инженер-кодер. Объясняй код без домыслов, пунктами, лаконично.
+          Структура: Purpose; Inputs; Outputs; Throws; SideEffects; Preconditions; Postconditions;
+          Concurrency; I/O; Calls/CalledBy; Complexity; EdgeCases; Invariants.
+          Запрещены предположения, если не следует из кода. Короткие формулировки.
+
+      talker:
+        model: qwen2.5:7b
+        temperature: 0.3
+        top-p: 0.9
+        seed: 42
+        system: |
+          Ты — технический писатель. Перепиши пояснение простой человеческой речью (3–6 предложений).
+          Избегай жаргона и повторов. Никаких домыслов сверх исходного текста. Отрази важные caveats.
+
     vectorstore:
       pgvector:
         initialize-schema: false

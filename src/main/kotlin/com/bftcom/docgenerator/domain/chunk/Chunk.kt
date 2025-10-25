@@ -11,6 +11,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import org.hibernate.annotations.ColumnTransformer
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import java.time.OffsetDateTime
@@ -50,12 +51,14 @@ class Chunk(
     // --- позиция/границы ---
     @Column(name = "chunk_index")
     var chunkIndex: Int? = null,
-    @JdbcTypeCode(SqlTypes.OTHER)
-    @Column(name = "span_lines")
-    var spanLines: String? = null, // int4range "[start,end]"
-    @JdbcTypeCode(SqlTypes.OTHER)
-    @Column(name = "span_chars")
-    var spanChars: String? = null, // int8range "[start,end]"
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "span_lines", columnDefinition = "int4range")
+    @ColumnTransformer(write = "?::int4range")
+    var spanLines: String? = null,
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "span_chars", columnDefinition = "int8range")
+    @ColumnTransformer(write = "?::int8range")
+    var spanChars: String? = null,
     // --- контекст ---
     @Column(name = "title")
     var title: String? = null,
@@ -68,7 +71,7 @@ class Chunk(
     var usedByMd: String? = null,
     // --- вектор и модель ---
     @JdbcTypeCode(SqlTypes.OTHER)
-    @Column(name = "emb", columnDefinition = "vector(1024)")
+    @Column(name = "emb", columnDefinition = "vector(1024)", insertable = false, updatable = false)
     var emb: FloatArray? = null,
     @Column(name = "embed_model")
     var embedModel: String? = null,

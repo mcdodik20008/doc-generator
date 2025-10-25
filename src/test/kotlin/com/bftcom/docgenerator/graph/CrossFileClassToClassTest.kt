@@ -73,7 +73,7 @@ class CrossFileClassToClassTest {
         whenever(chunkRepo.save(any())).thenAnswer { it.arguments[0] }
 
         val walker = KotlinSourceWalker()
-        val visitor = KotlinToDomainVisitor(app, nodeRepo, edgeRepo, chunkRepo)
+        val visitor = KotlinToDomainVisitor(app, nodeRepo, edgeRepo)
 
         walker.walk(src, visitor)
 

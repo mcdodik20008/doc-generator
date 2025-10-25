@@ -23,7 +23,11 @@ class GitCheckoutService {
         val dir = checkoutDir.toFile()
         dir.mkdirs()
 
-        val creds = UsernamePasswordCredentialsProvider(username, password)
+        val creds = runCatching {
+            UsernamePasswordCredentialsProvider(username, password)
+        }.recoverCatching {
+            UsernamePasswordCredentialsProvider("oauth2", token)
+        }.getOrThrow()
 
         // если уже клонировано — делаем pull
         val gitDir = File(dir, ".git")

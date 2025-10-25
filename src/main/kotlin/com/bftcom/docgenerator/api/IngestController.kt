@@ -16,7 +16,7 @@ class IngestController(
         val summary: IngestSummary = orchestrator.runOnce(
             appKey = req.appKey,
             repoPath = req.repoPath(),
-            branch = req.branch,
+            branch = req.branch ?: "develop",
             depth = req.depth ?: 1
         )
         return summary

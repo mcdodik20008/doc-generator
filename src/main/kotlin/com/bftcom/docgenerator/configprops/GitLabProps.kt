@@ -1,16 +1,14 @@
 package com.bftcom.docgenerator.configprops
 
+import jakarta.annotation.Priority
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Primary
 
-@Configuration
+@Primary
 @ConfigurationProperties(prefix = "gitlab")
 data class GitLabProps(
     /** HTTPS URL репозитория */
-    var repoUrl: String = "",
-
-    /** Ветка по умолчанию */
-    var branch: String = "main",
+    var url: String = "",
 
     /** Personal Access Token (если используется токен вместо user/pass) */
     var token: String = "",

@@ -13,9 +13,13 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
+import jakarta.persistence.PrePersist
+import jakarta.persistence.PreUpdate
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
+import org.hibernate.annotations.JdbcType
 import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.dialect.PostgreSQLEnumJdbcType
 import org.hibernate.type.SqlTypes
 import java.time.OffsetDateTime
 
@@ -40,13 +44,15 @@ class Node(
     var fqn: String, // Fully Qualified Name, уникален внутри application
     @Column
     var name: String? = null,
-    @Column
+    @Column("package")
     var packageName: String? = null, // "package" — зарезервировано в Kotlin, поэтому packageName
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcType(PostgreSQLEnumJdbcType::class)
+    @Column(name = "kind", nullable = false, columnDefinition = "doc_generator.node_kind")
     var kind: NodeKind,
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcType(PostgreSQLEnumJdbcType::class)
+    @Column(name = "lang", nullable = false, columnDefinition = "doc_generator.lang")
     var lang: Lang,
     // --- Иерархия ---
     @ManyToOne(fetch = FetchType.LAZY)
@@ -77,4 +83,16 @@ class Node(
     var createdAt: OffsetDateTime = OffsetDateTime.now(),
     @Column(name = "updated_at", nullable = false)
     var updatedAt: OffsetDateTime = OffsetDateTime.now(),
-)
+) {
+    @PrePersist
+    fun prePersist() {
+        val now = OffsetDateTime.now()
+        createdAt = now
+        updatedAt = now
+    }
+
+    @PreUpdate
+    fun preUpdate() {
+        updatedAt = OffsetDateTime.now()
+    }
+}

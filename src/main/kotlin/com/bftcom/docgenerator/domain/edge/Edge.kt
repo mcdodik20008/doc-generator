@@ -13,7 +13,9 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
+import org.hibernate.annotations.JdbcType
 import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.dialect.PostgreSQLEnumJdbcType
 import org.hibernate.type.SqlTypes
 import java.math.BigDecimal
 import java.time.OffsetDateTime
@@ -42,7 +44,8 @@ class Edge(
     var dst: Node,
     @Id
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcType(PostgreSQLEnumJdbcType::class) // <-- ДОБАВЬТЕ ЭТУ СТРОКУ
+    @Column(nullable = false, columnDefinition = "doc_generator.edge_kind")
     var kind: EdgeKind,
     // --- Свойства связи ---
     @JdbcTypeCode(SqlTypes.JSON)

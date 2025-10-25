@@ -26,7 +26,7 @@ class KotlinGraphBuilder(
         val edgesBefore = edgeRepo.count()
         val chunksBefore = chunkRepo.count()
 
-        val visitor = KotlinToDomainVisitor(application, nodeRepo, edgeRepo, chunkRepo)
+        val visitor = KotlinToDomainVisitor(application, nodeRepo, edgeRepo)
         kotlinWalker.walk(sourceRoot, visitor)
 
         val nodesAfter = nodeRepo.count()

@@ -1,6 +1,7 @@
 package com.bftcom.docgenerator.repo
 
 import com.bftcom.docgenerator.domain.node.Node
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface NodeRepository : JpaRepository<Node, Long> {
@@ -9,7 +10,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
         fqn: String,
     ): Node?
 
-    fun findAllByApplicationId(applicationId: Long): List<Node>
+    fun findAllByApplicationId(applicationId: Long, pageable: Pageable): List<Node>
 
     fun existsByApplicationIdAndFqn(
         applicationId: Long,

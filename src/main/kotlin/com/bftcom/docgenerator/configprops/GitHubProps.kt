@@ -1,9 +1,9 @@
 package com.bftcom.docgenerator.configprops
 
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Primary
 
-@Configuration
+@Primary
 @ConfigurationProperties(prefix = "github")
 data class GitHubProps(
     /** HTTPS URL репозитория */
