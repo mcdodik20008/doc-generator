@@ -17,7 +17,7 @@ class GitHubCheckoutService {
         username: String,
         password: String,
         token: String,
-        checkoutDir: Path
+        checkoutDir: Path,
     ): Path {
         val dir = checkoutDir.toFile()
         dir.mkdirs()
@@ -35,7 +35,8 @@ class GitHubCheckoutService {
         }
 
         log.info("Cloning {} into {} (branch={})", repoUrl, dir, branch)
-        Git.cloneRepository()
+        Git
+            .cloneRepository()
             .setURI(repoUrl)
             .setBranch(branch)
             .setDirectory(dir)

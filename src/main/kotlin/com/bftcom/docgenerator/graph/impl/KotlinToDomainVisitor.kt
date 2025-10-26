@@ -20,18 +20,20 @@ class KotlinToDomainVisitor(
     private val nodeRepo: NodeRepository,
     private val edgeRepo: EdgeRepository,
     // ToDo: ToSpringProps
-    private val noise: Set<String> = setOf("listOf","map","of","timer","start","stop")
+    private val noise: Set<String> = setOf("listOf", "map", "of", "timer", "start", "stop"),
 ) : RichSourceVisitor {
-
     // Кэши для быстрого доступа
-    private val packageByFqn = mutableMapOf<String, Node>()   // "foo" -> PACKAGE
-    private val typeByFqn    = mutableMapOf<String, Node>()   // "foo.A" -> CLASS/INTERFACE/ENUM/...
-    private val funcByFqn    = mutableMapOf<String, Node>()   // "foo.baz" / "foo.A.bar" -> METHOD
-    private val filePkg      = mutableMapOf<String, String>() // filePath -> "foo"
+    private val packageByFqn = mutableMapOf<String, Node>() // "foo" -> PACKAGE
+    private val typeByFqn = mutableMapOf<String, Node>() // "foo.A" -> CLASS/INTERFACE/ENUM/...
+    private val funcByFqn = mutableMapOf<String, Node>() // "foo.baz" / "foo.A.bar" -> METHOD
+    private val filePkg = mutableMapOf<String, String>() // filePath -> "foo"
 
     // -------------------- PACKAGE --------------------
 
-    override fun onPackage(pkgFqn: String, filePath: String) {
+    override fun onPackage(
+        pkgFqn: String,
+        filePath: String,
+    ) {
         filePkg[filePath] = pkgFqn
         packageByFqn.getOrPut(pkgFqn) {
             upsertNode(
@@ -77,44 +79,50 @@ class KotlinToDomainVisitor(
         signature: String?,
         docComment: String?,
     ) {
-        val pkgNode = packageByFqn.getOrPut(pkgFqn) {
+        val pkgNode =
+            packageByFqn.getOrPut(pkgFqn) {
+                upsertNode(
+                    fqn = pkgFqn,
+                    kind = NodeKind.PACKAGE,
+                    name = pkgFqn.substringAfterLast('.'),
+                    packageName = pkgFqn,
+                    parent = null,
+                    lang = Lang.kotlin,
+                    filePath = filePath,
+                    span = 1..1,
+                    signature = null,
+                    sourceCode = null,
+                    docComment = null,
+                    extraMeta = mapOf("pkgFqn" to pkgFqn, "source" to "onType:pkgAuto"),
+                )
+            }
+
+        val typeNode =
             upsertNode(
-                fqn = pkgFqn,
-                kind = NodeKind.PACKAGE,
-                name = pkgFqn.substringAfterLast('.'),
+                fqn = fqn,
+                kind = kind,
+                name = name,
                 packageName = pkgFqn,
-                parent = null,
+                parent = pkgNode,
                 lang = Lang.kotlin,
                 filePath = filePath,
-                span = 1..1,
-                signature = null,
-                sourceCode = null,
-                docComment = null,
-                extraMeta = mapOf("pkgFqn" to pkgFqn, "source" to "onType:pkgAuto"),
+                span = spanLines,
+                signature = signature,
+                sourceCode = sourceCode,
+                docComment = docComment,
+                extraMeta = mapOf("pkgFqn" to pkgFqn, "supertypesSimple" to supertypesSimple, "source" to "onType"),
             )
-        }
-
-        val typeNode = upsertNode(
-            fqn = fqn,
-            kind = kind,
-            name = name,
-            packageName = pkgFqn,
-            parent = pkgNode,
-            lang = Lang.kotlin,
-            filePath = filePath,
-            span = spanLines,
-            signature = signature,
-            sourceCode = sourceCode,
-            docComment = docComment,
-            extraMeta = mapOf("pkgFqn" to pkgFqn, "supertypesSimple" to supertypesSimple, "source" to "onType"),
-        )
         typeByFqn[fqn] = typeNode
     }
 
     // -------------------- FIELD (basic) --------------------
 
-    override fun onField(ownerFqn: String, name: String, filePath: String, spanLines: IntRange) =
-        onFieldEx(ownerFqn, name, filePath, spanLines, null, null)
+    override fun onField(
+        ownerFqn: String,
+        name: String,
+        filePath: String,
+        spanLines: IntRange,
+    ) = onFieldEx(ownerFqn, name, filePath, spanLines, null, null)
 
     // -------------------- FIELD (extended) --------------------
 
@@ -165,63 +173,77 @@ class KotlinToDomainVisitor(
         docComment: String?,
     ) {
         val pkgFqn = filePkg[filePath]
-        val fqn = when {
-            !ownerFqn.isNullOrBlank() -> "$ownerFqn.$name"
-            !pkgFqn.isNullOrBlank()   -> "$pkgFqn.$name"
-            else -> name
-        }
+        val fqn =
+            when {
+                !ownerFqn.isNullOrBlank() -> "$ownerFqn.$name"
+                !pkgFqn.isNullOrBlank() -> "$pkgFqn.$name"
+                else -> name
+            }
 
-        val sig = signature ?: buildString {
-            append(name); append('('); append(paramNames.joinToString(",")); append(')')
-        }
+        val sig =
+            signature ?: buildString {
+                append(name)
+                append('(')
+                append(paramNames.joinToString(","))
+                append(')')
+            }
         val callsFiltered = callsSimple.filterNot { it in noise }
 
-        val fnNode = upsertNode(
-            fqn = fqn,
-            kind = NodeKind.METHOD,
-            name = name,
-            packageName = pkgFqn,
-            parent = when {
-                ownerFqn != null -> typeByFqn[ownerFqn]
-                pkgFqn != null   -> packageByFqn[pkgFqn]
-                else             -> null
-            },
-            lang = Lang.kotlin,
-            filePath = filePath,
-            span = spanLines,
-            signature = sig,
-            sourceCode = sourceCode,
-            docComment = docComment,
-            extraMeta = mapOf(
-                "pkgFqn" to pkgFqn,
-                "ownerFqn" to ownerFqn,
-                "params" to paramNames,
-                "callsSimple" to callsFiltered,
-                "source" to "onFunction",
-            ),
-        )
+        val fnNode =
+            upsertNode(
+                fqn = fqn,
+                kind = NodeKind.METHOD,
+                name = name,
+                packageName = pkgFqn,
+                parent =
+                    when {
+                        ownerFqn != null -> typeByFqn[ownerFqn]
+                        pkgFqn != null -> packageByFqn[pkgFqn]
+                        else -> null
+                    },
+                lang = Lang.kotlin,
+                filePath = filePath,
+                span = spanLines,
+                signature = sig,
+                sourceCode = sourceCode,
+                docComment = docComment,
+                extraMeta =
+                    mapOf(
+                        "pkgFqn" to pkgFqn,
+                        "ownerFqn" to ownerFqn,
+                        "params" to paramNames,
+                        "callsSimple" to callsFiltered,
+                        "source" to "onFunction",
+                    ),
+            )
         funcByFqn[fqn] = fnNode
 
         // временные связи по простым именам до резолва FQN
         for (token in callsSimple) {
-            val candidates = when {
-                '.' in token -> {
-                    val (lhs, rhs) = token.split('.', limit = 2)
-                    if (lhs.contains('.')) listOf("$lhs.$rhs")
-                    else listOfNotNull(pkgFqn?.let { "$it.$lhs.$rhs" })
+            val candidates =
+                when {
+                    '.' in token -> {
+                        val (lhs, rhs) = token.split('.', limit = 2)
+                        if (lhs.contains('.')) {
+                            listOf("$lhs.$rhs")
+                        } else {
+                            listOfNotNull(pkgFqn?.let { "$it.$lhs.$rhs" })
+                        }
+                    }
+                    else ->
+                        buildList {
+                            if (!pkgFqn.isNullOrBlank()) add("$pkgFqn.$token")
+                            if (!ownerFqn.isNullOrBlank()) add("$ownerFqn.$token")
+                            add(token)
+                        }
                 }
-                else -> buildList {
-                    if (!pkgFqn.isNullOrBlank()) add("$pkgFqn.$token")
-                    if (!ownerFqn.isNullOrBlank()) add("$ownerFqn.$token")
-                    add(token)
-                }
-            }
 
-            val dst = candidates
-                .asSequence()
-                .mapNotNull { cfqn -> funcByFqn[cfqn] ?: nodeRepo.findByApplicationIdAndFqn(application.id!!, cfqn) }
-                .firstOrNull()
-                ?: continue
+            val dst =
+                candidates
+                    .asSequence()
+                    .mapNotNull { cfqn -> funcByFqn[cfqn] ?: nodeRepo.findByApplicationIdAndFqn(application.id!!, cfqn) }
+                    .firstOrNull()
+                    ?: continue
 
             runCatching { edgeRepo.save(Edge(src = fnNode, dst = dst, kind = EdgeKind.CALLS)) }
         }
@@ -263,24 +285,60 @@ class KotlinToDomainVisitor(
                     signature = signature,
                     codeHash = null,
                     meta = newMeta,
-                )
+                ),
             )
         } else {
             var changed = false
-            if (existing.name != name) { existing.name = name; changed = true }
-            if (existing.packageName != packageName) { existing.packageName = packageName; changed = true }
-            if (existing.kind != kind) { existing.kind = kind; changed = true }
-            if (existing.lang != lang) { existing.lang = lang; changed = true }
-            if ((existing.parent?.id) != (parent?.id)) { existing.parent = parent; changed = true }
-            if (existing.filePath != filePath) { existing.filePath = filePath; changed = true }
-            if (existing.lineStart != span?.first) { existing.lineStart = span?.first; changed = true }
-            if (existing.lineEnd != span?.last) { existing.lineEnd = span?.last; changed = true }
-            if (existing.sourceCode != sourceCode) { existing.sourceCode = sourceCode; changed = true }
-            if (existing.docComment != docComment) { existing.docComment = docComment; changed = true }
-            if (existing.signature != signature) { existing.signature = signature; changed = true }
+            if (existing.name != name) {
+                existing.name = name
+                changed = true
+            }
+            if (existing.packageName != packageName) {
+                existing.packageName = packageName
+                changed = true
+            }
+            if (existing.kind != kind) {
+                existing.kind = kind
+                changed = true
+            }
+            if (existing.lang != lang) {
+                existing.lang = lang
+                changed = true
+            }
+            if ((existing.parent?.id) != (parent?.id)) {
+                existing.parent = parent
+                changed = true
+            }
+            if (existing.filePath != filePath) {
+                existing.filePath = filePath
+                changed = true
+            }
+            if (existing.lineStart != span?.first) {
+                existing.lineStart = span?.first
+                changed = true
+            }
+            if (existing.lineEnd != span?.last) {
+                existing.lineEnd = span?.last
+                changed = true
+            }
+            if (existing.sourceCode != sourceCode) {
+                existing.sourceCode = sourceCode
+                changed = true
+            }
+            if (existing.docComment != docComment) {
+                existing.docComment = docComment
+                changed = true
+            }
+            if (existing.signature != signature) {
+                existing.signature = signature
+                changed = true
+            }
 
             val mergedMeta = (existing.meta + newMeta)
-            if (existing.meta != mergedMeta) { existing.meta = mergedMeta; changed = true }
+            if (existing.meta != mergedMeta) {
+                existing.meta = mergedMeta
+                changed = true
+            }
 
             if (changed) nodeRepo.save(existing) else existing
         }

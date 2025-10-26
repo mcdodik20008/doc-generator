@@ -14,24 +14,27 @@ import java.util.concurrent.ConcurrentHashMap
  */
 @Service
 class InMemoryChunkRunStore : ChunkRunStore {
-
     private val runs = ConcurrentHashMap<String, InternalRun>()
 
-    override fun create(applicationId: Long, strategy: String): ChunkRunStore.Run {
+    override fun create(
+        applicationId: Long,
+        strategy: String,
+    ): ChunkRunStore.Run {
         val runId = UUID.randomUUID().toString()
         val started = OffsetDateTime.now()
-        runs[runId] = InternalRun(
-            runId = runId,
-            applicationId = applicationId,
-            strategy = strategy,
-            state = "created",
-            processed = 0,
-            written = 0,
-            skipped = 0,
-            errors = mutableListOf(),
-            startedAt = started,
-            finishedAt = null
-        )
+        runs[runId] =
+            InternalRun(
+                runId = runId,
+                applicationId = applicationId,
+                strategy = strategy,
+                state = "created",
+                processed = 0,
+                written = 0,
+                skipped = 0,
+                errors = mutableListOf(),
+                startedAt = started,
+                finishedAt = null,
+            )
         return ChunkRunStore.Run(runId, started)
     }
 
@@ -39,7 +42,12 @@ class InMemoryChunkRunStore : ChunkRunStore {
         runs[runId]?.apply { state = "running" }
     }
 
-    override fun markCompleted(runId: String, processed: Long, written: Long, skipped: Long) {
+    override fun markCompleted(
+        runId: String,
+        processed: Long,
+        written: Long,
+        skipped: Long,
+    ) {
         runs[runId]?.apply {
             state = "completed"
             this.processed = processed
@@ -49,7 +57,10 @@ class InMemoryChunkRunStore : ChunkRunStore {
         }
     }
 
-    override fun markFailed(runId: String, e: Exception) {
+    override fun markFailed(
+        runId: String,
+        e: Exception,
+    ) {
         runs[runId]?.apply {
             state = "failed"
             errors += e.message ?: e.javaClass.simpleName
@@ -68,7 +79,7 @@ class InMemoryChunkRunStore : ChunkRunStore {
             skippedChunks = run.skipped,
             errors = run.errors.toList(),
             startedAt = run.startedAt,
-            finishedAt = run.finishedAt
+            finishedAt = run.finishedAt,
         )
     }
 
@@ -82,6 +93,6 @@ class InMemoryChunkRunStore : ChunkRunStore {
         var skipped: Long,
         val errors: MutableList<String>,
         val startedAt: OffsetDateTime,
-        var finishedAt: OffsetDateTime?
+        var finishedAt: OffsetDateTime?,
     )
 }

@@ -10,7 +10,10 @@ interface NodeRepository : JpaRepository<Node, Long> {
         fqn: String,
     ): Node?
 
-    fun findAllByApplicationId(applicationId: Long, pageable: Pageable): List<Node>
+    fun findAllByApplicationId(
+        applicationId: Long,
+        pageable: Pageable,
+    ): List<Node>
 
     fun existsByApplicationIdAndFqn(
         applicationId: Long,

@@ -18,16 +18,17 @@ class GitCheckoutService {
         token: String,
         username: String,
         password: String,
-        checkoutDir: Path
+        checkoutDir: Path,
     ): Path {
         val dir = checkoutDir.toFile()
         dir.mkdirs()
 
-        val creds = runCatching {
-            UsernamePasswordCredentialsProvider(username, password)
-        }.recoverCatching {
-            UsernamePasswordCredentialsProvider("oauth2", token)
-        }.getOrThrow()
+        val creds =
+            runCatching {
+                UsernamePasswordCredentialsProvider(username, password)
+            }.recoverCatching {
+                UsernamePasswordCredentialsProvider("oauth2", token)
+            }.getOrThrow()
 
         // если уже клонировано — делаем pull
         val gitDir = File(dir, ".git")
@@ -44,7 +45,8 @@ class GitCheckoutService {
         // иначе clone
         log.info("Cloning {} into {} (branch={})", repoUrl, dir, branch)
         try {
-            Git.cloneRepository()
+            Git
+                .cloneRepository()
                 .setURI(repoUrl)
                 .setBranch(branch)
                 .setDirectory(dir)

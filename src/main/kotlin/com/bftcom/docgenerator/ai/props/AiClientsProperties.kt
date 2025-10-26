@@ -9,7 +9,7 @@ import java.math.BigDecimal
 @ConfigurationProperties(prefix = "spring.ai.clients")
 data class AiClientsProperties(
     val coder: ClientProps,
-    val talker: ClientProps
+    val talker: ClientProps,
 ) {
     @Validated
     data class ClientProps(
@@ -17,6 +17,6 @@ data class AiClientsProperties(
         val temperature: Double? = null,
         val topP: Double? = null,
         val seed: Int? = null,
-        @field:NotBlank val system: String
+        @field:NotBlank val system: String,
     )
 }

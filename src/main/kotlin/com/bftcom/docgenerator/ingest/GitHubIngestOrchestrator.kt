@@ -21,7 +21,6 @@ class GitHubIngestOrchestrator(
     private val appRepo: ApplicationRepository,
     private val graphBuilder: GraphBuilder,
 ) {
-
     private val log = LoggerFactory.getLogger(javaClass)
 
     /**
@@ -36,67 +35,78 @@ class GitHubIngestOrchestrator(
         val localPath: Path = Path.of(ghProps.basePath, appName)
 
         // --- 2) клонирование / обновление репозитория ---
-        val actualPath = git.checkoutOrUpdate(
-            repoUrl = ghProps.repoUrl,
-            branch = ghProps.branch,
-            token = ghProps.token,
-            username = ghProps.username,
-            password = ghProps.password,
-            checkoutDir = localPath
-        )
+        val actualPath =
+            git.checkoutOrUpdate(
+                repoUrl = ghProps.repoUrl,
+                branch = ghProps.branch,
+                token = ghProps.token,
+                username = ghProps.username,
+                password = ghProps.password,
+                checkoutDir = localPath,
+            )
         log.info("✅ Repo checked out at {}", actualPath)
 
         // --- 3) извлекаем текущий HEAD SHA ---
-        val headSha = try {
-            Git.open(actualPath.toFile()).use { g -> g.repository.resolve("HEAD")?.name }
-        } catch (e: Exception) {
-            log.warn("Cannot read HEAD SHA: ${e.message}")
-            null
-        }
+        val headSha =
+            try {
+                Git.open(actualPath.toFile()).use { g -> g.repository.resolve("HEAD")?.name }
+            } catch (e: Exception) {
+                log.warn("Cannot read HEAD SHA: ${e.message}")
+                null
+            }
 
         // --- 4) ensure Application ---
         val parsed = RepoUrlParser.parse(ghProps.repoUrl)
-        val app = (appRepo.findByKey(appName)
-            ?: Application(
-                key = appName,
-                name = parsed.name ?: appName,
-                repoUrl = ghProps.repoUrl,
-                repoProvider = parsed.provider,
-                repoOwner = parsed.owner,
-                repoName = parsed.name,
-                defaultBranch = ghProps.branch,
-            )).apply {
-            repoUrl = ghProps.repoUrl
-            repoProvider = parsed.provider
-            repoOwner = parsed.owner
-            repoName = parsed.name
-            lastCommitSha = headSha
-            lastIndexStatus = "running"
-            lastIndexedAt = OffsetDateTime.now()
-            updatedAt = OffsetDateTime.now()
-        }
+        val app =
+            (
+                appRepo.findByKey(appName)
+                    ?: Application(
+                        key = appName,
+                        name = parsed.name ?: appName,
+                        repoUrl = ghProps.repoUrl,
+                        repoProvider = parsed.provider,
+                        repoOwner = parsed.owner,
+                        repoName = parsed.name,
+                        defaultBranch = ghProps.branch,
+                    )
+            ).apply {
+                repoUrl = ghProps.repoUrl
+                repoProvider = parsed.provider
+                repoOwner = parsed.owner
+                repoName = parsed.name
+                lastCommitSha = headSha
+                lastIndexStatus = "running"
+                lastIndexedAt = OffsetDateTime.now()
+                updatedAt = OffsetDateTime.now()
+            }
 
         val saved = appRepo.save(app)
         log.info("📇 Using application id={} key={}", saved.id, saved.key)
 
         // --- 5) сборка графа ---
-        val build: BuildResult = try {
-            graphBuilder.build(saved, actualPath).also {
-                saved.lastIndexStatus = "success"
+        val build: BuildResult =
+            try {
+                graphBuilder.build(saved, actualPath).also {
+                    saved.lastIndexStatus = "success"
+                    saved.lastIndexedAt = OffsetDateTime.now()
+                    appRepo.save(saved)
+                }
+            } catch (e: Exception) {
+                saved.lastIndexStatus = "failed"
+                saved.lastIndexError = e.message
                 saved.lastIndexedAt = OffsetDateTime.now()
                 appRepo.save(saved)
+                throw e
             }
-        } catch (e: Exception) {
-            saved.lastIndexStatus = "failed"
-            saved.lastIndexError = e.message
-            saved.lastIndexedAt = OffsetDateTime.now()
-            appRepo.save(saved)
-            throw e
-        }
 
         val took = Duration.between(build.startedAt, build.finishedAt)
-        log.info("📦 Build done: nodes={}, edges={}, chunks={}, took={} ms",
-            build.nodes, build.edges, build.chunks, took.toMillis())
+        log.info(
+            "📦 Build done: nodes={}, edges={}, chunks={}, took={} ms",
+            build.nodes,
+            build.edges,
+            build.chunks,
+            took.toMillis(),
+        )
 
         // --- 6) итог ---
         return IngestSummary(
@@ -108,7 +118,7 @@ class GitHubIngestOrchestrator(
             chunks = build.chunks,
             startedAt = build.startedAt,
             finishedAt = build.finishedAt,
-            tookMs = took.toMillis()
+            tookMs = took.toMillis(),
         )
     }
 

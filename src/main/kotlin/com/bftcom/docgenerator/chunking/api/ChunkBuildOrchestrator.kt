@@ -6,5 +6,6 @@ import com.bftcom.docgenerator.chunking.model.ChunkRunHandle
 
 interface ChunkBuildOrchestrator {
     fun start(req: ChunkBuildRequest): ChunkRunHandle
+
     fun status(runId: String): ChunkBuildStatusDto
 }

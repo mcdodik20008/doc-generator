@@ -15,7 +15,6 @@ import java.util.concurrent.TimeUnit
 
 @Configuration
 class RestClientConfig {
-
     /**
      * Бин №1.
      * Создаем саму "фабрику" HTTP-клиентов на Apache HC5.
@@ -23,38 +22,43 @@ class RestClientConfig {
      */
     @Bean
     fun httpComponentsClientHttpRequestFactory(): ClientHttpRequestFactory {
-
         // 1. Настраиваем пул соединений
-        val connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
-            // Настройка keep-alive (SO_KEEPALIVE)
-            .setDefaultSocketConfig(
-                SocketConfig.custom()
-                    .setSoKeepAlive(true)
-                    .build()
-            )
-            .setMaxConnTotal(200) // Макс. соединений всего
-            .setMaxConnPerRoute(50) // Макс. соединений на один хост (например, на твой Ollama)
-            .setConnectionTimeToLive(TimeValue.ofMinutes(10)) // Как долго соединение может жить в пуле
-            .build()
+        val connectionManager =
+            PoolingHttpClientConnectionManagerBuilder
+                .create()
+                // Настройка keep-alive (SO_KEEPALIVE)
+                .setDefaultSocketConfig(
+                    SocketConfig
+                        .custom()
+                        .setSoKeepAlive(true)
+                        .build(),
+                ).setMaxConnTotal(200) // Макс. соединений всего
+                .setMaxConnPerRoute(50) // Макс. соединений на один хост (например, на твой Ollama)
+                .setConnectionTimeToLive(TimeValue.ofMinutes(10)) // Как долго соединение может жить в пуле
+                .build()
 
         // 2. Настраиваем таймауты
-        val requestConfig = RequestConfig.custom()
-            // Таймаут на ПОДКЛЮЧЕНИЕ к Ollama
-            .setConnectTimeout(Timeout.ofSeconds(5))
-            // Таймаут на получение соединения ИЗ ПУЛА
-            .setConnectionRequestTimeout(Timeout.ofSeconds(5))
-            // !!! ГЛАВНЫЙ ФИКС !!!
-            // Таймаут на ОЖИДАНИЕ ОТВЕТА (ReadTimeout)
-            .setResponseTimeout(Timeout.ofMinutes(5)) // <-- Ставим 5 минут. Можешь ставить 10.
-            .build()
+        val requestConfig =
+            RequestConfig
+                .custom()
+                // Таймаут на ПОДКЛЮЧЕНИЕ к Ollama
+                .setConnectTimeout(Timeout.ofSeconds(5))
+                // Таймаут на получение соединения ИЗ ПУЛА
+                .setConnectionRequestTimeout(Timeout.ofSeconds(5))
+                // !!! ГЛАВНЫЙ ФИКС !!!
+                // Таймаут на ОЖИДАНИЕ ОТВЕТА (ReadTimeout)
+                .setResponseTimeout(Timeout.ofMinutes(5)) // <-- Ставим 5 минут. Можешь ставить 10.
+                .build()
 
         // 3. Собираем HTTP-клиент
-        val httpClient = HttpClients.custom()
-            .setConnectionManager(connectionManager)
-            .setDefaultRequestConfig(requestConfig)
-            // Периодически чистим "мертвые" соединения из пула
-            .evictIdleConnections(TimeValue.ofSeconds(30))
-            .build()
+        val httpClient =
+            HttpClients
+                .custom()
+                .setConnectionManager(connectionManager)
+                .setDefaultRequestConfig(requestConfig)
+                // Периодически чистим "мертвые" соединения из пула
+                .evictIdleConnections(TimeValue.ofSeconds(30))
+                .build()
 
         // 4. Оборачиваем его в фабрику, понятную Spring
         return HttpComponentsClientHttpRequestFactory(httpClient)
@@ -67,9 +71,8 @@ class RestClientConfig {
      * и "подсунет" ему нашу крутую фабрику.
      */
     @Bean
-    fun aiRestClientCustomizer(factory: ClientHttpRequestFactory): RestClientCustomizer {
-        return RestClientCustomizer { restClientBuilder ->
+    fun aiRestClientCustomizer(factory: ClientHttpRequestFactory): RestClientCustomizer =
+        RestClientCustomizer { restClientBuilder ->
             restClientBuilder.requestFactory(factory)
         }
-    }
 }

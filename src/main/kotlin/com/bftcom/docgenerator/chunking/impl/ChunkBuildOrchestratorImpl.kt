@@ -13,9 +13,9 @@ import org.slf4j.MDC
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
-import kotlin.math.max
 import java.time.Duration
 import java.time.Instant
+import kotlin.math.max
 
 @Service
 class ChunkBuildOrchestratorImpl(
@@ -25,7 +25,6 @@ class ChunkBuildOrchestratorImpl(
     private val runStore: ChunkRunStore,
     private val strategies: Map<String, ChunkStrategy>,
 ) : ChunkBuildOrchestrator {
-
     private val log = LoggerFactory.getLogger(javaClass)
 
     override fun start(req: ChunkBuildRequest): ChunkRunHandle {
@@ -49,14 +48,14 @@ class ChunkBuildOrchestratorImpl(
 
             log.info(
                 "Chunks run START " +
-                        "(applicationId={}, strategy={}, dryRun={}, limitNodes={}, batchSize={}, includeKinds={}, withEdgesRelations={})",
+                    "(applicationId={}, strategy={}, dryRun={}, limitNodes={}, batchSize={}, includeKinds={}, withEdgesRelations={})",
                 req.applicationId,
                 req.strategy,
                 req.dryRun,
                 req.limitNodes,
                 pageSize,
                 req.includeKinds,
-                req.withEdgesRelations
+                req.withEdgesRelations,
             )
 
             val kindsFilter = req.includeKinds
@@ -73,7 +72,9 @@ class ChunkBuildOrchestratorImpl(
                 pages++
                 log.debug(
                     "Fetched page={}, size={}, totalElements={}",
-                    page, nodes.size, pageData.size,
+                    page,
+                    nodes.size,
+                    pageData.size,
                 )
 
                 for (n in nodes) {
@@ -103,7 +104,10 @@ class ChunkBuildOrchestratorImpl(
                     if (result.written + result.skipped > 0) {
                         log.trace(
                             "Saved chunks for node fqn={} result: written={}, skipped={} (plan={})",
-                            n.fqn, result.written, result.skipped, plan.size
+                            n.fqn,
+                            result.written,
+                            result.skipped,
+                            plan.size,
                         )
                     }
                 }
@@ -121,7 +125,12 @@ class ChunkBuildOrchestratorImpl(
             runStore.markCompleted(run.runId, processed, written, skipped)
             log.info(
                 "Chunks run DONE: processedNodes={}, writtenChunks={}, skippedChunks={}, pages={}, duration={} ms, rate={} nodes/s",
-                processed, written, skipped, pages, dt.toMillis(), "%.2f".format(rate)
+                processed,
+                written,
+                skipped,
+                pages,
+                dt.toMillis(),
+                "%.2f".format(rate),
             )
         } catch (e: Exception) {
             runStore.markFailed(run.runId, e)
@@ -130,7 +139,7 @@ class ChunkBuildOrchestratorImpl(
                 processed,
                 written,
                 skipped,
-                e
+                e,
             )
             throw e
         } finally {

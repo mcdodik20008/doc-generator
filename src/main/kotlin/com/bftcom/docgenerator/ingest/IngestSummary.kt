@@ -11,5 +11,5 @@ data class IngestSummary(
     val chunks: Int,
     val startedAt: OffsetDateTime,
     val finishedAt: OffsetDateTime,
-    val tookMs: Long
+    val tookMs: Long,
 )

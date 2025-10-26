@@ -9,5 +9,8 @@ interface ChunkStrategy {
      * На вход — Node + связанные исходящие рёбра (для enrichment).
      * На выход — список планов на запись чанков (без сайд-эффектов).
      */
-    fun buildChunks(node: Node, edges: List<Edge>): List<ChunkPlan>
+    fun buildChunks(
+        node: Node,
+        edges: List<Edge>,
+    ): List<ChunkPlan>
 }

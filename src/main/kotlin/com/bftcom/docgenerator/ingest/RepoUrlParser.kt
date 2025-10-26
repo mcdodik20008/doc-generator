@@ -8,13 +8,14 @@ object RepoUrlParser {
         return try {
             val uri = URI(repoUrl)
             val host = (uri.host ?: "").lowercase()
-            val provider = when {
-                "gitlab" in host -> "gitlab"
-                "github" in host -> "github"
-                "bitbucket" in host -> "bitbucket"
-                "gitea" in host -> "gitea"
-                else -> "other"
-            }
+            val provider =
+                when {
+                    "gitlab" in host -> "gitlab"
+                    "github" in host -> "github"
+                    "bitbucket" in host -> "bitbucket"
+                    "gitea" in host -> "gitea"
+                    else -> "other"
+                }
             // path like: /group/subgroup/repo.git
             val parts = uri.path.trim('/').split('/')
             val nameRaw = parts.lastOrNull()?.removeSuffix(".git")
