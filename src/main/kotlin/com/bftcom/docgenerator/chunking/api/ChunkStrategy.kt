@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.chunking
+package com.bftcom.docgenerator.chunking.api
 
 import com.bftcom.docgenerator.chunking.model.ChunkPlan
 import com.bftcom.docgenerator.domain.edge.Edge

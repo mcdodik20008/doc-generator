@@ -46,6 +46,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:2.6.0")
+    implementation("org.apache.httpcomponents.client5:httpclient5:5.3.1")
 
     // ===== Git =====
     implementation("org.eclipse.jgit:org.eclipse.jgit:6.10.0.202406032230-r")
@@ -60,6 +61,7 @@ dependencies {
     implementation("org.springframework.ai:spring-ai-starter-vector-store-pgvector")
     implementation("org.springframework.ai:spring-ai-starter-model-chat-memory-repository-jdbc")
     implementation("org.springframework.ai:spring-ai-markdown-document-reader")
+    implementation("org.springframework.ai:spring-ai-starter-model-openai")
 
     // ===== Dev-only =====
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")

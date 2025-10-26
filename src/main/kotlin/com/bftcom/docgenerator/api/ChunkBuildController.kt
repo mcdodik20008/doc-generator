@@ -3,7 +3,7 @@ package com.bftcom.docgenerator.api
 import com.bftcom.docgenerator.api.dto.ChunkBuildRequest
 import com.bftcom.docgenerator.api.dto.ChunkBuildResponse
 import com.bftcom.docgenerator.api.dto.ChunkBuildStatusDto
-import com.bftcom.docgenerator.chunking.ChunkBuildOrchestrator
+import com.bftcom.docgenerator.chunking.api.ChunkBuildOrchestrator
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable

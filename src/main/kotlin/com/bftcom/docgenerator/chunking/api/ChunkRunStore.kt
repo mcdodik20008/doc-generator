@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.chunking
+package com.bftcom.docgenerator.chunking.api
 
 import com.bftcom.docgenerator.api.dto.ChunkBuildStatusDto
 import java.time.OffsetDateTime

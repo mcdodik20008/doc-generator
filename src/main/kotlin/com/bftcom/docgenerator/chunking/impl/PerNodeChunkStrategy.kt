@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.chunking.impl
 
-import com.bftcom.docgenerator.chunking.model.ChunkPlan
-import com.bftcom.docgenerator.chunking.ChunkStrategy
+import com.bftcom.docgenerator.chunking.api.ChunkStrategy
+import com.bftcom.docgenerator.chunking.model.*
 import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.node.Node
@@ -9,61 +9,79 @@ import org.springframework.stereotype.Component
 
 @Component("per-node")
 class PerNodeChunkStrategy : ChunkStrategy {
+
     override fun buildChunks(node: Node, edges: List<Edge>): List<ChunkPlan> {
-        val plans = mutableListOf<ChunkPlan>()
-
-        node.sourceCode?.let { code ->
-            val relations: List<Map<String, Any>> = edges.filter { it.kind == EdgeKind.CALLS }.map { e ->
-                mapOf("kind" to "CALLS", "dst_node_id" to e.dst.id, "confidence" to 0.7) as Map<String, Any>
-            }
-
-            val sectionPath = buildList {
-                node.packageName?.split('.')?.let { addAll(it) }
-                node.name?.let { add(it) }
-            }
-
-            plans += ChunkPlan(
-                source = "code",
-                kind = "snippet",
-                content = code,
-                langDetected = node.lang.name,
-                spanLines = rangeClosed(node.lineStart, node.lineEnd),
-                title = node.fqn,
-                sectionPath = sectionPath,
-                relations = relations,
-                usedObjects = emptyList(),
-                pipeline = mapOf("strategy" to "per-node", "from" to "node.sourceCode"),
-                node = node
-            )
+        val hasDoc = !node.signature.isNullOrBlank() || !node.docComment.isNullOrBlank()
+        val sectionPath = buildList {
+            node.packageName?.split('.')?.let { addAll(it) }
+            node.name?.let { add(it) }
         }
 
-        // пример doc-чанка из сигнатуры/коммента
-        if (!node.signature.isNullOrBlank() || !node.docComment.isNullOrBlank()) {
-            val md = buildString {
-                node.signature?.let { appendLine("**Signature:** `$it`") }
-                node.docComment?.let { appendLine(); appendLine(it.trim()) }
-            }.ifBlank { null }
+        val relations = edges.asSequence()
+            .filter { it.kind == EdgeKind.CALLS }
+            .map { e -> RelationHint(kind = "CALLS", dstNodeId = e.dst.id ?: -1, confidence = 0.7) }
+            .toList()
 
-            if (md != null) {
-                plans += ChunkPlan(
+        return listOf(
+            if (hasDoc) {
+                // 1) DOC-чанк (эксплейнер из сигнатуры/док-коммента)
+                ChunkPlan(
+                    id = chunkId(node, source = "doc", kind = "explanation"),
+                    nodeId = node.id!!,
                     source = "doc",
                     kind = "explanation",
-                    content = md,
-                    langDetected = "ru",
-                    spanLines = rangeClosed(node.lineStart, node.lineEnd),
+                    lang = "ru",
+                    spanLines = toRange(node.lineStart, node.lineEnd),
                     title = node.fqn,
-                    sectionPath = listOfNotNull(node.packageName, node.name).flatMap { it.split('.') },
-                    relations = emptyList(),
-                    usedObjects = emptyList(),
-                    pipeline = mapOf("strategy" to "per-node", "from" to "signature+docComment"),
+                    sectionPath = sectionPath,
+                    relations = relations, // можно и пусто — по вкусу
+                    pipeline = PipelinePlan(
+                        stages = listOf("render-doc", "embed", "link-edges"),
+                        params = mapOf(
+                            // только лёгкие данные; тяжёлый контент НЕ кладём
+                            "signature" to (node.signature ?: ""),
+                            "hasDocComment" to (!node.docComment.isNullOrBlank())
+                        ),
+                        service = ServiceMeta(strategy = "per-node", priority = priorityFor(node))
+                    ),
+                    node = node
+                )
+            } else {
+                // 2) CODE-чанк (когда нет документации)
+                ChunkPlan(
+                    id = chunkId(node, source = "code", kind = "snippet"),
+                    nodeId = node.id!!,
+                    source = "code",
+                    kind = "snippet",
+                    lang = node.lang.name,
+                    spanLines = toRange(node.lineStart, node.lineEnd),
+                    title = node.fqn,
+                    sectionPath = sectionPath,
+                    relations = relations,
+                    pipeline = PipelinePlan(
+                        stages = listOf("extract-snippet", "summarize", "embed", "link-edges"),
+                        params = mapOf(
+                            "filePath" to (node.filePath ?: ""),
+                            "hasSourceInNode" to (node.sourceCode != null)
+                        ),
+                        service = ServiceMeta(strategy = "per-node", priority = priorityFor(node))
+                    ),
                     node = node
                 )
             }
-        }
-
-        return plans
+        )
     }
 
-    private fun rangeClosed(s: Int?, e: Int?): String? =
-        if (s == null || e == null) null else "[${minOf(s,e)},${maxOf(s,e)}]"
+    private fun toRange(s: Int?, e: Int?): IntRange? =
+        if (s == null || e == null) null else minOf(s, e)..maxOf(s, e)
+
+    private fun chunkId(node: Node, source: String, kind: String): String =
+        "${node.id}:${source}:${kind}" // детерминированный ID для 1:1 соответствия
+
+    private fun priorityFor(node: Node): Int =
+        when (node.kind.name) {
+            "ENDPOINT", "METHOD" -> 10
+            "CLASS"              -> 5
+            else                 -> 0
+        }
 }

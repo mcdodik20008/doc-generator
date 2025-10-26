@@ -4,24 +4,23 @@ import com.bftcom.docgenerator.domain.chunk.Chunk
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 
 interface ChunkRepository : JpaRepository<Chunk, Long> {
-    fun findAllByApplicationId(
-        applicationId: Long,
-        pageable: Pageable,
-    ): Page<Chunk>
 
-    fun findAllByNodeId(
-        nodeId: Long,
-        pageable: Pageable,
-    ): Page<Chunk>
-
-    fun findByApplicationIdAndContentHash(
-        applicationId: Long,
-        contentHash: String,
-    ): Chunk?
-
-    fun deleteByApplicationId(applicationId: Long): Long
+    @Query(
+        value = """
+            SELECT *
+            FROM doc_generator.chunk
+            WHERE content_raw IS NULL
+            ORDER BY created_at
+            LIMIT :limit
+            FOR UPDATE SKIP LOCKED
+        """,
+        nativeQuery = true
+    )
+    fun lockNextBatchForRawFill(@Param("limit") limit: Int): List<Chunk>
 
     fun findTopByNodeIdOrderByCreatedAtDesc(nodeId: Long): Chunk?
 }
