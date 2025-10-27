@@ -70,8 +70,7 @@ class Chunk(
     @Column(name = "used_by_md", columnDefinition = "text")
     var usedByMd: String? = null,
     // --- вектор и модель ---
-    @JdbcTypeCode(SqlTypes.OTHER)
-    @Column(name = "emb", columnDefinition = "vector(1024)", insertable = false, updatable = false)
+    @jakarta.persistence.Transient
     var emb: FloatArray? = null,
     @Column(name = "embed_model")
     var embedModel: String? = null,
