@@ -8,21 +8,9 @@ import org.springframework.data.jpa.repository.Query
 
 interface EdgeRepository : JpaRepository<Edge, Long> {
     fun findAllBySrcId(srcId: Long): List<Edge>
-
     fun findAllByDstId(dstId: Long): List<Edge>
-
-    fun findAllByKind(kind: EdgeKind): List<Edge>
-
-    fun existsBySrcIdAndDstIdAndKind(
-        srcId: Long,
-        dstId: Long,
-        kind: EdgeKind,
-    ): Boolean
-
-    @Modifying
-    @Query("delete from Edge e where e.src.id = :srcId and e.kind in :kinds")
-    fun deleteOutgoingOfKinds(
-        srcId: Long,
-        kinds: Collection<EdgeKind>,
-    )
+    fun findAllBySrcIdIn(srcIds: Set<Long>): List<Edge>
+    fun findAllByDstIdIn(dstIds: Set<Long>): List<Edge>
+    fun findAllBySrcIdAndDstIdIn(srcId: Long, dstIds: Set<Long>): List<Edge>
+    fun findAllByDstIdAndSrcIdIn(dstId: Long, srcIds: Set<Long>): List<Edge>
 }

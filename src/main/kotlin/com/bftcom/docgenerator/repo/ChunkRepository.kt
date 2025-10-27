@@ -107,4 +107,5 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
         nativeQuery = true,
     )
     fun updateEmb(@Param("id") id: Long, @Param("embLiteral") embLiteral: String): Int
+    fun findByNodeId(nodeId: Long): MutableList<Chunk>
 }

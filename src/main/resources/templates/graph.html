@@ -1,0 +1,169 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8"/>
+    <title>Node Chunk Graph</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+
+        #app {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            height: 100%;
+        }
+
+        #cy {
+            width: 100%;
+            height: 100%;
+        }
+
+        #panel {
+            border-left: 1px solid #eee;
+            padding: 12px;
+            overflow: auto;
+        }
+
+        .muted {
+            color: #777;
+            font-size: 12px;
+        }
+    </style>
+    <!-- Можно через CDN или положить в /static/js/cytoscape.min.js -->
+    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+</head>
+<body>
+<div id="app">
+    <div id="cy"></div>
+    <div id="panel">
+        <div>
+            <label>Application ID</label>
+            <input id="appId" type="number" value="14" style="width:100%"/>
+            <label>Node kinds (comma)</label>
+            <input id="kinds" type="text" value="CLASS,METHOD" style="width:100%"/>
+            <label>Limit</label>
+            <input id="limit" type="number" value="500" style="width:100%"/>
+            <button id="loadBtn">Load</button>
+        </div>
+        <hr/>
+        <div id="nodeDetails" class="muted">Click node to see details…</div>
+    </div>
+</div>
+
+<script>
+    let cy;
+
+    async function fetchGraph(appId, kinds, limit) {
+        const params = new URLSearchParams({
+            applicationId: appId,
+            limit: limit,
+            kinds: kinds.filter(k => k).join('&kinds=')
+        });
+        const res = await fetch(`/api/graph/chunks?${params.toString()}`);
+        if (!res.ok) throw new Error('Failed to load graph');
+        return res.json();
+    }
+
+    async function fetchDetails(id) {
+        const res = await fetch(`/api/chunks/${encodeURIComponent(id)}`);
+        if (!res.ok) throw new Error('Failed to load details');
+        return res.json();
+    }
+
+    function toCyElements(graph) {
+        const nodes = graph.nodes.map(n => ({
+            data: {
+                id: n.id,
+                label: n.label,
+                kind: n.kind,
+                group: n.group,
+                size: n.size || 20
+            }
+        }));
+        const edges = graph.edges.map(e => ({
+            data: {
+                id: e.id,
+                source: e.source,
+                target: e.target,
+                kind: e.kind,
+                weight: e.weight || 1
+            }
+        }));
+        return {nodes, edges};
+    }
+
+    function initCy() {
+        cy = cytoscape({
+            container: document.getElementById('cy'),
+            elements: [],
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'label': 'data(label)',
+                        'font-size': 8,
+                        'background-color': '#7dafff',
+                        'width': 'mapData(size, 10, 200, 10, 60)',
+                        'height': 'mapData(size, 10, 200, 10, 60)'
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'line-color': '#ccc',
+                        'width': 'mapData(weight, 1, 10, 1, 6)',
+                        'curve-style': 'bezier',
+                        'target-arrow-shape': 'triangle',
+                        'target-arrow-color': '#ccc'
+                    }
+                },
+                {selector: 'node[kind = "METHOD"]', style: {'background-color': '#9fd'}},
+                {selector: 'node[kind = "CLASS"]', style: {'background-color': '#fc9'}},
+                {selector: ':selected', style: {'border-width': 3, 'border-color': '#333'}}
+            ],
+            layout: {name: 'cose', animate: false}
+        });
+
+        cy.on('tap', 'node', async (evt) => {
+            const n = evt.target;
+            document.getElementById('nodeDetails').textContent = 'Loading…';
+            try {
+                const d = await fetchDetails(n.id());
+                document.getElementById('nodeDetails').innerHTML =
+                    `<b>${n.data('label')}</b><br/>
+           <span class="muted">${n.data('kind')} • ${n.data('group') || ''}</span><br/><br/>
+           <pre>${escapeHtml(JSON.stringify(d, null, 2))}</pre>`;
+            } catch (e) {
+                document.getElementById('nodeDetails').textContent = String(e);
+            }
+        });
+    }
+
+    function escapeHtml(s) {
+        return s.replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]))
+    }
+
+    async function loadGraph() {
+        const appId = Number(document.getElementById('appId').value);
+        const kinds = document.getElementById('kinds').value.split(',').map(s => s.trim()).filter(Boolean);
+        const limit = Number(document.getElementById('limit').value);
+        const g = await fetchGraph(appId, kinds, limit);
+        const {nodes, edges} = toCyElements(g);
+        cy.elements().remove();
+        cy.add(nodes).add(edges);
+        cy.layout({name: 'cose', animate: false}).run();
+        cy.fit(undefined, 20);
+    }
+
+    document.getElementById('loadBtn').addEventListener('click', loadGraph);
+
+    (function bootstrap() {
+        initCy();
+        loadGraph().catch(console.error);
+    })();
+</script>
+</body>
+</html>

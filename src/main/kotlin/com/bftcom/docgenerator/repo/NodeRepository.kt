@@ -1,5 +1,6 @@
 package com.bftcom.docgenerator.repo
 
+import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
@@ -14,9 +15,6 @@ interface NodeRepository : JpaRepository<Node, Long> {
         applicationId: Long,
         pageable: Pageable,
     ): List<Node>
-
-    fun existsByApplicationIdAndFqn(
-        applicationId: Long,
-        fqn: String,
-    ): Boolean
+    fun findAllByApplicationIdAndKindIn(applicationId: Long, kinds: Set<NodeKind>, pageable: Pageable): List<Node>
+    fun findAllByIdIn(ids: Set<Long>): List<Node>
 }
