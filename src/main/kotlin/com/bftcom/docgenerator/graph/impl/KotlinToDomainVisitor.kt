@@ -8,12 +8,15 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.graph.api.RichSourceVisitor
 import com.bftcom.docgenerator.graph.api.SourceVisitor
+// Убедись, что импорт правильный (api или model)
+import com.bftcom.docgenerator.graph.model.RawUsage
 import com.bftcom.docgenerator.repo.EdgeRepository
 import com.bftcom.docgenerator.repo.NodeRepository
 
 /**
- * Kotlin → доменная модель графа (Node/Edge).
- * Поддерживает «расширенные» колбэки (RichSourceVisitor) с sourceCode/signature/docComment.
+ * [Фаза 1] Kotlin → доменная модель графа (Node).
+ * Только создает ноды и складывает "сырые" данные (RawUsage) в meta.
+ * Не создает рёбра (кроме неявных parent).
  */
 class KotlinToDomainVisitor(
     private val application: Application,
@@ -110,6 +113,7 @@ class KotlinToDomainVisitor(
                 signature = signature,
                 sourceCode = sourceCode,
                 docComment = docComment,
+                // Сохраняем "сырые" супертипы для Фазы 2
                 extraMeta = mapOf("pkgFqn" to pkgFqn, "supertypesSimple" to supertypesSimple, "source" to "onType"),
             )
         typeByFqn[fqn] = typeNode
@@ -145,12 +149,15 @@ class KotlinToDomainVisitor(
             lang = Lang.kotlin,
             filePath = filePath,
             span = spanLines,
-            signature = null,
+            signature = null, // Можно парсить из sourceCode в Фазе 2, если нужно
             sourceCode = sourceCode,
             docComment = docComment,
+            // Сохраняем "сырой" тип (из sourceCode) для Фазы 2
             extraMeta = mapOf("ownerFqn" to ownerFqn, "pkgFqn" to pkg, "source" to "onField"),
         )
     }
+
+    // -------------------- FUNCTION (basic) --------------------
 
     override fun onFunction(
         ownerFqn: String?,
@@ -158,8 +165,10 @@ class KotlinToDomainVisitor(
         paramNames: List<String>,
         filePath: String,
         spanLines: IntRange,
-        callsSimple: List<String>,
-    ) = onFunctionEx(ownerFqn, name, paramNames, filePath, spanLines, callsSimple, null, null, null)
+        usages: List<RawUsage>,
+    ) = onFunctionEx(ownerFqn, name, paramNames, filePath, spanLines, usages, null, null, null, null)
+
+    // -------------------- FUNCTION (extended) --------------------
 
     override fun onFunctionEx(
         ownerFqn: String?,
@@ -167,11 +176,19 @@ class KotlinToDomainVisitor(
         paramNames: List<String>,
         filePath: String,
         spanLines: IntRange,
-        callsSimple: List<String>,
+        usages: List<RawUsage>,
         sourceCode: String?,
         signature: String?,
         docComment: String?,
+        annotations: Set<String>?,
     ) {
+        val kind = when {
+            annotations.isNullOrEmpty() -> NodeKind.METHOD
+            annotations.any { it.endsWith("Mapping") } -> NodeKind.ENDPOINT
+            annotations.contains("Scheduled") -> NodeKind.JOB
+            annotations.contains("KafkaListener") -> NodeKind.TOPIC
+            else -> NodeKind.METHOD
+        }
         val pkgFqn = filePkg[filePath]
         val fqn =
             when {
@@ -187,12 +204,19 @@ class KotlinToDomainVisitor(
                 append(paramNames.joinToString(","))
                 append(')')
             }
-        val callsFiltered = callsSimple.filterNot { it in noise }
+
+        // --- [ИСПРАВЛЕНО] Корректная фильтрация "шума" ---
+        val callsFiltered = usages.filterNot { usage ->
+            when (usage) {
+                is RawUsage.Dot -> usage.receiver in noise || usage.member in noise
+                is RawUsage.Simple -> usage.name in noise
+            }
+        }
 
         val fnNode =
             upsertNode(
                 fqn = fqn,
-                kind = NodeKind.METHOD,
+                kind = kind,
                 name = name,
                 packageName = pkgFqn,
                 parent =
@@ -212,42 +236,14 @@ class KotlinToDomainVisitor(
                         "pkgFqn" to pkgFqn,
                         "ownerFqn" to ownerFqn,
                         "params" to paramNames,
-                        "callsSimple" to callsFiltered,
+                        "rawUsages" to callsFiltered,
                         "source" to "onFunction",
                     ),
             )
         funcByFqn[fqn] = fnNode
-
-        // временные связи по простым именам до резолва FQN
-        for (token in callsSimple) {
-            val candidates =
-                when {
-                    '.' in token -> {
-                        val (lhs, rhs) = token.split('.', limit = 2)
-                        if (lhs.contains('.')) {
-                            listOf("$lhs.$rhs")
-                        } else {
-                            listOfNotNull(pkgFqn?.let { "$it.$lhs.$rhs" })
-                        }
-                    }
-                    else ->
-                        buildList {
-                            if (!pkgFqn.isNullOrBlank()) add("$pkgFqn.$token")
-                            if (!ownerFqn.isNullOrBlank()) add("$ownerFqn.$token")
-                            add(token)
-                        }
-                }
-
-            val dst =
-                candidates
-                    .asSequence()
-                    .mapNotNull { cfqn -> funcByFqn[cfqn] ?: nodeRepo.findByApplicationIdAndFqn(application.id!!, cfqn) }
-                    .firstOrNull()
-                    ?: continue
-
-            runCatching { edgeRepo.save(Edge(src = fnNode, dst = dst, kind = EdgeKind.CALLS)) }
-        }
     }
+
+    // -------------------- UPSERT --------------------
 
     private fun upsertNode(
         fqn: String,
@@ -264,6 +260,7 @@ class KotlinToDomainVisitor(
         extraMeta: Map<String, Any?>,
     ): Node {
         val existing = nodeRepo.findByApplicationIdAndFqn(application.id!!, fqn)
+        // Фильтруем null-значения из меты, чтобы не было проблем с сериализацией
         val newMeta = extraMeta.filterValues { it != null } as Map<String, Any>
 
         return if (existing == null) {
@@ -340,7 +337,9 @@ class KotlinToDomainVisitor(
                 changed = true
             }
 
-            if (changed) nodeRepo.save(existing) else existing
+            if (changed) {
+                nodeRepo.save(existing)
+            } else existing
         }
     }
 }

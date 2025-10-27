@@ -17,7 +17,6 @@ class IngestOnStartRunner(
     override fun run(vararg args: String?) {
         val argList = args.filterNotNull()
 
-        // Запуск по флагу
         if (argList.none { it.startsWith("--ingest") }) {
             log.info("⏭️  IngestOnStartRunner: no ingest flags passed, skipping")
             return
@@ -43,12 +42,11 @@ class IngestOnStartRunner(
             }
 
         if (apps.isEmpty()) {
-            log.warn("⚠No applications found to ingest")
+            log.warn("No applications found to ingest")
             return
         }
 
         log.info("Starting ingest for ${apps.size} application(s): {}", apps.map { it.key })
-
         apps.forEach { app ->
             try {
                 val took =
@@ -58,7 +56,6 @@ class IngestOnStartRunner(
                                 appKey = app.key,
                                 repoPath = app.repoUrl ?: "",
                                 branch = app.defaultBranch,
-                                depth = 1,
                             )
                         log.info(
                             "Ingest completed for {}: nodes={}, edges={}, chunks={}",

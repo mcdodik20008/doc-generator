@@ -20,7 +20,6 @@ class IngestController(
                 appKey = req.appKey,
                 repoPath = req.repoPath(),
                 branch = req.branch ?: "develop",
-                depth = req.depth ?: 1,
             )
         return summary
     }

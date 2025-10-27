@@ -1,6 +1,7 @@
 package com.bftcom.docgenerator.graph.api
 
 import com.bftcom.docgenerator.domain.enums.NodeKind
+import com.bftcom.docgenerator.graph.model.RawUsage
 
 interface SourceVisitor {
     fun onPackage(
@@ -31,6 +32,6 @@ interface SourceVisitor {
         paramNames: List<String>,
         filePath: String,
         spanLines: IntRange,
-        callsSimple: List<String>,
+        usages: List<RawUsage>,
     )
 }

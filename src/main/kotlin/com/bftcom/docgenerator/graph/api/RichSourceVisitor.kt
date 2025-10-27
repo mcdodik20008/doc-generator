@@ -1,6 +1,7 @@
 package com.bftcom.docgenerator.graph.api
 
 import com.bftcom.docgenerator.domain.enums.NodeKind
+import com.bftcom.docgenerator.graph.model.RawUsage
 
 interface RichSourceVisitor : SourceVisitor {
     fun onTypeEx(
@@ -31,9 +32,10 @@ interface RichSourceVisitor : SourceVisitor {
         paramNames: List<String>,
         filePath: String,
         spanLines: IntRange,
-        callsSimple: List<String>,
+        usages: List<RawUsage>,
         sourceCode: String?,
         signature: String?,
         docComment: String?,
+        annotations: Set<String>?,
     )
 }

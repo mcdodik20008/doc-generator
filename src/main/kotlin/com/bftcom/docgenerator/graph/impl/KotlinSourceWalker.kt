@@ -4,25 +4,15 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.graph.api.RichSourceVisitor
 import com.bftcom.docgenerator.graph.api.SourceVisitor
 import com.bftcom.docgenerator.graph.api.SourceWalker
+import com.bftcom.docgenerator.graph.model.RawUsage
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtClassOrObject
-import org.jetbrains.kotlin.psi.KtDeclaration
-import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
-import org.jetbrains.kotlin.psi.KtElement
-import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi.KtNameReferenceExpression
-import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.psi.KtObjectDeclaration
-import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.psi.KtPsiFactory
-import org.jetbrains.kotlin.psi.KtTreeVisitorVoid
+import org.jetbrains.kotlin.psi.*
+import org.slf4j.LoggerFactory // Добавлен импорт
 import org.springframework.stereotype.Component
 import java.io.File
 import java.nio.file.Files
@@ -31,10 +21,17 @@ import kotlin.io.path.isDirectory
 
 @Component
 class KotlinSourceWalker : SourceWalker {
+
+    companion object {
+        // Добавлен логгер
+        private val log = LoggerFactory.getLogger(KotlinSourceWalker::class.java)
+    }
+
     override fun walk(
         root: Path,
         visitor: SourceVisitor,
     ) {
+        log.info("Starting source walk at root [$root]...")
         require(root.isDirectory()) { "Source root must be a directory: $root" }
 
         val disposable = Disposer.newDisposable()
@@ -47,6 +44,7 @@ class KotlinSourceWalker : SourceWalker {
             val project = env.project
             val psiFactory = KtPsiFactory(project, markGenerated = false)
 
+            log.info("Scanning for Kotlin files...")
             val paths =
                 Files.walk(root).use { stream ->
                     stream
@@ -57,34 +55,55 @@ class KotlinSourceWalker : SourceWalker {
                         }.filter { p ->
                             val s = p.toString()
                             !s.contains("${File.separator}.git${File.separator}") &&
-                                !s.contains("${File.separator}build${File.separator}") &&
-                                !s.contains("${File.separator}out${File.separator}") &&
-                                !s.contains("${File.separator}node_modules${File.separator}")
+                                    !s.contains("${File.separator}build${File.separator}") &&
+                                    !s.contains("${File.separator}out${File.separator}") &&
+                                    !s.contains("${File.separator}node_modules${File.separator}")
                         }.toList()
                 }
+            log.info("Found ${paths.size} files to process.")
 
             val rich = (visitor as? RichSourceVisitor)
 
-            for (p in paths) {
-                val text = Files.readString(p)
-                val ktFile = psiFactory.createFile(p.fileName.toString(), text)
+            log.info("Processing ${paths.size} files...")
+            val totalFiles = paths.size
+            log.info("Processing $totalFiles files...")
 
+            paths.forEachIndexed { index, p ->
+                val currentFileNum = index + 1 // +1 для 1-based индекса
+
+                // 1. Сначала получаем relPath, т.к. он нужен для лога
                 val relPath =
                     try {
                         root.relativize(p).toString()
                     } catch (_: IllegalArgumentException) {
                         p.toString()
                     }
+
+                // 2. Логгируем прогресс и текущий файл
+                if (totalFiles > 0) {
+                    val percent = (currentFileNum * 100.0 / totalFiles).toInt()
+                    log.info("[$currentFileNum/$totalFiles, $percent%] Processing: $relPath")
+                } else {
+                    log.info("Processing file: $relPath")
+                }
+
+                // 3. Остальная логика обработки файла
+                val text = Files.readString(p)
+                val ktFile = psiFactory.createFile(p.fileName.toString(), text)
                 val pkg = ktFile.packageFqName.asString()
 
                 visitor.onPackage(pkg, relPath)
                 processKtFile(ktFile, visitor, rich, pkg, relPath)
             }
+            log.info("Finished processing ${paths.size} files.")
+
         } finally {
             Disposer.dispose(disposable)
+            log.info("Source walk completed.")
         }
     }
 
+    // ... (остальная часть файла без изменений) ...
     private fun processKtFile(
         ktFile: KtFile,
         visitor: SourceVisitor,
@@ -95,12 +114,20 @@ class KotlinSourceWalker : SourceWalker {
         // types
         ktFile.declarations.filterIsInstance<KtClassOrObject>().forEach { decl ->
             val name = decl.name ?: return@forEach
-            val kind =
-                when (decl) {
-                    is KtClass -> if (decl.isInterface()) NodeKind.INTERFACE else NodeKind.CLASS
-                    is KtObjectDeclaration -> NodeKind.CLASS
+            val annotations = getAnnotationShortNames(decl)
+            val kind = when {
+                annotations.contains("Configuration") -> NodeKind.CONFIG
+                annotations.contains("Service") -> NodeKind.SERVICE
+                annotations.contains("Mapper") -> NodeKind.MAPPER
+                decl is KtObjectDeclaration -> NodeKind.CLASS
+                decl is KtClass -> when {
+                    decl.isEnum() -> NodeKind.ENUM
+                    decl.isInterface() -> NodeKind.INTERFACE
+                    decl.isData() -> NodeKind.RECORD
                     else -> NodeKind.CLASS
                 }
+                else -> NodeKind.CLASS
+            }
             val fqn = listOfNotNull(pkg.takeIf { it.isNotBlank() }, name).joinToString(".")
             val supertypes = decl.superTypeListEntries.mapNotNull { it.typeAsUserType?.referencedName }
             val span = linesOf(ktFile, decl)
@@ -128,22 +155,24 @@ class KotlinSourceWalker : SourceWalker {
 
             // member functions
             decl.declarations.filterIsInstance<KtNamedFunction>().forEach { funDecl ->
-                val calls = collectCallNames(funDecl)
+                val usages = collectRawUsages(funDecl)
                 val fspan = linesOf(ktFile, funDecl)
                 if (rich != null) {
                     val src = funDecl.text
                     val sig = signatureFromFunction(funDecl)
                     val doc = funDecl.docComment?.text
+                    val annotations = getAnnotationShortNames(funDecl)
                     rich.onFunctionEx(
                         fqn,
                         funDecl.name ?: return@forEach,
                         funDecl.valueParameters.map { it.name ?: "_" },
                         path,
                         fspan,
-                        calls,
+                        usages,
                         src,
                         sig,
                         doc,
+                        annotations
                     )
                 } else {
                     visitor.onFunction(
@@ -152,7 +181,7 @@ class KotlinSourceWalker : SourceWalker {
                         funDecl.valueParameters.map { it.name ?: "_" },
                         path,
                         fspan,
-                        calls,
+                        usages,
                     )
                 }
             }
@@ -160,22 +189,24 @@ class KotlinSourceWalker : SourceWalker {
 
         // top-level functions
         ktFile.declarations.filterIsInstance<KtNamedFunction>().forEach { funDecl ->
-            val calls = collectCallNames(funDecl)
+            val usages = collectRawUsages(funDecl)
             val span = linesOf(ktFile, funDecl)
             if (rich != null) {
                 val src = funDecl.text
                 val sig = signatureFromFunction(funDecl)
                 val doc = funDecl.docComment?.text
+                val annotations = getAnnotationShortNames(funDecl)
                 rich.onFunctionEx(
                     null,
                     funDecl.name ?: return@forEach,
                     funDecl.valueParameters.map { it.name ?: "_" },
                     path,
                     span,
-                    calls,
+                    usages,
                     src,
                     sig,
                     doc,
+                    annotations
                 )
             } else {
                 visitor.onFunction(
@@ -184,7 +215,7 @@ class KotlinSourceWalker : SourceWalker {
                     funDecl.valueParameters.map { it.name ?: "_" },
                     path,
                     span,
-                    calls,
+                    usages,
                 )
             }
         }
@@ -237,69 +268,56 @@ class KotlinSourceWalker : SourceWalker {
             .ifBlank { null }
     }
 
-    /** Сбор простых имён вызовов + эвристика для b.ping() -> "B.ping", если ранее увидели val b = B(). */
-    private fun collectCallNames(funDecl: KtNamedFunction): List<String> {
-        val calls = mutableListOf<String>()
-        val locals = ArrayDeque<MutableMap<String, String>>() // varName -> TypeSimple
+    private fun getAnnotationShortNames(decl: KtDeclaration): Set<String> {
+        return decl.annotationEntries.mapNotNull { it.shortName?.asString() }.toSet()
+    }
 
-        fun enter() = locals.addLast(mutableMapOf())
+    /**
+     * Фаза 1: "Тупой" сборщик сырых использований.
+     * Не пытается ничего угадать, просто сообщает факты.
+     */
+    private fun collectRawUsages(funDecl: KtNamedFunction): List<RawUsage> {
+        val usages = mutableListOf<RawUsage>()
 
-        fun exit() = locals.removeLast()
+        funDecl.bodyExpression?.accept(
+            object : KtTreeVisitorVoid() {
 
-        fun curr() = locals.last()
+                override fun visitDotQualifiedExpression(expr: KtDotQualifiedExpression) {
+                    val receiver = expr.receiverExpression.text
+                    val selector = expr.selectorExpression
 
-        enter()
-        try {
-            funDecl.bodyExpression?.accept(
-                object : KtTreeVisitorVoid() {
-                    override fun visitProperty(prop: KtProperty) {
-                        val varName = prop.name
-                        val init = prop.initializer
-                        if (varName != null && init is KtCallExpression) {
-                            val typeCandidate = init.calleeExpression?.text
-                            if (!typeCandidate.isNullOrBlank()) {
-                                val typeSimple = typeCandidate.substringAfterLast('.')
-                                if (typeSimple.isNotEmpty() && typeSimple[0].isUpperCase()) {
-                                    curr()[varName] = typeSimple // b -> B
-                                }
-                            }
+                    val isCall = selector is KtCallExpression
+                    val memberName =
+                        when (selector) {
+                            is KtCallExpression -> selector.calleeExpression?.text
+                            is KtNameReferenceExpression -> selector.getReferencedName()
+                            else -> null
                         }
-                        super.visitProperty(prop)
+
+                    if (receiver.isNotBlank() && !memberName.isNullOrBlank()) {
+                        usages.add(RawUsage.Dot(receiver, memberName, isCall))
                     }
 
-                    override fun visitDotQualifiedExpression(expr: KtDotQualifiedExpression) {
-                        val receiver = expr.receiverExpression
-                        val selector = expr.selectorExpression
-                        if (receiver is KtNameReferenceExpression && selector is KtCallExpression) {
-                            val varName = receiver.getReferencedName()
-                            val methodName = selector.calleeExpression?.text
-                            if (!methodName.isNullOrBlank()) {
-                                val t = curr()[varName]
-                                calls += if (t != null) "$t.$methodName" else methodName
-                                selector.valueArgumentList?.accept(this)
-                                selector.lambdaArguments.forEach { it.accept(this) }
-                                return
+                    // Важно: продолжаем обход, т.к. в аргументах могут быть другие вызовы
+                    super.visitDotQualifiedExpression(expr)
+                }
+
+                override fun visitCallExpression(expression: KtCallExpression) {
+                    val parent = expression.parent
+                    // Нас интересуют только "простые" вызовы, не `a.b()`
+                    val isPartOfDot = parent is KtDotQualifiedExpression && (parent.selectorExpression === expression)
+                    if (!isPartOfDot) {
+                        expression.calleeExpression?.text?.let { name ->
+                            if (name.isNotBlank()) {
+                                // Это может быть localFun() или B() (конструктор)
+                                usages.add(RawUsage.Simple(name, isCall = true))
                             }
                         }
-                        super.visitDotQualifiedExpression(expr)
                     }
-
-                    override fun visitCallExpression(expression: KtCallExpression) {
-                        val parent = expression.parent
-                        val isPartOfDot = parent is KtDotQualifiedExpression && (parent.selectorExpression === expression)
-                        if (!isPartOfDot) {
-                            expression.calleeExpression?.text?.let { name ->
-                                if (name.isNotBlank()) calls += name
-                            }
-                        }
-                        super.visitCallExpression(expression)
-                    }
-                },
-            )
-        } finally {
-            exit()
-        }
-
-        return calls
+                    super.visitCallExpression(expression)
+                }
+            },
+        )
+        return usages
     }
 }

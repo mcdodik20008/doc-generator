@@ -29,5 +29,7 @@ enum class NodeKind {
     DBTABLE,
     MIGRATION,
     CONFIG,
+    SERVICE,
+    MAPPER,
     JOB,
 }

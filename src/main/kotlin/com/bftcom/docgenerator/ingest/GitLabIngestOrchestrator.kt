@@ -44,7 +44,6 @@ class GitLabIngestOrchestrator(
         appKey: String,
         repoPath: String, // "<group>/<name>"
         branch: String = "develop",
-        depth: Int = 1,
     ): IngestSummary {
         // --- 1) определить appKey и каталог выгрузки ---
         val checkoutDir: Path = Path.of(gitProps.basePath, appKey)

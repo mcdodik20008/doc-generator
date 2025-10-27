@@ -24,7 +24,7 @@ class RawContentFillerScheduler(
     @Value("\${docgen.fill.batch-size:10}")
     private var batchSize: Int = 10
 
-    @Scheduled(fixedDelayString = "\${docgen.fill.poll-ms:4000}")
+    // @Scheduled(fixedDelayString = "\${docgen.fill.poll-ms:4000}")
     fun pollAndFill() {
         val batch = tx.execute { chunkRepo.lockNextBatchForRawFill(batchSize) } ?: return
         if (batch.isEmpty()) {
