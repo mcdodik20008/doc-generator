@@ -7,16 +7,19 @@ import org.springframework.stereotype.Component
 
 @Component
 class MarkdownFlagsHandler : PostprocessHandler {
-    private val mdPats = listOf(
-        Regex("""(?m)^\s{0,3}#{1,6}\s"""),
-        Regex("""\[[^\]]+]\([^)]+\)"""),
-        Regex("""`{1,3}[^`]+`{1,3}"""),
-        Regex("""(?m)^\s{0,3}[-*+]\s+"""),
-        Regex("""\*\*[^*]+\*\*|__[^_]+__"""),
-    )
+    private val mdPats =
+        listOf(
+            Regex("""(?m)^\s{0,3}#{1,6}\s"""),
+            Regex("""\[[^\]]+]\([^)]+\)"""),
+            Regex("""`{1,3}[^`]+`{1,3}"""),
+            Regex("""(?m)^\s{0,3}[-*+]\s+"""),
+            Regex("""\*\*[^*]+\*\*|__[^_]+__"""),
+        )
+
     private fun isMd(text: String) = mdPats.any { it.containsMatchIn(text) }
 
     override fun supports(s: ChunkSnapshot) = true
+
     override fun produce(s: ChunkSnapshot): PartialMutation {
         val flag = if (isMd(s.content)) "md" else null
         return PartialMutation()

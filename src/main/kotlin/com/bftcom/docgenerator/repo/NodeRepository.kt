@@ -15,6 +15,12 @@ interface NodeRepository : JpaRepository<Node, Long> {
         applicationId: Long,
         pageable: Pageable,
     ): List<Node>
-    fun findAllByApplicationIdAndKindIn(applicationId: Long, kinds: Set<NodeKind>, pageable: Pageable): List<Node>
+
+    fun findAllByApplicationIdAndKindIn(
+        applicationId: Long,
+        kinds: Set<NodeKind>,
+        pageable: Pageable,
+    ): List<Node>
+
     fun findAllByIdIn(ids: Set<Long>): List<Node>
 }

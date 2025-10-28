@@ -7,23 +7,23 @@ data class ChunkDetailsResponse(
     val content: String?,
     val metadata: Map<String, Any?>?,
     val embeddingSize: Int?,
-    val relations: ChunkRelations
+    val relations: ChunkRelations,
 )
 
 data class NodeBrief(
     val id: String,
     val kind: String,
     val name: String,
-    val packageName: String?
+    val packageName: String?,
 )
 
 data class ChunkRelations(
     val incoming: List<RelationBrief>,
-    val outgoing: List<RelationBrief>
+    val outgoing: List<RelationBrief>,
 )
 
 data class RelationBrief(
     val id: String,
     val kind: String,
-    val otherNodeId: String
+    val otherNodeId: String,
 )

@@ -88,10 +88,10 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
         @Param("contentHash") contentHash: String,
         @Param("tokenCount") tokenCount: Int,
         @Param("spanChars") spanChars: String,
-        @Param("usesMd") usesMd: String?,          // "md" или NULL
-        @Param("usedByMd") usedByMd: String?,      // "md" или NULL
-        @Param("embedModel") embedModel: String?,  // может быть NULL, если emb выключен
-        @Param("embedTs") embedTs: OffsetDateTime?,// может быть NULL
+        @Param("usesMd") usesMd: String?, // "md" или NULL
+        @Param("usedByMd") usedByMd: String?, // "md" или NULL
+        @Param("embedModel") embedModel: String?, // может быть NULL, если emb выключен
+        @Param("embedTs") embedTs: OffsetDateTime?, // может быть NULL
         @Param("explainMd") explainMd: String,
         @Param("explainQuality") explainQualityJson: String,
     ): Int
@@ -106,6 +106,10 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
         """,
         nativeQuery = true,
     )
-    fun updateEmb(@Param("id") id: Long, @Param("embLiteral") embLiteral: String): Int
+    fun updateEmb(
+        @Param("id") id: Long,
+        @Param("embLiteral") embLiteral: String,
+    ): Int
+
     fun findByNodeId(nodeId: Long): MutableList<Chunk>
 }

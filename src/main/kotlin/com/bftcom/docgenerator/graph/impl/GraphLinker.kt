@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class GraphLinker(
     private val nodeRepo: NodeRepository,
-    private val edgeRepo: EdgeRepository
+    private val edgeRepo: EdgeRepository,
 ) {
     companion object {
         private val log = LoggerFactory.getLogger(GraphLinker::class.java)
@@ -44,7 +44,7 @@ class GraphLinker(
                 .groupBy { it.meta["ownerFqn"] as? String }
                 .filterKeys { it != null }
                 .mapValues { (_, fields) -> fields.associateBy { it.name } }
-                    as Map<String, Map<String?, Node>>
+                as Map<String, Map<String?, Node>>
 
         var linkCallsErrors = 0
         val totalNodes = allNodes.size
@@ -80,7 +80,7 @@ class GraphLinker(
     private fun linkInheritance(
         node: Node,
         nodeByFqn: Map<String, Node>,
-        nodesBySimpleName: Map<String?, List<Node>>
+        nodesBySimpleName: Map<String?, List<Node>>,
     ) {
         val supertypes = node.meta["supertypesSimple"] as? List<*> ?: return
         val imports = (node.meta["imports"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
@@ -101,10 +101,10 @@ class GraphLinker(
     }
 
     private fun linkFieldTypeDependencies(
-        typeNode: Node,                                        // нода КЛАССА/ИНТЕРФЕЙСА/ENUM/RECORD
+        typeNode: Node, // нода КЛАССА/ИНТЕРФЕЙСА/ENUM/RECORD
         fieldsByClassFqn: Map<String, Map<String?, Node>>,
         nodeByFqn: Map<String, Node>,
-        nodesBySimpleName: Map<String?, List<Node>>
+        nodesBySimpleName: Map<String?, List<Node>>,
     ) {
         val classFqn = typeNode.fqn ?: return
         val fields = fieldsByClassFqn[classFqn] ?: return
@@ -118,10 +118,11 @@ class GraphLinker(
 
             // 1) по импортам
             val fqnByImport = imports.firstOrNull { it.endsWith(".$simple") }
-            val target = when {
-                fqnByImport != null -> nodeByFqn[fqnByImport]
-                else -> nodeByFqn["$pkg.$simple"] ?: nodesBySimpleName[simple]?.firstOrNull { it.isTypeNode() }
-            }
+            val target =
+                when {
+                    fqnByImport != null -> nodeByFqn[fqnByImport]
+                    else -> nodeByFqn["$pkg.$simple"] ?: nodesBySimpleName[simple]?.firstOrNull { it.isTypeNode() }
+                }
             if (target != null) {
                 createEdge(typeNode, target, EdgeKind.DEPENDS_ON)
             }
@@ -132,17 +133,18 @@ class GraphLinker(
         node: Node,
         nodeByFqn: Map<String, Node>,
         nodesBySimpleName: Map<String?, List<Node>>,
-        fieldsByClassFqn: Map<String, Map<String?, Node>>
+        fieldsByClassFqn: Map<String, Map<String?, Node>>,
     ) {
         val rawList = node.meta["rawUsages"] as? List<*> ?: return
 
-        val usages: List<RawUsage> = rawList.mapNotNull { item ->
-            when (item) {
-                is RawUsage -> item
-                is Map<*, *> -> deserializeRawUsageSafe(item)
-                else -> null
+        val usages: List<RawUsage> =
+            rawList.mapNotNull { item ->
+                when (item) {
+                    is RawUsage -> item
+                    is Map<*, *> -> deserializeRawUsageSafe(item)
+                    else -> null
+                }
             }
-        }
 
         val classFqn = node.meta["ownerFqn"] as? String
         val imports = (node.meta["imports"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
@@ -169,14 +171,15 @@ class GraphLinker(
                     }
                 }
                 is RawUsage.Dot -> {
-                    val receiverTypeFqn = resolveReceiverType(
-                        receiverName = usage.receiver,
-                        classFqn = classFqn,
-                        fieldsByClassFqn = fieldsByClassFqn,
-                        nodeByFqn = nodeByFqn,
-                        nodesBySimpleName = nodesBySimpleName,
-                        imports = imports
-                    )
+                    val receiverTypeFqn =
+                        resolveReceiverType(
+                            receiverName = usage.receiver,
+                            classFqn = classFqn,
+                            fieldsByClassFqn = fieldsByClassFqn,
+                            nodeByFqn = nodeByFqn,
+                            nodesBySimpleName = nodesBySimpleName,
+                            imports = imports,
+                        )
                     receiverTypeFqn?.let { typeFqn ->
                         nodeByFqn["$typeFqn.${usage.member}"]?.let { target ->
                             createEdge(node, target, EdgeKind.CALLS)
@@ -190,7 +193,7 @@ class GraphLinker(
     private fun linkSignatureTypeDependencies(
         fnNode: Node,
         nodeByFqn: Map<String, Node>,
-        nodesBySimpleName: Map<String?, List<Node>>
+        nodesBySimpleName: Map<String?, List<Node>>,
     ) {
         val sig = fnNode.signature ?: return
         val ownerFqn = fnNode.meta["ownerFqn"] as? String
@@ -200,11 +203,12 @@ class GraphLinker(
 
         // очень простая выборка типов из сигнатуры: ищем токены после ':' и до ',', ')' или '='
         // покрывает параметры и возврат. Мы берём ТОЛЬКО простое имя до '<'
-        val typeTokens = Regex("""\:\s*([A-Za-z_][A-Za-z0-9_\.]*)""")
-            .findAll(sig)
-            .map { it.groupValues[1].substringBefore('<').substringBefore('?') }
-            .filter { it.isNotBlank() }
-            .toSet()
+        val typeTokens =
+            Regex("""\:\s*([A-Za-z_][A-Za-z0-9_\.]*)""")
+                .findAll(sig)
+                .map { it.groupValues[1].substringBefore('<').substringBefore('?') }
+                .filter { it.isNotBlank() }
+                .toSet()
 
         for (simpleOrFqn in typeTokens) {
             val simple = simpleOrFqn.substringAfterLast('.')
@@ -229,7 +233,7 @@ class GraphLinker(
         fieldsByClassFqn: Map<String, Map<String?, Node>>,
         nodeByFqn: Map<String, Node>,
         nodesBySimpleName: Map<String?, List<Node>>,
-        imports: List<String>
+        imports: List<String>,
     ): String? {
         // поле текущего класса?
         if (classFqn != null) {
@@ -254,33 +258,39 @@ class GraphLinker(
         return null
     }
 
-    private fun deserializeRawUsageSafe(data: Map<*, *>): RawUsage? = try {
-        @Suppress("UNCHECKED_CAST")
-        val m = data as Map<String, Any>
-        if (m.containsKey("receiver"))
-            RawUsage.Dot(
-                receiver = m["receiver"] as String,
-                member = m["member"] as String,
-                isCall = m["isCall"] as Boolean
-            )
-        else if (m.containsKey("name"))
-            RawUsage.Simple(
-                name = m["name"] as String,
-                isCall = m["isCall"] as Boolean
-            )
-        else null
-    } catch (e: Exception) {
-        log.warn("Failed to deserialize RawUsage map: $data", e); null
-    }
+    private fun deserializeRawUsageSafe(data: Map<*, *>): RawUsage? =
+        try {
+            @Suppress("UNCHECKED_CAST")
+            val m = data as Map<String, Any>
+            if (m.containsKey("receiver")) {
+                RawUsage.Dot(
+                    receiver = m["receiver"] as String,
+                    member = m["member"] as String,
+                    isCall = m["isCall"] as Boolean,
+                )
+            } else if (m.containsKey("name")) {
+                RawUsage.Simple(
+                    name = m["name"] as String,
+                    isCall = m["isCall"] as Boolean,
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            log.warn("Failed to deserialize RawUsage map: $data", e)
+            null
+        }
 
-    private fun createEdge(src: Node, dst: Node, kind: EdgeKind) {
+    private fun createEdge(
+        src: Node,
+        dst: Node,
+        kind: EdgeKind,
+    ) {
         // быстрый upsert без исключений
         edgeRepo.upsert(src.id!!, dst.id!!, kind.name)
     }
 
-    private fun Node.isTypeNode() =
-        this.kind in setOf(NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM, NodeKind.RECORD)
+    private fun Node.isTypeNode() = this.kind in setOf(NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM, NodeKind.RECORD)
 
-    private fun Node.isFunctionNode() =
-        this.kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
+    private fun Node.isFunctionNode() = this.kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
 }

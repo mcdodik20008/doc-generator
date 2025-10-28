@@ -9,11 +9,23 @@ import org.springframework.data.repository.query.Param
 
 interface EdgeRepository : JpaRepository<Edge, Long> {
     fun findAllBySrcId(srcId: Long): List<Edge>
+
     fun findAllByDstId(dstId: Long): List<Edge>
+
     fun findAllBySrcIdIn(srcIds: Set<Long>): List<Edge>
+
     fun findAllByDstIdIn(dstIds: Set<Long>): List<Edge>
-    fun findAllBySrcIdAndDstIdIn(srcId: Long, dstIds: Set<Long>): List<Edge>
-    fun findAllByDstIdAndSrcIdIn(dstId: Long, srcIds: Set<Long>): List<Edge>
+
+    fun findAllBySrcIdAndDstIdIn(
+        srcId: Long,
+        dstIds: Set<Long>,
+    ): List<Edge>
+
+    fun findAllByDstIdAndSrcIdIn(
+        dstId: Long,
+        srcIds: Set<Long>,
+    ): List<Edge>
+
     @Modifying
     @Query(
         value = """
@@ -21,11 +33,11 @@ interface EdgeRepository : JpaRepository<Edge, Long> {
             values (:srcId, :dstId, cast(:kind as doc_generator.edge_kind))
             on conflict on constraint uq_edge do nothing
         """,
-        nativeQuery = true
+        nativeQuery = true,
     )
     fun upsert(
         @Param("srcId") srcId: Long,
         @Param("dstId") dstId: Long,
-        @Param("kind") kind: String
+        @Param("kind") kind: String,
     )
 }

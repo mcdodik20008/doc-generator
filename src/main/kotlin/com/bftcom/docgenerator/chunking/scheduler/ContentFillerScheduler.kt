@@ -33,7 +33,6 @@ class ContentFillerScheduler(
 
         for (chunk in batch) {
             try {
-
                 val req = chunk.toTalkerRewriteRequest()
                 val answer = talker.rewrite(req)
                 tx.execute {

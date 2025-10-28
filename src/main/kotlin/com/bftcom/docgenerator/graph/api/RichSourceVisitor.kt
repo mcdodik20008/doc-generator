@@ -5,7 +5,12 @@ import com.bftcom.docgenerator.graph.model.RawUsage
 
 interface RichSourceVisitor : SourceVisitor {
     /** Новый: передаём контекст файла (imports) перед типами/функциями этого файла */
-    fun onFileContext(pkgFqn: String, filePath: String, imports: List<String>)
+    fun onFileContext(
+        pkgFqn: String,
+        filePath: String,
+        imports: List<String>,
+    )
+
     fun onTypeEx(
         kind: NodeKind,
         fqn: String,
@@ -17,6 +22,7 @@ interface RichSourceVisitor : SourceVisitor {
         sourceCode: String?,
         signature: String?,
         docComment: String?,
+        kdocMeta: Map<String, Any?>? = null,
     )
 
     fun onFieldEx(
@@ -26,6 +32,7 @@ interface RichSourceVisitor : SourceVisitor {
         spanLines: IntRange,
         sourceCode: String?,
         docComment: String?,
+        kdocMeta: Map<String, Any?>? = null,
     )
 
     fun onFunctionEx(
@@ -39,5 +46,6 @@ interface RichSourceVisitor : SourceVisitor {
         signature: String?,
         docComment: String?,
         annotations: Set<String>?,
+        kdocMeta: Map<String, Any?>? = null,
     )
 }

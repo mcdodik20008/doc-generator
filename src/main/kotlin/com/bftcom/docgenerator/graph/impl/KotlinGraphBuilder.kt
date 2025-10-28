@@ -19,12 +19,14 @@ class KotlinGraphBuilder(
     private val chunkRepo: ChunkRepository,
     private val kotlinWalker: KotlinSourceWalker,
     private val graphLinker: GraphLinker,
-    private val transactionManager: PlatformTransactionManager
+    private val transactionManager: PlatformTransactionManager,
 ) : GraphBuilder {
-
     private val log = LoggerFactory.getLogger(javaClass)
 
-    override fun build(application: Application, sourceRoot: Path): BuildResult {
+    override fun build(
+        application: Application,
+        sourceRoot: Path,
+    ): BuildResult {
         val tt = TransactionTemplate(transactionManager)
 
         val nodesBefore = nodeRepo.count()
@@ -45,11 +47,12 @@ class KotlinGraphBuilder(
         val nodesAfter = nodeRepo.count()
         val edgesAfter = edgeRepo.count()
         val chunksAfter = chunkRepo.count()
-        val result = BuildResult(
-            nodes = (nodesAfter - nodesBefore).toInt(),
-            edges = (edgesAfter - edgesBefore).toInt(),
-            chunks = (chunksAfter - chunksBefore).toInt(),
-        )
+        val result =
+            BuildResult(
+                nodes = (nodesAfter - nodesBefore).toInt(),
+                edges = (edgesAfter - edgesBefore).toInt(),
+                chunks = (chunksAfter - chunksBefore).toInt(),
+            )
         log.info("Graph built: +${result.nodes} nodes, +${result.edges} edges, +${result.chunks} chunks")
         return result
     }

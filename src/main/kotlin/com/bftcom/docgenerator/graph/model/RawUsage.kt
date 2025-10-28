@@ -7,14 +7,19 @@ sealed class RawUsage {
      * @param member Имя справа от точки (e.g., "doWork", "FIELD_NAME")
      * @param isCall Это вызов `()` или просто доступ к полю
      */
-    data class Dot(val receiver: String, val member: String, val isCall: Boolean) : RawUsage(){
-
-    }
+    data class Dot(
+        val receiver: String,
+        val member: String,
+        val isCall: Boolean,
+    ) : RawUsage()
 
     /**
      * Простое выражение: `doLocalWork()` или `MyClass()`
      * @param name Имя (e.g., "doLocalWork", "MyClass")
      * @param isCall Это вызов `()` (для `Simple` это почти всегда true)
      */
-    data class Simple(val name: String, val isCall: Boolean) : RawUsage()
+    data class Simple(
+        val name: String,
+        val isCall: Boolean,
+    ) : RawUsage()
 }

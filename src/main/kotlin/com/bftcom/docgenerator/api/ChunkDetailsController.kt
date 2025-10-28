@@ -9,8 +9,10 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api/chunks")
 class ChunkDetailsController(
-    private val chunkService: ChunkDetailsService
+    private val chunkService: ChunkDetailsService,
 ) {
     @GetMapping("/{id}")
-    fun details(@PathVariable id: String) = chunkService.getDetails(id)
+    fun details(
+        @PathVariable id: String,
+    ) = chunkService.getDetails(id)
 }

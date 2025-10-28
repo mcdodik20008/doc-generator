@@ -12,9 +12,8 @@ class EmbeddingsConfig(
     @Value("\${spring.ai.ollama.embedding.model}")
     private val modelName: String,
     @Value("\${spring.ai.ollama.embedding.dim}")
-    private val dim: Int
+    private val dim: Int,
 ) {
     @Bean
-    fun embeddingClient(embeddingModel: EmbeddingModel): EmbeddingClient =
-        ProxyEmbeddingClient(embeddingModel, modelName, dim)
+    fun embeddingClient(embeddingModel: EmbeddingModel): EmbeddingClient = ProxyEmbeddingClient(embeddingModel, modelName, dim)
 }

@@ -22,42 +22,52 @@ class HandlerChainOrchestrator(
         val snap = ChunkSnapshot.from(chunk)
 
         // собираем partial-mutations
-        val patches = handlers
-            .filter { it.supports(snap) }
-            .mapNotNull {
-                try { it.produce(snap) } catch (_: Throwable) { null }
-            }
+        val patches =
+            handlers
+                .filter { it.supports(snap) }
+                .mapNotNull {
+                    try {
+                        it.produce(snap)
+                    } catch (_: Throwable) {
+                        null
+                    }
+                }
 
         // начальное состояние заполняем текущими значениями из БД
-        val initial = PartialMutation().apply {
-            chunk.contentHash?.let { set(FieldKey.CONTENT_HASH, it) }
-            chunk.tokenCount?.let { set(FieldKey.TOKEN_COUNT, it) }
-            chunk.spanChars?.let { set(FieldKey.SPAN_CHARS, it) }
-            chunk.usesMd?.let { set(FieldKey.USES_MD, it) }
-            chunk.usedByMd?.let { set(FieldKey.USED_BY_MD, it) }
-            chunk.explainMd?.let { set(FieldKey.EXPLAIN_MD, it) }
-            if (chunk.explainQuality.isNotEmpty()) {
-                set(FieldKey.EXPLAIN_QUALITY_JSON, chunk.explainQuality.toString())
+        val initial =
+            PartialMutation().apply {
+                chunk.contentHash?.let { set(FieldKey.CONTENT_HASH, it) }
+                chunk.tokenCount?.let { set(FieldKey.TOKEN_COUNT, it) }
+                chunk.spanChars?.let { set(FieldKey.SPAN_CHARS, it) }
+                chunk.usesMd?.let { set(FieldKey.USES_MD, it) }
+                chunk.usedByMd?.let { set(FieldKey.USED_BY_MD, it) }
+                chunk.explainMd?.let { set(FieldKey.EXPLAIN_MD, it) }
+                if (chunk.explainQuality.isNotEmpty()) {
+                    set(FieldKey.EXPLAIN_QUALITY_JSON, chunk.explainQuality.toString())
+                }
+                chunk.embedModel?.let { set(FieldKey.EMBED_MODEL, it) }
+                chunk.embedTs?.let { set(FieldKey.EMBED_TS, it) }
+                if (chunk.emb != null) set(FieldKey.EMB, chunk.emb!!)
             }
-            chunk.embedModel?.let { set(FieldKey.EMBED_MODEL, it) }
-            chunk.embedTs?.let { set(FieldKey.EMBED_TS, it) }
-            if (chunk.emb != null) set(FieldKey.EMB, chunk.emb!!)
-        }
 
         val merged = MutationMerger.merge(initial, patches)
 
         // извлекаем итоговые значения
-        val contentHash = (merged.provided[FieldKey.CONTENT_HASH] as? String) ?: snap.contentHash
-            ?: PpUtil.sha256Hex(snap.content)
-        val tokenCount = (merged.provided[FieldKey.TOKEN_COUNT] as? Int)
-            ?: snap.tokenCount ?: Regex("""\S+""").findAll(snap.content).count()
-        val spanChars = (merged.provided[FieldKey.SPAN_CHARS] as? String)
-            ?: snap.spanChars ?: "[0,${snap.content.length})"
+        val contentHash =
+            (merged.provided[FieldKey.CONTENT_HASH] as? String) ?: snap.contentHash
+                ?: PpUtil.sha256Hex(snap.content)
+        val tokenCount =
+            (merged.provided[FieldKey.TOKEN_COUNT] as? Int)
+                ?: snap.tokenCount ?: Regex("""\S+""").findAll(snap.content).count()
+        val spanChars =
+            (merged.provided[FieldKey.SPAN_CHARS] as? String)
+                ?: snap.spanChars ?: "[0,${snap.content.length})"
         val usesMd = merged.provided[FieldKey.USES_MD] as? String ?: snap.usesMd
         val usedByMd = merged.provided[FieldKey.USED_BY_MD] as? String ?: snap.usedByMd
         val explainMd = merged.provided[FieldKey.EXPLAIN_MD] as? String ?: snap.explainMd ?: ""
-        val explainQualityJson = (merged.provided[FieldKey.EXPLAIN_QUALITY_JSON] as? String)
-            ?: snap.explainQualityJson ?: """{}"""
+        val explainQualityJson =
+            (merged.provided[FieldKey.EXPLAIN_QUALITY_JSON] as? String)
+                ?: snap.explainQualityJson ?: """{}"""
 
         // 1) пишем всё, кроме emb
         repo.updatePostMeta(

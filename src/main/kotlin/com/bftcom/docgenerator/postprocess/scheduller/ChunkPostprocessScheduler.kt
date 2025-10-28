@@ -27,7 +27,7 @@ class ChunkPostprocessScheduler(
     fun lockBatch(): List<Chunk> =
         repo.lockNextBatchForPostprocess(
             limit = batchSize,
-            withEmb = embedEnabled
+            withEmb = embedEnabled,
         )
 
     // @Scheduled(fixedDelayString = "\${docgen.post.poll-ms:5000}")
