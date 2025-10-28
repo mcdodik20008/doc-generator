@@ -4,6 +4,8 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.graph.model.RawUsage
 
 interface RichSourceVisitor : SourceVisitor {
+    /** Новый: передаём контекст файла (imports) перед типами/функциями этого файла */
+    fun onFileContext(pkgFqn: String, filePath: String, imports: List<String>)
     fun onTypeEx(
         kind: NodeKind,
         fqn: String,

@@ -30,6 +30,11 @@ class KotlinToDomainVisitor(
     private val typeByFqn = mutableMapOf<String, Node>() // "foo.A" -> CLASS/INTERFACE/ENUM/...
     private val funcByFqn = mutableMapOf<String, Node>() // "foo.baz" / "foo.A.bar" -> METHOD
     private val filePkg = mutableMapOf<String, String>() // filePath -> "foo"
+    private val fileImports = mutableMapOf<String, List<String>>()
+
+    override fun onFileContext(pkgFqn: String, filePath: String, imports: List<String>) {
+        fileImports[filePath] = imports
+    }
 
     // -------------------- PACKAGE --------------------
 

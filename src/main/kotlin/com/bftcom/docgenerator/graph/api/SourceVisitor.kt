@@ -10,7 +10,7 @@ interface SourceVisitor {
     )
 
     fun onType(
-        kind: NodeKind, // CLASS/INTERFACE/ENUM/RECORD
+        kind: NodeKind,
         fqn: String,
         pkgFqn: String,
         name: String,
@@ -27,7 +27,7 @@ interface SourceVisitor {
     )
 
     fun onFunction(
-        ownerFqn: String?, // null => top-level function
+        ownerFqn: String?,
         name: String,
         paramNames: List<String>,
         filePath: String,
