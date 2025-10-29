@@ -28,6 +28,7 @@ class RawContentFillerScheduler(
     fun pollAndFill() {
         val batch = tx.execute { chunkRepo.lockNextBatchForRawFill(batchSize) } ?: return
         if (batch.isEmpty()) {
+            log.warn("Chunks batch is empty")
             return
         }
 

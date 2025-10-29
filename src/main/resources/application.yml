@@ -52,7 +52,7 @@ spring:
           Запрещены предположения, если не следует из кода. Короткие формулировки.
 
       talker:
-        model: qwen2.5-coder:14b
+        model: qwen2.5:14b-instruct
         temperature: 0.3
         top-p: 0.9
         seed: 42
