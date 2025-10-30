@@ -32,4 +32,5 @@ enum class NodeKind {
     SERVICE,
     MAPPER,
     JOB,
+    TEST,
 }

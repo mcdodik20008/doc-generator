@@ -126,6 +126,7 @@ class KotlinSourceWalker(
             val annotations = getAnnotationShortNames(decl)
             val kind =
                 when {
+                    name.lowercase().contains("test") -> NodeKind.TEST
                     annotations.contains("Controller") || name.contains("Controller") -> NodeKind.ENDPOINT
                     annotations.contains("Configuration") || name.contains("Configuration") -> NodeKind.CONFIG
                     annotations.contains("Service") || name.contains("Service") -> NodeKind.SERVICE

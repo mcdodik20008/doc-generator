@@ -25,6 +25,9 @@ interface EdgeRepository : JpaRepository<Edge, Long> {
         srcIds: Set<Long>,
     ): List<Edge>
 
+    @Query("select e from Edge e where e.src.id in :srcIds")
+    fun findAllBySrcIdIn(srcIds: Collection<Long>): List<Edge>
+
     @Modifying
     @Query(
         value = """

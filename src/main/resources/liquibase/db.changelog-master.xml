@@ -50,4 +50,13 @@
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
+
+    <changeSet id="05-add-test-to-node-kind" author="kaspshitskii">
+        <sqlFile
+                path="migration/05_add_test_to_node_kind.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
 </databaseChangeLog>
