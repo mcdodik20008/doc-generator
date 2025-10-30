@@ -1,7 +1,10 @@
 package com.bftcom.docgenerator.chunking.impl
 
 import com.bftcom.docgenerator.chunking.api.ChunkStrategy
-import com.bftcom.docgenerator.chunking.model.*
+import com.bftcom.docgenerator.chunking.model.ChunkPlan
+import com.bftcom.docgenerator.chunking.model.PipelinePlan
+import com.bftcom.docgenerator.chunking.model.RelationHint
+import com.bftcom.docgenerator.chunking.model.ServiceMeta
 import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.node.Node

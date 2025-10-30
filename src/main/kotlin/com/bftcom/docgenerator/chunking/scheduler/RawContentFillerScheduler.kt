@@ -2,11 +2,9 @@ package com.bftcom.docgenerator.chunking.scheduler
 
 import com.bftcom.docgenerator.ai.chatclients.OllamaCoderClient
 import com.bftcom.docgenerator.chunking.model.toCoderExplainRequest
-import com.bftcom.docgenerator.chunking.model.toTalkerRewriteRequest
 import com.bftcom.docgenerator.repo.ChunkRepository
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate

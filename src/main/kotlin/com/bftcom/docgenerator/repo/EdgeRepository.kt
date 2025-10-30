@@ -1,7 +1,6 @@
 package com.bftcom.docgenerator.repo
 
 import com.bftcom.docgenerator.domain.edge.Edge
-import com.bftcom.docgenerator.domain.enums.EdgeKind
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query

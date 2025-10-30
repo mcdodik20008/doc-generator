@@ -2,25 +2,15 @@ package com.bftcom.docgenerator.ai.config
 
 import com.bftcom.docgenerator.ai.props.AiClientsProperties
 import org.springframework.ai.chat.client.ChatClient
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor
-import org.springframework.ai.chat.client.advisor.api.BaseAdvisor
-import org.springframework.ai.chat.memory.MessageWindowChatMemory
 import org.springframework.ai.chat.model.ChatModel
 import org.springframework.ai.embedding.EmbeddingModel
-import org.springframework.ai.model.ollama.autoconfigure.OllamaConnectionDetails
-import org.springframework.ai.ollama.OllamaChatModel
-import org.springframework.ai.ollama.api.OllamaApi
-import org.springframework.ai.ollama.api.OllamaOptions
 import org.springframework.ai.openai.OpenAiChatModel
 import org.springframework.ai.openai.OpenAiChatOptions
 import org.springframework.ai.openai.api.OpenAiApi
 import org.springframework.beans.factory.annotation.Qualifier
-import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
-import org.springframework.web.client.RestClient
-import org.springframework.web.reactive.function.client.WebClient
 
 @Configuration
 class AiClientsConfig {

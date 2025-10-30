@@ -1,6 +1,5 @@
 package com.bftcom.docgenerator.configprops
 
-import jakarta.annotation.Priority
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Primary
 
