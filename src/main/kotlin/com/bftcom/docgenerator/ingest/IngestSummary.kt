@@ -8,7 +8,6 @@ data class IngestSummary(
     val headSha: String?,
     val nodes: Int,
     val edges: Int,
-    val chunks: Int,
     val startedAt: OffsetDateTime,
     val finishedAt: OffsetDateTime,
     val tookMs: Long,

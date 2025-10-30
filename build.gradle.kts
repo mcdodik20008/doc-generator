@@ -36,6 +36,7 @@ dependencies {
     // ===== Core / Kotlin / JSON =====
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // ===== Spring Web / Validation / Observability =====
     implementation("org.springframework.boot:spring-boot-starter")

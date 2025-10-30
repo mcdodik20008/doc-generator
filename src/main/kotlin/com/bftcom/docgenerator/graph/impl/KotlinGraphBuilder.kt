@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import java.nio.file.Path
+import com.fasterxml.jackson.databind.ObjectMapper
 
 @Service
 class KotlinGraphBuilder(
@@ -20,6 +21,7 @@ class KotlinGraphBuilder(
     private val kotlinWalker: KotlinSourceWalker,
     private val graphLinker: GraphLinker,
     private val transactionManager: PlatformTransactionManager,
+    private val objectMapper: ObjectMapper, // <--- добавили
 ) : GraphBuilder {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -33,27 +35,29 @@ class KotlinGraphBuilder(
         val edgesBefore = edgeRepo.count()
         val chunksBefore = chunkRepo.count()
 
-        // Фаза 1 — запись/апсерт нод
+        // --- ФАЗА 1: создаём ноды ---
         tt.execute {
-            val visitor = KotlinToDomainVisitor(application, nodeRepo, edgeRepo)
+            val visitor = KotlinToDomainVisitor(
+                application = application,
+                nodeRepo = nodeRepo,
+                edgeRepo = edgeRepo,
+                objectMapper = objectMapper
+            )
             kotlinWalker.walk(sourceRoot, visitor)
         }
 
-        // Фаза 2 — линковка
-        tt.execute {
-            graphLinker.link(application)
-        }
+        // --- ФАЗА 2: линковка ---
+        tt.execute { graphLinker.link(application) }
 
         val nodesAfter = nodeRepo.count()
         val edgesAfter = edgeRepo.count()
-        val chunksAfter = chunkRepo.count()
-        val result =
-            BuildResult(
-                nodes = (nodesAfter - nodesBefore).toInt(),
-                edges = (edgesAfter - edgesBefore).toInt(),
-                chunks = (chunksAfter - chunksBefore).toInt(),
-            )
-        log.info("Graph built: +${result.nodes} nodes, +${result.edges} edges, +${result.chunks} chunks")
+
+        val result = BuildResult(
+            nodes = (nodesAfter - nodesBefore).toInt(),
+            edges = (edgesAfter - edgesBefore).toInt(),
+        )
+        log.info("Graph built: +${result.nodes} nodes, +${result.edges} edges")
         return result
     }
 }
+

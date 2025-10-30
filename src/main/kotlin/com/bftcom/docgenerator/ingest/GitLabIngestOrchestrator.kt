@@ -126,7 +126,6 @@ class GitLabIngestOrchestrator(
             "📦 Build done: nodes={}, edges={}, chunks={}, took={} ms",
             buildResult.nodes,
             buildResult.edges,
-            buildResult.chunks,
             took.toMillis(),
         )
 
@@ -136,7 +135,6 @@ class GitLabIngestOrchestrator(
             headSha = headSha,
             nodes = buildResult.nodes,
             edges = buildResult.edges,
-            chunks = buildResult.chunks,
             startedAt = buildResult.startedAt,
             finishedAt = buildResult.finishedAt,
             tookMs = took.toMillis(),

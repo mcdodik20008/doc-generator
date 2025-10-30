@@ -5,7 +5,6 @@ import java.time.OffsetDateTime
 data class BuildResult(
     val nodes: Int,
     val edges: Int,
-    val chunks: Int,
     val startedAt: OffsetDateTime = OffsetDateTime.now(),
     val finishedAt: OffsetDateTime = OffsetDateTime.now(),
 )

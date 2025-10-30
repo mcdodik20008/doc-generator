@@ -62,7 +62,6 @@ class IngestOnStartRunner(
                             app.key,
                             summary.nodes,
                             summary.edges,
-                            summary.chunks,
                         )
                     }
                 log.info("Ingest for {} took {} ms", app.key, took)

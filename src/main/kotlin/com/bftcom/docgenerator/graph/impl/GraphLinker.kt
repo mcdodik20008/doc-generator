@@ -4,9 +4,11 @@ import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
+import com.bftcom.docgenerator.domain.node.NodeMeta
 import com.bftcom.docgenerator.graph.model.RawUsage
 import com.bftcom.docgenerator.repo.EdgeRepository
 import com.bftcom.docgenerator.repo.NodeRepository
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -16,281 +18,272 @@ import org.springframework.transaction.annotation.Transactional
 class GraphLinker(
     private val nodeRepo: NodeRepository,
     private val edgeRepo: EdgeRepository,
+    private val objectMapper: ObjectMapper,
 ) {
     companion object {
         private val log = LoggerFactory.getLogger(GraphLinker::class.java)
+
+        // очень базовый извлекатель типов из сигнатуры
+        private val TYPE_TOKEN = Regex("""\:\s*([A-Za-z_][A-Za-z0-9_\.]*)""")
     }
 
     @Transactional
     fun link(application: Application) {
         log.info("Starting graph linking for app [id=${application.id}]...")
 
-        val allNodes = nodeRepo.findAllByApplicationId(application.id!!, Pageable.ofSize(Int.MAX_VALUE))
-        log.info("Fetched ${allNodes.size} total nodes to link.")
-        if (allNodes.isEmpty()) {
-            log.warn("No nodes found for application [id=${application.id}]. Linking skipped.")
+        val all = nodeRepo.findAllByApplicationId(application.id!!, Pageable.ofSize(Int.MAX_VALUE))
+        log.info("Fetched ${all.size} total nodes to link.")
+        if (all.isEmpty()) {
+            log.warn("No nodes found; skipping.")
             return
         }
 
-        val nodeByFqn = allNodes.associateBy { it.fqn }
-        val nodesBySimpleName = allNodes.groupBy { it.name }
+        // индексы
+        val byFqn: Map<String, Node> = all.associateBy { it.fqn }
+        val bySimple: Map<String?, List<Node>> = all.groupBy { it.name }
+        val packages: Map<String?, Node> = all.filter { it.kind == NodeKind.PACKAGE }.associateBy { it.fqn }
 
-        // ClassFQN -> (fieldName -> fieldNode)
-        @Suppress("UNCHECKED_CAST")
-        val fieldsByClassFqn: Map<String, Map<String?, Node>> =
-            allNodes
-                .asSequence()
-                .filter { it.kind == NodeKind.FIELD }
-                .groupBy { it.meta["ownerFqn"] as? String }
-                .filterKeys { it != null }
-                .mapValues { (_, fields) -> fields.associateBy { it.name } }
-                as Map<String, Map<String?, Node>>
-
-        var linkCallsErrors = 0
-        val totalNodes = allNodes.size
-        log.info("Starting dependency linking for $totalNodes nodes...")
-
-        // 2. Заменяем for-loop на forEachIndexed
-        allNodes.forEachIndexed { index, node ->
-
-            // 3. Добавляем логгирование прогресса (как в вашем примере)
-            val percent = if (totalNodes > 0) ((index + 1) * 100.0 / totalNodes).toInt() else 100
-            log.info("[${index + 1}/$totalNodes, $percent%] Linking node: ${node.fqn}")
-
-            // 4. Ваша оригинальная логика из тела цикла
-            if (node.isTypeNode()) {
-                linkInheritance(node, nodeByFqn, nodesBySimpleName)
-                linkFieldTypeDependencies(node, fieldsByClassFqn, nodeByFqn, nodesBySimpleName)
+        // быстрый доступ к мета (типизировано)
+        fun metaOf(n: Node): NodeMeta =
+            when (val m = n.meta) {
+                else -> objectMapper.convertValue(m, NodeMeta::class.java)
             }
+
+        // 0) CONTAINS (структура)
+        linkContains(all, packages, byFqn, ::metaOf)
+
+        var callsErrors = 0
+
+        // 1) проход по нодам
+        all.forEachIndexed { i, node ->
+            val p = ((i + 1) * 100.0 / all.size).toInt()
+            log.info("[${i + 1}/${all.size}, ${p}%] Linking: ${node.kind} ${node.fqn}")
+
+            val meta = metaOf(node)
+
+            // Наследование/реализация
+            if (node.isTypeNode()) {
+                linkInheritsImplements(node, meta, byFqn, bySimple)
+            }
+
+            // Аннотации
+            linkAnnotations(node, meta, byFqn, bySimple)
+
+            // DEPENDS_ON по сигнатурам
+            if (node.isFunctionNode()) {
+                linkSignatureDepends(node, meta, byFqn, bySimple)
+            }
+
+            // CALLS
             if (node.isFunctionNode()) {
                 try {
-                    linkCalls(node, nodeByFqn, nodesBySimpleName, fieldsByClassFqn)
-                    linkSignatureTypeDependencies(node, nodeByFqn, nodesBySimpleName)
+                    linkCalls(node, meta, byFqn, bySimple)
                 } catch (e: Exception) {
-                    log.error("Failed to link calls for node [${node.fqn}]: ${e.message}", e)
-                    linkCallsErrors++
+                    callsErrors++
+                    log.error("CALLS linking failed for ${node.fqn}: ${e.message}", e)
                 }
             }
         }
 
-        // 5. Опционально: лог о завершении
-        log.info("Finished linking nodes. Total 'linkCalls' errors: $linkCallsErrors")
+        log.info("Finished linking. CALLS errors: $callsErrors")
     }
 
-    private fun linkInheritance(
+    /** PACKAGE→TYPE и TYPE→{METHOD,FIELD} */
+    private fun linkContains(
+        all: List<Node>,
+        packages: Map<String?, Node>,
+        byFqn: Map<String, Node>,
+        metaOf: (Node) -> NodeMeta,
+    ) {
+        // PACKAGE -> TYPE
+        all.asSequence()
+            .filter { it.kind in setOf(
+                NodeKind.INTERFACE, NodeKind.SERVICE, NodeKind.RECORD, NodeKind.MAPPER,
+                NodeKind.ENDPOINT, NodeKind.CLASS, NodeKind.ENUM, NodeKind.CONFIG
+            ) }
+            .forEach { type ->
+                val pkg = packages[type.packageName] ?: return@forEach
+                upsertEdge(pkg, type, EdgeKind.CONTAINS)
+            }
+
+        // TYPE -> METHOD/FIELD
+        all.asSequence()
+            .filter { it.kind == NodeKind.METHOD || it.kind == NodeKind.FIELD || it.kind == NodeKind.ENDPOINT || it.kind == NodeKind.JOB || it.kind == NodeKind.TOPIC }
+            .forEach { member ->
+                val ownerFqn = metaOf(member).ownerFqn
+                val owner = ownerFqn?.let { byFqn[it] } ?: return@forEach
+                upsertEdge(owner, member, EdgeKind.CONTAINS)
+            }
+    }
+
+    /** INHERITS vs IMPLEMENTS (и опц. DEPENDS_ON на тот же тип) */
+    private fun linkInheritsImplements(
         node: Node,
-        nodeByFqn: Map<String, Node>,
-        nodesBySimpleName: Map<String?, List<Node>>,
+        meta: NodeMeta,
+        byFqn: Map<String, Node>,
+        bySimple: Map<String?, List<Node>>,
     ) {
-        val supertypes = node.meta["supertypesSimple"] as? List<*> ?: return
-        val imports = (node.meta["imports"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-        val pkgFqn = node.packageName ?: return
+        val imports = meta.imports ?: emptyList()
+        val pkg = node.packageName.orEmpty()
 
-        supertypes.filterIsInstance<String>().forEach { superName ->
-            val simple = superName.removeSuffix("?").substringBefore('<')
-            val target =
-                imports.firstOrNull { it.endsWith(".$simple") }?.let { nodeByFqn[it] }
-                    ?: nodeByFqn["$pkgFqn.$simple"]
-                    ?: nodesBySimpleName[simple]?.firstOrNull { it.isTypeNode() }
+        // приоритет готовым FQN, иначе — supertypesSimple + imports/pkg
+        val candidates = (meta.supertypesResolved ?: emptyList()) +
+                (meta.supertypesSimple ?: emptyList())
 
-            target?.let {
-                val kind = if (it.kind == NodeKind.INTERFACE) EdgeKind.IMPLEMENTS else EdgeKind.DEPENDS_ON
-                createEdge(node, it, kind)
-            }
-        }
-    }
+        for (raw in candidates) {
+            val simple = raw.substringAfterLast('.').removeSuffix("?").substringBefore('<')
+            val target = resolveType(simpleOrFqn = raw, imports = imports, pkg = pkg, byFqn = byFqn, bySimple = bySimple)
+                ?: continue
 
-    private fun linkFieldTypeDependencies(
-        typeNode: Node, // нода КЛАССА/ИНТЕРФЕЙСА/ENUM/RECORD
-        fieldsByClassFqn: Map<String, Map<String?, Node>>,
-        nodeByFqn: Map<String, Node>,
-        nodesBySimpleName: Map<String?, List<Node>>,
-    ) {
-        val classFqn = typeNode.fqn ?: return
-        val fields = fieldsByClassFqn[classFqn] ?: return
-        val imports = (typeNode.meta["imports"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-        val pkg = typeNode.packageName.orEmpty()
-
-        fields.values.forEach { fieldNode ->
-            val typeSimpleRaw = fieldNode.meta["typeSimple"] as? String ?: return@forEach
-            val simple = typeSimpleRaw.removeSuffix("?").substringBefore('<').trim()
-            if (simple.isEmpty()) return@forEach
-
-            // 1) по импортам
-            val fqnByImport = imports.firstOrNull { it.endsWith(".$simple") }
-            val target =
-                when {
-                    fqnByImport != null -> nodeByFqn[fqnByImport]
-                    else -> nodeByFqn["$pkg.$simple"] ?: nodesBySimpleName[simple]?.firstOrNull { it.isTypeNode() }
+            when (target.kind) {
+                NodeKind.INTERFACE -> {
+                    upsertEdge(node, target, EdgeKind.IMPLEMENTS)
+                    upsertEdge(node, target, EdgeKind.DEPENDS_ON) // держим и общую зависимость
                 }
-            if (target != null) {
-                createEdge(typeNode, target, EdgeKind.DEPENDS_ON)
+                else -> {
+                    upsertEdge(node, target, EdgeKind.INHERITS)
+                    upsertEdge(node, target, EdgeKind.DEPENDS_ON)
+                }
             }
         }
     }
 
+    /** ANNOTATED_WITH (+ DEPENDS_ON) */
+    private fun linkAnnotations(
+        node: Node,
+        meta: NodeMeta,
+        byFqn: Map<String, Node>,
+        bySimple: Map<String?, List<Node>>,
+    ) {
+        val annotations = meta.annotations ?: return
+        if (annotations.isEmpty()) return
+
+        val imports = meta.imports ?: emptyList()
+        val pkg = node.packageName.orEmpty()
+
+        for (a in annotations) {
+            val t = resolveType(a, imports, pkg, byFqn, bySimple) ?: continue
+            upsertEdge(node, t, EdgeKind.ANNOTATED_WITH)
+            upsertEdge(node, t, EdgeKind.DEPENDS_ON)
+        }
+    }
+
+    /** DEPENDS_ON из типов сигнатуры (paramTypes/returnType или грубый парсер по signature) */
+    private fun linkSignatureDepends(
+        fn: Node,
+        meta: NodeMeta,
+        byFqn: Map<String, Node>,
+        bySimple: Map<String?, List<Node>>,
+    ) {
+        val imports = meta.imports ?: emptyList()
+        val pkg = fn.packageName.orEmpty()
+
+        val tokens: Set<String> =
+            when {
+                !meta.paramTypes.isNullOrEmpty() || !meta.returnType.isNullOrBlank() ->
+                    (meta.paramTypes.orEmpty() + listOfNotNull(meta.returnType)).toSet()
+                !fn.signature.isNullOrBlank() -> TYPE_TOKEN.findAll(fn.signature!!)
+                    .map { it.groupValues[1].substringBefore('<').substringBefore('?') }
+                    .toSet()
+                else -> emptySet()
+            }
+
+        val ownerFqn = meta.ownerFqn
+        val src = ownerFqn?.let { byFqn[it] } ?: fn
+
+        for (t in tokens) {
+            val typeNode = resolveType(t, imports, pkg, byFqn, bySimple) ?: continue
+            if (typeNode.id != src.id) upsertEdge(src, typeNode, EdgeKind.DEPENDS_ON)
+        }
+    }
+
+    /** CALLS: method→method (Simple/Dot) + конструктор как CALLS на тип-владельца */
     private fun linkCalls(
-        node: Node,
-        nodeByFqn: Map<String, Node>,
-        nodesBySimpleName: Map<String?, List<Node>>,
-        fieldsByClassFqn: Map<String, Map<String?, Node>>,
+        fn: Node,
+        meta: NodeMeta,
+        byFqn: Map<String, Node>,
+        bySimple: Map<String?, List<Node>>,
     ) {
-        val rawList = node.meta["rawUsages"] as? List<*> ?: return
+        val usages = meta.rawUsages ?: return
+        if (usages.isEmpty()) return
 
-        val usages: List<RawUsage> =
-            rawList.mapNotNull { item ->
-                when (item) {
-                    is RawUsage -> item
-                    is Map<*, *> -> deserializeRawUsageSafe(item)
-                    else -> null
-                }
-            }
+        val imports = meta.imports ?: emptyList()
+        val ownerFqn = meta.ownerFqn
+        val owner = ownerFqn?.let { byFqn[it] }
+        val pkg = fn.packageName.orEmpty()
 
-        val classFqn = node.meta["ownerFqn"] as? String
-        val imports = (node.meta["imports"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-
-        usages.forEach { usage ->
-            when (usage) {
+        usages.forEach { u ->
+            when (u) {
                 is RawUsage.Simple -> {
-                    // локальный метод того же класса
-                    val own = classFqn?.let { nodeByFqn["$it.${usage.name}"] }
-                    if (own != null) {
-                        createEdge(node, own, EdgeKind.CALLS)
-                        return@forEach
+                    // локальный метод
+                    if (ownerFqn != null) {
+                        byFqn["$ownerFqn.${u.name}"]?.let { upsertEdge(fn, it, EdgeKind.CALLS); return@forEach }
                     }
                     // конструктор Type(...)
-                    if (usage.isCall) {
-                        val simple = usage.name
-                        val owner =
-                            imports.firstOrNull { it.endsWith(".$simple") }?.let { nodeByFqn[it] }
-                                ?: nodesBySimpleName[simple]?.firstOrNull { it.isTypeNode() }
-                        owner?.let {
-                            // Хотите — заведите EdgeKind.INSTANTIATES. Пока CALLS к владельцу.
-                            createEdge(node, it, EdgeKind.CALLS)
-                        }
+                    if (u.isCall) {
+                        val t = resolveType(u.name, imports, pkg, byFqn, bySimple) ?: return@forEach
+                        upsertEdge(fn, t, EdgeKind.CALLS)
                     }
                 }
                 is RawUsage.Dot -> {
-                    val receiverTypeFqn =
-                        resolveReceiverType(
-                            receiverName = usage.receiver,
-                            classFqn = classFqn,
-                            fieldsByClassFqn = fieldsByClassFqn,
-                            nodeByFqn = nodeByFqn,
-                            nodesBySimpleName = nodesBySimpleName,
-                            imports = imports,
-                        )
-                    receiverTypeFqn?.let { typeFqn ->
-                        nodeByFqn["$typeFqn.${usage.member}"]?.let { target ->
-                            createEdge(node, target, EdgeKind.CALLS)
+                    // попытка вывести тип получателя по имени:
+                    // 1) если Receiver начинается с заглавной — вероятно тип
+                    val recvType: Node? =
+                        if (u.receiver.firstOrNull()?.isUpperCase() == true) {
+                            resolveType(u.receiver, imports, pkg, byFqn, bySimple)
+                        } else {
+                            // 2) иначе пытаемся найти тип по FQN "owner.fieldName" или по simple имени
+                            // (для базовой версии — пробуем owner.fieldMethod)
+                            // Если известен владелец — пробуем <OwnerType>.<member>
+                            val inferredOwner = owner
+                            when {
+                                inferredOwner != null -> byFqn["${inferredOwner.fqn}.${u.member}"]?.let { return@forEach upsertEdge(fn, it, EdgeKind.CALLS) }
+                                else -> null
+                            }
+                            null
                         }
+
+                    // если нашли тип, пробуем метод у этого типа
+                    if (recvType != null) {
+                        byFqn["${recvType.fqn}.${u.member}"]?.let { upsertEdge(fn, it, EdgeKind.CALLS) }
                     }
                 }
             }
         }
     }
 
-    private fun linkSignatureTypeDependencies(
-        fnNode: Node,
-        nodeByFqn: Map<String, Node>,
-        nodesBySimpleName: Map<String?, List<Node>>,
-    ) {
-        val sig = fnNode.signature ?: return
-        val ownerFqn = fnNode.meta["ownerFqn"] as? String
-        val ownerNode = ownerFqn?.let { nodeByFqn[it] }
-        val imports = (fnNode.meta["imports"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-        val pkg = fnNode.packageName.orEmpty()
+    // ------------------------ helpers ------------------------
 
-        // очень простая выборка типов из сигнатуры: ищем токены после ':' и до ',', ')' или '='
-        // покрывает параметры и возврат. Мы берём ТОЛЬКО простое имя до '<'
-        val typeTokens =
-            Regex("""\:\s*([A-Za-z_][A-Za-z0-9_\.]*)""")
-                .findAll(sig)
-                .map { it.groupValues[1].substringBefore('<').substringBefore('?') }
-                .filter { it.isNotBlank() }
-                .toSet()
-
-        for (simpleOrFqn in typeTokens) {
-            val simple = simpleOrFqn.substringAfterLast('.')
-            val target =
-                // если уже FQN и у нас есть такая нода
-                nodeByFqn[simpleOrFqn]
-                    ?: imports.firstOrNull { it.endsWith(".$simple") }?.let { nodeByFqn[it] }
-                    ?: nodeByFqn["$pkg.$simple"]
-                    ?: nodesBySimpleName[simple]?.firstOrNull { it.isTypeNode() }
-
-            // привязываем зависимость на уровне класса-владельца, если он есть; иначе — на функцию
-            val src = ownerNode ?: fnNode
-            if (target != null && src.id != target.id) {
-                createEdge(src, target, EdgeKind.DEPENDS_ON)
-            }
-        }
-    }
-
-    private fun resolveReceiverType(
-        receiverName: String,
-        classFqn: String?,
-        fieldsByClassFqn: Map<String, Map<String?, Node>>,
-        nodeByFqn: Map<String, Node>,
-        nodesBySimpleName: Map<String?, List<Node>>,
+    private fun resolveType(
+        simpleOrFqn: String,
         imports: List<String>,
-    ): String? {
-        // поле текущего класса?
-        if (classFqn != null) {
-            val fieldNode = fieldsByClassFqn[classFqn]?.get(receiverName)
-            val typeSimple = fieldNode?.meta?.get("typeSimple") as? String
-            if (!typeSimple.isNullOrBlank()) {
-                val simple = typeSimple.removeSuffix("?").substringBefore('<')
-                imports.firstOrNull { it.endsWith(".$simple") }?.let { return it }
-                val pkg = fieldNode.packageName.orEmpty()
-                nodeByFqn["$pkg.$simple"]?.let { return it.fqn }
-                nodesBySimpleName[simple]?.firstOrNull { it.isTypeNode() }?.let { return it.fqn }
-            }
-        }
+        pkg: String,
+        byFqn: Map<String, Node>,
+        bySimple: Map<String?, List<Node>>,
+    ): Node? {
+        // точный FQN
+        byFqn[simpleOrFqn]?.let { return it }
 
-        // статический/объектный вызов: "Utils.doWork"
-        if (receiverName.firstOrNull()?.isUpperCase() == true) {
-            nodesBySimpleName[receiverName]?.firstOrNull { it.isTypeNode() }?.let { return it.fqn }
-        }
+        val simple = simpleOrFqn.substringAfterLast('.').removeSuffix("?").substringBefore('<')
 
-        // уже FQN
-        if (receiverName.contains('.')) return receiverName
-        return null
+        // import ....<simple>
+        imports.firstOrNull { it.endsWith(".$simple") }?.let { byFqn[it] }?.let { return it }
+
+        // тот же пакет
+        byFqn["$pkg.$simple"]?.let { return it }
+
+        // по простому имени (последним приоритетом)
+        return bySimple[simple]?.firstOrNull()
     }
 
-    private fun deserializeRawUsageSafe(data: Map<*, *>): RawUsage? =
-        try {
-            @Suppress("UNCHECKED_CAST")
-            val m = data as Map<String, Any>
-            if (m.containsKey("receiver")) {
-                RawUsage.Dot(
-                    receiver = m["receiver"] as String,
-                    member = m["member"] as String,
-                    isCall = m["isCall"] as Boolean,
-                )
-            } else if (m.containsKey("name")) {
-                RawUsage.Simple(
-                    name = m["name"] as String,
-                    isCall = m["isCall"] as Boolean,
-                )
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            log.warn("Failed to deserialize RawUsage map: $data", e)
-            null
-        }
-
-    private fun createEdge(
-        src: Node,
-        dst: Node,
-        kind: EdgeKind,
-    ) {
-        // быстрый upsert без исключений
+    private fun upsertEdge(src: Node, dst: Node, kind: EdgeKind) {
+        if (src.id == null || dst.id == null) return
         edgeRepo.upsert(src.id!!, dst.id!!, kind.name)
     }
 
-    private fun Node.isTypeNode() = this.kind in setOf(NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM, NodeKind.RECORD)
+    private fun Node.isTypeNode(): Boolean =
+        this.kind in setOf(NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM, NodeKind.RECORD, NodeKind.SERVICE, NodeKind.MAPPER, NodeKind.CONFIG)
 
-    private fun Node.isFunctionNode() = this.kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
+    private fun Node.isFunctionNode(): Boolean =
+        this.kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
 }

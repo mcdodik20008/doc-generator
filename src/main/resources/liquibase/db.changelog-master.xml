@@ -41,4 +41,13 @@
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
+
+    <changeSet id="04-add-contains-inherits-to-edge-kind" author="kaspshitskii">
+        <sqlFile
+                path="migration/04_add_contains_inherits_to_edge_kind.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
 </databaseChangeLog>
