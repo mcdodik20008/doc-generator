@@ -6,12 +6,12 @@ import com.bftcom.docgenerator.graph.model.BuildResult
 import com.bftcom.docgenerator.repo.ChunkRepository
 import com.bftcom.docgenerator.repo.EdgeRepository
 import com.bftcom.docgenerator.repo.NodeRepository
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import java.nio.file.Path
-import com.fasterxml.jackson.databind.ObjectMapper
 
 @Service
 class KotlinGraphBuilder(
@@ -37,12 +37,13 @@ class KotlinGraphBuilder(
 
         // --- ФАЗА 1: создаём ноды ---
         tt.execute {
-            val visitor = KotlinToDomainVisitor(
-                application = application,
-                nodeRepo = nodeRepo,
-                edgeRepo = edgeRepo,
-                objectMapper = objectMapper
-            )
+            val visitor =
+                KotlinToDomainVisitor(
+                    application = application,
+                    nodeRepo = nodeRepo,
+                    edgeRepo = edgeRepo,
+                    objectMapper = objectMapper,
+                )
             kotlinWalker.walk(sourceRoot, visitor)
         }
 
@@ -52,12 +53,12 @@ class KotlinGraphBuilder(
         val nodesAfter = nodeRepo.count()
         val edgesAfter = edgeRepo.count()
 
-        val result = BuildResult(
-            nodes = (nodesAfter - nodesBefore).toInt(),
-            edges = (edgesAfter - edgesBefore).toInt(),
-        )
+        val result =
+            BuildResult(
+                nodes = (nodesAfter - nodesBefore).toInt(),
+                edges = (edgesAfter - edgesBefore).toInt(),
+            )
         log.info("Graph built: +${result.nodes} nodes, +${result.edges} edges")
         return result
     }
 }
-

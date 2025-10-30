@@ -15,24 +15,24 @@ import org.springframework.context.annotation.Primary
 
 @Configuration
 class ObjectMapperConfig {
-
     @Bean
     @Primary
     fun objectMapper(): ObjectMapper {
-        val mapper = jacksonObjectMapper()
-            .registerModule(KotlinModule.Builder().build())
-            .registerModule(JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-            .setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
-            .deactivateDefaultTyping()
+        val mapper =
+            jacksonObjectMapper()
+                .registerModule(KotlinModule.Builder().build())
+                .registerModule(JavaTimeModule())
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
+                .deactivateDefaultTyping()
 
-        val rawUsageModule = SimpleModule("RawUsageModule")
-            .addDeserializer(RawUsage::class.java, RawUsagePolymorphicDeserializer())
-            .addSerializer(RawUsage::class.java, RawUsagePolymorphicSerializer())
+        val rawUsageModule =
+            SimpleModule("RawUsageModule")
+                .addDeserializer(RawUsage::class.java, RawUsagePolymorphicDeserializer())
+                .addSerializer(RawUsage::class.java, RawUsagePolymorphicSerializer())
 
         mapper.registerModule(rawUsageModule)
         return mapper
     }
 }
-

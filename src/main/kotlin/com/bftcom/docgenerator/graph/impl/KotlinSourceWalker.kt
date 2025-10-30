@@ -59,9 +59,9 @@ class KotlinSourceWalker(
                         }.filter { p ->
                             val s = p.toString()
                             !s.contains("${File.separator}.git${File.separator}") &&
-                                    !s.contains("${File.separator}build${File.separator}") &&
-                                    !s.contains("${File.separator}out${File.separator}") &&
-                                    !s.contains("${File.separator}node_modules${File.separator}")
+                                !s.contains("${File.separator}build${File.separator}") &&
+                                !s.contains("${File.separator}out${File.separator}") &&
+                                !s.contains("${File.separator}node_modules${File.separator}")
                         }.toList()
                 }
             log.info("Found ${paths.size} files to process.")
@@ -149,7 +149,7 @@ class KotlinSourceWalker(
                     src,
                     sig,
                     doc,
-                    kDocFetcher.toMeta(kdocParsed)
+                    kDocFetcher.toMeta(kdocParsed),
                 )
             } else {
                 visitor.onType(kind, fqn, pkg, name, path, span, supertypes)
@@ -169,7 +169,7 @@ class KotlinSourceWalker(
                         pspan,
                         src,
                         doc,
-                        kDocFetcher.toMeta(kdocParsed)
+                        kDocFetcher.toMeta(kdocParsed),
                     )
                 } else {
                     visitor.onField(fqn, prop.name ?: return@forEach, path, pspan)
@@ -197,7 +197,7 @@ class KotlinSourceWalker(
                         sig,
                         doc,
                         annotationsFun,
-                        kDocFetcher.toMeta(kdocParsed)
+                        kDocFetcher.toMeta(kdocParsed),
                     )
                 } else {
                     visitor.onFunction(
@@ -233,7 +233,7 @@ class KotlinSourceWalker(
                     sig,
                     doc,
                     annotations,
-                    kDocFetcher.toMeta(kdocParsed)
+                    kDocFetcher.toMeta(kdocParsed),
                 )
             } else {
                 visitor.onFunction(

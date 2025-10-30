@@ -6,7 +6,11 @@ import com.fasterxml.jackson.databind.JsonSerializer
 import com.fasterxml.jackson.databind.SerializerProvider
 
 class RawUsagePolymorphicSerializer : JsonSerializer<RawUsage>() {
-    override fun serialize(value: RawUsage, gen: JsonGenerator, serializers: SerializerProvider) {
+    override fun serialize(
+        value: RawUsage,
+        gen: JsonGenerator,
+        serializers: SerializerProvider,
+    ) {
         gen.writeStartObject()
         when (value) {
             is RawUsage.Dot -> {

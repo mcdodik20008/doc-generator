@@ -104,7 +104,6 @@ class GitHubIngestOrchestrator(
             "📦 Build done: nodes={}, edges={}, chunks={}, took={} ms",
             build.nodes,
             build.edges,
-
             took.toMillis(),
         )
 

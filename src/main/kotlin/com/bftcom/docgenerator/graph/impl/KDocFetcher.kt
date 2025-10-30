@@ -18,13 +18,19 @@ class KDocFetcher {
 
     fun parseKDoc(decl: KtDeclaration): KDocParsed? {
         // 1) Пытаемся получить стандартным способом
-        val kdoc = decl.docComment ?: findKDocAbove(decl) ?: run {
-            log.warn("KDoc not found for declaration: ${decl.name}")
-            return null
-        }
+        val kdoc =
+            decl.docComment ?: findKDocAbove(decl) ?: run {
+                log.warn("KDoc not found for declaration: ${decl.name}")
+                return null
+            }
 
         // 2) Берём default section, если есть (бывает, что её нет — тогда работаем по raw-тексту)
-        val def: KDocSection? = try { kdoc.getDefaultSection() } catch (_: Throwable) { null }
+        val def: KDocSection? =
+            try {
+                kdoc.getDefaultSection()
+            } catch (_: Throwable) {
+                null
+            }
 
         val raw = stripCommentMarkers(kdoc.text).trim()
         val defContent = def?.getContent()?.trim().orEmpty()
@@ -54,7 +60,8 @@ class KDocFetcher {
             }
         })
 
-        val hasAny = raw.isNotBlank() ||
+        val hasAny =
+            raw.isNotBlank() ||
                 summary.isNotBlank() ||
                 description.isNotBlank() ||
                 params.isNotEmpty() || properties.isNotEmpty() ||
@@ -77,14 +84,17 @@ class KDocFetcher {
             throws = throws,
             seeAlso = seeAlso.filter { it.isNotBlank() },
             since = since?.ifBlank { null },
-            otherTags = other.mapValues { it.value.filter { s -> s.isNotBlank() } }
+            otherTags = other.mapValues { it.value.filter { s -> s.isNotBlank() } },
         )
     }
 
     /** Формат для Node.doc_comment */
     fun toDocString(k: KDocParsed): String {
         val out = StringBuilder()
-        fun ln(s: String = "") { out.appendLine(s) }
+
+        fun ln(s: String = "") {
+            out.appendLine(s)
+        }
 
         k.summary?.let { ln(it) }
         if (!k.description.isNullOrBlank()) {
@@ -138,19 +148,20 @@ class KDocFetcher {
     }
 
     /** Формат для meta.kdoc */
-    fun toMeta(k: KDocParsed?): Map<String, Any?>? = k?.let {
-        mapOf(
-            "summary" to it.summary,
-            "description" to it.description,
-            "params" to it.params,
-            "properties" to it.properties,
-            "returns" to it.returns,
-            "throws" to it.throws,
-            "seeAlso" to it.seeAlso,
-            "since" to it.since,
-            "otherTags" to it.otherTags
-        )
-    }
+    fun toMeta(k: KDocParsed?): Map<String, Any?>? =
+        k?.let {
+            mapOf(
+                "summary" to it.summary,
+                "description" to it.description,
+                "params" to it.params,
+                "properties" to it.properties,
+                "returns" to it.returns,
+                "throws" to it.throws,
+                "seeAlso" to it.seeAlso,
+                "since" to it.since,
+                "otherTags" to it.otherTags,
+            )
+        }
 
     // ---------------- helpers ----------------
 
@@ -184,11 +195,15 @@ class KDocFetcher {
      * Универсальный парсер тегов без зависимостей на KDocTag/KDocSection классы.
      * Пробегаем все дочерние элементы и собираем блоки, начинающиеся с KDOC_TAG.
      */
-    private fun parseTags(root: PsiElement, onTag: (name: String, subject: String?, content: String) -> Unit) {
+    private fun parseTags(
+        root: PsiElement,
+        onTag: (name: String, subject: String?, content: String) -> Unit,
+    ) {
         // Идём глубоко по дереву и выхватываем элементы-теги
         val all = PsiTreeUtil.collectElements(root) { true }
         // Группируем по "логическим" тегам: KDOC_TAG (содержит внутри KDOC_TAG_NAME, KDOC_TEXT и т.д.)
-        all.filter { it.node?.elementType == KDocTokens.TAG_NAME }
+        all
+            .filter { it.node?.elementType == KDocTokens.TAG_NAME }
             .forEach { tagEl ->
                 // Имя тега
                 val nameEl = tagEl.node.findChildByType(KDocTokens.TAG_NAME)
@@ -223,7 +238,8 @@ class KDocFetcher {
 
     private fun stripCommentMarkers(text: String): String {
         val noStart = text.removePrefix("/**").removeSuffix("*/")
-        return noStart.lineSequence()
+        return noStart
+            .lineSequence()
             .map { it.trimStart().removePrefix("*").trimStart() }
             .joinToString("\n")
     }

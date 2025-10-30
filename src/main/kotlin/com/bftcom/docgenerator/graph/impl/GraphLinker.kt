@@ -57,7 +57,7 @@ class GraphLinker(
         // 1) проход по нодам
         all.forEachIndexed { i, node ->
             val p = ((i + 1) * 100.0 / all.size).toInt()
-            log.info("[${i + 1}/${all.size}, ${p}%] Linking: ${node.kind} ${node.fqn}")
+            log.info("[${i + 1}/${all.size}, $p%] Linking: ${node.kind} ${node.fqn}")
 
             val meta = metaOf(node)
 
@@ -96,20 +96,32 @@ class GraphLinker(
         metaOf: (Node) -> NodeMeta,
     ) {
         // PACKAGE -> TYPE
-        all.asSequence()
-            .filter { it.kind in setOf(
-                NodeKind.INTERFACE, NodeKind.SERVICE, NodeKind.RECORD, NodeKind.MAPPER,
-                NodeKind.ENDPOINT, NodeKind.CLASS, NodeKind.ENUM, NodeKind.CONFIG
-            ) }
-            .forEach { type ->
+        all
+            .asSequence()
+            .filter {
+                it.kind in
+                    setOf(
+                        NodeKind.INTERFACE,
+                        NodeKind.SERVICE,
+                        NodeKind.RECORD,
+                        NodeKind.MAPPER,
+                        NodeKind.ENDPOINT,
+                        NodeKind.CLASS,
+                        NodeKind.ENUM,
+                        NodeKind.CONFIG,
+                    )
+            }.forEach { type ->
                 val pkg = packages[type.packageName] ?: return@forEach
                 upsertEdge(pkg, type, EdgeKind.CONTAINS)
             }
 
         // TYPE -> METHOD/FIELD
-        all.asSequence()
-            .filter { it.kind == NodeKind.METHOD || it.kind == NodeKind.FIELD || it.kind == NodeKind.ENDPOINT || it.kind == NodeKind.JOB || it.kind == NodeKind.TOPIC }
-            .forEach { member ->
+        all
+            .asSequence()
+            .filter {
+                it.kind == NodeKind.METHOD || it.kind == NodeKind.FIELD || it.kind == NodeKind.ENDPOINT || it.kind == NodeKind.JOB ||
+                    it.kind == NodeKind.TOPIC
+            }.forEach { member ->
                 val ownerFqn = metaOf(member).ownerFqn
                 val owner = ownerFqn?.let { byFqn[it] } ?: return@forEach
                 upsertEdge(owner, member, EdgeKind.CONTAINS)
@@ -127,13 +139,15 @@ class GraphLinker(
         val pkg = node.packageName.orEmpty()
 
         // приоритет готовым FQN, иначе — supertypesSimple + imports/pkg
-        val candidates = (meta.supertypesResolved ?: emptyList()) +
+        val candidates =
+            (meta.supertypesResolved ?: emptyList()) +
                 (meta.supertypesSimple ?: emptyList())
 
         for (raw in candidates) {
             val simple = raw.substringAfterLast('.').removeSuffix("?").substringBefore('<')
-            val target = resolveType(simpleOrFqn = raw, imports = imports, pkg = pkg, byFqn = byFqn, bySimple = bySimple)
-                ?: continue
+            val target =
+                resolveType(simpleOrFqn = raw, imports = imports, pkg = pkg, byFqn = byFqn, bySimple = bySimple)
+                    ?: continue
 
             when (target.kind) {
                 NodeKind.INTERFACE -> {
@@ -182,9 +196,11 @@ class GraphLinker(
             when {
                 !meta.paramTypes.isNullOrEmpty() || !meta.returnType.isNullOrBlank() ->
                     (meta.paramTypes.orEmpty() + listOfNotNull(meta.returnType)).toSet()
-                !fn.signature.isNullOrBlank() -> TYPE_TOKEN.findAll(fn.signature!!)
-                    .map { it.groupValues[1].substringBefore('<').substringBefore('?') }
-                    .toSet()
+                !fn.signature.isNullOrBlank() ->
+                    TYPE_TOKEN
+                        .findAll(fn.signature!!)
+                        .map { it.groupValues[1].substringBefore('<').substringBefore('?') }
+                        .toSet()
                 else -> emptySet()
             }
 
@@ -217,7 +233,10 @@ class GraphLinker(
                 is RawUsage.Simple -> {
                     // локальный метод
                     if (ownerFqn != null) {
-                        byFqn["$ownerFqn.${u.name}"]?.let { upsertEdge(fn, it, EdgeKind.CALLS); return@forEach }
+                        byFqn["$ownerFqn.${u.name}"]?.let {
+                            upsertEdge(fn, it, EdgeKind.CALLS)
+                            return@forEach
+                        }
                     }
                     // конструктор Type(...)
                     if (u.isCall) {
@@ -237,7 +256,14 @@ class GraphLinker(
                             // Если известен владелец — пробуем <OwnerType>.<member>
                             val inferredOwner = owner
                             when {
-                                inferredOwner != null -> byFqn["${inferredOwner.fqn}.${u.member}"]?.let { return@forEach upsertEdge(fn, it, EdgeKind.CALLS) }
+                                inferredOwner != null ->
+                                    byFqn["${inferredOwner.fqn}.${u.member}"]?.let {
+                                        return@forEach upsertEdge(
+                                            fn,
+                                            it,
+                                            EdgeKind.CALLS,
+                                        )
+                                    }
                                 else -> null
                             }
                             null
@@ -276,14 +302,18 @@ class GraphLinker(
         return bySimple[simple]?.firstOrNull()
     }
 
-    private fun upsertEdge(src: Node, dst: Node, kind: EdgeKind) {
+    private fun upsertEdge(
+        src: Node,
+        dst: Node,
+        kind: EdgeKind,
+    ) {
         if (src.id == null || dst.id == null) return
         edgeRepo.upsert(src.id!!, dst.id!!, kind.name)
     }
 
     private fun Node.isTypeNode(): Boolean =
-        this.kind in setOf(NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM, NodeKind.RECORD, NodeKind.SERVICE, NodeKind.MAPPER, NodeKind.CONFIG)
+        this.kind in
+            setOf(NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM, NodeKind.RECORD, NodeKind.SERVICE, NodeKind.MAPPER, NodeKind.CONFIG)
 
-    private fun Node.isFunctionNode(): Boolean =
-        this.kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
+    private fun Node.isFunctionNode(): Boolean = this.kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
 }

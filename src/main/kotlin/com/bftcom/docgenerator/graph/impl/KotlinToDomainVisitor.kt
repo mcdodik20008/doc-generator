@@ -25,23 +25,26 @@ class KotlinToDomainVisitor(
     // ToDo: вынести в пропсы
     private val noise: Set<String> = setOf("listOf", "map", "of", "timer", "start", "stop"),
 ) : RichSourceVisitor {
-
     // -------------------- КЭШИ --------------------
-    private val packageByFqn = mutableMapOf<String, Node>()            // "foo" -> PACKAGE
-    private val typeByFqn = mutableMapOf<String, Node>()               // "foo.A" -> CLASS/INTERFACE/ENUM/...
-    private val funcByFqn = mutableMapOf<String, Node>()               // "foo.baz" / "foo.A.bar" -> METHOD
-    private val filePkg = mutableMapOf<String, String>()               // filePath -> "foo"
-    private val fileImports = mutableMapOf<String, List<String>>()     // filePath -> imports
+    private val packageByFqn = mutableMapOf<String, Node>() // "foo" -> PACKAGE
+    private val typeByFqn = mutableMapOf<String, Node>() // "foo.A" -> CLASS/INTERFACE/ENUM/...
+    private val funcByFqn = mutableMapOf<String, Node>() // "foo.baz" / "foo.A.bar" -> METHOD
+    private val filePkg = mutableMapOf<String, String>() // filePath -> "foo"
+    private val fileImports = mutableMapOf<String, List<String>>() // filePath -> imports
 
     // -------------------- PACKAGE --------------------
 
-    override fun onPackage(pkgFqn: String, filePath: String) {
+    override fun onPackage(
+        pkgFqn: String,
+        filePath: String,
+    ) {
         filePkg[filePath] = pkgFqn
         packageByFqn.getOrPut(pkgFqn) {
-            val meta = NodeMeta(
-                source = "onPackage",
-                pkgFqn = pkgFqn
-            )
+            val meta =
+                NodeMeta(
+                    source = "onPackage",
+                    pkgFqn = pkgFqn,
+                )
             upsertNode(
                 fqn = pkgFqn,
                 kind = NodeKind.PACKAGE,
@@ -54,7 +57,7 @@ class KotlinToDomainVisitor(
                 signature = null,
                 sourceCode = null,
                 docComment = null,
-                meta = meta
+                meta = meta,
             )
         }
     }
@@ -86,57 +89,63 @@ class KotlinToDomainVisitor(
         docComment: String?,
         kdocMeta: Map<String, Any?>?,
     ) {
-        val pkgNode = packageByFqn.getOrPut(pkgFqn) {
-            val meta = NodeMeta(
-                source = "onType:pkgAuto",
-                pkgFqn = pkgFqn
-            )
-            upsertNode(
-                fqn = pkgFqn,
-                kind = NodeKind.PACKAGE,
-                name = pkgFqn.substringAfterLast('.'),
-                packageName = pkgFqn,
-                parent = null,
-                lang = Lang.kotlin,
-                filePath = filePath,
-                span = 1..1,
-                signature = null,
-                sourceCode = null,
-                docComment = null,
-                meta = meta
-            )
-        }
-
-        val meta = NodeMeta(
-            source = "onType",
-            pkgFqn = pkgFqn,
-            supertypesSimple = supertypesSimple,
-            imports = fileImports[filePath],
-            kdoc = kdocMeta?.let {
-                KDocMeta(
-                    summary = it["summary"] as? String,
-                    details = it["details"] as? String,
-                    tags = (it["tags"] as? Map<*, *>)?.entries?.associate { e ->
-                        e.key.toString() to e.value.toString()
-                    }
+        val pkgNode =
+            packageByFqn.getOrPut(pkgFqn) {
+                val meta =
+                    NodeMeta(
+                        source = "onType:pkgAuto",
+                        pkgFqn = pkgFqn,
+                    )
+                upsertNode(
+                    fqn = pkgFqn,
+                    kind = NodeKind.PACKAGE,
+                    name = pkgFqn.substringAfterLast('.'),
+                    packageName = pkgFqn,
+                    parent = null,
+                    lang = Lang.kotlin,
+                    filePath = filePath,
+                    span = 1..1,
+                    signature = null,
+                    sourceCode = null,
+                    docComment = null,
+                    meta = meta,
                 )
             }
-        )
 
-        val typeNode = upsertNode(
-            fqn = fqn,
-            kind = kind,
-            name = name,
-            packageName = pkgFqn,
-            parent = pkgNode,
-            lang = Lang.kotlin,
-            filePath = filePath,
-            span = spanLines,
-            signature = signature,
-            sourceCode = sourceCode,
-            docComment = docComment,
-            meta = meta
-        )
+        val meta =
+            NodeMeta(
+                source = "onType",
+                pkgFqn = pkgFqn,
+                supertypesSimple = supertypesSimple,
+                imports = fileImports[filePath],
+                kdoc =
+                    kdocMeta?.let {
+                        KDocMeta(
+                            summary = it["summary"] as? String,
+                            details = it["details"] as? String,
+                            tags =
+                                (it["tags"] as? Map<*, *>)?.entries?.associate { e ->
+                                    e.key.toString() to e.value.toString()
+                                },
+                        )
+                    },
+            )
+
+        val typeNode =
+            upsertNode(
+                fqn = fqn,
+                kind = kind,
+                name = name,
+                packageName = pkgFqn,
+                parent = pkgNode,
+                lang = Lang.kotlin,
+                filePath = filePath,
+                span = spanLines,
+                signature = signature,
+                sourceCode = sourceCode,
+                docComment = docComment,
+                meta = meta,
+            )
         typeByFqn[fqn] = typeNode
     }
 
@@ -163,20 +172,23 @@ class KotlinToDomainVisitor(
         val pkg = filePkg[filePath]
         val parent = typeByFqn[ownerFqn] ?: packageByFqn[pkg.orEmpty()]
 
-        val meta = NodeMeta(
-            source = "onField",
-            pkgFqn = pkg,
-            ownerFqn = ownerFqn,
-            kdoc = kdocMeta?.let {
-                KDocMeta(
-                    summary = it["summary"] as? String,
-                    details = it["details"] as? String,
-                    tags = (it["tags"] as? Map<*, *>)?.entries?.associate { e ->
-                        e.key.toString() to e.value.toString()
-                    }
-                )
-            }
-        )
+        val meta =
+            NodeMeta(
+                source = "onField",
+                pkgFqn = pkg,
+                ownerFqn = ownerFqn,
+                kdoc =
+                    kdocMeta?.let {
+                        KDocMeta(
+                            summary = it["summary"] as? String,
+                            details = it["details"] as? String,
+                            tags =
+                                (it["tags"] as? Map<*, *>)?.entries?.associate { e ->
+                                    e.key.toString() to e.value.toString()
+                                },
+                        )
+                    },
+            )
 
         upsertNode(
             fqn = "$ownerFqn.$name",
@@ -190,7 +202,7 @@ class KotlinToDomainVisitor(
             signature = null, // можно распарсить позднее
             sourceCode = sourceCode,
             docComment = docComment,
-            meta = meta
+            meta = meta,
         )
     }
 
@@ -237,17 +249,19 @@ class KotlinToDomainVisitor(
                 else -> name
             }
 
-        val sig = signature ?: buildString {
-            append(name).append('(').append(paramNames.joinToString(",")).append(')')
-        }
+        val sig =
+            signature ?: buildString {
+                append(name).append('(').append(paramNames.joinToString(",")).append(')')
+            }
 
         // Фильтрация «шума» в вызовах
-        val callsFiltered = usages.filterNot { usage ->
-            when (usage) {
-                is RawUsage.Dot -> usage.receiver in noise || usage.member in noise
-                is RawUsage.Simple -> usage.name in noise
+        val callsFiltered =
+            usages.filterNot { usage ->
+                when (usage) {
+                    is RawUsage.Dot -> usage.receiver in noise || usage.member in noise
+                    is RawUsage.Simple -> usage.name in noise
+                }
             }
-        }
 
         val parent =
             when {
@@ -256,39 +270,43 @@ class KotlinToDomainVisitor(
                 else -> null
             }
 
-        val meta = NodeMeta(
-            source = "onFunction",
-            pkgFqn = pkgFqn,
-            ownerFqn = ownerFqn,
-            params = paramNames,
-            rawUsages = callsFiltered,
-            annotations = annotations?.toList(),
-            imports = fileImports[filePath],
-            kdoc = kdocMeta?.let {
-                KDocMeta(
-                    summary = it["summary"] as? String,
-                    details = it["details"] as? String,
-                    tags = (it["tags"] as? Map<*, *>)?.entries?.associate { e ->
-                        e.key.toString() to e.value.toString()
-                    }
-                )
-            }
-        )
+        val meta =
+            NodeMeta(
+                source = "onFunction",
+                pkgFqn = pkgFqn,
+                ownerFqn = ownerFqn,
+                params = paramNames,
+                rawUsages = callsFiltered,
+                annotations = annotations?.toList(),
+                imports = fileImports[filePath],
+                kdoc =
+                    kdocMeta?.let {
+                        KDocMeta(
+                            summary = it["summary"] as? String,
+                            details = it["details"] as? String,
+                            tags =
+                                (it["tags"] as? Map<*, *>)?.entries?.associate { e ->
+                                    e.key.toString() to e.value.toString()
+                                },
+                        )
+                    },
+            )
 
-        val fnNode = upsertNode(
-            fqn = fqn,
-            kind = kind,
-            name = name,
-            packageName = pkgFqn,
-            parent = parent,
-            lang = Lang.kotlin,
-            filePath = filePath,
-            span = spanLines,
-            signature = sig,
-            sourceCode = sourceCode,
-            docComment = docComment,
-            meta = meta
-        )
+        val fnNode =
+            upsertNode(
+                fqn = fqn,
+                kind = kind,
+                name = name,
+                packageName = pkgFqn,
+                parent = parent,
+                lang = Lang.kotlin,
+                filePath = filePath,
+                span = spanLines,
+                signature = sig,
+                sourceCode = sourceCode,
+                docComment = docComment,
+                meta = meta,
+            )
         funcByFqn[fqn] = fnNode
     }
 
@@ -329,13 +347,17 @@ class KotlinToDomainVisitor(
                     docComment = docComment,
                     signature = signature,
                     codeHash = null,
-                    meta = metaMap
-                )
+                    meta = metaMap,
+                ),
             )
         } else {
             var changed = false
 
-            fun <T> setIfChanged(curr: T, new: T, apply: (T) -> Unit) {
+            fun <T> setIfChanged(
+                curr: T,
+                new: T,
+                apply: (T) -> Unit,
+            ) {
                 if (curr != new) {
                     apply(new)
                     changed = true
@@ -368,28 +390,35 @@ class KotlinToDomainVisitor(
 
     /** Удаляем пустые поля у NodeMeta уже после convertValue → Map (чтобы JSONB был компактным). */
     private fun Map<String, Any?>.cleaned(): Map<String, Any> =
-        entries.asSequence()
+        entries
+            .asSequence()
             .filter { (_, v) ->
-                v != null && when (v) {
-                    is Collection<*> -> v.isNotEmpty()
-                    is Map<*, *> -> v.isNotEmpty()
-                    else -> true
-                }
-            }
-            .associate { (k, v) ->
-                val vv = when (v) {
-                    is Map<*, *> -> @Suppress("UNCHECKED_CAST") (v as Map<String, Any?>).cleaned()
-                    else -> v
-                }
+                v != null &&
+                    when (v) {
+                        is Collection<*> -> v.isNotEmpty()
+                        is Map<*, *> -> v.isNotEmpty()
+                        else -> true
+                    }
+            }.associate { (k, v) ->
+                val vv =
+                    when (v) {
+                        is Map<*, *> ->
+                            @Suppress("UNCHECKED_CAST")
+                            (v as Map<String, Any?>).cleaned()
+                        else -> v
+                    }
                 k to vv
             } as Map<String, Any>
 
-    private fun toMetaMap(meta: NodeMeta): Map<String, Any> =
-        objectMapper.convertValue(meta, Map::class.java) as Map<String, Any>
+    private fun toMetaMap(meta: NodeMeta): Map<String, Any> = objectMapper.convertValue(meta, Map::class.java) as Map<String, Any>
 
     // -------------------- FILE CONTEXT --------------------
 
-    override fun onFileContext(pkgFqn: String, filePath: String, imports: List<String>) {
+    override fun onFileContext(
+        pkgFqn: String,
+        filePath: String,
+        imports: List<String>,
+    ) {
         filePkg[filePath] = pkgFqn
         fileImports[filePath] = imports
     }
