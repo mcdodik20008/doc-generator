@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.api.dto
+package com.bftcom.docgenerator.api.ingest.dto
 
 import jakarta.validation.constraints.NotBlank
 

@@ -41,7 +41,7 @@ spring:
 
     clients:
       coder:
-        model: qwen2.5-coder:14b
+        model: qwen2.5:0.5b # qwen2.5-coder:14b
         temperature: 0.1
         top-p: 0.9
         seed: 42

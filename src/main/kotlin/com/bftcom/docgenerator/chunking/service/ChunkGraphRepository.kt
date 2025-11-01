@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.chunking.service
 
-import com.bftcom.docgenerator.api.dto.graph.GEdge
-import com.bftcom.docgenerator.api.dto.graph.GNode
+import com.bftcom.docgenerator.api.graph.dto.GEdge
+import com.bftcom.docgenerator.api.graph.dto.GNode
 
 interface ChunkGraphRepository {
     fun loadNodes(

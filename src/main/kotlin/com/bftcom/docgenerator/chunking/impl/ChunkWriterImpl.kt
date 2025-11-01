@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.chunking.impl
 
 import com.bftcom.docgenerator.chunking.api.ChunkWriter
-import com.bftcom.docgenerator.chunking.model.ChunkPlan
+import com.bftcom.docgenerator.chunking.model.plan.ChunkPlan
 import com.bftcom.docgenerator.domain.chunk.Chunk
 import com.bftcom.docgenerator.repo.ChunkRepository
 import org.springframework.stereotype.Service
@@ -14,7 +14,6 @@ class ChunkWriterImpl(
 ) : ChunkWriter {
     override fun savePlan(plans: List<ChunkPlan>): ChunkWriter.SaveResult {
         var written = 0L
-        var skipped = 0L
 
         for (plan in plans) {
             val nodeId = plan.nodeId
@@ -63,12 +62,6 @@ class ChunkWriterImpl(
             written++
         }
 
-        return ChunkWriter.SaveResult(written = written, skipped = skipped)
+        return ChunkWriter.SaveResult(written = written, skipped = 0)
     }
-
-    private fun sha256(s: String): String =
-        MessageDigest
-            .getInstance("SHA-256")
-            .digest(s.toByteArray())
-            .joinToString("") { "%02x".format(it) }
 }

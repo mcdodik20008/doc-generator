@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.chunking.model
+package com.bftcom.docgenerator.chunking.model.plan
 
 import com.bftcom.docgenerator.domain.node.Node
 
@@ -14,23 +14,4 @@ data class ChunkPlan(
     val relations: List<RelationHint>, // лёгкие подсказки по связям
     val pipeline: PipelinePlan, // стадии, параметры и сервисная мета
     val node: Node, // ссылка на сам узел (нужен ниже по пайплайну)
-)
-
-data class RelationHint(
-    val kind: String, // "CALLS", "READS", ...
-    val dstNodeId: Long,
-    val confidence: Double = 0.7,
-)
-
-data class PipelinePlan(
-    val stages: List<String>, // ["extract-snippet","summarize","embed",...]
-    val params: Map<String, Any> = emptyMap(), // лёгкие параметры (без тяжёлых данных)
-    val service: ServiceMeta = ServiceMeta(),
-)
-
-data class ServiceMeta(
-    val strategy: String = "per-node",
-    val priority: Int = 0,
-    val correlationId: String? = null,
-    val traceId: String? = null,
 )

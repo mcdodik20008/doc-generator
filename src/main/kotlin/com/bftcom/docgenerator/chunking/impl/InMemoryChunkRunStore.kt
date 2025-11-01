@@ -1,6 +1,6 @@
 package com.bftcom.docgenerator.chunking.impl
 
-import com.bftcom.docgenerator.api.dto.ChunkBuildStatusDto
+import com.bftcom.docgenerator.api.chunk.dto.ChunkBuildStatusDto
 import com.bftcom.docgenerator.chunking.api.ChunkRunStore
 import org.springframework.stereotype.Service
 import java.time.OffsetDateTime

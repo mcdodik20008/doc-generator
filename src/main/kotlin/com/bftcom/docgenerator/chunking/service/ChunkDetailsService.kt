@@ -1,5 +1,9 @@
 package com.bftcom.docgenerator.chunking.service
 
+import com.bftcom.docgenerator.chunking.model.chunk.ChunkDetailsResponse
+import com.bftcom.docgenerator.chunking.model.chunk.ChunkRelations
+import com.bftcom.docgenerator.chunking.model.chunk.NodeBrief
+import com.bftcom.docgenerator.chunking.model.chunk.RelationBrief
 import com.bftcom.docgenerator.repo.ChunkRepository
 import com.bftcom.docgenerator.repo.EdgeRepository
 import com.bftcom.docgenerator.repo.NodeRepository

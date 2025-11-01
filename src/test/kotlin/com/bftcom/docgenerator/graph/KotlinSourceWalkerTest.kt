@@ -3,11 +3,13 @@ package com.bftcom.docgenerator.graph
 import org.junit.jupiter.api.Assertions.assertTrue
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.graph.api.SourceVisitor
+import com.bftcom.docgenerator.graph.impl.KDocFetcherImpl
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
 import com.bftcom.docgenerator.graph.impl.KotlinSourceWalker
+import com.bftcom.docgenerator.graph.model.RawUsage
 
 class KotlinSourceWalkerTest {
     @TempDir
@@ -32,7 +34,7 @@ class KotlinSourceWalkerTest {
                 fun baz() {}
         """.trimIndent())
 
-        val walker = KotlinSourceWalker()
+        val walker = KotlinSourceWalker(KDocFetcherImpl())
         val calls = mutableListOf<String>()
         val v = object : SourceVisitor {
             override fun onPackage(pkgFqn: String, filePath: String) {
@@ -61,13 +63,65 @@ class KotlinSourceWalkerTest {
                 paramNames: List<String>,
                 filePath: String,
                 spanLines: IntRange,
-                callsSimple: List<String>
+                usages: List<RawUsage>
             ) {
-                calls += "fun:${ownerFqn ?: "<top>"}.$name(${paramNames.size}) calls=${callsSimple.joinToString()}"
+                TODO("Not yet implemented")
+            }
+
+            override fun onFileContext(
+                pkgFqn: String,
+                filePath: String,
+                imports: List<String>
+            ) {
+                TODO("Not yet implemented")
+            }
+
+            override fun onTypeEx(
+                kind: NodeKind,
+                fqn: String,
+                pkgFqn: String,
+                name: String,
+                filePath: String,
+                spanLines: IntRange,
+                supertypesSimple: List<String>,
+                sourceCode: String?,
+                signature: String?,
+                docComment: String?,
+                kdocMeta: Map<String, Any?>?
+            ) {
+                TODO("Not yet implemented")
+            }
+
+            override fun onFieldEx(
+                ownerFqn: String,
+                name: String,
+                filePath: String,
+                spanLines: IntRange,
+                sourceCode: String?,
+                docComment: String?,
+                kdocMeta: Map<String, Any?>?
+            ) {
+                TODO("Not yet implemented")
+            }
+
+            override fun onFunctionEx(
+                ownerFqn: String?,
+                name: String,
+                paramNames: List<String>,
+                filePath: String,
+                spanLines: IntRange,
+                usages: List<RawUsage>,
+                sourceCode: String?,
+                signature: String?,
+                docComment: String?,
+                annotations: Set<String>?,
+                kdocMeta: Map<String, Any?>?
+            ) {
+                TODO("Not yet implemented")
             }
         }
 
-        walker.walk(src, v)
+        walker.walk(src, v, emptyList())
 
         // Assertions (упрощённо, важные факты)
         assertTrue(calls.any { it.startsWith("pkg:foo") })

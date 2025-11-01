@@ -6,7 +6,7 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.KDocMeta
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
-import com.bftcom.docgenerator.graph.api.RichSourceVisitor
+import com.bftcom.docgenerator.graph.api.SourceVisitor
 import com.bftcom.docgenerator.graph.model.RawUsage
 import com.bftcom.docgenerator.repo.NodeRepository
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -22,7 +22,7 @@ class KotlinToDomainVisitor(
     private val objectMapper: ObjectMapper,
     // ToDo: вынести в пропсы
     private val noise: Set<String> = setOf("listOf", "map", "of", "timer", "start", "stop"),
-) : RichSourceVisitor {
+) : SourceVisitor {
     // -------------------- КЭШИ --------------------
     private val packageByFqn = mutableMapOf<String, Node>() // "foo" -> PACKAGE
     private val typeByFqn = mutableMapOf<String, Node>() // "foo.A" -> CLASS/INTERFACE/ENUM/...

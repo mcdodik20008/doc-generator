@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.api
+package com.bftcom.docgenerator.api.chunk
 
 import com.bftcom.docgenerator.chunking.service.ChunkDetailsService
 import org.springframework.web.bind.annotation.GetMapping

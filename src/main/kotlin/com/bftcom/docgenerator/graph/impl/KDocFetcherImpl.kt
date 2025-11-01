@@ -1,5 +1,6 @@
 package com.bftcom.docgenerator.graph.impl
 
+import com.bftcom.docgenerator.graph.api.KDocFetcher
 import com.bftcom.docgenerator.graph.model.KDocParsed
 import org.jetbrains.kotlin.com.intellij.psi.PsiComment
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
@@ -13,10 +14,10 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 @Service
-class KDocFetcher {
+class KDocFetcherImpl : KDocFetcher {
     private val log = LoggerFactory.getLogger(KDocFetcher::class.java)
 
-    fun parseKDoc(decl: KtDeclaration): KDocParsed? {
+    override fun parseKDoc(decl: KtDeclaration): KDocParsed? {
         // 1) Пытаемся получить стандартным способом
         val kdoc =
             decl.docComment ?: findKDocAbove(decl) ?: run {
@@ -89,7 +90,7 @@ class KDocFetcher {
     }
 
     /** Формат для Node.doc_comment */
-    fun toDocString(k: KDocParsed): String {
+    override fun toDocString(k: KDocParsed): String {
         val out = StringBuilder()
 
         fun ln(s: String = "") {
@@ -99,7 +100,7 @@ class KDocFetcher {
         k.summary?.let { ln(it) }
         if (!k.description.isNullOrBlank()) {
             if (out.isNotEmpty()) ln()
-            ln(k.description!!)
+            ln(k.description)
         }
 
         if (k.properties.isNotEmpty()) {
@@ -148,7 +149,7 @@ class KDocFetcher {
     }
 
     /** Формат для meta.kdoc */
-    fun toMeta(k: KDocParsed?): Map<String, Any?>? =
+    override fun toMeta(k: KDocParsed?): Map<String, Any?>? =
         k?.let {
             mapOf(
                 "summary" to it.summary,

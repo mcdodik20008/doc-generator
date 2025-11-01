@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.api.dto.graph
+package com.bftcom.docgenerator.api.graph.dto
 
 // Graph DTO
 data class GraphResponse(

@@ -1,6 +1,6 @@
-package com.bftcom.docgenerator.api
+package com.bftcom.docgenerator.api.ingest
 
-import com.bftcom.docgenerator.api.dto.IngestRunRequest
+import com.bftcom.docgenerator.api.ingest.dto.IngestRunRequest
 import com.bftcom.docgenerator.ingest.GitLabIngestOrchestrator
 import com.bftcom.docgenerator.ingest.IngestSummary
 import jakarta.validation.Valid

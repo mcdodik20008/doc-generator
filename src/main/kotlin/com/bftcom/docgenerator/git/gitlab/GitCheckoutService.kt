@@ -33,13 +33,17 @@ class GitCheckoutService {
         // если уже клонировано — делаем pull
         val gitDir = File(dir, ".git")
         if (gitDir.exists()) {
-            log.info("Repo already exists at {} — pulling...", dir)
-            Git.open(dir).use { git ->
-                git.fetch().setCredentialsProvider(creds).call()
-                git.checkout().setName(branch).call()
-                git.pull().setCredentialsProvider(creds).call()
+            return try {
+                log.info("Repo already exists at {} — pulling...", dir)
+                Git.open(dir).use { git ->
+                    git.fetch().setCredentialsProvider(creds).call()
+                    git.checkout().setName(branch).call()
+                    git.pull().setCredentialsProvider(creds).call()
+                }
+                dir.toPath()
+            } catch (_: Exception) {
+                dir.toPath()
             }
-            return dir.toPath()
         }
 
         // иначе clone

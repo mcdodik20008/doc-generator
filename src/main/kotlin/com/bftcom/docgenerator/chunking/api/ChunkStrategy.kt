@@ -1,6 +1,6 @@
 package com.bftcom.docgenerator.chunking.api
 
-import com.bftcom.docgenerator.chunking.model.ChunkPlan
+import com.bftcom.docgenerator.chunking.model.plan.ChunkPlan
 import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.node.Node
 

@@ -4,6 +4,7 @@ import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.node.Node
+import com.bftcom.docgenerator.graph.impl.KDocFetcherImpl
 import com.bftcom.docgenerator.graph.impl.KotlinSourceWalker
 import com.bftcom.docgenerator.graph.impl.KotlinToDomainVisitor
 import com.bftcom.docgenerator.repo.ChunkRepository
@@ -63,10 +64,10 @@ class CrossFileResolutionTest {
         whenever(edgeRepo.save(any())).thenAnswer { it.arguments[0] as Edge }
         whenever(chunkRepo.save(any())).thenAnswer { it.arguments[0] }
 
-        val walker = KotlinSourceWalker()
-        val visitor = KotlinToDomainVisitor(app, nodeRepo, edgeRepo)
+        val walker = KotlinSourceWalker(KDocFetcherImpl())
+        val visitor = KotlinToDomainVisitor(app, nodeRepo, com.fasterxml.jackson.databind.ObjectMapper())
 
-        walker.walk(src, visitor)
+        walker.walk(src, visitor, emptyList())
 
         // Диагностика: узел foo.baz должен существовать
         val savedNodes = argumentCaptor<Node>().apply {

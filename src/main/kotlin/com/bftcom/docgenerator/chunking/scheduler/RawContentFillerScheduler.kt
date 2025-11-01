@@ -1,8 +1,8 @@
 package com.bftcom.docgenerator.chunking.scheduler
 
 import com.bftcom.docgenerator.ai.chatclients.OllamaCoderClient
+import com.bftcom.docgenerator.chunking.factory.ExplainRequestFactory.toCoderExplainRequest
 import com.bftcom.docgenerator.chunking.guards.LangGuards
-import com.bftcom.docgenerator.chunking.model.toCoderExplainRequest
 import com.bftcom.docgenerator.repo.ChunkRepository
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -64,7 +64,8 @@ class RawContentFillerScheduler(
                     val reinforcedReq =
                         req.copy(
                             // усиливаем подсказки для модели, сохраняя совместимость
-                            hints = ((req.hints ?: "") + "\nТребование: Ответ ДОЛЖЕН быть на РУССКОМ языке. Используй кириллицу.").trim(),
+                            hints = ((req.hints
+                                ?: "") + "\nТребование: Ответ ДОЛЖЕН быть на РУССКОМ языке. Используй кириллицу.").trim(),
                         )
                     // небольшая пауза чтобы не лупить моментально
                     Thread.sleep((500L * regen).coerceAtMost(1500L))

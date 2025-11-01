@@ -5,6 +5,7 @@ import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
+import com.bftcom.docgenerator.graph.api.GraphLinker
 import com.bftcom.docgenerator.graph.model.RawUsage
 import com.bftcom.docgenerator.repo.EdgeRepository
 import com.bftcom.docgenerator.repo.NodeRepository
@@ -15,11 +16,11 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
-class GraphLinker(
+class GraphLinkerImpl(
     private val nodeRepo: NodeRepository,
     private val edgeRepo: EdgeRepository,
     private val objectMapper: ObjectMapper,
-) {
+) : GraphLinker {
     companion object {
         private val log = LoggerFactory.getLogger(GraphLinker::class.java)
 
@@ -28,7 +29,7 @@ class GraphLinker(
     }
 
     @Transactional
-    fun link(application: Application) {
+    override fun link(application: Application) {
         log.info("Starting graph linking for app [id=${application.id}]...")
 
         val all = nodeRepo.findAllByApplicationId(application.id!!, Pageable.ofSize(Int.MAX_VALUE))
@@ -100,16 +101,16 @@ class GraphLinker(
             .asSequence()
             .filter {
                 it.kind in
-                    setOf(
-                        NodeKind.INTERFACE,
-                        NodeKind.SERVICE,
-                        NodeKind.RECORD,
-                        NodeKind.MAPPER,
-                        NodeKind.ENDPOINT,
-                        NodeKind.CLASS,
-                        NodeKind.ENUM,
-                        NodeKind.CONFIG,
-                    )
+                        setOf(
+                            NodeKind.INTERFACE,
+                            NodeKind.SERVICE,
+                            NodeKind.RECORD,
+                            NodeKind.MAPPER,
+                            NodeKind.ENDPOINT,
+                            NodeKind.CLASS,
+                            NodeKind.ENUM,
+                            NodeKind.CONFIG,
+                        )
             }.forEach { type ->
                 val pkg = packages[type.packageName] ?: return@forEach
                 upsertEdge(pkg, type, EdgeKind.CONTAINS)
@@ -120,7 +121,7 @@ class GraphLinker(
             .asSequence()
             .filter {
                 it.kind == NodeKind.METHOD || it.kind == NodeKind.FIELD || it.kind == NodeKind.ENDPOINT || it.kind == NodeKind.JOB ||
-                    it.kind == NodeKind.TOPIC
+                        it.kind == NodeKind.TOPIC
             }.forEach { member ->
                 val ownerFqn = metaOf(member).ownerFqn
                 val owner = ownerFqn?.let { byFqn[it] } ?: return@forEach
@@ -141,7 +142,7 @@ class GraphLinker(
         // приоритет готовым FQN, иначе — supertypesSimple + imports/pkg
         val candidates =
             (meta.supertypesResolved ?: emptyList()) +
-                (meta.supertypesSimple ?: emptyList())
+                    (meta.supertypesSimple ?: emptyList())
 
         for (raw in candidates) {
             val simple = raw.substringAfterLast('.').removeSuffix("?").substringBefore('<')
@@ -154,6 +155,7 @@ class GraphLinker(
                     upsertEdge(node, target, EdgeKind.IMPLEMENTS)
                     upsertEdge(node, target, EdgeKind.DEPENDS_ON) // держим и общую зависимость
                 }
+
                 else -> {
                     upsertEdge(node, target, EdgeKind.INHERITS)
                     upsertEdge(node, target, EdgeKind.DEPENDS_ON)
@@ -196,11 +198,13 @@ class GraphLinker(
             when {
                 !meta.paramTypes.isNullOrEmpty() || !meta.returnType.isNullOrBlank() ->
                     (meta.paramTypes.orEmpty() + listOfNotNull(meta.returnType)).toSet()
+
                 !fn.signature.isNullOrBlank() ->
                     TYPE_TOKEN
                         .findAll(fn.signature!!)
                         .map { it.groupValues[1].substringBefore('<').substringBefore('?') }
                         .toSet()
+
                 else -> emptySet()
             }
 
@@ -244,6 +248,7 @@ class GraphLinker(
                         upsertEdge(fn, t, EdgeKind.CALLS)
                     }
                 }
+
                 is RawUsage.Dot -> {
                     // попытка вывести тип получателя по имени:
                     // 1) если Receiver начинается с заглавной — вероятно тип
@@ -264,6 +269,7 @@ class GraphLinker(
                                             EdgeKind.CALLS,
                                         )
                                     }
+
                                 else -> null
                             }
                             null
@@ -313,7 +319,16 @@ class GraphLinker(
 
     private fun Node.isTypeNode(): Boolean =
         this.kind in
-            setOf(NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM, NodeKind.RECORD, NodeKind.SERVICE, NodeKind.MAPPER, NodeKind.CONFIG)
+                setOf(
+                    NodeKind.CLASS,
+                    NodeKind.INTERFACE,
+                    NodeKind.ENUM,
+                    NodeKind.RECORD,
+                    NodeKind.SERVICE,
+                    NodeKind.MAPPER,
+                    NodeKind.CONFIG
+                )
 
-    private fun Node.isFunctionNode(): Boolean = this.kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
+    private fun Node.isFunctionNode(): Boolean =
+        this.kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
 }

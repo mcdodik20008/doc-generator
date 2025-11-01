@@ -1,10 +1,9 @@
 package com.bftcom.docgenerator.graph.impl
 
 import com.bftcom.docgenerator.domain.enums.NodeKind
-import com.bftcom.docgenerator.graph.api.RichSourceVisitor
+import com.bftcom.docgenerator.graph.api.KDocFetcher
 import com.bftcom.docgenerator.graph.api.SourceVisitor
 import com.bftcom.docgenerator.graph.api.SourceWalker
-import com.bftcom.docgenerator.graph.model.KDocParsed
 import com.bftcom.docgenerator.graph.model.RawUsage
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -81,7 +80,7 @@ class KotlinSourceWalker(
                 }
             log.info("Found ${paths.size} files to process.")
 
-            val rich = (visitor as? RichSourceVisitor)
+            val rich = (visitor as? SourceVisitor)
 
             val totalFiles = paths.size
             log.info("Processing $totalFiles files...")
@@ -118,7 +117,7 @@ class KotlinSourceWalker(
     private fun processKtFile(
         ktFile: KtFile,
         visitor: SourceVisitor,
-        rich: RichSourceVisitor?,
+        rich: SourceVisitor?,
         pkg: String,
         path: String,
         classpath: List<File>,

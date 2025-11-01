@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.api
+package com.bftcom.docgenerator.api.ingest
 
 import com.bftcom.docgenerator.ingest.GitLabIngestOrchestrator
 import com.bftcom.docgenerator.repo.ApplicationRepository

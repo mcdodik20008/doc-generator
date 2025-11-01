@@ -1,12 +1,11 @@
 package com.bftcom.docgenerator.chunking.impl
 
-import com.bftcom.docgenerator.api.dto.ChunkBuildRequest
-import com.bftcom.docgenerator.api.dto.ChunkBuildStatusDto
+import com.bftcom.docgenerator.api.chunk.dto.ChunkBuildRequest
 import com.bftcom.docgenerator.chunking.api.ChunkBuildOrchestrator
 import com.bftcom.docgenerator.chunking.api.ChunkRunStore
 import com.bftcom.docgenerator.chunking.api.ChunkStrategy
 import com.bftcom.docgenerator.chunking.api.ChunkWriter
-import com.bftcom.docgenerator.chunking.model.ChunkPlan
+import com.bftcom.docgenerator.chunking.model.plan.ChunkPlan
 import com.bftcom.docgenerator.chunking.model.ChunkRunHandle
 import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.enums.NodeKind

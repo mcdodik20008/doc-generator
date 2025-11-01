@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.api
+package com.bftcom.docgenerator.api.graph
 
 import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.GetMapping

@@ -44,7 +44,7 @@ class GitHubIngestOrchestrator(
                 password = ghProps.password,
                 checkoutDir = localPath,
             )
-        log.info("✅ Repo checked out at {}", actualPath)
+        log.info("Repo checked out at {}", actualPath)
 
         // --- 3) извлекаем текущий HEAD SHA ---
         val headSha =
@@ -101,7 +101,7 @@ class GitHubIngestOrchestrator(
 
         val took = Duration.between(build.startedAt, build.finishedAt)
         log.info(
-            "📦 Build done: nodes={}, edges={}, took={} ms",
+            "Build done: nodes={}, edges={}, took={} ms",
             build.nodes,
             build.edges,
             took.toMillis(),
