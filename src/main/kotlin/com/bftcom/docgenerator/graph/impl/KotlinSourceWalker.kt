@@ -10,22 +10,10 @@ import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
+import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
 import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.psi.KtBlockExpression
-import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtClassOrObject
-import org.jetbrains.kotlin.psi.KtDeclaration
-import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
-import org.jetbrains.kotlin.psi.KtElement
-import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi.KtNameReferenceExpression
-import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.psi.KtObjectDeclaration
-import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.psi.KtPsiFactory
-import org.jetbrains.kotlin.psi.KtTreeVisitorVoid
+import org.jetbrains.kotlin.psi.*
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.io.File
@@ -46,18 +34,31 @@ class KotlinSourceWalker(
     override fun walk(
         root: Path,
         visitor: SourceVisitor,
+        classpath: List<File> // <-- 2. ПРИНИМАЕМ CLASSPATH
     ) {
         log.info("Starting source walk at root [$root]...")
         require(root.isDirectory()) { "Source root must be a directory: $root" }
 
         val disposable = Disposer.newDisposable()
         try {
+            // --- 3. "КОРМЁЖКА" (FEEDING) ---
             val cfg =
                 CompilerConfiguration().apply {
                     put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE)
+
+                    if (classpath.isNotEmpty()) {
+                        log.info("Feeding ${classpath.size} classpath roots to KotlinCoreEnvironment.")
+                        addJvmClasspathRoots(classpath)
+                    } else {
+                        log.warn("!!! Classpath is empty. PSI parser will be incomplete.")
+                        log.warn("!!! This may cause 'PSI body is NULL' warnings.")
+                    }
                 }
+
             val env =
                 KotlinCoreEnvironment.createForProduction(disposable, cfg, EnvironmentConfigFiles.JVM_CONFIG_FILES)
+            // --- КОНЕЦ КОРМЁЖКИ ---
+
             val project = env.project
             val psiFactory = KtPsiFactory(project, markGenerated = false)
 
@@ -72,10 +73,10 @@ class KotlinSourceWalker(
                         }.filter { p ->
                             val s = p.toString()
                             !s.contains("${File.separator}.git${File.separator}") &&
-                                !s.contains("${File.separator}build${File.separator}") &&
-                                !s.contains("${File.separator}out${File.separator}") &&
-                                !s.contains("${File.separator}node_modules${File.separator}") &&
-                                !s.contains("dependencies.kt")
+                                    !s.contains("${File.separator}build${File.separator}") &&
+                                    !s.contains("${File.separator}out${File.separator}") &&
+                                    !s.contains("${File.separator}node_modules${File.separator}") &&
+                                    !s.contains("dependencies.kt")
                         }.toList()
                 }
             log.info("Found ${paths.size} files to process.")
@@ -104,7 +105,7 @@ class KotlinSourceWalker(
                 // передадим контекст файла с импортами (расширение интерфейса RichSourceVisitor)
                 rich?.onFileContext(pkg, relPath, imports)
 
-                processKtFile(ktFile, visitor, rich, pkg, relPath, imports)
+                processKtFile(ktFile, visitor, rich, pkg, relPath, classpath)
             }
 
             log.info("Finished processing ${paths.size} files.")
@@ -120,7 +121,7 @@ class KotlinSourceWalker(
         rich: RichSourceVisitor?,
         pkg: String,
         path: String,
-        imports: List<String>,
+        classpath: List<File>,
     ) {
         // types
         ktFile.declarations.filterIsInstance<KtClassOrObject>().forEach { decl ->
@@ -193,14 +194,26 @@ class KotlinSourceWalker(
 
             // member functions
             decl.declarations.filterIsInstance<KtNamedFunction>().forEach { funDecl ->
+
                 if (funDecl.bodyExpression == null) {
-                    log.warn("!!! PSI body for [${funDecl.name}] in [$path] is NULL! Falling back to text parser for src, but usages will be empty.")
+                    log.warn("!!! PSI body for [${funDecl.name}] in [$path] is NULL! Usages will be empty. (Classpath was fed: ${classpath.isNotEmpty()})")
                 }
 
-                val usages = collectRawUsages(funDecl)
+                val src = extractFunctionByIndent(ktFile, funDecl)
+                val (usages, isBodyNull) = if (funDecl.bodyExpression != null) {
+                    // "Правильный" путь, если PSI сработал
+                    Pair(collectRawUsagesFromPsi(funDecl), false)
+                } else {
+                    // Наш "костыльный" путь, если PSI сдох
+                    Pair(collectRawUsagesFromText(src), true)
+                }
+                if (isBodyNull) {
+                    log.warn("!!! PSI body for [${funDecl.name}] in [$path] is NULL! (Classpath was fed: ${classpath.isNotEmpty()}). Using TEXT PARSER for usages.")
+                }
+
                 val fspan = linesOf(ktFile, funDecl)
                 if (rich != null) {
-                    val src = extractFunctionByIndent(ktFile, funDecl)
+
                     val sig = signatureFromFunction(funDecl)
                     val doc = kDocFetcher.parseKDoc(decl)?.let { kDocFetcher.toDocString(it) }
                     val annotationsFun = getAnnotationShortNames(funDecl)
@@ -233,10 +246,26 @@ class KotlinSourceWalker(
 
         // top-level functions
         ktFile.declarations.filterIsInstance<KtNamedFunction>().forEach { funDecl ->
-            val usages = collectRawUsages(funDecl)
+
+            // --- ДОБАВЛЯЕМ ЛОГГИРОВАНИЕ ---
+            if (funDecl.bodyExpression == null) {
+                log.warn("!!! PSI body for [${funDecl.name}] in [$path] is NULL! Usages will be empty. (Classpath was fed: ${classpath.isNotEmpty()})")
+            }
+            // --- КОНЕЦ ЛОГГИРОВАНИЯ ---
+            val src = funDecl.text
+            val (usages, isBodyNull) = if (funDecl.bodyExpression != null) {
+                // "Правильный" путь, если PSI сработал
+                Pair(collectRawUsagesFromPsi(funDecl), false)
+            } else {
+                // Наш "костыльный" путь, если PSI сдох
+                Pair(collectRawUsagesFromText(src), true)
+            }
+            if (isBodyNull) {
+                log.warn("!!! PSI body for [${funDecl.name}] in [$path] is NULL! (Classpath was fed: ${classpath.isNotEmpty()}). Using TEXT PARSER for usages.")
+            }
             val span = linesOf(ktFile, funDecl)
             if (rich != null) {
-                val src = funDecl.text
+
                 val sig = signatureFromFunction(funDecl)
                 val doc = kDocFetcher.parseKDoc(funDecl)?.let { kDocFetcher.toDocString(it) }
                 val annotations = getAnnotationShortNames(funDecl)
@@ -267,11 +296,16 @@ class KotlinSourceWalker(
         }
     }
 
-    // --- УТИЛИТЫ: вставь в тот же файл (рядом или ниже класса обходчика) ---
+    // --- (Здесь все твои утилиты: extractFunctionByIndent, linesOf, collectRawUsages и т.д.) ---
+    // ...
+    // ... (Я не буду их перепечатывать, они остаются как есть) ...
+    // ...
+
+    // --- УТИЛИТЫ: (я скопирую их из нашей истории, чтобы файл был полным) ---
 
     // Возвращает полный исходник функции по индентации:
-// 1) если PSI дал тело — используем его;
-// 2) иначе ищем "}" на строке с тем же отступом, что и строка с "fun";
+    // 1) если PSI дал тело — используем его;
+    // 2) иначе ищем "}" на строке с тем же отступом, что и строка с "fun";
     private fun extractFunctionByIndent(
         ktFile: KtFile,
         funDecl: KtNamedFunction,
@@ -299,9 +333,9 @@ class KotlinSourceWalker(
         val funIndent = leadingIndent(text, funLineStart, funLineEnd) // отступ строки с fun
         val afterParams =
             (
-                funDecl.valueParameterList?.textRange?.endOffset
-                    ?: funDecl.textRange.endOffset
-            ).coerceIn(0, text.length)
+                    funDecl.valueParameterList?.textRange?.endOffset
+                        ?: funDecl.textRange.endOffset
+                    ).coerceIn(0, text.length)
 
         // пропустим пробелы/комменты от afterParams до тела
         var scan = skipWsAndComments(text, afterParams)
@@ -450,7 +484,7 @@ class KotlinSourceWalker(
     /**
      * Фаза 1: сбор "сырых" использований, с поддержкой safe-call, простых конструкторов и ссылок.
      */
-    private fun collectRawUsages(funDecl: KtNamedFunction): List<RawUsage> {
+    private fun collectRawUsagesFromPsi(funDecl: KtNamedFunction): List<RawUsage> {
         val usages = mutableListOf<RawUsage>()
         funDecl.bodyExpression?.accept(
             object : KtTreeVisitorVoid() {
@@ -494,16 +528,42 @@ class KotlinSourceWalker(
         return usages
     }
 
-    private fun KDocParsed.toMeta(): Map<String, Any?> =
-        mapOf(
-            "summary" to summary,
-            "description" to description,
-            "params" to params,
-            "properties" to properties,
-            "returns" to returns,
-            "throws" to throws,
-            "seeAlso" to seeAlso,
-            "since" to since,
-            "otherTags" to otherTags,
-        )
+    /**
+     *
+     * Костыль 2.0: Сбор "сырых" использований через Regex (Фолбэк).
+     */
+    private fun collectRawUsagesFromText(sourceCode: String): List<RawUsage> {
+        val usages = mutableSetOf<RawUsage>() // Используем Set, чтобы избежать дублей
+
+        // 1. Простые вызовы: calcA(...)
+        // Ищет "слово" (буквы/цифры/подчеркивание), после которого идет "("
+        val simpleCallRegex = """\b(\w+)\s*\(""".toRegex()
+        simpleCallRegex.findAll(sourceCode).forEach { match ->
+            val name = match.groupValues[1]
+            if (name.isNotBlank() && !NOISE.contains(name)) {
+                usages.add(RawUsage.Simple(name, isCall = true))
+            }
+        }
+
+        // 2. Вызовы через точку: dependenciesHolder.businessCalendarService.getWorkingDaysBetween(...)
+        // Ищет "что-то.слово("
+        // '([\w.]+\b)' - захватывает 'a.b.c'
+        // '\.(\w+)\s*\(' - захватывает '.method('
+        val dotCallRegex = """([\w.]+\b)\.(\w+)\s*\(""".toRegex()
+        dotCallRegex.findAll(sourceCode).forEach { match ->
+            val receiver = match.groupValues[1]
+            val member = match.groupValues[2]
+
+            // Отфильтровываем шум (e.g., "log.info", "map.forEach")
+            val simpleReceiver = receiver.substringAfterLast('.')
+
+            if (receiver.isNotBlank() && member.isNotBlank() &&
+                !NOISE.contains(member) && !NOISE.contains(simpleReceiver)) {
+
+                usages.add(RawUsage.Dot(receiver, member, isCall = true))
+            }
+        }
+
+        return usages.toList()
+    }
 }

@@ -10,6 +10,8 @@ import org.eclipse.jgit.api.Git
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
 import java.time.OffsetDateTime
@@ -20,6 +22,7 @@ class GitLabIngestOrchestrator(
     private val gitProps: GitLabProps,
     private val appRepo: ApplicationRepository,
     private val graphBuilder: GraphBuilder,
+    private val gradleResolver: GradleClasspathResolver,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -73,40 +76,68 @@ class GitLabIngestOrchestrator(
         val parsed = RepoUrlParser.parse(gitProps.url)
         val app: Application =
             (
-                appRepo.findByKey(appKey)
-                    ?: Application(
-                        key = appKey,
-                        name = parsed.name ?: appKey,
-                        repoUrl = gitProps.url,
-                        repoProvider = parsed.provider,
-                        repoOwner = parsed.owner,
-                        repoName = parsed.name,
-                        defaultBranch = branch,
-                    )
-            ).apply {
-                // держим актуальные метаданные
-                repoUrl = gitProps.url
-                repoProvider = parsed.provider
-                repoOwner = parsed.owner
-                repoName = parsed.name
-                defaultBranch = branch
-                lastCommitSha = headSha
-                lastIndexedAt = OffsetDateTime.now()
-                lastIndexStatus = "running"
-                lastIndexError = null
-                updatedAt = OffsetDateTime.now()
-            }
+                    appRepo.findByKey(appKey)
+                        ?: Application(
+                            key = appKey,
+                            name = parsed.name ?: appKey,
+                            repoUrl = gitProps.url,
+                            repoProvider = parsed.provider,
+                            repoOwner = parsed.owner,
+                            repoName = parsed.name,
+                            defaultBranch = branch,
+                        )
+                    ).apply {
+                    // держим актуальные метаданные
+                    repoUrl = gitProps.url
+                    repoProvider = parsed.provider
+                    repoOwner = parsed.owner
+                    repoName = parsed.name
+                    defaultBranch = branch
+                    lastCommitSha = headSha
+                    lastIndexedAt = OffsetDateTime.now()
+                    lastIndexStatus = "running"
+                    lastIndexError = null
+                    updatedAt = OffsetDateTime.now()
+                }
 
         val savedApp = appRepo.save(app)
         log.info("📇 Using application id={} key={}", savedApp.id, savedApp.key)
 
-        // --- 4) build graph ---
+        // --- 4) "Выбиваем" classpath из чужого проекта ---
+        log.info("Scanning for Gradle projects (gradlew) within [$localPath]...")
+
+        val gradleProjectDirs = Files.walk(localPath)
+            .filter { it.fileName.toString() == "gradlew" || it.fileName.toString() == "gradlew.bat" }
+            .map { it.parent } // Берем папку, ГДЕ ЛЕЖИТ gradlew
+            .distinct()
+            .toList()
+
+        val classpath: List<File> = if (gradleProjectDirs.isEmpty()) {
+            log.warn("No 'gradlew' files found in [$localPath]. Cannot resolve classpath.")
+            emptyList()
+        } else {
+            log.info("Found ${gradleProjectDirs.size} Gradle project(s): $gradleProjectDirs")
+
+            // Запускаем резолвер для КАЖДОГО найденного проекта и собираем всё в один список
+            gradleProjectDirs.flatMap { projectDir ->
+                gradleResolver.resolveClasspath(projectDir)
+            }.distinct()
+        }
+
+        if (classpath.isEmpty()) {
+            log.warn("Could not resolve classpath for [${savedApp.key}]. Analysis may be incomplete (PSI bodies may be NULL).")
+        } else {
+            log.info("Resolved ${classpath.size} TOTAL classpath entries for [${savedApp.key}].")
+        }
+
+        // --- 5) build graph ---
         val buildResult: BuildResult =
             try {
                 graphBuilder
                     .build(
                         application = savedApp,
                         sourceRoot = localPath,
+                        classpath = classpath,
                     ).also {
                         savedApp.lastIndexStatus = "success"
                         savedApp.lastIndexedAt = OffsetDateTime.now()
@@ -123,7 +154,7 @@ class GitLabIngestOrchestrator(
 
         val took = Duration.between(buildResult.startedAt, buildResult.finishedAt)
         log.info(
-            "📦 Build done: nodes={}, edges={}, chunks={}, took={} ms",
+            "📦 Build done: nodes={}, edges={}, took={} ms",
             buildResult.nodes,
             buildResult.edges,
             took.toMillis(),
@@ -140,7 +171,4 @@ class GitLabIngestOrchestrator(
             tookMs = took.toMillis(),
         )
     }
-
-    /** org/repo(.git) → repo */
-    private fun extractRepoName(repoUrl: String): String = repoUrl.substringAfterLast('/').removeSuffix(".git").ifBlank { "unknown-app" }
 }

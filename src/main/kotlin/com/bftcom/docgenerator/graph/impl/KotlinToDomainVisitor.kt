@@ -8,7 +8,6 @@ import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.RichSourceVisitor
 import com.bftcom.docgenerator.graph.model.RawUsage
-import com.bftcom.docgenerator.repo.EdgeRepository
 import com.bftcom.docgenerator.repo.NodeRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 
@@ -263,6 +262,8 @@ class KotlinToDomainVisitor(
                     is RawUsage.Dot -> usage.receiver in noise || usage.member in noise
                     is RawUsage.Simple -> usage.name in noise
                 }
+            }.filterNot {
+                it is RawUsage.Dot && it.receiver == ownerFqn && it.member == name
             }
 
         val parent =

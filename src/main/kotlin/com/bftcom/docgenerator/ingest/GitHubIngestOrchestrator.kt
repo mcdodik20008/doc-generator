@@ -86,7 +86,7 @@ class GitHubIngestOrchestrator(
         // --- 5) сборка графа ---
         val build: BuildResult =
             try {
-                graphBuilder.build(saved, actualPath).also {
+                graphBuilder.build(saved, actualPath, classpath = emptyList()).also {
                     saved.lastIndexStatus = "success"
                     saved.lastIndexedAt = OffsetDateTime.now()
                     appRepo.save(saved)
@@ -101,7 +101,7 @@ class GitHubIngestOrchestrator(
 
         val took = Duration.between(build.startedAt, build.finishedAt)
         log.info(
-            "📦 Build done: nodes={}, edges={}, chunks={}, took={} ms",
+            "📦 Build done: nodes={}, edges={}, took={} ms",
             build.nodes,
             build.edges,
             took.toMillis(),
