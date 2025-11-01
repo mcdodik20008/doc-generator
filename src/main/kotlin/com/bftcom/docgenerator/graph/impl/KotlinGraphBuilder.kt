@@ -41,7 +41,6 @@ class KotlinGraphBuilder(
                 KotlinToDomainVisitor(
                     application = application,
                     nodeRepo = nodeRepo,
-                    edgeRepo = edgeRepo,
                     objectMapper = objectMapper,
                 )
             kotlinWalker.walk(sourceRoot, visitor)

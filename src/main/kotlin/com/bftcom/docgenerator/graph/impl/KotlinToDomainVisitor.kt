@@ -20,7 +20,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 class KotlinToDomainVisitor(
     private val application: Application,
     private val nodeRepo: NodeRepository,
-    private val edgeRepo: EdgeRepository, // оставлен для будущего расширения
     private val objectMapper: ObjectMapper,
     // ToDo: вынести в пропсы
     private val noise: Set<String> = setOf("listOf", "map", "of", "timer", "start", "stop"),
@@ -254,9 +253,12 @@ class KotlinToDomainVisitor(
                 append(name).append('(').append(paramNames.joinToString(",")).append(')')
             }
 
-        // Фильтрация «шума» в вызовах
+        // 1) Нормализуем под внутриклассовые вызовы
+        val usagesNormalized = normalizeUsagesForIntra(ownerFqn, usages)
+
+        // 2) Фильтруем шум уже по нормализованным вызовам
         val callsFiltered =
-            usages.filterNot { usage ->
+            usagesNormalized.filterNot { usage ->
                 when (usage) {
                     is RawUsage.Dot -> usage.receiver in noise || usage.member in noise
                     is RawUsage.Simple -> usage.name in noise
@@ -269,6 +271,9 @@ class KotlinToDomainVisitor(
                 pkgFqn != null -> packageByFqn[pkgFqn]
                 else -> null
             }
+
+        // Доп. флаг для диагностики (не обязателен)
+        val hasIntraCalls = callsFiltered.any { it is RawUsage.Dot && it.receiver == ownerFqn }
 
         val meta =
             NodeMeta(
@@ -290,6 +295,8 @@ class KotlinToDomainVisitor(
                                 },
                         )
                     },
+                // можно хранить флажок в modifiers для удобства
+                modifiers = mapOf("hasIntraCalls" to hasIntraCalls),
             )
 
         val fnNode =
@@ -329,6 +336,13 @@ class KotlinToDomainVisitor(
         val existing = nodeRepo.findByApplicationIdAndFqn(application.id!!, fqn)
         val metaMap = toMetaMap(meta)
 
+        var lineStart: Int = span?.first ?: 0
+        var lineEnd: Int = span?.last ?: 0
+        if (sourceCode?.isNotEmpty() == true) {
+            lineStart = span?.first ?: 0
+            lineEnd = lineStart + countLinesNormalized(sourceCode) - 1
+        }
+
         return if (existing == null) {
             nodeRepo.save(
                 Node(
@@ -341,8 +355,8 @@ class KotlinToDomainVisitor(
                     lang = lang,
                     parent = parent,
                     filePath = filePath,
-                    lineStart = span?.first,
-                    lineEnd = span?.last,
+                    lineStart = lineStart,
+                    lineEnd = lineEnd,
                     sourceCode = sourceCode,
                     docComment = docComment,
                     signature = signature,
@@ -388,6 +402,16 @@ class KotlinToDomainVisitor(
 
     // -------------------- УТИЛИТЫ --------------------
 
+    private fun countLinesNormalized(src: String): Int {
+        if (src.isEmpty()) return 0
+        // нормализуем переводы строк: \r\n -> \n
+        val s = src.replace("\r\n", "\n")
+        // считаем кол-во '\n' + последнюю строку (даже без \n)
+        var count = 1
+        for (ch in s) if (ch == '\n') count++
+        return count
+    }
+
     /** Удаляем пустые поля у NodeMeta уже после convertValue → Map (чтобы JSONB был компактным). */
     private fun Map<String, Any?>.cleaned(): Map<String, Any> =
         entries
@@ -421,5 +445,30 @@ class KotlinToDomainVisitor(
     ) {
         filePkg[filePath] = pkgFqn
         fileImports[filePath] = imports
+    }
+
+    // -------------------- ВСПОМОГАТЕЛЬНОЕ --------------------
+
+    /**
+     * Если ownerFqn задан, трактуем неквалифицированные вызовы как внутриклассовые:
+     * Simple("a") -> Dot(receiver = ownerFqn, member = "a").
+     * Это не ломает внешние вызовы иc помогает линковщику построить EdgeKind.CALLS.
+     */
+    private fun normalizeUsagesForIntra(
+        ownerFqn: String?,
+        usages: List<RawUsage>,
+    ): List<RawUsage> {
+        if (ownerFqn.isNullOrBlank()) return usages
+        return usages.map { u ->
+            when (u) {
+                is RawUsage.Simple ->
+                    RawUsage.Dot(
+                        receiver = ownerFqn,
+                        member = u.name,
+                        isCall = u.isCall
+                    )
+                else -> u
+            }
+        }
     }
 }

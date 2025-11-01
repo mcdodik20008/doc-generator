@@ -18,7 +18,9 @@ class ChunkBuildController(
     private val orchestrator: ChunkBuildOrchestrator,
 ) {
     @PostMapping("/run")
-    fun run(@RequestBody req: ChunkBuildRequest): ResponseEntity<ChunkBuildResponse> {
+    fun run(
+        @RequestBody req: ChunkBuildRequest,
+    ): ResponseEntity<ChunkBuildResponse> {
         val run = orchestrator.start(req)
         return ResponseEntity.ok(ChunkBuildResponse(runId = run.runId, startedAt = run.startedAt))
     }

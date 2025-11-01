@@ -10,7 +10,7 @@ sealed class RawUsage {
     data class Dot(
         val receiver: String,
         val member: String,
-        val isCall: Boolean,
+        val isCall: Boolean = true,
     ) : RawUsage()
 
     /**

@@ -1,6 +1,8 @@
 package com.bftcom.docgenerator.chunking.scheduler
 
 import com.bftcom.docgenerator.ai.chatclients.OllamaTalkerClient
+import com.bftcom.docgenerator.ai.model.TalkerRewriteRequest
+import com.bftcom.docgenerator.chunking.model.toCoderExplainRequest
 import com.bftcom.docgenerator.chunking.model.toTalkerRewriteRequest
 import com.bftcom.docgenerator.repo.ChunkRepository
 import org.slf4j.LoggerFactory
@@ -23,7 +25,7 @@ class ContentFillerScheduler(
     @Value("\${docgen.fill.batch-size:10}")
     private var batchSize: Int = 10
 
-    @Scheduled(fixedDelayString = "\${docgen.fill.poll-ms:4000}")
+    // @Scheduled(fixedDelayString = "\${docgen.fill.poll-ms:4000}")
     fun pollAndFill() {
         val batch = tx.execute { chunkRepo.lockNextBatchContentForFill(batchSize) } ?: return
         if (batch.isEmpty()) {

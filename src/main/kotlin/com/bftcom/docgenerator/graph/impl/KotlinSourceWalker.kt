@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtClassOrObject
@@ -67,13 +68,14 @@ class KotlinSourceWalker(
                         .filter { Files.isRegularFile(it) }
                         .filter {
                             val s = it.toString()
-                            s.endsWith(".kt") || s.endsWith(".kts")
+                            s.endsWith(".kt") // || s.endsWith(".kts")
                         }.filter { p ->
                             val s = p.toString()
                             !s.contains("${File.separator}.git${File.separator}") &&
                                 !s.contains("${File.separator}build${File.separator}") &&
                                 !s.contains("${File.separator}out${File.separator}") &&
-                                !s.contains("${File.separator}node_modules${File.separator}")
+                                !s.contains("${File.separator}node_modules${File.separator}") &&
+                                !s.contains("dependencies.kt")
                         }.toList()
                 }
             log.info("Found ${paths.size} files to process.")
@@ -191,10 +193,14 @@ class KotlinSourceWalker(
 
             // member functions
             decl.declarations.filterIsInstance<KtNamedFunction>().forEach { funDecl ->
+                if (funDecl.bodyExpression == null) {
+                    log.warn("!!! PSI body for [${funDecl.name}] in [$path] is NULL! Falling back to text parser for src, but usages will be empty.")
+                }
+
                 val usages = collectRawUsages(funDecl)
                 val fspan = linesOf(ktFile, funDecl)
                 if (rich != null) {
-                    val src = funDecl.text
+                    val src = extractFunctionByIndent(ktFile, funDecl)
                     val sig = signatureFromFunction(funDecl)
                     val doc = kDocFetcher.parseKDoc(decl)?.let { kDocFetcher.toDocString(it) }
                     val annotationsFun = getAnnotationShortNames(funDecl)
@@ -259,6 +265,135 @@ class KotlinSourceWalker(
                 )
             }
         }
+    }
+
+    // --- УТИЛИТЫ: вставь в тот же файл (рядом или ниже класса обходчика) ---
+
+    // Возвращает полный исходник функции по индентации:
+// 1) если PSI дал тело — используем его;
+// 2) иначе ищем "}" на строке с тем же отступом, что и строка с "fun";
+    private fun extractFunctionByIndent(
+        ktFile: KtFile,
+        funDecl: KtNamedFunction,
+    ): String {
+        // 1) нормальный путь через PSI
+        funDecl.bodyBlockExpression?.let { body ->
+            val start = funDecl.textRange.startOffset
+            val end = body.textRange.endOffset
+            return ktFile.text.substring(start, end)
+        }
+        funDecl.bodyExpression?.takeIf { it !is KtBlockExpression }?.let { exprBody ->
+            val start = funDecl.textRange.startOffset
+            val end = exprBody.textRange.endOffset
+            return ktFile.text.substring(start, end)
+        }
+
+        // 2) фолбэк по индентации
+        val text = ktFile.text
+        val headerStart = funDecl.textRange.startOffset
+
+        // строка, где начинается "fun"
+        val funLineStart = text.lastIndexOf('\n', startIndex = headerStart).let { if (it == -1) 0 else it + 1 }
+        val funLineEnd = text.indexOf('\n', startIndex = funLineStart).let { if (it == -1) text.length else it }
+
+        val funIndent = leadingIndent(text, funLineStart, funLineEnd) // отступ строки с fun
+        val afterParams =
+            (
+                funDecl.valueParameterList?.textRange?.endOffset
+                    ?: funDecl.textRange.endOffset
+            ).coerceIn(0, text.length)
+
+        // пропустим пробелы/комменты от afterParams до тела
+        var scan = skipWsAndComments(text, afterParams)
+
+        // expression-body: "=" раньше "{"
+        val eqPos = text.indexOf('=', startIndex = scan)
+        val bracePos = text.indexOf('{', startIndex = scan)
+        if (eqPos != -1 && (bracePos == -1 || eqPos < bracePos)) {
+            // берём до конца строки / до ';'
+            var end = text.indexOf('\n', startIndex = eqPos)
+            if (end == -1) end = text.length
+            val semi = text.indexOf(';', startIndex = eqPos)
+            if (semi != -1 && semi < end) end = semi + 1
+            return text.substring(headerStart, end)
+        }
+
+        // блочное тело: ищем строку, где первый не-пробел — '}', и её отступ == отступу fun
+        var i = if (bracePos != -1) bracePos else scan
+        if (i < 0) i = scan
+        // начать поиск с начала следующей строки, чтобы точно попасть на линии тела
+        i = text.indexOf('\n', startIndex = i).let { if (it == -1) scan else it + 1 }
+
+        while (i < text.length) {
+            val lineEnd = text.indexOf('\n', startIndex = i).let { if (it == -1) text.length else it }
+            // отступ текущей строки
+            val lineIndent = leadingIndent(text, i, lineEnd)
+            val firstNonWs = firstNonWhitespace(text, i, lineEnd)
+
+            if (firstNonWs != -1 && text[firstNonWs] == '}' && lineIndent == funIndent) {
+                // нашли закрывающую скобку функции на той же колонке, что и "fun"
+                val end = (firstNonWs + 1).coerceAtMost(text.length)
+                return text.substring(headerStart, end)
+            }
+            i = lineEnd + 1
+        }
+
+        // если не нашли — хотя бы вернём шапку функции
+        return text.substring(headerStart, funLineEnd)
+    }
+
+    private fun leadingIndent(
+        text: String,
+        lineStart: Int,
+        lineEnd: Int,
+    ): String {
+        var p = lineStart
+        while (p < lineEnd && (text[p] == ' ' || text[p] == '\t')) p++
+        return text.substring(lineStart, p)
+    }
+
+    private fun firstNonWhitespace(
+        text: String,
+        lineStart: Int,
+        lineEnd: Int,
+    ): Int {
+        var p = lineStart
+        while (p < lineEnd) {
+            val c = text[p]
+            if (c != ' ' && c != '\t' && c != '\r') return p
+            p++
+        }
+        return -1
+    }
+
+    private fun skipWsAndComments(
+        text: String,
+        start: Int,
+    ): Int {
+        var i = start
+        while (i < text.length) {
+            when (text[i]) {
+                ' ', '\t', '\r', '\n' -> i++
+                '/' ->
+                    if (i + 1 < text.length) {
+                        val n = text[i + 1]
+                        if (n == '/') { // // коммент до конца строки
+                            i += 2
+                            while (i < text.length && text[i] != '\n') i++
+                        } else if (n == '*') { // /* ... */
+                            i += 2
+                            while (i + 1 < text.length && !(text[i] == '*' && text[i + 1] == '/')) i++
+                            i = (i + 2).coerceAtMost(text.length)
+                        } else {
+                            return i
+                        }
+                    } else {
+                        return i
+                    }
+                else -> return i
+            }
+        }
+        return i
     }
 
     /** 1-based диапазон строк элемента в файле. */

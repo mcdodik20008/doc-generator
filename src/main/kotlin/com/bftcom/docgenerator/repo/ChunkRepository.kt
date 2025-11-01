@@ -112,4 +112,25 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
     ): Int
 
     fun findByNodeId(nodeId: Long): MutableList<Chunk>
+
+    /**
+     * Идемпотентная запись raw-контента: апдейт только если контент пустой.
+     * Возвращает число обновлённых строк (0 — кто-то уже успел).
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        update doc_generator.chunk
+        set content_raw = :content,
+            updated_at = :updatedAt
+        where id = :id
+          and (content_raw is null or content_raw = '')
+        """,
+        nativeQuery = true,
+    )
+    fun trySetRawContent(
+        @Param("id") id: Long,
+        @Param("content") content: String,
+        @Param("updatedAt") updatedAt: OffsetDateTime,
+    ): Int
 }

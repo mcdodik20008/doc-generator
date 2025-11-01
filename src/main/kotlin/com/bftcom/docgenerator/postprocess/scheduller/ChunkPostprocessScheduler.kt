@@ -29,7 +29,7 @@ class ChunkPostprocessScheduler(
             withEmb = embedEnabled,
         )
 
-    @Scheduled(fixedDelayString = "\${docgen.post.poll-ms:5000}")
+    // @Scheduled(fixedDelayString = "\${docgen.post.poll-ms:5000}")
     fun poll() {
         val batch = tx.execute { lockBatch() } ?: throw RuntimeException("Не получилось вычитать из бдхи")
         if (batch.isEmpty()) {

@@ -1,6 +1,5 @@
 package com.bftcom.docgenerator.chunking.impl
 
-
 import com.bftcom.docgenerator.api.dto.ChunkBuildRequest
 import com.bftcom.docgenerator.api.dto.ChunkBuildStatusDto
 import com.bftcom.docgenerator.chunking.api.ChunkBuildOrchestrator
@@ -28,9 +27,8 @@ class ChunkBuildOrchestratorImpl(
     private val edgeRepo: EdgeRepository,
     private val strategies: Map<String, ChunkStrategy>,
     private val chunkWriter: ChunkWriter,
-    private val runStore: ChunkRunStore
+    private val runStore: ChunkRunStore,
 ) : ChunkBuildOrchestrator {
-
     private val log = LoggerFactory.getLogger(javaClass)
 
     override fun start(req: ChunkBuildRequest): ChunkRunHandle {
@@ -53,29 +51,36 @@ class ChunkBuildOrchestratorImpl(
 
             log.info(
                 "Chunks run START (applicationId={}, strategy={}, dryRun={}, limitNodes={}, batchSize={}, includeKinds={}, withEdgesRelations={})",
-                req.applicationId, req.strategy, req.dryRun, req.limitNodes, pageSize, req.includeKinds, req.withEdgesRelations
+                req.applicationId,
+                req.strategy,
+                req.dryRun,
+                req.limitNodes,
+                pageSize,
+                req.includeKinds,
+                req.withEdgesRelations,
             )
 
-            val kindsFilter: Set<NodeKind>? = req.includeKinds
-                ?.mapNotNull { raw ->
-                    try {
-                        NodeKind.valueOf(raw.uppercase())
-                    } catch (e: IllegalArgumentException) {
-                        log.warn("Unknown NodeKind in includeKinds: {}", raw)
-                        null
-                    }
-                }
-                ?.toSet()
-                ?.takeIf { it.isNotEmpty() }
+            val kindsFilter: Set<NodeKind>? =
+                req.includeKinds
+                    ?.mapNotNull { raw ->
+                        try {
+                            NodeKind.valueOf(raw.uppercase())
+                        } catch (e: IllegalArgumentException) {
+                            log.warn("Unknown NodeKind in includeKinds: {}", raw)
+                            null
+                        }
+                    }?.toSet()
+                    ?.takeIf { it.isNotEmpty() }
             var page = 0
 
             while (true) {
                 val pageReq = PageRequest.of(page, pageSize, Sort.by("id").ascending())
                 val pageData =
-                    if (kindsFilter.isNullOrEmpty())
+                    if (kindsFilter.isNullOrEmpty()) {
                         nodeRepo.findAllByApplicationId(req.applicationId, pageReq)
-                    else
+                    } else {
                         nodeRepo.findPageAllByApplicationIdAndKindIn(req.applicationId, kindsFilter, pageReq)
+                    }
 
                 val nodes = pageData.toList()
                 if (nodes.isEmpty()) break
@@ -83,16 +88,22 @@ class ChunkBuildOrchestratorImpl(
                 pages++
                 log.debug(
                     "Fetched page={}, size={}",
-                    page, nodes.size
+                    page,
+                    nodes.size,
                 )
 
                 // Чтобы не ловить N+1 — читаем рёбра батчем для всех узлов страницы:
                 val edgesBySrc: Map<Long, List<Edge>> =
                     if (req.withEdgesRelations) {
                         val ids = nodes.mapNotNull { it.id }
-                        if (ids.isEmpty()) emptyMap()
-                        else edgeRepo.findAllBySrcIdIn(ids).groupBy { it.src!!.id!! }
-                    } else emptyMap()
+                        if (ids.isEmpty()) {
+                            emptyMap()
+                        } else {
+                            edgeRepo.findAllBySrcIdIn(ids).groupBy { it.src!!.id!! }
+                        }
+                    } else {
+                        emptyMap()
+                    }
 
                 // Строим планы и сохраняем пачками (на узел несколько планов ок):
                 val plansBuffer = mutableListOf<ChunkPlan>()
@@ -147,14 +158,21 @@ class ChunkBuildOrchestratorImpl(
             runStore.markCompleted(run.runId, processed, written, skipped)
             log.info(
                 "Chunks run DONE: processedNodes={}, writtenChunks={}, skippedChunks={}, pages={}, duration={} ms, rate={} nodes/s",
-                processed, written, skipped, pages, dt.toMillis(), "%.2f".format(rate)
+                processed,
+                written,
+                skipped,
+                pages,
+                dt.toMillis(),
+                "%.2f".format(rate),
             )
-
         } catch (e: Exception) {
             runStore.markFailed(run.runId, e)
             log.error(
                 "Chunks run FAILED: processedNodes={}, writtenChunks={}, skippedChunks={}",
-                processed, written, skipped, e
+                processed,
+                written,
+                skipped,
+                e,
             )
             throw e
         } finally {
