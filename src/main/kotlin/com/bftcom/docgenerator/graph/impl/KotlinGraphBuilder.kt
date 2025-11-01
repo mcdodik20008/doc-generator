@@ -31,7 +31,7 @@ class KotlinGraphBuilder(
     override fun build(
         application: Application,
         sourceRoot: Path,
-        classpath: List<File>
+        classpath: List<File>,
     ): BuildResult {
         val started = OffsetDateTime.now()
         val tt = TransactionTemplate(transactionManager)
@@ -63,7 +63,7 @@ class KotlinGraphBuilder(
                 nodes = (nodesAfter - nodesBefore).toInt(),
                 edges = (edgesAfter - edgesBefore).toInt(),
                 startedAt = started,
-                finishedAt = finished
+                finishedAt = finished,
             )
         log.info("Graph built: +${result.nodes} nodes, +${result.edges} edges")
         return result

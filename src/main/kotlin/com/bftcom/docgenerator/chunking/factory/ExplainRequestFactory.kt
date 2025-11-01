@@ -5,7 +5,6 @@ import com.bftcom.docgenerator.ai.model.TalkerRewriteRequest
 import com.bftcom.docgenerator.domain.chunk.Chunk
 import com.bftcom.docgenerator.domain.node.Node
 
-
 object ExplainRequestFactory {
     fun Chunk.toCoderExplainRequest(): CoderExplainRequest {
         val node = this.node
@@ -176,6 +175,3 @@ object ExplainRequestFactory {
         return intra to inter
     }
 }
-
-
-

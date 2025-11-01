@@ -7,6 +7,6 @@ interface SourceWalker {
     fun walk(
         root: Path,
         visitor: SourceVisitor,
-        classpath: List<File>
+        classpath: List<File>,
     )
 }

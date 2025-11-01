@@ -257,14 +257,15 @@ class KotlinToDomainVisitor(
 
         // 2) Фильтруем шум уже по нормализованным вызовам
         val callsFiltered =
-            usagesNormalized.filterNot { usage ->
-                when (usage) {
-                    is RawUsage.Dot -> usage.receiver in noise || usage.member in noise
-                    is RawUsage.Simple -> usage.name in noise
+            usagesNormalized
+                .filterNot { usage ->
+                    when (usage) {
+                        is RawUsage.Dot -> usage.receiver in noise || usage.member in noise
+                        is RawUsage.Simple -> usage.name in noise
+                    }
+                }.filterNot {
+                    it is RawUsage.Dot && it.receiver == ownerFqn && it.member == name
                 }
-            }.filterNot {
-                it is RawUsage.Dot && it.receiver == ownerFqn && it.member == name
-            }
 
         val parent =
             when {
@@ -466,7 +467,7 @@ class KotlinToDomainVisitor(
                     RawUsage.Dot(
                         receiver = ownerFqn,
                         member = u.name,
-                        isCall = u.isCall
+                        isCall = u.isCall,
                     )
                 else -> u
             }

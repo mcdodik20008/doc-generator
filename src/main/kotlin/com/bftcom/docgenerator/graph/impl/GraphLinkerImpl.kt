@@ -101,16 +101,16 @@ class GraphLinkerImpl(
             .asSequence()
             .filter {
                 it.kind in
-                        setOf(
-                            NodeKind.INTERFACE,
-                            NodeKind.SERVICE,
-                            NodeKind.RECORD,
-                            NodeKind.MAPPER,
-                            NodeKind.ENDPOINT,
-                            NodeKind.CLASS,
-                            NodeKind.ENUM,
-                            NodeKind.CONFIG,
-                        )
+                    setOf(
+                        NodeKind.INTERFACE,
+                        NodeKind.SERVICE,
+                        NodeKind.RECORD,
+                        NodeKind.MAPPER,
+                        NodeKind.ENDPOINT,
+                        NodeKind.CLASS,
+                        NodeKind.ENUM,
+                        NodeKind.CONFIG,
+                    )
             }.forEach { type ->
                 val pkg = packages[type.packageName] ?: return@forEach
                 upsertEdge(pkg, type, EdgeKind.CONTAINS)
@@ -121,7 +121,7 @@ class GraphLinkerImpl(
             .asSequence()
             .filter {
                 it.kind == NodeKind.METHOD || it.kind == NodeKind.FIELD || it.kind == NodeKind.ENDPOINT || it.kind == NodeKind.JOB ||
-                        it.kind == NodeKind.TOPIC
+                    it.kind == NodeKind.TOPIC
             }.forEach { member ->
                 val ownerFqn = metaOf(member).ownerFqn
                 val owner = ownerFqn?.let { byFqn[it] } ?: return@forEach
@@ -142,7 +142,7 @@ class GraphLinkerImpl(
         // приоритет готовым FQN, иначе — supertypesSimple + imports/pkg
         val candidates =
             (meta.supertypesResolved ?: emptyList()) +
-                    (meta.supertypesSimple ?: emptyList())
+                (meta.supertypesSimple ?: emptyList())
 
         for (raw in candidates) {
             val simple = raw.substringAfterLast('.').removeSuffix("?").substringBefore('<')
@@ -319,16 +319,15 @@ class GraphLinkerImpl(
 
     private fun Node.isTypeNode(): Boolean =
         this.kind in
-                setOf(
-                    NodeKind.CLASS,
-                    NodeKind.INTERFACE,
-                    NodeKind.ENUM,
-                    NodeKind.RECORD,
-                    NodeKind.SERVICE,
-                    NodeKind.MAPPER,
-                    NodeKind.CONFIG
-                )
+            setOf(
+                NodeKind.CLASS,
+                NodeKind.INTERFACE,
+                NodeKind.ENUM,
+                NodeKind.RECORD,
+                NodeKind.SERVICE,
+                NodeKind.MAPPER,
+                NodeKind.CONFIG,
+            )
 
-    private fun Node.isFunctionNode(): Boolean =
-        this.kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
+    private fun Node.isFunctionNode(): Boolean = this.kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
 }

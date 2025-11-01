@@ -76,29 +76,29 @@ class GitLabIngestOrchestrator(
         val parsed = RepoUrlParser.parse(gitProps.url)
         val app: Application =
             (
-                    appRepo.findByKey(appKey)
-                        ?: Application(
-                            key = appKey,
-                            name = parsed.name ?: appKey,
-                            repoUrl = gitProps.url,
-                            repoProvider = parsed.provider,
-                            repoOwner = parsed.owner,
-                            repoName = parsed.name,
-                            defaultBranch = branch,
-                        )
-                    ).apply {
-                    // держим актуальные метаданные
-                    repoUrl = gitProps.url
-                    repoProvider = parsed.provider
-                    repoOwner = parsed.owner
-                    repoName = parsed.name
-                    defaultBranch = branch
-                    lastCommitSha = headSha
-                    lastIndexedAt = OffsetDateTime.now()
-                    lastIndexStatus = "running"
-                    lastIndexError = null
-                    updatedAt = OffsetDateTime.now()
-                }
+                appRepo.findByKey(appKey)
+                    ?: Application(
+                        key = appKey,
+                        name = parsed.name ?: appKey,
+                        repoUrl = gitProps.url,
+                        repoProvider = parsed.provider,
+                        repoOwner = parsed.owner,
+                        repoName = parsed.name,
+                        defaultBranch = branch,
+                    )
+            ).apply {
+                // держим актуальные метаданные
+                repoUrl = gitProps.url
+                repoProvider = parsed.provider
+                repoOwner = parsed.owner
+                repoName = parsed.name
+                defaultBranch = branch
+                lastCommitSha = headSha
+                lastIndexedAt = OffsetDateTime.now()
+                lastIndexStatus = "running"
+                lastIndexError = null
+                updatedAt = OffsetDateTime.now()
+            }
 
         val savedApp = appRepo.save(app)
         log.info("📇 Using application id={} key={}", savedApp.id, savedApp.key)
@@ -106,23 +106,27 @@ class GitLabIngestOrchestrator(
         // --- 4) "Выбиваем" classpath из чужого проекта ---
         log.info("Scanning for Gradle projects (gradlew) within [$localPath]...")
 
-        val gradleProjectDirs = Files.walk(localPath)
-            .filter { it.fileName.toString() == "gradlew" || it.fileName.toString() == "gradlew.bat" }
-            .map { it.parent } // Берем папку, ГДЕ ЛЕЖИТ gradlew
-            .distinct()
-            .toList()
+        val gradleProjectDirs =
+            Files
+                .walk(localPath)
+                .filter { it.fileName.toString() == "gradlew" || it.fileName.toString() == "gradlew.bat" }
+                .map { it.parent } // Берем папку, ГДЕ ЛЕЖИТ gradlew
+                .distinct()
+                .toList()
 
-        val classpath: List<File> = if (gradleProjectDirs.isEmpty()) {
-            log.warn("No 'gradlew' files found in [$localPath]. Cannot resolve classpath.")
-            emptyList()
-        } else {
-            log.info("Found ${gradleProjectDirs.size} Gradle project(s): $gradleProjectDirs")
+        val classpath: List<File> =
+            if (gradleProjectDirs.isEmpty()) {
+                log.warn("No 'gradlew' files found in [$localPath]. Cannot resolve classpath.")
+                emptyList()
+            } else {
+                log.info("Found ${gradleProjectDirs.size} Gradle project(s): $gradleProjectDirs")
 
-            // Запускаем резолвер для КАЖДОГО найденного проекта и собираем всё в один список
-            gradleProjectDirs.flatMap { projectDir ->
-                gradleResolver.resolveClasspath(projectDir)
-            }.distinct()
-        }
+                // Запускаем резолвер для КАЖДОГО найденного проекта и собираем всё в один список
+                gradleProjectDirs
+                    .flatMap { projectDir ->
+                        gradleResolver.resolveClasspath(projectDir)
+                    }.distinct()
+            }
 
         if (classpath.isEmpty()) {
             log.warn("Could not resolve classpath for [${savedApp.key}]. Analysis may be incomplete (PSI bodies may be NULL).")

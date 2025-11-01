@@ -33,7 +33,7 @@ class KotlinSourceWalker(
     override fun walk(
         root: Path,
         visitor: SourceVisitor,
-        classpath: List<File> // <-- 2. ПРИНИМАЕМ CLASSPATH
+        classpath: List<File>, // <-- 2. ПРИНИМАЕМ CLASSPATH
     ) {
         log.info("Starting source walk at root [$root]...")
         require(root.isDirectory()) { "Source root must be a directory: $root" }
@@ -72,10 +72,10 @@ class KotlinSourceWalker(
                         }.filter { p ->
                             val s = p.toString()
                             !s.contains("${File.separator}.git${File.separator}") &&
-                                    !s.contains("${File.separator}build${File.separator}") &&
-                                    !s.contains("${File.separator}out${File.separator}") &&
-                                    !s.contains("${File.separator}node_modules${File.separator}") &&
-                                    !s.contains("dependencies.kt")
+                                !s.contains("${File.separator}build${File.separator}") &&
+                                !s.contains("${File.separator}out${File.separator}") &&
+                                !s.contains("${File.separator}node_modules${File.separator}") &&
+                                !s.contains("dependencies.kt")
                         }.toList()
                 }
             log.info("Found ${paths.size} files to process.")
@@ -195,24 +195,28 @@ class KotlinSourceWalker(
             decl.declarations.filterIsInstance<KtNamedFunction>().forEach { funDecl ->
 
                 if (funDecl.bodyExpression == null) {
-                    log.warn("!!! PSI body for [${funDecl.name}] in [$path] is NULL! Usages will be empty. (Classpath was fed: ${classpath.isNotEmpty()})")
+                    log.warn(
+                        "!!! PSI body for [${funDecl.name}] in [$path] is NULL! Usages will be empty. (Classpath was fed: ${classpath.isNotEmpty()})",
+                    )
                 }
 
                 val src = extractFunctionByIndent(ktFile, funDecl)
-                val (usages, isBodyNull) = if (funDecl.bodyExpression != null) {
-                    // "Правильный" путь, если PSI сработал
-                    Pair(collectRawUsagesFromPsi(funDecl), false)
-                } else {
-                    // Наш "костыльный" путь, если PSI сдох
-                    Pair(collectRawUsagesFromText(src), true)
-                }
+                val (usages, isBodyNull) =
+                    if (funDecl.bodyExpression != null) {
+                        // "Правильный" путь, если PSI сработал
+                        Pair(collectRawUsagesFromPsi(funDecl), false)
+                    } else {
+                        // Наш "костыльный" путь, если PSI сдох
+                        Pair(collectRawUsagesFromText(src), true)
+                    }
                 if (isBodyNull) {
-                    log.warn("!!! PSI body for [${funDecl.name}] in [$path] is NULL! (Classpath was fed: ${classpath.isNotEmpty()}). Using TEXT PARSER for usages.")
+                    log.warn(
+                        "!!! PSI body for [${funDecl.name}] in [$path] is NULL! (Classpath was fed: ${classpath.isNotEmpty()}). Using TEXT PARSER for usages.",
+                    )
                 }
 
                 val fspan = linesOf(ktFile, funDecl)
                 if (rich != null) {
-
                     val sig = signatureFromFunction(funDecl)
                     val doc = kDocFetcher.parseKDoc(decl)?.let { kDocFetcher.toDocString(it) }
                     val annotationsFun = getAnnotationShortNames(funDecl)
@@ -248,23 +252,27 @@ class KotlinSourceWalker(
 
             // --- ДОБАВЛЯЕМ ЛОГГИРОВАНИЕ ---
             if (funDecl.bodyExpression == null) {
-                log.warn("!!! PSI body for [${funDecl.name}] in [$path] is NULL! Usages will be empty. (Classpath was fed: ${classpath.isNotEmpty()})")
+                log.warn(
+                    "!!! PSI body for [${funDecl.name}] in [$path] is NULL! Usages will be empty. (Classpath was fed: ${classpath.isNotEmpty()})",
+                )
             }
             // --- КОНЕЦ ЛОГГИРОВАНИЯ ---
             val src = funDecl.text
-            val (usages, isBodyNull) = if (funDecl.bodyExpression != null) {
-                // "Правильный" путь, если PSI сработал
-                Pair(collectRawUsagesFromPsi(funDecl), false)
-            } else {
-                // Наш "костыльный" путь, если PSI сдох
-                Pair(collectRawUsagesFromText(src), true)
-            }
+            val (usages, isBodyNull) =
+                if (funDecl.bodyExpression != null) {
+                    // "Правильный" путь, если PSI сработал
+                    Pair(collectRawUsagesFromPsi(funDecl), false)
+                } else {
+                    // Наш "костыльный" путь, если PSI сдох
+                    Pair(collectRawUsagesFromText(src), true)
+                }
             if (isBodyNull) {
-                log.warn("!!! PSI body for [${funDecl.name}] in [$path] is NULL! (Classpath was fed: ${classpath.isNotEmpty()}). Using TEXT PARSER for usages.")
+                log.warn(
+                    "!!! PSI body for [${funDecl.name}] in [$path] is NULL! (Classpath was fed: ${classpath.isNotEmpty()}). Using TEXT PARSER for usages.",
+                )
             }
             val span = linesOf(ktFile, funDecl)
             if (rich != null) {
-
                 val sig = signatureFromFunction(funDecl)
                 val doc = kDocFetcher.parseKDoc(funDecl)?.let { kDocFetcher.toDocString(it) }
                 val annotations = getAnnotationShortNames(funDecl)
@@ -332,9 +340,9 @@ class KotlinSourceWalker(
         val funIndent = leadingIndent(text, funLineStart, funLineEnd) // отступ строки с fun
         val afterParams =
             (
-                    funDecl.valueParameterList?.textRange?.endOffset
-                        ?: funDecl.textRange.endOffset
-                    ).coerceIn(0, text.length)
+                funDecl.valueParameterList?.textRange?.endOffset
+                    ?: funDecl.textRange.endOffset
+            ).coerceIn(0, text.length)
 
         // пропустим пробелы/комменты от afterParams до тела
         var scan = skipWsAndComments(text, afterParams)
@@ -557,8 +565,8 @@ class KotlinSourceWalker(
             val simpleReceiver = receiver.substringAfterLast('.')
 
             if (receiver.isNotBlank() && member.isNotBlank() &&
-                !NOISE.contains(member) && !NOISE.contains(simpleReceiver)) {
-
+                !NOISE.contains(member) && !NOISE.contains(simpleReceiver)
+            ) {
                 usages.add(RawUsage.Dot(receiver, member, isCall = true))
             }
         }

@@ -9,6 +9,6 @@ interface GraphBuilder {
     fun build(
         application: Application,
         sourceRoot: Path,
-        classpath: List<File>
+        classpath: List<File>,
     ): BuildResult
 }

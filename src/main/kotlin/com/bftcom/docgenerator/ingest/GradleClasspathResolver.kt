@@ -9,7 +9,6 @@ import kotlin.io.path.exists
 
 @Component
 class GradleClasspathResolver {
-
     private val log = LoggerFactory.getLogger(javaClass)
 
     /**
@@ -17,31 +16,32 @@ class GradleClasspathResolver {
      * который поймет любая версия Gradle.
      */
     private fun createClasspathInitScript(): Path {
-        val scriptContents = """
-        // Уникальный префикс, чтобы мы могли найти нужные строки в выхлопе
-        def CLASSPATH_MARKER = "CLASSPATH_ENTRY:"
+        val scriptContents =
+            """
+            // Уникальный префикс, чтобы мы могли найти нужные строки в выхлопе
+            def CLASSPATH_MARKER = "CLASSPATH_ENTRY:"
 
-        allprojects {
-            // 'afterEvaluate' принимает 'project' как параметр в Groovy
-            afterEvaluate { project ->
-                try {
-                    // Проверяем, есть ли Java/Kotlin плагины
-                    if (project.plugins.hasPlugin("java") || project.plugins.hasPlugin("java-library") || project.plugins.hasPlugin("org.jetbrains.kotlin.jvm")) {
-                        
-                        // 'def' вместо 'val'
-                        def runtimeClasspath = project.configurations.getByName("runtimeClasspath")
-                        
-                        // '.each' вместо '.forEach'
-                        runtimeClasspath.files.each { file ->
-                            println(CLASSPATH_MARKER + file.absolutePath)
+            allprojects {
+                // 'afterEvaluate' принимает 'project' как параметр в Groovy
+                afterEvaluate { project ->
+                    try {
+                        // Проверяем, есть ли Java/Kotlin плагины
+                        if (project.plugins.hasPlugin("java") || project.plugins.hasPlugin("java-library") || project.plugins.hasPlugin("org.jetbrains.kotlin.jvm")) {
+                            
+                            // 'def' вместо 'val'
+                            def runtimeClasspath = project.configurations.getByName("runtimeClasspath")
+                            
+                            // '.each' вместо '.forEach'
+                            runtimeClasspath.files.each { file ->
+                                println(CLASSPATH_MARKER + file.absolutePath)
+                            }
                         }
+                    } catch (Exception e) {
+                        // Игнорируем, если конфигурации 'runtimeClasspath' нет
                     }
-                } catch (Exception e) {
-                    // Игнорируем, если конфигурации 'runtimeClasspath' нет
                 }
             }
-        }
-        """.trimIndent()
+            """.trimIndent()
 
         // Создаем временный файл, но теперь с расширением .gradle
         val tempScript = Files.createTempFile("gradle-init-", ".gradle") // <-- ИЗМЕНИЛИ .kts на .gradle
@@ -55,12 +55,13 @@ class GradleClasspathResolver {
      * возвращая список файлов classpath.
      */
     fun resolveClasspath(projectDir: Path): List<File> {
-        val initScriptPath = try {
-            createClasspathInitScript()
-        } catch (e: Exception) {
-            log.error("Failed to create Gradle init script", e)
-            return emptyList()
-        }
+        val initScriptPath =
+            try {
+                createClasspathInitScript()
+            } catch (e: Exception) {
+                log.error("Failed to create Gradle init script", e)
+                return emptyList()
+            }
 
         val os = System.getProperty("os.name").lowercase()
         val isWindows = os.contains("win")
@@ -71,23 +72,25 @@ class GradleClasspathResolver {
             log.warn("Cannot find gradlew at [$gradlewPath]. Skipping classpath resolution.")
             return emptyList()
         }
-        
+
         // Мы запускаем безвредную задачу 'tasks' (с --quiet), которая заставит
         // Gradle выполнить наш init-скрипт
-        val command = if (isWindows) {
-            listOf("cmd.exe", "/c", gradlewPath.toString(), "--init-script", initScriptPath.toString(), "tasks", "--quiet")
-        } else {
-            listOf("/bin/sh", gradlewPath.toString(), "--init-script", initScriptPath.toString(), "tasks", "--quiet")
-        }
+        val command =
+            if (isWindows) {
+                listOf("cmd.exe", "/c", gradlewPath.toString(), "--init-script", initScriptPath.toString(), "tasks", "--quiet")
+            } else {
+                listOf("/bin/sh", gradlewPath.toString(), "--init-script", initScriptPath.toString(), "tasks", "--quiet")
+            }
 
         log.info("Fetching classpath from [$projectDir] using init script...")
         val classpathFiles = mutableListOf<File>()
 
         try {
-            val process = ProcessBuilder(command)
-                .directory(projectDir.toFile())
-                .redirectErrorStream(true)
-                .start()
+            val process =
+                ProcessBuilder(command)
+                    .directory(projectDir.toFile())
+                    .redirectErrorStream(true)
+                    .start()
 
             val reader = process.inputStream.bufferedReader()
             var line: String?
@@ -114,7 +117,6 @@ class GradleClasspathResolver {
             if (exitCode != 0) {
                 log.warn("Gradle init script task failed with exit code $exitCode. Classpath may be incomplete.")
             }
-
         } catch (e: Exception) {
             log.error("Failed to run Gradle init script in [$projectDir]", e)
         }
