@@ -1,6 +1,6 @@
 package com.bftcom.docgenerator.domain.node
 
-import com.bftcom.docgenerator.graph.model.RawUsage
+import com.bftcom.docgenerator.model.RawUsage
 
 /**
  * Полное описание метаданных, хранящихся в Node.meta (JSONB).

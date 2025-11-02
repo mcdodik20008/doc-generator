@@ -35,7 +35,7 @@ class Application(
     @Column(name = "monorepo_path")
     var monorepoPath: String? = null,
     @Column(name = "default_branch", nullable = false)
-    var defaultBranch: String = "main",
+    var defaultBranch: String = "com.bftcom.docgenerator.main",
     // --- Индексация ---
     @Column(name = "last_commit_sha")
     var lastCommitSha: String? = null,

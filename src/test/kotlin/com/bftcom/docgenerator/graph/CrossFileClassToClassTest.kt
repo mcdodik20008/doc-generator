@@ -4,7 +4,6 @@ import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.graph.api.KDocFetcher
 import com.bftcom.docgenerator.graph.impl.KDocFetcherImpl
 import com.bftcom.docgenerator.graph.impl.KotlinSourceWalker
 import com.bftcom.docgenerator.graph.impl.KotlinToDomainVisitor
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.mockito.kotlin.*
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper
 import java.nio.file.Files
 import java.nio.file.Path
 

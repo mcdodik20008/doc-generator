@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.graph.model
+package com.bftcom.docgenerator.model
 
 import java.time.OffsetDateTime
 

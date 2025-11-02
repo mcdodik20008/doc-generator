@@ -1,6 +1,6 @@
 package com.bftcom.docgenerator.config
 
-import com.bftcom.docgenerator.graph.model.RawUsage
+import com.bftcom.docgenerator.model.RawUsage
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper

@@ -2,14 +2,14 @@ package com.bftcom.docgenerator.graph
 
 import org.junit.jupiter.api.Assertions.assertTrue
 import com.bftcom.docgenerator.domain.enums.NodeKind
-import com.bftcom.docgenerator.graph.api.SourceVisitor
+import com.yourpkg.graph.api.SourceVisitor
 import com.bftcom.docgenerator.graph.impl.KDocFetcherImpl
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
 import com.bftcom.docgenerator.graph.impl.KotlinSourceWalker
-import com.bftcom.docgenerator.graph.model.RawUsage
+import com.yourpkg.graph.api.model.RawUsage
 
 class KotlinSourceWalkerTest {
     @TempDir

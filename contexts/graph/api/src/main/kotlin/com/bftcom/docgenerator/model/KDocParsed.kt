@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.graph.model
+package com.bftcom.docgenerator.model
 
 data class KDocParsed(
     val raw: String, // сырой текст без /** */ и звёздочек

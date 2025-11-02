@@ -1,6 +1,6 @@
 package com.bftcom.docgenerator.config
 
-import com.bftcom.docgenerator.graph.model.RawUsage
+import com.bftcom.docgenerator.model.RawUsage
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer

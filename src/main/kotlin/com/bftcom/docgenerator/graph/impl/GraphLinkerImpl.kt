@@ -1,12 +1,12 @@
 package com.bftcom.docgenerator.graph.impl
 
+import com.bftcom.docgenerator.api.graph.GraphLinker
 import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
-import com.bftcom.docgenerator.graph.api.GraphLinker
-import com.bftcom.docgenerator.graph.model.RawUsage
+import com.bftcom.docgenerator.model.RawUsage
 import com.bftcom.docgenerator.repo.EdgeRepository
 import com.bftcom.docgenerator.repo.NodeRepository
 import com.fasterxml.jackson.databind.ObjectMapper

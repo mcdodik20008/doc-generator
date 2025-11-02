@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.graph.impl
 
-import com.bftcom.docgenerator.graph.api.KDocFetcher
-import com.bftcom.docgenerator.graph.model.KDocParsed
+import com.bftcom.docgenerator.api.graph.KDocFetcher
+import com.bftcom.docgenerator.model.KDocParsed
 import org.jetbrains.kotlin.com.intellij.psi.PsiComment
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiWhiteSpace
@@ -100,7 +100,7 @@ class KDocFetcherImpl : KDocFetcher {
         k.summary?.let { ln(it) }
         if (!k.description.isNullOrBlank()) {
             if (out.isNotEmpty()) ln()
-            ln(k.description)
+            ln(k.description.toString())
         }
 
         if (k.properties.isNotEmpty()) {

@@ -1,13 +1,13 @@
 package com.bftcom.docgenerator.graph.impl
 
+import com.bftcom.docgenerator.api.graph.SourceVisitor
 import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.KDocMeta
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
-import com.bftcom.docgenerator.graph.api.SourceVisitor
-import com.bftcom.docgenerator.graph.model.RawUsage
+import com.bftcom.docgenerator.model.RawUsage
 import com.bftcom.docgenerator.repo.NodeRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 

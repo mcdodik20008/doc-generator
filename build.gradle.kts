@@ -28,6 +28,9 @@ repositories {
 }
 
 dependencies {
+    // === Modules ===
+    implementation(projects.contexts.graph.api)
+
     // === AST/PSI для нашего графового билдера ===
     implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21")
     // Для K2-резолва позже включим строку ниже (и только когда дойдём до него):

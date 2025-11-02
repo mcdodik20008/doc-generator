@@ -1,9 +1,9 @@
 package com.bftcom.docgenerator.graph.impl
 
+import com.bftcom.docgenerator.api.graph.GraphBuilder
+import com.bftcom.docgenerator.api.graph.GraphLinker
 import com.bftcom.docgenerator.domain.application.Application
-import com.bftcom.docgenerator.graph.api.GraphBuilder
-import com.bftcom.docgenerator.graph.api.GraphLinker
-import com.bftcom.docgenerator.graph.model.BuildResult
+import com.bftcom.docgenerator.model.BuildResult
 import com.bftcom.docgenerator.repo.ChunkRepository
 import com.bftcom.docgenerator.repo.EdgeRepository
 import com.bftcom.docgenerator.repo.NodeRepository
