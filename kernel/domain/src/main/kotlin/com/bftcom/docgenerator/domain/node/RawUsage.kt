@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.model
+package com.bftcom.docgenerator.domain.node
 
 sealed class RawUsage {
     /**

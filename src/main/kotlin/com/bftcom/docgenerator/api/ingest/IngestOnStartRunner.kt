@@ -5,6 +5,8 @@ import com.bftcom.docgenerator.repo.ApplicationRepository
 import org.slf4j.LoggerFactory
 import org.springframework.boot.CommandLineRunner
 import org.springframework.stereotype.Component
+import kotlin.collections.forEach
+import kotlin.collections.listOf
 import kotlin.system.measureTimeMillis
 
 @Component
@@ -58,7 +60,7 @@ class IngestOnStartRunner(
                                 branch = app.defaultBranch,
                             )
                         log.info(
-                            "Ingest completed for {}: nodes={}, edges={}, chunks={}",
+                            "Ingest completed for {}: nodes={}, edges={}",
                             app.key,
                             summary.nodes,
                             summary.edges,
@@ -70,6 +72,6 @@ class IngestOnStartRunner(
             }
         }
 
-        log.info("🏁 IngestOnStartRunner finished all tasks.")
+        log.info("IngestOnStartRunner finished all tasks.")
     }
 }

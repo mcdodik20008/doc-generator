@@ -7,7 +7,7 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.KDocMeta
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
-import com.bftcom.docgenerator.model.RawUsage
+import com.bftcom.docgenerator.domain.node.RawUsage
 import com.bftcom.docgenerator.repo.NodeRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 

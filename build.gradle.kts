@@ -30,6 +30,7 @@ repositories {
 dependencies {
     // === Modules ===
     implementation(projects.contexts.graph.api)
+    implementation(projects.kernel.domain)
 
     // === AST/PSI для нашего графового билдера ===
     implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21")
@@ -40,6 +41,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+    implementation(kotlin("stdlib"))
 
     // ===== Spring Web / Validation / Observability =====
     implementation("org.springframework.boot:spring-boot-starter")

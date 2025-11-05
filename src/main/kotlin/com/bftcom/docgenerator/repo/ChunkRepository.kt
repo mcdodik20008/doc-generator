@@ -8,11 +8,12 @@ import org.springframework.data.repository.query.Param
 import java.time.OffsetDateTime
 
 interface ChunkRepository : JpaRepository<Chunk, Long> {
+    // ToDo: ременно только кальк
     @Query(
         value = """
             SELECT *
             FROM doc_generator.chunk
-            WHERE content_raw IS NULL -- and title like '%Step15%' 
+            WHERE content_raw IS NULL and title like '%Step%' or title like '%calc%'
             ORDER BY created_at
             LIMIT :limit
             FOR UPDATE SKIP LOCKED

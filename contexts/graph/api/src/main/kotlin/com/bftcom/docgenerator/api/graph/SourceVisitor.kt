@@ -1,6 +1,6 @@
 package com.bftcom.docgenerator.api.graph
 
-import com.bftcom.docgenerator.model.RawUsage
+import com.bftcom.docgenerator.domain.node.RawUsage
 
 interface SourceVisitor {
     fun onPackage(

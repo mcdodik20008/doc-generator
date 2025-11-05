@@ -4,7 +4,7 @@ import com.bftcom.docgenerator.api.graph.KDocFetcher
 import com.bftcom.docgenerator.api.graph.SourceVisitor
 import com.bftcom.docgenerator.api.graph.SourceWalker
 import com.bftcom.docgenerator.domain.enums.NodeKind
-import com.bftcom.docgenerator.model.RawUsage
+import com.bftcom.docgenerator.domain.node.RawUsage
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
