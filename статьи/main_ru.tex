@@ -1,0 +1,546 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  % --- ИЗМЕНЕНИЯ ЗДЕСЬ ---
+  \usepackage[T1, T2A]{fontenc} % Добавлена кодировка T2A для кириллицы
+  \usepackage[utf8]{inputenc}
+  \usepackage[russian]{babel}  % Добавлен русский язык (переносы и т.д.)
+  % --- КОНЕЦ ИЗМЕНЕНИЙ ---
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same} % disable monospaced font for URLs
+\hypersetup{
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\author{}
+\date{}
+
+\begin{document}
+
+\hypertarget{ux432ux432ux435ux434ux435ux43dux438ux435}{%
+\subsection{1.
+Введение}\label{ux432ux432ux435ux434ux435ux43dux438ux435}}
+
+Ключевая проблема современной быстрой разработки --- расхождение между
+кодом и документацией. Темпы внесения изменений в программный продукт
+настолько высоки, что документирование требований физически не успевает
+за ними. В результате, технические задания становятся неактуальными
+практически в момент их написания. Причиной тому служат не только
+хотфиксы, но и реализация устных договорённостей, которые идут вразрез с
+исходной постановкой. Эти «теневые изменения», изначально воспринимаемые
+как временные, быстро становятся нормой. Усиливается это постоянным
+давлением бизнеса и гонкой за time-to-market...
+
+В результате документация перестаёт быть зеркалом системы: она
+фрагментарна, неактуальна и зачастую воспринимается разработчиками как
+формальность. Это приводит к накоплению технического долга, усложняет
+внедрение в процесс разработки новых специалистов, снижает прозрачность
+архитектуры сервиса и системы в целом. Повышает риск ошибок при
+доработке или модернизации системы.
+
+При этом проблема признана не только в индустрии, но и в академическом
+сообществе. Исследования последних лет отмечают систематический разрыв
+между исходным кодом, архитектурными решениями и документацией {[}1,
+2{]}. Отдельные работы указывают, что значительная часть проектной
+документации (до 60-70\%) теряет актуальность спустя всего несколько
+месяцев после начала разработки, если её поддержка не автоматизирована
+{[}3, 4{]}.
+
+На этом фоне растёт интерес к использованию больших языковых моделей
+(LLM) для автоматизированной генерации, обновления и анализа
+документации по коду. Уже существуют работы по генерации комментариев и
+docstring на основе исходного кода (например, CodeBERT {[}5{]} и CodeT5
+{[}6{]}), моделям диалогового взаимодействия с репозиторием (RAG over
+codebase {[}7{]}, GitHub Copilot Chat, SourceGraph Cody) и даже
+построению графов программной структуры с последующим объяснением
+архитектуры с помощью LLM {[}8{]}.
+
+Однако остаётся открытым вопрос: можно ли создать систему, в которой
+документация не «догоняет» код, а рождается вместе с ним и остаётся
+актуальной автоматически?
+
+\hypertarget{ux43aux440ux430ux442ux43aux438ux439-ux43eux431ux437ux43eux440-ux441ux443ux449ux435ux441ux442ux432ux443ux44eux449ux438ux445-ux43fux43eux434ux445ux43eux434ux43eux432}{%
+\subsection{2. Краткий обзор существующих
+подходов}\label{ux43aux440ux430ux442ux43aux438ux439-ux43eux431ux437ux43eux440-ux441ux443ux449ux435ux441ux442ux432ux443ux44eux449ux438ux445-ux43fux43eux434ux445ux43eux434ux43eux432}}
+
+Существующие исследования и индустриальные решения по автоматизации
+документации кода можно условно разделить на пять направлений. Ниже
+приведена их краткая характеристика с указанием сильных и слабых сторон.
+
+\hypertarget{code-summarization-ux433ux435ux43dux435ux440ux430ux446ux438ux44f-ux43aux440ux430ux442ux43aux438ux445-ux43eux43fux438ux441ux430ux43dux438ux439-ux438ux437-ux43aux43eux434ux430}{%
+\subsubsection{2.1. Code summarization --- генерация кратких описаний из
+кода}\label{code-summarization-ux433ux435ux43dux435ux440ux430ux446ux438ux44f-ux43aux440ux430ux442ux43aux438ux445-ux43eux43fux438ux441ux430ux43dux438ux439-ux438ux437-ux43aux43eux434ux430}}
+
+Этот подход фокусируется на моделях (например, CodeBERT {[}5{]}, CodeT5
+{[}6{]}, GraphCodeBERT {[}9{]}, которые обучаются генерировать краткие
+текстовые описания (docstrings, комментарии) на основе анализа исходного
+кода и его синтаксического представления (AST).
+
+\begin{itemize}
+\item
+  \textbf{Сильная сторона:} Модели показывают хорошие результаты, но
+  строго на \textbf{локальном уровне} --- описание отдельной функции или
+  класса.
+\item
+  \textbf{Слабая сторона:} они \textbf{не понимают более широкий
+  контекст системы}. Если функция вызывает метод doAny() из другого
+  модуля, модель не способна «провалиться» в него и объяснить, как этот
+  вызов влияет на общую \textbf{бизнес-логику}. Таким образом,
+  объяснение остается поверхностным и \textbf{локальным, а не
+  системным}.
+\end{itemize}
+
+\hypertarget{llm-ux432-ide-ide-plugins-ai-copilots}{%
+\subsubsection{2.2. LLM в IDE (IDE-plugins \& AI
+copilots)}\label{llm-ux432-ide-ide-plugins-ai-copilots}}
+
+Этот подход интегрирует LLM непосредственно в среду разработки. Яркие
+примеры --- \textbf{GitHub Copilot} (и его диалоговая версия Chat),
+\textbf{TabNine} и \textbf{JetBrains AI Assistant}.
+
+\begin{itemize}
+\item
+  \textbf{Сильная сторона:} Эти инструменты более контекстно-зависимы,
+  чем простые code summarization. Они способны анализировать не только
+  текущий файл, но и соседние модули, а иногда --- историю коммитов. Это
+  позволяет им давать более релевантные объяснения и генерировать код,
+  учитывающий окружение {[}10{]}.
+\item
+  \textbf{Слабые стороны:} несмотря на прогресс, остаются
+  фундаментальные ограничения:
+
+  \begin{itemize}
+  \item
+    \textbf{Конфиденциальность и NDA:} Многие компании не могут
+    использовать эти инструменты, поскольку исходный код отправляется
+    для обработки в облачные сервисы сторонних провайдеров, что нарушает
+    политики безопасности и NDA {[}11{]}.
+  \item
+    \textbf{Зависимость и стоимость:} Подход требует платной подписки и
+    создает зависимость от внешнего API.
+  \item
+    \textbf{Ограниченный контекст:} Модель всё ещё "видит" лишь
+    небольшой фрагмент проекта (то, что помещается в ее контекстное
+    окно), а не всю архитектуру целиком. Она не может построить полную
+    картину зависимостей для действительно глубокого анализа {[}12{]}.
+  \end{itemize}
+\end{itemize}
+
+\hypertarget{ux430ux432ux442ux43eux43cux430ux442ux438ux447ux435ux441ux43aux430ux44f-api-ux434ux43eux43aux443ux43cux435ux43dux442ux430ux446ux438ux44f-swaggeropenapi-ai}{%
+\subsubsection{2.3. Автоматическая API-документация (Swagger/OpenAPI +
+AI)}\label{ux430ux432ux442ux43eux43cux430ux442ux438ux447ux435ux441ux43aux430ux44f-api-ux434ux43eux43aux443ux43cux435ux43dux442ux430ux446ux438ux44f-swaggeropenapi-ai}}
+
+Этот подход фокусируется на генерации документации на основе формальных
+спецификаций API, таких как \textbf{OpenAPI}. Инструменты этого класса
+парсят код (например, аннотации в Spring Boot) и автоматически создают
+спецификацию.
+
+\begin{itemize}
+\item
+  \textbf{Сильная сторона:} Способность автоматически извлечь и
+  задокументировать \textbf{внешний интерфейс} системы (эндпоинты, DTO,
+  коды ошибок). Новейшие инструменты {[}13{]} также используют LLM для
+  автоматической генерации текстовых описаний (summary, description) для
+  этих эндпоинтов, что раньше приходилось делать вручную.
+\item
+  \textbf{Слабая сторона:} Решение \textbf{не описывает внутреннюю
+  бизнес-логику}. Оно не показывает потоки данных внутри системы, не
+  документирует связи между микросервисами и не объясняет, \emph{почему}
+  система работает именно так {[}14{]}. Это \textbf{документация
+  интерфейса, но не поведения}.
+\end{itemize}
+
+\hypertarget{retrieval-augmented-generation-rag-ux43dux430ux434-ux43aux43eux434ux43eux432ux43eux439-ux431ux430ux437ux43eux439}{%
+\subsubsection{2.4. Retrieval-Augmented Generation (RAG) над кодовой
+базой}\label{retrieval-augmented-generation-rag-ux43dux430ux434-ux43aux43eux434ux43eux432ux43eux439-ux431ux430ux437ux43eux439}}
+
+Это более зрелый и ресурсоёмкий подход, который де-факто стал
+индустриальным стандартом для Q\&A систем по коду {[}7{]}.
+
+Процесс обычно выглядит так:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  При запросе разработчика система ищет релевантные "чанки" (фрагменты
+  кода, документации, коммиты) в исходниках, чаще всего через векторный
+  поиск.
+\item
+  Найденный релевантный контекст "упаковывается" в промпт и передаётся в
+  LLM.
+\item
+  Модель генерирует ответ, основываясь \emph{только} на этом контексте.
+\end{enumerate}
+
+\begin{itemize}
+\item
+  \textbf{Сильная сторона:} это \textbf{жизнеспособный путь к
+  интерактивной документации}. Вместо чтения статичных .md-файлов,
+  разработчик может задавать вопросы («Почему здесь используется Kafka,
+  а не RabbitMQ?») и получать ответ, основанный на реальном коде.
+\item
+  \textbf{Слабые стороны:} Подход имеет два фундаментальных «бутылочных
+  горлышка»:
+
+  \begin{itemize}
+  \item
+    \textbf{Качество поиска (Retrieval Quality):} Наивный поиск по
+    семантической близости (cosine similarity) часто даёт сбой на коде.
+    Он может найти синтаксически похожие, но логически неверные
+    фрагменты, что приводит к «мусору на входе --- мусору на выходе»
+    (GIGO). Поддержание высокого качества поиска требует сложных
+    манипуляций (гибридный поиск, ре-ранкеры) {[}15{]}.
+  \item
+    \textbf{Ограничения контекста (Context Window):} при сложных
+    архитектурных запросах («Как проходит запрос на оплату через всю
+    систему?») релевантный контекст (десятки файлов) физически не
+    помещается в контекстное окно модели. Исследования показывают, что
+    даже в моделях с большим окном (long-context) LLM «теряет»
+    информацию, спрятанную в середине контекста {[}16{]}.
+  \end{itemize}
+\end{itemize}
+
+\hypertarget{code-graph-llm-ux433ux440ux430ux444ux43eux432ux430ux44f-ux440ux435ux43fux440ux435ux437ux435ux43dux442ux430ux446ux438ux44f-ux441ux438ux441ux442ux435ux43cux44b}{%
+\subsubsection{2.5. Code Graph + LLM --- графовая репрезентация
+системы}\label{code-graph-llm-ux433ux440ux430ux444ux43eux432ux430ux44f-ux440ux435ux43fux440ux435ux437ux435ux43dux442ux430ux446ux438ux44f-ux441ux438ux441ux442ux435ux43cux44b}}
+
+Этот подход представляет код не как набор текстовых файлов, а как
+\textbf{граф знаний (Knowledge Graph)} {[}17{]}. В этой структуре:
+
+\begin{itemize}
+\item
+  \textbf{Узлы} = классы, методы, модули, эндпоинты API;
+\item
+  \textbf{Рёбра} = вызовы, наследование, зависимости, события,
+  транзакции.
+\item
+  \textbf{Основа графа} = AST, графы вызовов (Call Graphs) или графы
+  зависимостей {[}8{]}.
+\end{itemize}
+
+LLM получает на вход не "сырой" код, а структурированную выборку узлов и
+связей. Это позволяет модели \textbf{проследить полный путь выполнения}:
+от REST endpoint → к Service layer → к Database → до Kafka message.
+
+\begin{itemize}
+\item
+  \textbf{Сильная сторона:} Модель получает только релевантную часть
+  приложения, \textbf{решая проблему "потерянного контекста"}. Ей не
+  нужно "видеть" 100 000 строк кода; ей достаточно получить граф из 50
+  узлов, описывающий конкретный бизнес-процесс.
+\item
+  \textbf{Слабая сторона:} Высокая сложность реализации. Требуется
+  построить и, что самое главное, \textbf{поддерживать этот граф в
+  актуальном состоянии}, синхронизируя его с кодовой базой при каждом
+  коммите, что является нетривиальной инженерной задачей.
+\end{itemize}
+
+\hypertarget{ux43fux43bux44eux441ux44b-ux438-ux43cux438ux43dux443ux441ux44b-ux43fux43eux434ux445ux43eux434ux43eux432}{%
+\subsection{3. Плюсы и минусы
+подходов}\label{ux43fux43bux44eux441ux44b-ux438-ux43cux438ux43dux443ux441ux44b-ux43fux43eux434ux445ux43eux434ux43eux432}}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.1538}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.1419}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.1682}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.1710}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.1153}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.1325}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.1173}}@{}}
+\toprule()
+\begin{minipage}[b]{\linewidth}\raggedright
+\textbf{Подход}
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+\textbf{Качество документации}
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+\textbf{Контекст сервиса (в пределах одного приложения)}
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+\textbf{Контекст всей системы (межсервисное взаимодействие)}
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+\textbf{Сложность внедрения}
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+\textbf{Стоимость использования}
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+\textbf{Конфиденциальность}
+\end{minipage} \\
+\midrule()
+\endhead
+Code summarization (CodeBERT, CodeT5) & Описывает отдельные методы,
+классы, файлы & Да --- внутри одного файла/класса & Нет --- не видит
+другие сервисы, очереди, БД & Низкая & Низкая & Высокая (можно запускать
+офлайн) \\
+LLM в IDE (Copilot, JetBrains AI) & Лучше, чем summarization; может
+учитывать соседние файлы & Да --- понимает структуру проекта, классы,
+зависимости внутри сервиса & Частично --- может упоминать внешний вызов,
+но без точного анализа других сервисов & Низкая--средняя & Средняя
+(подписки, API) & Средняя--низкая (код уходит в облако) \\
+Swagger/OpenAPI + AI-комментарии & Хорошо документирует REST API /
+входные точки & Частично --- только контроллеры и DTO одного сервиса &
+Нет --- не описывает, что происходит между сервисами & Средняя & Низкая
+& Высокая \\
+RAG над кодовой базой & Генерирует точечные ответы по запросу & Да ---
+находит нужный модуль или класс в сервисе & Частично --- если запрос про
+другой сервис, нужно вручную расширять контекст & Средняя &
+Средняя--высокая (LLM-вызовы + индексация кода) & Средняя \\
+Граф кода + LLM & Описывает архитектурную логику, связи,
+последовательность вызовов & Да --- понимает внутреннюю структуру
+приложения целиком & Да --- если включены межсервисные связи, события,
+очереди, БД, scheduler & Высокая & Средняя--высокая (графовая БД,
+хранение связей, LLM) & Высокая (может быть полностью локальным) \\
+\bottomrule()
+\end{longtable}
+
+\textbf{Примечания и обоснования к сравнительной таблице}
+
+Сводные оценки в таблице основаны на результатах эмпирических и обзорных
+работ по автоматической генерации документации и объяснений кода, а
+также на спецификациях и индустриальных отчётах.
+
+Для класса \textbf{code summarization} мы опираемся на результаты
+моделей CodeBERT, CodeT5 и GraphCodeBERT {[}5, 6, 9{]}: доказано, что
+предобученные трансформеры демонстрируют хорошее качество генерации
+кратких описаний на уровне функций/классов, но их контекст, как правило,
+локален и не охватывает архитектурные зависимости между модулями
+{[}9{]}.
+
+Для \textbf{LLM-инструментов в IDE} (Copilot/JetBrains AI) мы учитываем
+два аспекта. Во-первых, контролируемые эксперименты фиксируют выигрыш по
+продуктивности {[}10{]}, что косвенно коррелирует с улучшением
+локального контекста. Во-вторых, корпоративные ограничения (NDA/ИБ) и
+барьеры внедрения связаны с политиками конфиденциальности и
+необходимостью отправки кода в облако, что подтверждается опросами
+разработчиков {[}11, 12{]}.
+
+Строка \textbf{«Swagger/OpenAPI + AI-комментарии»} оценивается как
+охватывающая только интерфейсный слой. Это следует из самой спецификации
+OpenAPI. Работы, анализирующие качество тысяч спецификаций,
+подтверждают, что они часто неполны и семантически бедны, не раскрывая
+внутреннюю бизнес-логику {[}14{]}. Новые подходы пытаются использовать
+LLM для генерации этих описаний, но всё ещё остаются в рамках
+"контракта" {[}13{]}.
+
+Для \textbf{RAG над кодовой базой} мы фиксируем «высокое» качество при
+точечных запросах, но лишь частичное покрытие системного уровня. Это
+связано с двумя проблемами: фундаментальными ограничениями контекстного
+окна LLM (феномен «потери в середине») {[}16{]} и сложностью извлечения
+действительно релевантного кода из всего репозитория, что требует
+продвинутых техник поиска, а не простого cosine similarity {[}7, 15{]}.
+
+Наконец, для \textbf{«Граф кода + LLM»} высокий балл по системному
+контексту обоснован работами, где репозиторий представляется как граф
+знаний/зависимостей {[}17{]}. Показано, что такая структурная
+репрезентация (вместо "сырого" текста) кардинально улучшает извлечение
+релевантного контекста и качество генерации на репозиторном уровне
+{[}8{]}. При этом усложняются требования к построению и синхронизации
+графа, что отражено в «сложности внедрения».
+
+Таким образом, итоговые оценки в таблице отражают консенсус литературы:
+методы суммаризации сильны локально; IDE-помощники повышают
+эффективность при рисках конфиденциальности; OpenAPI документирует
+интерфейс; RAG даёт точечные ответы; а графовые подходы лучше всего
+восстанавливают архитектурные связи ценой инфраструктурной сложности.
+
+\hypertarget{ux432ux44bux432ux43eux434ux44b-ux438-ux43dux430ux43fux440ux430ux432ux43bux435ux43dux438ux435-ux440ux435ux448ux435ux43dux438ux44f}{%
+\subsection{4. Выводы и направление
+решения}\label{ux432ux44bux432ux43eux434ux44b-ux438-ux43dux430ux43fux440ux430ux432ux43bux435ux43dux438ux435-ux440ux435ux448ux435ux43dux438ux44f}}
+
+Проведённый анализ показывает, что современные языковые модели успешно
+решают задачи объяснения и суммаризации кода на уровне отдельных функций
+или файлов. Однако ни один из существующих подходов не обеспечивает
+\textbf{полноценного понимания системы в целом}. Модели работают
+локально, без знания архитектурных зависимостей, взаимодействия
+сервисов, очередей сообщений или бизнес-процессов. В результате
+автоматически сгенерированная документация остаётся фрагментарной и
+быстро теряет актуальность.
+
+Генерация документации «постфактум» не устраняет фундаментальную причину
+её устаревания --- \textbf{отсутствие живой связи} между кодом и
+знаниями о системе. Пока документация существует отдельно от исходников,
+она неизбежно запаздывает вслед за изменениями в кодовой базе, особенно
+в условиях частых хотфиксов, скрытых договорённостей и неписаных
+архитектурных решений.
+
+Наиболее перспективным подходом представляется \textbf{интеграция LLM с
+формальной моделью системы} --- графом кода и архитектурных связей. В
+такой модели:
+
+\begin{itemize}
+\item
+  \textbf{Узлами} графа являются классы, методы, модули, end­point-ы,
+  компоненты доменной логики;
+\item
+  \textbf{Рёбрами} выступают вызовы функций, зависимости, наследование,
+  обращения к БД, взаимодействия между микросервисами;
+\item
+  Поверх графа настраивается механизм поиска (RAG), который извлекает
+  \textbf{только релевантные} фрагменты системы под конкретный запрос;
+\item
+  LLM генерирует документацию на \textbf{разных уровнях абстракции} ---
+  от отдельного метода до бизнес-процесса или взаимодействия сервисов.
+\end{itemize}
+
+Такой подход позволяет:
+
+\begin{itemize}
+\item
+  Получать актуальные объяснения, основанные на \textbf{текущем
+  состоянии кода} и архитектуры;
+\item
+  \textbf{Автоматически обновлять} документацию, когда меняется граф
+  зависимостей или код (Выпуск релиза в продуктовую среду);
+\item
+  Строить документацию как \textbf{снизу вверх} (от функции к классу и
+  сервису), так и \textbf{сверху вниз} (от бизнес-сценария к
+  реализации).
+\end{itemize}
+
+Таким образом, мы \textbf{обосновали необходимость} перехода к графовой
+модели системы. \textbf{Задача будущих исследований} --- разработка и
+эмпирическая проверка прототипа, реализующего предложенный контур:
+
+\textbf{GIT → Graph Builder → Code Graph → Chunks → RAG → L-LLM (Local)
+→ Chatting with system context}
+
+Ключевыми открытыми вопросами для такой реализации остаются:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  Разработка Graph Builder, способного в реальном времени
+  синхронизироваться с Git.
+\item
+  Определение оптимальной стратегии RAG поверх графа (как "чанкировать"
+  узлы и рёбра).
+\item
+  Создание метрик для оценки качества ответов (Chatting) именно с точки
+  зрения \textbf{архитектурной полноты}."
+\end{enumerate}
+
+\hypertarget{ux441ux43fux438ux441ux43eux43a-ux438ux441ux442ux43eux447ux43dux438ux43aux43eux432-ux433ux43eux441ux442-ux440-7.0.52008}{%
+\subsection{Список источников (ГОСТ Р
+7.0.5--2008)}\label{ux441ux43fux438ux441ux43eux43a-ux438ux441ux442ux43eux447ux43dux438ux43aux43eux432-ux433ux43eux441ux442-ux440-7.0.52008}}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  \textbf{Zhang H., He Z., Liu Y., et al.} An empirical study on the
+  characteristics of inconsistent code comments // \emph{Empirical
+  Software Engineering}. 2022. Vol. 27. No. 137.
+\item
+  \textbf{Li Y., Wang S., Xia X., et al.} How do developers update
+  documentation? An empirical study on code-documentation co-evolution
+  // \emph{Empirical Software Engineering}. 2023. Vol. 28. No. 10.
+\item
+  \textbf{Forward A., Lethbridge T. C.} The relevance of software
+  documentation, tools and technologies: a survey // \emph{Proceedings
+  of the 2002 ACM symposium on Document engineering (DocEng
+  \textquotesingle02)}. 2002. P. 26--33.
+\item
+  \textbf{Storey M. A.} The future of software engineering // \emph{IEEE
+  Software}. 2021. Vol. 38. No. 3. P. 9--13.
+\item
+  \textbf{Feng, Z., Guo, D., Tang, D., et al.} CodeBERT: A Pre-Trained
+  Model for Programming and Natural Languages // \emph{Findings of the
+  Association for Computational Linguistics: EMNLP 2020}. 2020.
+\item
+  \textbf{Wang, Y., Wang, W., Jiao, Y., et al.} CodeT5: Unifying Code
+  Understanding and Generation // \emph{Proceedings of the 2021
+  Conference on Empirical Methods in Natural Language Processing
+  (EMNLP)}. 2021.
+\item
+  \textbf{Siddiq, M. L., et al.} Retrieval-augmented generation for
+  code-related tasks: A systematic review // \emph{arXiv preprint
+  arXiv:2404.05452}. 2024.
+\item
+  \textbf{Peng, H., et al.} Augmenting code-language models with
+  structural code knowledge: A review // \emph{arXiv preprint
+  arXiv:2402.13840}. 2024.
+\item
+  \textbf{Guo, D., Ren, S., Lu, S., et al.} GraphCodeBERT: Pre-training
+  Code Representations with Data Flow // \emph{Proceedings of the
+  International Conference on Learning Representations (ICLR)}. 2021.
+\item
+  \textbf{Nguyen, N. M., Nadi, S.} An Empirical Evaluation of GitHub
+  Copilot\textquotesingle s Code Suggestions // \emph{Proceedings of the
+  19th International Conference on Mining Software Repositories (MSR
+  \textquotesingle22)}. 2022. P. 1--12.
+\item
+  \textbf{Vaithilingam, P., Zhang, T., Glassman, E. L.} Expectation vs.
+  Experience: Evaluating the Usability of Code Generation Tools Powered
+  by Large Language Models // \emph{CHI Conference on Human Factors in
+  Computing Systems (CHI \textquotesingle22)}. 2022.
+\item
+  \textbf{Ziegler, J., et al.} Large Language Models, Explained: A
+  Survey of the Gaps, Limitations, and Ethics // \emph{arXiv preprint
+  arXiv:2407.16331}. 2024.
+\item
+  \textbf{Lyu, C., et al.} Generating OpenAPI Specifications from API
+  Documentation with Large Language Models // \emph{arXiv preprint
+  arXiv:2407.05316}. 2024.
+\item
+  \textbf{Westhofen, M., et al.} Evaluating the Quality of OpenAPI
+  Specifications // \emph{2022 IEEE International Conference on Web
+  Services (ICWS)}. 2022.
+\item
+  \textbf{Shrivastava, A., et al.} Repo-RAG: Enhancing
+  Retrieval-Augmented Generation for Code Repositories // \emph{arXiv
+  preprint arXiv:2405.13115}. 2024.
+\item
+  \textbf{Liu, N. F., et al.} Lost in the Middle: How Language Models
+  Use Long Contexts // \emph{Proceedings of the 2023 Conference on
+  Empirical Methods in Natural Language Processing (EMNLP)}. 2023.
+\item
+  \textbf{Xu, B., Ma, W., et al.} A Code Knowledge Graph-Enhanced System
+  for LLM-Based Fuzz Driver Generation // \emph{arXiv preprint
+  arXiv:2411.11532}. 2024.
+\end{enumerate}
+
+\end{document}
