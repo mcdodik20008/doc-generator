@@ -6,7 +6,7 @@ import com.bftcom.docgenerator.postprocess.model.FieldKey
 import com.bftcom.docgenerator.postprocess.model.PartialMutation
 import com.bftcom.docgenerator.postprocess.utils.MutationMerger
 import com.bftcom.docgenerator.postprocess.utils.PpUtil
-import com.bftcom.docgenerator.repo.ChunkRepository
+import com.bftcom.docgenerator.db.ChunkRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional

@@ -2,7 +2,7 @@ package com.bftcom.docgenerator.chunking.scheduler
 
 import com.bftcom.docgenerator.ai.chatclients.OllamaTalkerClient
 import com.bftcom.docgenerator.chunking.factory.ExplainRequestFactory.toTalkerRewriteRequest
-import com.bftcom.docgenerator.repo.ChunkRepository
+import com.bftcom.docgenerator.db.ChunkRepository
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service

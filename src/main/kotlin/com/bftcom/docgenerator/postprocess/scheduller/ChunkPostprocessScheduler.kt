@@ -2,7 +2,7 @@ package com.bftcom.docgenerator.postprocess.scheduller
 
 import com.bftcom.docgenerator.domain.chunk.Chunk
 import com.bftcom.docgenerator.postprocess.handler.HandlerChainOrchestrator
-import com.bftcom.docgenerator.repo.ChunkRepository
+import com.bftcom.docgenerator.db.ChunkRepository
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled

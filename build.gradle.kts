@@ -31,6 +31,7 @@ dependencies {
     // === Modules ===
     implementation(projects.contexts.graph.api)
     implementation(projects.kernel.domain)
+    implementation(projects.kernel.db)
 
     // === AST/PSI для нашего графового билдера ===
     implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21")

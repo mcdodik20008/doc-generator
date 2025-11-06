@@ -4,9 +4,9 @@ import com.bftcom.docgenerator.api.graph.GraphBuilder
 import com.bftcom.docgenerator.api.graph.GraphLinker
 import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.model.BuildResult
-import com.bftcom.docgenerator.repo.ChunkRepository
-import com.bftcom.docgenerator.repo.EdgeRepository
-import com.bftcom.docgenerator.repo.NodeRepository
+import com.bftcom.docgenerator.db.ChunkRepository
+import com.bftcom.docgenerator.db.EdgeRepository
+import com.bftcom.docgenerator.db.NodeRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service

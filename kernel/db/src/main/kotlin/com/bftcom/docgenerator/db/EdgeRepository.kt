@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.repo
+package com.bftcom.docgenerator.db
 
 import com.bftcom.docgenerator.domain.edge.Edge
 import org.springframework.data.jpa.repository.JpaRepository

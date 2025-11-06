@@ -7,8 +7,8 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
 import com.bftcom.docgenerator.domain.node.RawUsage
-import com.bftcom.docgenerator.repo.EdgeRepository
-import com.bftcom.docgenerator.repo.NodeRepository
+import com.bftcom.docgenerator.db.EdgeRepository
+import com.bftcom.docgenerator.db.NodeRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Pageable

@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.repo
+package com.bftcom.docgenerator.db
 
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node

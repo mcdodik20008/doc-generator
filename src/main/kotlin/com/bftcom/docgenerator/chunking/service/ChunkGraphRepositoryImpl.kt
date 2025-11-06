@@ -5,8 +5,8 @@ import com.bftcom.docgenerator.api.graph.dto.GNode
 import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.repo.EdgeRepository
-import com.bftcom.docgenerator.repo.NodeRepository
+import com.bftcom.docgenerator.db.EdgeRepository
+import com.bftcom.docgenerator.db.NodeRepository
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Repository

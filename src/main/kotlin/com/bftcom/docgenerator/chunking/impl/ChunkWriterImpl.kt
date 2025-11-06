@@ -3,7 +3,7 @@ package com.bftcom.docgenerator.chunking.impl
 import com.bftcom.docgenerator.chunking.api.ChunkWriter
 import com.bftcom.docgenerator.chunking.model.plan.ChunkPlan
 import com.bftcom.docgenerator.domain.chunk.Chunk
-import com.bftcom.docgenerator.repo.ChunkRepository
+import com.bftcom.docgenerator.db.ChunkRepository
 import org.springframework.stereotype.Service
 import java.security.MessageDigest
 import java.time.OffsetDateTime

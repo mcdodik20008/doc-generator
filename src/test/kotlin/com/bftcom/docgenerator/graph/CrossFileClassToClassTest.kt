@@ -7,9 +7,9 @@ import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.graph.impl.KDocFetcherImpl
 import com.bftcom.docgenerator.graph.impl.KotlinSourceWalker
 import com.bftcom.docgenerator.graph.impl.KotlinToDomainVisitor
-import com.bftcom.docgenerator.repo.ChunkRepository
-import com.bftcom.docgenerator.repo.EdgeRepository
-import com.bftcom.docgenerator.repo.NodeRepository
+import com.bftcom.docgenerator.db.ChunkRepository
+import com.bftcom.docgenerator.db.EdgeRepository
+import com.bftcom.docgenerator.db.NodeRepository
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir

@@ -4,9 +4,9 @@ import com.bftcom.docgenerator.chunking.model.chunk.ChunkDetailsResponse
 import com.bftcom.docgenerator.chunking.model.chunk.ChunkRelations
 import com.bftcom.docgenerator.chunking.model.chunk.NodeBrief
 import com.bftcom.docgenerator.chunking.model.chunk.RelationBrief
-import com.bftcom.docgenerator.repo.ChunkRepository
-import com.bftcom.docgenerator.repo.EdgeRepository
-import com.bftcom.docgenerator.repo.NodeRepository
+import com.bftcom.docgenerator.db.ChunkRepository
+import com.bftcom.docgenerator.db.EdgeRepository
+import com.bftcom.docgenerator.db.NodeRepository
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 
