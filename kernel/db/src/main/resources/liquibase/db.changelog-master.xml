@@ -8,7 +8,7 @@
 
     <changeSet id="00-init-db" author="kaspshitskii">
         <sqlFile
-                path="./migration/00_init.sql"
+                path="migration/00_init.sql"
                 relativeToChangelogFile="true"
                 endDelimiter=";"
                 splitStatements="true"
@@ -17,7 +17,7 @@
 
     <changeSet id="01-chat-memory" author="kaspshitskii">
         <sqlFile
-                path="./migration/01_spring_ai_chat_memory.sql"
+                path="migration/01_spring_ai_chat_memory.sql"
                 relativeToChangelogFile="true"
                 endDelimiter=";"
                 splitStatements="true"
@@ -26,7 +26,7 @@
 
     <changeSet id="02-indexes-for-nodes" author="kaspshitskii">
         <sqlFile
-                path="./migration/02_constraint_and_indexs.sql"
+                path="migration/02_constraint_and_indexs.sql"
                 relativeToChangelogFile="true"
                 endDelimiter=";"
                 splitStatements="true"
