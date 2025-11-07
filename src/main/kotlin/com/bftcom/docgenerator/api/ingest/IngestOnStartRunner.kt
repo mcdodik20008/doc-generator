@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.api.ingest
 
 import com.bftcom.docgenerator.db.ApplicationRepository
-import com.bftcom.docgenerator.ingest.GitLabIngestOrchestrator
+import com.bftcom.docgenerator.git.gitlab.GitLabIngestOrchestrator
 import org.slf4j.LoggerFactory
 import org.springframework.boot.CommandLineRunner
 import org.springframework.stereotype.Component

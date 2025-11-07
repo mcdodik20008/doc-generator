@@ -35,6 +35,7 @@ dependencies {
     implementation(projects.contexts.chunking.contextsChunkingImpl)
     implementation(projects.contexts.ai)
     implementation(projects.contexts.git.contextsGitApi)
+    implementation(projects.contexts.git.contextsGitImpl)
     implementation(projects.kernel.domain)
     implementation(projects.kernel.db)
 

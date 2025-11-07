@@ -2,7 +2,7 @@ package com.bftcom.docgenerator.api.ingest
 
 import com.bftcom.docgenerator.api.ingest.dto.IngestRunRequest
 import com.bftcom.docgenerator.git.model.IngestSummary
-import com.bftcom.docgenerator.ingest.GitLabIngestOrchestrator
+import com.bftcom.docgenerator.git.gitlab.GitLabIngestOrchestrator
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody

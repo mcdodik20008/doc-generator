@@ -25,6 +25,13 @@ include("contexts:git:api")
 project(":contexts:git:api").projectDir = file("contexts/git/api")
 project(":contexts:git:api").name = "contexts-git-api"
 
+include("contexts:git:impl")
+project(":contexts:git:impl").projectDir = file("contexts/git/impl")
+project(":contexts:git:impl").name = "contexts-git-impl"
+
+include("contexts:postprocess")
+project(":contexts:postprocess").projectDir = file("contexts/postprocess")
+
 include(":kernel:domain")
 project(":kernel:domain").projectDir = file("kernel/domain")
 
