@@ -18,6 +18,9 @@ include(":contexts:graph:impl")
 project(":contexts:graph:impl").projectDir = file("contexts/graph/impl")
 project(":contexts:graph:impl").name = "contexts-graph-impl"
 
+include("contexts:ai")
+project(":contexts:ai").projectDir = file("contexts/ai")
+
 include(":kernel:domain")
 project(":kernel:domain").projectDir = file("kernel/domain")
 

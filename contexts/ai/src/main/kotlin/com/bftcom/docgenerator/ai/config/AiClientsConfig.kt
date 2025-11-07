@@ -1,6 +1,6 @@
-package com.bftcom.docgenerator.chunking.ai.config
+package com.bftcom.docgenerator.ai.config
 
-import com.bftcom.docgenerator.chunking.ai.props.AiClientsProperties
+import com.bftcom.docgenerator.ai.props.AiClientsProperties
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.chat.model.ChatModel
 import org.springframework.ai.embedding.EmbeddingModel

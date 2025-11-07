@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.chunking.ai.props
+package com.bftcom.docgenerator.ai.props
 
 import jakarta.validation.constraints.NotBlank
 import org.springframework.boot.context.properties.ConfigurationProperties

@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.chunking.ai.model
+package com.bftcom.docgenerator.ai.model
 
 import jakarta.validation.constraints.NotBlank
 

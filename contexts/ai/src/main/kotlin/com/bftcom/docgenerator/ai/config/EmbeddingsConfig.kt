@@ -1,7 +1,7 @@
-package com.bftcom.docgenerator.chunking.ai.config
+package com.bftcom.docgenerator.ai.config
 
-import com.bftcom.docgenerator.chunking.ai.embedding.EmbeddingClient
-import com.bftcom.docgenerator.chunking.ai.embedding.ProxyEmbeddingClient
+import com.bftcom.docgenerator.ai.embedding.EmbeddingClient
+import com.bftcom.docgenerator.ai.embedding.ProxyEmbeddingClient
 import org.springframework.ai.embedding.EmbeddingModel
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean

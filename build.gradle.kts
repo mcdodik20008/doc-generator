@@ -33,6 +33,7 @@ dependencies {
     implementation(projects.contexts.graph.contextsGraphImpl)
     implementation(projects.contexts.chunking.contextsChunkingApi)
     implementation(projects.contexts.chunking.contextsChunkingImpl)
+    implementation(projects.contexts.ai)
     implementation(projects.kernel.domain)
     implementation(projects.kernel.db)
 

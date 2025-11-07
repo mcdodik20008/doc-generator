@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.chunking.factory
 
-import com.bftcom.docgenerator.chunking.ai.model.CoderExplainRequest
-import com.bftcom.docgenerator.chunking.ai.model.TalkerRewriteRequest
+import com.bftcom.docgenerator.ai.model.CoderExplainRequest
+import com.bftcom.docgenerator.ai.model.TalkerRewriteRequest
 import com.bftcom.docgenerator.domain.chunk.Chunk
 import com.bftcom.docgenerator.domain.node.Node
 

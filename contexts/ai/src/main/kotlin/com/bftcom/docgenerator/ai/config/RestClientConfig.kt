@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.chunking.ai.config
+package com.bftcom.docgenerator.ai.config
 
 import org.apache.hc.client5.http.config.RequestConfig
 import org.apache.hc.client5.http.impl.classic.HttpClients

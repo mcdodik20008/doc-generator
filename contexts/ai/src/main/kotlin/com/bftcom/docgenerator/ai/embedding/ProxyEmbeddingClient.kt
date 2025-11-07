@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.chunking.ai.embedding
+package com.bftcom.docgenerator.ai.embedding
 
 import org.springframework.ai.embedding.EmbeddingModel
 

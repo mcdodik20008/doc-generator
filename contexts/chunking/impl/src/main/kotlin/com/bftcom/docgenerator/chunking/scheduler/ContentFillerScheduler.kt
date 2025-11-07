@@ -1,6 +1,6 @@
 package com.bftcom.docgenerator.chunking.scheduler
 
-import com.bftcom.docgenerator.chunking.ai.chatclients.OllamaTalkerClient
+import com.bftcom.docgenerator.ai.chatclients.OllamaTalkerClient
 import com.bftcom.docgenerator.chunking.factory.ExplainRequestFactory.toTalkerRewriteRequest
 import com.bftcom.docgenerator.db.ChunkRepository
 import org.slf4j.LoggerFactory

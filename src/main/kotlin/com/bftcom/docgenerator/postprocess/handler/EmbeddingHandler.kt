@@ -1,6 +1,6 @@
 package com.bftcom.docgenerator.postprocess.handler
 
-import com.bftcom.docgenerator.chunking.ai.embedding.EmbeddingClient
+import com.bftcom.docgenerator.ai.embedding.EmbeddingClient
 import com.bftcom.docgenerator.postprocess.model.ChunkSnapshot
 import com.bftcom.docgenerator.postprocess.model.FieldKey
 import com.bftcom.docgenerator.postprocess.model.PartialMutation
