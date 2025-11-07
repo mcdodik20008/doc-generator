@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.ingest
+package com.bftcom.docgenerator.git.model
 
 import java.time.OffsetDateTime
 

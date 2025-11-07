@@ -21,6 +21,10 @@ project(":contexts:graph:impl").name = "contexts-graph-impl"
 include("contexts:ai")
 project(":contexts:ai").projectDir = file("contexts/ai")
 
+include("contexts:git:api")
+project(":contexts:git:api").projectDir = file("contexts/git/api")
+project(":contexts:git:api").name = "contexts-git-api"
+
 include(":kernel:domain")
 project(":kernel:domain").projectDir = file("kernel/domain")
 

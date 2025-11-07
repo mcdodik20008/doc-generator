@@ -1,131 +1,78 @@
 package com.bftcom.docgenerator.ingest
 
 import com.bftcom.docgenerator.graph.api.GraphBuilder
-import com.bftcom.docgenerator.configprops.GitLabProps
 import com.bftcom.docgenerator.domain.application.Application
-import com.bftcom.docgenerator.git.gitlab.GitCheckoutService
+import com.bftcom.docgenerator.git.gitlab.GitLabCheckoutService
 import com.bftcom.docgenerator.graph.api.model.BuildResult
 import com.bftcom.docgenerator.db.ApplicationRepository
-import org.eclipse.jgit.api.Git
+import com.bftcom.docgenerator.git.api.GitIngestOrchestrator
+import com.bftcom.docgenerator.git.model.GitPullSummary
+import com.bftcom.docgenerator.git.model.IngestSummary
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.io.File
 import java.nio.file.Files
-import java.nio.file.Path
 import java.time.Duration
 import java.time.OffsetDateTime
 
 @Service
 class GitLabIngestOrchestrator(
-    private val git: GitCheckoutService,
-    private val gitProps: GitLabProps,
+    private val git: GitLabCheckoutService,
     private val appRepo: ApplicationRepository,
     private val graphBuilder: GraphBuilder,
     private val gradleResolver: GradleClasspathResolver,
-) {
+) : GitIngestOrchestrator {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private fun resolveRepoUrl(
-        baseUrlOrFull: String,
-        repoPath: String,
-    ): String =
-        if (repoPath.startsWith("http://") || repoPath.startsWith("https://") || repoPath.endsWith(".git")) {
-            repoPath
-        } else {
-            baseUrlOrFull.trimEnd('/') + "/" + repoPath.trimStart('/') + ".git"
-        }
-
-    /**
-     * 1) clone/pull GitLab (token ИЛИ username/password)
-     * 2) ensure Application (key = repoName)
-     * 3) build graph
-     * 4) обновить lastCommitSha / lastIndex*
-     */
     @Transactional
-    fun runOnce(
+    override fun runOnce(
         appKey: String,
-        repoPath: String, // "<group>/<name>"
-        branch: String = "develop",
+        repoPath: String,
+        branch: String,
     ): IngestSummary {
-        // --- 1) определить appKey и каталог выгрузки ---
-        val checkoutDir: Path = Path.of(gitProps.basePath, appKey)
+        val summary: GitPullSummary = git.checkoutOrUpdate(
+            repoPath = repoPath,
+            branch = branch,
+            appKey = appKey
+        )
+        log.info("✅ Repo checked out at {} (op={}, head={} -> {})",
+            summary.localPath, summary.operation, summary.beforeHead, summary.afterHead)
 
-        // --- 2) checkout (clone/pull) ---
-        val localPath: Path =
-            git.checkoutOrUpdate(
-                repoUrl = resolveRepoUrl(gitProps.url, repoPath),
-                branch = branch,
-                token = gitProps.token,
-                username = gitProps.username,
-                password = gitProps.password,
-                checkoutDir = checkoutDir,
-            )
-        log.info("✅ Repo checked out at {}", localPath)
+        val localPath = summary.localPath
+        val headSha = summary.afterHead
 
-        // --- HEAD SHA ---
-        val headSha =
-            try {
-                Git.open(localPath.toFile()).use { it.repository.resolve("HEAD")?.name }
-            } catch (e: Exception) {
-                log.warn("Cannot resolve HEAD SHA: ${e.message}")
-                null
-            }
-
-        // --- 3) ensure Application по ключу ---
-        val parsed = RepoUrlParser.parse(gitProps.url)
-        val app: Application =
-            (
-                appRepo.findByKey(appKey)
-                    ?: Application(
-                        key = appKey,
-                        name = parsed.name ?: appKey,
-                        repoUrl = gitProps.url,
-                        repoProvider = parsed.provider,
-                        repoOwner = parsed.owner,
-                        repoName = parsed.name,
-                        defaultBranch = branch,
-                    )
-            ).apply {
-                // держим актуальные метаданные
-                repoUrl = gitProps.url
-                repoProvider = parsed.provider
-                repoOwner = parsed.owner
-                repoName = parsed.name
-                defaultBranch = branch
-                lastCommitSha = headSha
-                lastIndexedAt = OffsetDateTime.now()
-                lastIndexStatus = "running"
-                lastIndexError = null
-                updatedAt = OffsetDateTime.now()
-            }
-
+        val parsed: RepoInfo = RepoUrlParser.parse(summary.repoUrl) // <- парсим именно summary.repoUrl
+        val app: Application = getOrCreateApp(
+            appKey = appKey,
+            repoUrl = summary.repoUrl,   // <- передаём отдельным параметром
+            parsed = parsed,
+            branch = branch,
+            headSha = headSha
+        )
         val savedApp = appRepo.save(app)
         log.info("📇 Using application id={} key={}", savedApp.id, savedApp.key)
 
-        // --- 4) "Выбиваем" classpath из чужого проекта ---
-        log.info("Scanning for Gradle projects (gradlew) within [$localPath]...")
+        // --- 4) Выбиваем classpath из gradle-проектов внутри checkout ---
+        log.info("Scanning for Gradle projects (gradlew) within [{}]...", localPath)
 
         val gradleProjectDirs =
             Files
                 .walk(localPath)
                 .filter { it.fileName.toString() == "gradlew" || it.fileName.toString() == "gradlew.bat" }
-                .map { it.parent } // Берем папку, ГДЕ ЛЕЖИТ gradlew
+                .map { it.parent }
                 .distinct()
                 .toList()
 
         val classpath: List<File> =
             if (gradleProjectDirs.isEmpty()) {
-                log.warn("No 'gradlew' files found in [$localPath]. Cannot resolve classpath.")
+                log.warn("No 'gradlew' files found in [{}]. Cannot resolve classpath.", localPath)
                 emptyList()
             } else {
                 log.info("Found ${gradleProjectDirs.size} Gradle project(s): $gradleProjectDirs")
-
-                // Запускаем резолвер для КАЖДОГО найденного проекта и собираем всё в один список
                 gradleProjectDirs
-                    .flatMap { projectDir ->
-                        gradleResolver.resolveClasspath(projectDir)
-                    }.distinct()
+                    .flatMap { projectDir -> gradleResolver.resolveClasspath(projectDir) }
+                    .distinct()
             }
 
         if (classpath.isEmpty()) {
@@ -157,12 +104,8 @@ class GitLabIngestOrchestrator(
             }
 
         val took = Duration.between(buildResult.startedAt, buildResult.finishedAt)
-        log.info(
-            "📦 Build done: nodes={}, edges={}, took={} ms",
-            buildResult.nodes,
-            buildResult.edges,
-            took.toMillis(),
-        )
+        log.info("📦 Build done: nodes={}, edges={}, took={} ms",
+            buildResult.nodes, buildResult.edges, took.toMillis())
 
         return IngestSummary(
             appKey = savedApp.key,
@@ -175,4 +118,35 @@ class GitLabIngestOrchestrator(
             tookMs = took.toMillis(),
         )
     }
+
+    private fun getOrCreateApp(
+        appKey: String,
+        repoUrl: String,
+        parsed: RepoInfo,
+        branch: String,
+        headSha: String?
+    ): Application = (
+            appRepo.findByKey(appKey)
+                ?: Application(
+                    key = appKey,
+                    name = parsed.name ?: appKey,
+                    repoUrl = repoUrl,
+                    repoProvider = parsed.provider,
+                    repoOwner = parsed.owner,
+                    repoName = parsed.name,
+                    defaultBranch = branch,
+                )
+            ).apply {
+            // актуализируем метаданные всегда
+            this.repoUrl = repoUrl
+            this.repoProvider = parsed.provider
+            this.repoOwner = parsed.owner
+            this.repoName = parsed.name
+            this.defaultBranch = branch
+            this.lastCommitSha = headSha
+            this.lastIndexedAt = OffsetDateTime.now()
+            this.lastIndexStatus = "running"
+            this.lastIndexError = null
+            this.updatedAt = OffsetDateTime.now()
+        }
 }
