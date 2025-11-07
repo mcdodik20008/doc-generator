@@ -1,6 +1,6 @@
 package com.bftcom.docgenerator.api.chunk
 
-import com.bftcom.docgenerator.graph.api.dto.GraphResponse
+import com.bftcom.docgenerator.domain.dto.GraphResponse
 import com.bftcom.docgenerator.chunking.service.ChunkGraphService
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping

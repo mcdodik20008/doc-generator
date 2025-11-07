@@ -30,8 +30,9 @@ repositories {
 dependencies {
     // === Modules ===
     implementation(projects.contexts.graph.contextsGraphApi)
-    implementation(projects.contexts.graph.impl)
+    implementation(projects.contexts.graph.contextsGraphImpl)
     implementation(projects.contexts.chunking.contextsChunkingApi)
+    implementation(projects.contexts.chunking.contextsChunkingImpl)
     implementation(projects.kernel.domain)
     implementation(projects.kernel.db)
 
