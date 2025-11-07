@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.api.graph.dto
+package com.bftcom.docgenerator.graph.api.dto
 
 data class GEdge(
     val id: String, // edgeId (или "src->dst:kind")

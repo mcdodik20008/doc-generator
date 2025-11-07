@@ -1,9 +1,9 @@
 package com.bftcom.docgenerator.graph.impl
 
-import com.bftcom.docgenerator.api.graph.GraphBuilder
-import com.bftcom.docgenerator.api.graph.GraphLinker
+import com.bftcom.docgenerator.graph.api.GraphBuilder
+import com.bftcom.docgenerator.graph.api.GraphLinker
 import com.bftcom.docgenerator.domain.application.Application
-import com.bftcom.docgenerator.model.BuildResult
+import com.bftcom.docgenerator.graph.api.model.BuildResult
 import com.bftcom.docgenerator.db.ChunkRepository
 import com.bftcom.docgenerator.db.EdgeRepository
 import com.bftcom.docgenerator.db.NodeRepository
@@ -24,7 +24,7 @@ class KotlinGraphBuilder(
     private val kotlinWalker: KotlinSourceWalker,
     private val graphLinker: GraphLinker,
     private val transactionManager: PlatformTransactionManager,
-    private val objectMapper: ObjectMapper, // <--- добавили
+    private val objectMapper: ObjectMapper,
 ) : GraphBuilder {
     private val log = LoggerFactory.getLogger(javaClass)
 

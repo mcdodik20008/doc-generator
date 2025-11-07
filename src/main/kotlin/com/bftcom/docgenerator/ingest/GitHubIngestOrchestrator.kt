@@ -1,10 +1,10 @@
 package com.bftcom.docgenerator.ingest
 
-import com.bftcom.docgenerator.api.graph.GraphBuilder
+import com.bftcom.docgenerator.graph.api.GraphBuilder
 import com.bftcom.docgenerator.configprops.GitHubProps
 import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.git.github.GitHubCheckoutService
-import com.bftcom.docgenerator.model.BuildResult
+import com.bftcom.docgenerator.graph.api.model.BuildResult
 import com.bftcom.docgenerator.db.ApplicationRepository
 import org.eclipse.jgit.api.Git
 import org.slf4j.LoggerFactory

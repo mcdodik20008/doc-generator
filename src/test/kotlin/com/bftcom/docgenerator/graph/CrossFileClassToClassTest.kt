@@ -10,6 +10,7 @@ import com.bftcom.docgenerator.graph.impl.KotlinToDomainVisitor
 import com.bftcom.docgenerator.db.ChunkRepository
 import com.bftcom.docgenerator.db.EdgeRepository
 import com.bftcom.docgenerator.db.NodeRepository
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -74,7 +75,7 @@ class CrossFileClassToClassTest {
         whenever(chunkRepo.save(any())).thenAnswer { it.arguments[0] }
 
         val walker = KotlinSourceWalker(KDocFetcherImpl())
-        val visitor = KotlinToDomainVisitor(app, nodeRepo, com.fasterxml.jackson.databind.ObjectMapper())
+        val visitor = KotlinToDomainVisitor(app, nodeRepo, ObjectMapper())
 
         walker.walk(src, visitor, emptyList())
 

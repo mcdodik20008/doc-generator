@@ -1,6 +1,6 @@
-package com.bftcom.docgenerator.api.graph
+package com.bftcom.docgenerator.graph.api
 
-import com.bftcom.docgenerator.model.KDocParsed
+import com.bftcom.docgenerator.graph.api.model.KDocParsed
 import org.jetbrains.kotlin.psi.KtDeclaration
 
 interface KDocFetcher {

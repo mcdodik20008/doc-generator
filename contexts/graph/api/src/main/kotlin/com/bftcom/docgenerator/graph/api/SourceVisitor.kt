@@ -1,5 +1,6 @@
-package com.bftcom.docgenerator.api.graph
+package com.bftcom.docgenerator.graph.api
 
+import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.RawUsage
 
 interface SourceVisitor {
@@ -9,7 +10,7 @@ interface SourceVisitor {
     )
 
     fun onType(
-        kind: com.bftcom.docgenerator.domain.enums.NodeKind,
+        kind: NodeKind,
         fqn: String,
         pkgFqn: String,
         name: String,
@@ -42,7 +43,7 @@ interface SourceVisitor {
     )
 
     fun onTypeEx(
-        kind: com.bftcom.docgenerator.domain.enums.NodeKind,
+        kind: NodeKind,
         fqn: String,
         pkgFqn: String,
         name: String,

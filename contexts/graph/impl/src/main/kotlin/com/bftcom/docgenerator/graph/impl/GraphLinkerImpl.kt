@@ -1,6 +1,6 @@
 package com.bftcom.docgenerator.graph.impl
 
-import com.bftcom.docgenerator.api.graph.GraphLinker
+import com.bftcom.docgenerator.graph.api.GraphLinker
 import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.NodeKind
@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import kotlin.text.orEmpty
 
 @Service
 class GraphLinkerImpl(

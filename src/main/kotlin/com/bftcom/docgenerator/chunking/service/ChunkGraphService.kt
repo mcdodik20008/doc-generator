@@ -1,6 +1,6 @@
 package com.bftcom.docgenerator.chunking.service
 
-import com.bftcom.docgenerator.api.graph.dto.GraphResponse
+import com.bftcom.docgenerator.graph.api.dto.GraphResponse
 import org.springframework.stereotype.Service
 
 @Service

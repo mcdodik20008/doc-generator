@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.graph.impl
 
-import com.bftcom.docgenerator.api.graph.KDocFetcher
-import com.bftcom.docgenerator.model.KDocParsed
+import com.bftcom.docgenerator.graph.api.KDocFetcher
+import com.bftcom.docgenerator.graph.api.model.KDocParsed
 import org.jetbrains.kotlin.com.intellij.psi.PsiComment
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiWhiteSpace
@@ -12,6 +12,8 @@ import org.jetbrains.kotlin.kdoc.psi.impl.KDocSection
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import kotlin.collections.indexOf
+import kotlin.collections.plusAssign
 
 @Service
 class KDocFetcherImpl : KDocFetcher {

@@ -1,6 +1,6 @@
 package com.bftcom.docgenerator.graph.impl
 
-import com.bftcom.docgenerator.api.graph.SourceVisitor
+import com.bftcom.docgenerator.graph.api.SourceVisitor
 import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
@@ -10,6 +10,7 @@ import com.bftcom.docgenerator.domain.node.NodeMeta
 import com.bftcom.docgenerator.domain.node.RawUsage
 import com.bftcom.docgenerator.db.NodeRepository
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlin.text.iterator
 
 /**
  * [Фаза 1] Kotlin → доменная модель графа (Node).

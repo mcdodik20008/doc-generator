@@ -1,8 +1,8 @@
 package com.bftcom.docgenerator.graph.impl
 
-import com.bftcom.docgenerator.api.graph.KDocFetcher
-import com.bftcom.docgenerator.api.graph.SourceVisitor
-import com.bftcom.docgenerator.api.graph.SourceWalker
+import com.bftcom.docgenerator.graph.api.KDocFetcher
+import com.bftcom.docgenerator.graph.api.SourceVisitor
+import com.bftcom.docgenerator.graph.api.SourceWalker
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.RawUsage
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
