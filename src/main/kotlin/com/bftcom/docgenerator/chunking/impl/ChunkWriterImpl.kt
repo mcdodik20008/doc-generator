@@ -5,7 +5,6 @@ import com.bftcom.docgenerator.chunking.model.plan.ChunkPlan
 import com.bftcom.docgenerator.domain.chunk.Chunk
 import com.bftcom.docgenerator.db.ChunkRepository
 import org.springframework.stereotype.Service
-import java.security.MessageDigest
 import java.time.OffsetDateTime
 
 @Service

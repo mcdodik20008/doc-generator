@@ -1,9 +1,9 @@
 package com.bftcom.docgenerator.api.chunk
 
-import com.bftcom.docgenerator.api.chunk.dto.ChunkBuildRequest
-import com.bftcom.docgenerator.api.chunk.dto.ChunkBuildResponse
-import com.bftcom.docgenerator.api.chunk.dto.ChunkBuildStatusDto
 import com.bftcom.docgenerator.chunking.api.ChunkBuildOrchestrator
+import com.bftcom.docgenerator.chunking.dto.ChunkBuildRequest
+import com.bftcom.docgenerator.chunking.dto.ChunkBuildResponse
+import com.bftcom.docgenerator.chunking.dto.ChunkBuildStatusDto
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable

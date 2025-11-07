@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.chunking.impl
 
-import com.bftcom.docgenerator.api.chunk.dto.ChunkBuildStatusDto
 import com.bftcom.docgenerator.chunking.api.ChunkRunStore
+import com.bftcom.docgenerator.chunking.dto.ChunkBuildStatusDto
 import org.springframework.stereotype.Service
 import java.time.OffsetDateTime
 import java.util.UUID

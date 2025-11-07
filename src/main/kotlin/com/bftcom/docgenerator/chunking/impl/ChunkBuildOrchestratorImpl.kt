@@ -1,10 +1,10 @@
 package com.bftcom.docgenerator.chunking.impl
 
-import com.bftcom.docgenerator.api.chunk.dto.ChunkBuildRequest
 import com.bftcom.docgenerator.chunking.api.ChunkBuildOrchestrator
 import com.bftcom.docgenerator.chunking.api.ChunkRunStore
 import com.bftcom.docgenerator.chunking.api.ChunkStrategy
 import com.bftcom.docgenerator.chunking.api.ChunkWriter
+import com.bftcom.docgenerator.chunking.dto.ChunkBuildRequest
 import com.bftcom.docgenerator.chunking.model.ChunkRunHandle
 import com.bftcom.docgenerator.chunking.model.plan.ChunkPlan
 import com.bftcom.docgenerator.domain.edge.Edge
@@ -108,7 +108,7 @@ class ChunkBuildOrchestratorImpl(
                 val plansBuffer = mutableListOf<ChunkPlan>()
 
                 for (n in nodes) {
-                    if (req.limitNodes != null && processed >= req.limitNodes) break
+                    if (req.limitNodes != null && processed >= (req.limitNodes ?: 0)) break
 
                     processed++
                     if (processed % 100L == 1L) {
@@ -144,7 +144,7 @@ class ChunkBuildOrchestratorImpl(
                     plansBuffer.clear()
                 }
 
-                if (req.limitNodes != null && processed >= req.limitNodes) {
+                if (req.limitNodes != null && processed >= (req.limitNodes ?: 0)) {
                     log.debug("Limit reached: processedNodes={}", processed)
                     break
                 }

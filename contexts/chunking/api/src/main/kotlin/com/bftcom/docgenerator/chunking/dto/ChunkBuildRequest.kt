@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.api.chunk.dto
+package com.bftcom.docgenerator.chunking.dto
 
 data class ChunkBuildRequest(
     val applicationId: Long,

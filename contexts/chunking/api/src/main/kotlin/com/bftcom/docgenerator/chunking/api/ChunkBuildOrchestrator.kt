@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.chunking.api
 
-import com.bftcom.docgenerator.api.chunk.dto.ChunkBuildRequest
-import com.bftcom.docgenerator.api.chunk.dto.ChunkBuildStatusDto
+import com.bftcom.docgenerator.chunking.dto.ChunkBuildRequest
+import com.bftcom.docgenerator.chunking.dto.ChunkBuildStatusDto
 import com.bftcom.docgenerator.chunking.model.ChunkRunHandle
 
 interface ChunkBuildOrchestrator {

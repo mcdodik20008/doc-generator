@@ -1,4 +1,3 @@
-
 package com.bftcom.docgenerator.chunking.model.chunk
 
 data class NodeBrief(
