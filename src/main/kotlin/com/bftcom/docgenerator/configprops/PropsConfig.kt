@@ -5,5 +5,5 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration
 
 @Configuration
-@EnableConfigurationProperties(GitLabProps::class, GitHubProps::class)
+@EnableConfigurationProperties(GitLabProps::class)
 class PropsConfig
