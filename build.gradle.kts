@@ -29,6 +29,8 @@ repositories {
 
 dependencies {
     // === Modules ===
+    // implementation() - подключаем все модули
+    // Runtime автоматически подтянет все транзитивные зависимости через api() зависимости модулей
     implementation(projects.contexts.graph.contextsGraphApi)
     implementation(projects.contexts.graph.contextsGraphImpl)
     implementation(projects.contexts.chunking.contextsChunkingApi)
@@ -36,23 +38,18 @@ dependencies {
     implementation(projects.contexts.ai)
     implementation(projects.contexts.git.contextsGitApi)
     implementation(projects.contexts.git.contextsGitImpl)
+    implementation(projects.contexts.postprocess)
     implementation(projects.kernel.domain)
     implementation(projects.kernel.db)
-
-    // === AST/PSI для нашего графового билдера ===
-    implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21")
-    // Для K2-резолва позже включим строку ниже (и только когда дойдём до него):
-    // implementation("org.jetbrains.kotlin:kotlin-analysis-api-standalone:2.0.21")
 
     // ===== Core / Kotlin / JSON =====
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-    implementation(kotlin("stdlib"))
 
     // ===== Spring Web / Validation / Observability =====
+    // Эти зависимости нужны только в root модуле для веб-приложения
     implementation("org.springframework.boot:spring-boot-starter")
-    implementation("jakarta.persistence:jakarta.persistence-api")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
@@ -61,9 +58,6 @@ dependencies {
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:2.6.0")
     implementation("org.apache.httpcomponents.client5:httpclient5:5.3.1")
-
-    // ===== Git =====
-    implementation("org.eclipse.jgit:org.eclipse.jgit:6.10.0.202406032230-r")
 
     // ===== DB / Migrations =====
     implementation("io.hypersistence:hypersistence-utils-hibernate-62:3.7.2")

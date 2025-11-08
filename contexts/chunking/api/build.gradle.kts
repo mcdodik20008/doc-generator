@@ -1,7 +1,5 @@
 plugins {
     kotlin("jvm") version "2.0.21"
-    kotlin("plugin.spring") version "2.0.21"
-    kotlin("plugin.jpa") version "2.0.21"
 }
 
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(21))
@@ -14,7 +12,7 @@ repositories {
 }
 
 dependencies {
-    implementation(projects.kernel.domain)
+    api(projects.kernel.domain)
 
     testImplementation(kotlin("test"))
 }
@@ -22,6 +20,7 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
 kotlin {
     jvmToolchain(21)
 }

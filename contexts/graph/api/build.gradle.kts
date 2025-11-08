@@ -1,7 +1,5 @@
 plugins {
     kotlin("jvm") version "2.0.21"
-    kotlin("plugin.spring") version "2.0.21"
-    kotlin("plugin.jpa") version "2.0.21"
 }
 
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(21))
@@ -14,12 +12,7 @@ repositories {
 }
 
 dependencies {
-//    api(platform(projects.platform))
-    implementation(projects.kernel.domain)
-
-    // === AST/PSI для нашего графового билдера ===
-    implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21")
-    implementation(kotlin("stdlib"))
+    api(projects.kernel.domain)
 
     testImplementation(kotlin("test"))
 }
