@@ -78,5 +78,6 @@ interface SourceVisitor {
         docComment: String?,
         annotations: Set<String>?,
         kdocMeta: Map<String, Any?>? = null,
+        throwsTypes: List<String>? = null,
     )
 }

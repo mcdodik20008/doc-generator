@@ -215,6 +215,14 @@ class KotlinSourceWalker(
                     )
                 }
 
+                // Собираем исключения (throw-выражения)
+                val throwsTypes =
+                    if (funDecl.bodyExpression != null) {
+                        collectThrowsFromPsi(funDecl)
+                    } else {
+                        collectThrowsFromText(src)
+                    }
+
                 val fspan = linesOf(ktFile, funDecl)
                 if (rich != null) {
                     val sig = signatureFromFunction(funDecl)
@@ -233,6 +241,7 @@ class KotlinSourceWalker(
                         doc,
                         annotationsFun,
                         kDocFetcher.toMeta(kdocParsed),
+                        throwsTypes,
                     )
                 } else {
                     visitor.onFunction(
@@ -271,6 +280,14 @@ class KotlinSourceWalker(
                     "!!! PSI body for [${funDecl.name}] in [$path] is NULL! (Classpath was fed: ${classpath.isNotEmpty()}). Using TEXT PARSER for usages.",
                 )
             }
+
+            // Собираем исключения (throw-выражения)
+            val throwsTypes =
+                if (funDecl.bodyExpression != null) {
+                    collectThrowsFromPsi(funDecl)
+                } else {
+                    collectThrowsFromText(src)
+                }
             val span = linesOf(ktFile, funDecl)
             if (rich != null) {
                 val sig = signatureFromFunction(funDecl)
@@ -289,6 +306,7 @@ class KotlinSourceWalker(
                     doc,
                     annotations,
                     kDocFetcher.toMeta(kdocParsed),
+                    throwsTypes,
                 )
             } else {
                 visitor.onFunction(
@@ -572,5 +590,74 @@ class KotlinSourceWalker(
         }
 
         return usages.toList()
+    }
+
+    /**
+     * Сбор типов исключений из throw-выражений через PSI.
+     */
+    private fun collectThrowsFromPsi(funDecl: KtNamedFunction): List<String> {
+        val throwsTypes = mutableSetOf<String>()
+        funDecl.bodyExpression?.accept(
+            object : KtTreeVisitorVoid() {
+                override fun visitThrowExpression(expression: KtThrowExpression) {
+                    // Получаем тип исключения из throw-выражения
+                    val thrownExpression = expression.thrownExpression
+                    when (thrownExpression) {
+                        is KtNameReferenceExpression -> {
+                            // Простое имя: throw IllegalArgumentException()
+                            thrownExpression.getReferencedName().let { throwsTypes.add(it) }
+                        }
+                        is KtCallExpression -> {
+                            // Вызов конструктора: throw IllegalArgumentException("message")
+                            thrownExpression.calleeExpression?.text?.let { throwsTypes.add(it) }
+                        }
+                        is KtDotQualifiedExpression -> {
+                            // Квалифицированное имя: throw com.example.CustomException()
+                            val receiver = thrownExpression.receiverExpression.text
+                            val selector = thrownExpression.selectorExpression
+                            val typeName = when (selector) {
+                                is KtNameReferenceExpression -> selector.getReferencedName()
+                                is KtCallExpression -> selector.calleeExpression?.text
+                                else -> null
+                            }
+                            if (receiver.isNotBlank() && typeName != null) {
+                                throwsTypes.add("$receiver.$typeName")
+                            } else if (typeName != null) {
+                                throwsTypes.add(typeName)
+                            }
+                        }
+                        else -> {
+                            // Пытаемся извлечь тип из текста
+                            thrownExpression?.text?.let { text ->
+                                // Упрощённый парсинг: ищем имя типа
+                                val typeMatch = """\b([A-Z][A-Za-z0-9_]*)\b""".toRegex().find(text)
+                                typeMatch?.groupValues?.get(1)?.let { throwsTypes.add(it) }
+                            }
+                        }
+                    }
+                    super.visitThrowExpression(expression)
+                }
+            },
+        )
+        return throwsTypes.toList()
+    }
+
+    /**
+     * Сбор типов исключений из throw-выражений через Regex (fallback).
+     */
+    private fun collectThrowsFromText(sourceCode: String): List<String> {
+        val throwsTypes = mutableSetOf<String>()
+
+        // Паттерн для throw-выражений: throw Type(...) или throw Type
+        // Ищем "throw" за которым следует имя типа (начинается с заглавной буквы)
+        val throwRegex = """\bthrow\s+([A-Z][A-Za-z0-9_]*(?:\.[A-Z][A-Za-z0-9_]*)*)""".toRegex()
+        throwRegex.findAll(sourceCode).forEach { match ->
+            val typeName = match.groupValues[1]
+            if (typeName.isNotBlank()) {
+                throwsTypes.add(typeName)
+            }
+        }
+
+        return throwsTypes.toList()
     }
 }

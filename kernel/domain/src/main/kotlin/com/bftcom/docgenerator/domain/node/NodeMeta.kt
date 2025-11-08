@@ -37,6 +37,8 @@ data class NodeMeta(
     val kdoc: KDocMeta? = null,
     /** Прямые "сырые" вызовы, собранные анализатором */
     val rawUsages: List<RawUsage>? = null,
+    /** Типы исключений, которые бросает метод (throw в коде) */
+    val throwsTypes: List<String>? = null,
     /** Абсолютный путь к файлу */
     val filePath: String? = null,
     /** Номера строк в исходнике (startLine, endLine) */

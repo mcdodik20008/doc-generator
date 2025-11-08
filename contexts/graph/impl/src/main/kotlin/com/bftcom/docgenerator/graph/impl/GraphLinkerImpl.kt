@@ -85,6 +85,15 @@ class GraphLinkerImpl(
                     log.error("CALLS linking failed for ${node.fqn}: ${e.message}", e)
                 }
             }
+
+            // THROWS
+            if (node.isFunctionNode()) {
+                try {
+                    linkThrows(node, meta, byFqn, bySimple)
+                } catch (e: Exception) {
+                    log.warn("THROWS linking failed for ${node.fqn}: ${e.message}", e)
+                }
+            }
         }
 
         log.info("Finished linking. CALLS errors: $callsErrors")
@@ -329,6 +338,32 @@ class GraphLinkerImpl(
                 NodeKind.MAPPER,
                 NodeKind.CONFIG,
             )
+
+    /** THROWS: method→exception type */
+    private fun linkThrows(
+        fn: Node,
+        meta: NodeMeta,
+        byFqn: Map<String, Node>,
+        bySimple: Map<String?, List<Node>>,
+    ) {
+        val throwsTypes = meta.throwsTypes ?: return
+        if (throwsTypes.isEmpty()) {
+            return
+        }
+
+        val imports = meta.imports ?: emptyList()
+        val pkg = fn.packageName.orEmpty()
+
+        throwsTypes.forEach { throwType ->
+            // Разрешаем тип исключения
+            val exceptionNode = resolveType(throwType, imports, pkg, byFqn, bySimple)
+            if (exceptionNode != null) {
+                upsertEdge(fn, exceptionNode, EdgeKind.THROWS)
+            } else {
+                log.debug("Could not resolve exception type '$throwType' for ${fn.fqn}")
+            }
+        }
+    }
 
     private fun Node.isFunctionNode(): Boolean = this.kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
 }

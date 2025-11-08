@@ -214,7 +214,7 @@ class KotlinToDomainVisitor(
         filePath: String,
         spanLines: IntRange,
         usages: List<RawUsage>,
-    ) = onFunctionEx(ownerFqn, name, paramNames, filePath, spanLines, usages, null, null, null, null, null)
+    ) = onFunctionEx(ownerFqn, name, paramNames, filePath, spanLines, usages, null, null, null, null, null, null)
 
     // -------------------- FUNCTION (extended) --------------------
 
@@ -230,6 +230,7 @@ class KotlinToDomainVisitor(
         docComment: String?,
         annotations: Set<String>?,
         kdocMeta: Map<String, Any?>?,
+        throwsTypes: List<String>?,
     ) {
         val kind =
             when {
@@ -278,6 +279,11 @@ class KotlinToDomainVisitor(
         // Доп. флаг для диагностики (не обязателен)
         val hasIntraCalls = callsFiltered.any { it is RawUsage.Dot && it.receiver == ownerFqn }
 
+        // Объединяем исключения из кода и из KDoc
+        val throwsFromCode = throwsTypes?.toSet() ?: emptySet()
+        val throwsFromKDoc = (kdocMeta?.get("throws") as? Map<*, *>)?.keys?.mapNotNull { it.toString() }?.toSet() ?: emptySet()
+        val allThrows = (throwsFromCode + throwsFromKDoc).toList().takeIf { it.isNotEmpty() }
+
         val meta =
             NodeMeta(
                 source = "onFunction",
@@ -287,6 +293,7 @@ class KotlinToDomainVisitor(
                 rawUsages = callsFiltered,
                 annotations = annotations?.toList(),
                 imports = fileImports[filePath],
+                throwsTypes = allThrows,
                 kdoc =
                     kdocMeta?.let {
                         KDocMeta(
