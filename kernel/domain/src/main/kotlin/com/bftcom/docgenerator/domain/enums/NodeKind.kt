@@ -14,6 +14,8 @@ package com.bftcom.docgenerator.domain.enums
  * - MIGRATION — миграция схемы
  * - CONFIG — конфигурационный объект / файл
  * - JOB — плановая задача / джоб
+ * - TEST - тест классы
+ * - EXCEPTION - Наследники Exception
  */
 enum class NodeKind {
     MODULE,
@@ -33,4 +35,5 @@ enum class NodeKind {
     MAPPER,
     JOB,
     TEST,
+    EXCEPTION,
 }
