@@ -57,11 +57,10 @@
     let cy;
 
     async function fetchGraph(appId, kinds, limit) {
-        const params = new URLSearchParams({
-            applicationId: appId,
-            limit: limit,
-            kinds: kinds.filter(k => k).join('&kinds=')
-        });
+        const params = new URLSearchParams();
+        params.set('applicationId', String(appId));
+        params.set('limit', String(limit));
+        kinds.filter(Boolean).forEach(kind => params.append('kinds', kind));
         const res = await fetch(`/api/graph/chunks?${params.toString()}`);
         if (!res.ok) throw new Error('Failed to load graph');
         return res.json();
@@ -153,7 +152,8 @@
         const g = await fetchGraph(appId, kinds, limit);
         const {nodes, edges} = toCyElements(g);
         cy.elements().remove();
-        cy.add(nodes).add(edges);
+        cy.add(nodes);
+        cy.add(edges);
         cy.layout({name: 'cose', animate: false}).run();
         cy.fit(undefined, 20);
     }
