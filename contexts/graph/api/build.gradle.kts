@@ -13,6 +13,7 @@ repositories {
 
 dependencies {
     api(projects.kernel.domain)
+    api("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21")
 
     testImplementation(kotlin("test"))
 }

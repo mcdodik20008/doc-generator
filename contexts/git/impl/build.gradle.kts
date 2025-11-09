@@ -22,9 +22,8 @@ dependencies {
 
     implementation("org.eclipse.jgit:org.eclipse.jgit:6.10.0.202406032230-r")
 
-    compileOnly("org.springframework.boot:spring-boot")
-
-    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+    implementation("org.springframework.boot:spring-boot-starter:3.5.6")
+    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:3.5.6")
 }
 
 tasks.test {
