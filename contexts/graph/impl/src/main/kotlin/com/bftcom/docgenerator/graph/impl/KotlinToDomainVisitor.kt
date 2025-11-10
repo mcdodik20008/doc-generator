@@ -7,94 +7,96 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.KDocMeta
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
-import com.bftcom.docgenerator.domain.node.RawUsage
 import com.bftcom.docgenerator.db.NodeRepository
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawDecl
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawField
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFileUnit
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawPackage
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.fasterxml.jackson.databind.ObjectMapper
-import kotlin.text.iterator
 
-/**
- * [Фаза 1] Kotlin → доменная модель графа (Node).
- * Создаёт ноды и складывает строго типизированные метаданные (NodeMeta) в JSONB.
- * Рёбра не создаёт (линковка — Фаза 2).
- */
 class KotlinToDomainVisitor(
     private val application: Application,
     private val nodeRepo: NodeRepository,
     private val objectMapper: ObjectMapper,
-    // ToDo: вынести в пропсы
-    private val noise: Set<String> = setOf("listOf", "map", "of", "timer", "start", "stop"),
 ) : SourceVisitor {
-    // -------------------- КЭШИ --------------------
-    private val packageByFqn = mutableMapOf<String, Node>() // "foo" -> PACKAGE
-    private val typeByFqn = mutableMapOf<String, Node>() // "foo.A" -> CLASS/INTERFACE/ENUM/...
-    private val funcByFqn = mutableMapOf<String, Node>() // "foo.baz" / "foo.A.bar" -> METHOD
-    private val filePkg = mutableMapOf<String, String>() // filePath -> "foo"
-    private val fileImports = mutableMapOf<String, List<String>>() // filePath -> imports
 
-    // -------------------- PACKAGE --------------------
+    private val packageByFqn = mutableMapOf<String, Node>()      // "foo" -> PACKAGE
+    private val typeByFqn = mutableMapOf<String, Node>()         // "foo.A" -> CLASS/INTERFACE/ENUM/RECORD
+    private val funcByFqn = mutableMapOf<String, Node>()         // "foo.baz" / "foo.A.bar" -> METHOD
+    private val filePkg = mutableMapOf<String, String>()         // filePath -> "foo"
+    private val fileImports = mutableMapOf<String, List<String>>()// filePath -> imports
 
-    override fun onPackage(
-        pkgFqn: String,
-        filePath: String,
-    ) {
-        filePkg[filePath] = pkgFqn
-        packageByFqn.getOrPut(pkgFqn) {
-            val meta =
-                NodeMeta(
-                    source = "onPackage",
-                    pkgFqn = pkgFqn,
-                )
+    override fun onDecl(raw: RawDecl) {
+        when (raw) {
+            is RawFileUnit -> onFileUnit(raw)   // приватный метод в твоём визиторе
+            is RawPackage  -> onPackageDecl(raw)
+            is RawType     -> onType(raw)
+            is RawField    -> onField(raw)
+            is RawFunction -> onFunction(raw)
+        }
+    }
+
+    private fun onPackageDecl(r: RawPackage) {
+        val pkg = r.name
+        // Кладём/апдейтим package-ноду ровно как ты делал для FileUnit (если нужно — можно вообще no-op)
+        packageByFqn.getOrPut(pkg) {
             upsertNode(
-                fqn = pkgFqn,
+                fqn = pkg,
                 kind = NodeKind.PACKAGE,
-                name = pkgFqn.substringAfterLast('.'),
-                packageName = pkgFqn,
+                name = pkg.substringAfterLast('.'),
+                packageName = pkg,
                 parent = null,
                 lang = Lang.kotlin,
-                filePath = filePath,
-                span = 1..1,
+                filePath = r.filePath,
+                span = r.span?.let { it.start..it.end },
                 signature = null,
-                sourceCode = null,
+                sourceCode = r.text,
                 docComment = null,
-                meta = meta,
+                meta = NodeMeta(source = "package", pkgFqn = pkg),
             )
         }
     }
 
-    // -------------------- TYPE (basic) --------------------
+    // -------------------- FILE UNIT --------------------
 
-    override fun onType(
-        kind: NodeKind,
-        fqn: String,
-        pkgFqn: String,
-        name: String,
-        filePath: String,
-        spanLines: IntRange,
-        supertypesSimple: List<String>,
-    ) = onTypeEx(kind, fqn, pkgFqn, name, filePath, spanLines, supertypesSimple, null, null, null, null)
+    private fun onFileUnit(r: RawFileUnit) {
+        // Ровно то, что уже делалось: кешируем pkg/imports и при наличии pkg создаём PACKAGE-ноду
+        r.pkgFqn?.let { pkg ->
+            filePkg[r.filePath] = pkg
+            fileImports[r.filePath] = r.imports
+            packageByFqn.getOrPut(pkg) {
+                upsertNode(
+                    fqn = pkg,
+                    kind = NodeKind.PACKAGE,
+                    name = pkg.substringAfterLast('.'),
+                    packageName = pkg,
+                    parent = null,
+                    lang = Lang.kotlin,
+                    filePath = r.filePath,
+                    span = r.span?.let { it.start..it.end },
+                    signature = null,
+                    sourceCode = r.text,
+                    docComment = null,
+                    meta = NodeMeta(source = "fileUnit", pkgFqn = pkg),
+                )
+            }
+        } ?: run {
+            filePkg[r.filePath] = ""
+            fileImports[r.filePath] = r.imports
+        }
+    }
 
-    // -------------------- TYPE (extended) --------------------
+    // -------------------- TYPE --------------------
 
-    override fun onTypeEx(
-        kind: NodeKind,
-        fqn: String,
-        pkgFqn: String,
-        name: String,
-        filePath: String,
-        spanLines: IntRange,
-        supertypesSimple: List<String>,
-        sourceCode: String?,
-        signature: String?,
-        docComment: String?,
-        kdocMeta: Map<String, Any?>?,
-    ) {
-        val pkgNode =
+    override fun onType(r: RawType) {
+        val pkgFqn = r.pkgFqn ?: filePkg[r.filePath].orEmpty()
+        val fqn = listOfNotNull(pkgFqn.takeIf { it.isNotBlank() }, r.simpleName).joinToString(".")
+
+        val pkgNode = if (pkgFqn.isNotBlank()) {
             packageByFqn.getOrPut(pkgFqn) {
-                val meta =
-                    NodeMeta(
-                        source = "onType:pkgAuto",
-                        pkgFqn = pkgFqn,
-                    )
+                val meta = NodeMeta(source = "type:pkgAuto", pkgFqn = pkgFqn)
                 upsertNode(
                     fqn = pkgFqn,
                     kind = NodeKind.PACKAGE,
@@ -102,229 +104,130 @@ class KotlinToDomainVisitor(
                     packageName = pkgFqn,
                     parent = null,
                     lang = Lang.kotlin,
-                    filePath = filePath,
-                    span = 1..1,
+                    filePath = r.filePath,
+                    span = null,
                     signature = null,
                     sourceCode = null,
                     docComment = null,
                     meta = meta,
                 )
             }
+        } else null
 
-        val meta =
-            NodeMeta(
-                source = "onType",
-                pkgFqn = pkgFqn,
-                supertypesSimple = supertypesSimple,
-                imports = fileImports[filePath],
-                kdoc =
-                    kdocMeta?.let {
-                        KDocMeta(
-                            summary = it["summary"] as? String,
-                            details = it["details"] as? String,
-                            tags =
-                                (it["tags"] as? Map<*, *>)?.entries?.associate { e ->
-                                    e.key.toString() to e.value.toString()
-                                },
-                        )
-                    },
-            )
+        val kind = when (r.kindRepr) {
+            "interface" -> NodeKind.INTERFACE
+            "enum"      -> NodeKind.ENUM
+            "record"    -> NodeKind.RECORD
+            "object"    -> NodeKind.CLASS  // оставляем как CLASS
+            else        -> NodeKind.CLASS
+        }
 
-        val typeNode =
-            upsertNode(
-                fqn = fqn,
-                kind = kind,
-                name = name,
-                packageName = pkgFqn,
-                parent = pkgNode,
-                lang = Lang.kotlin,
-                filePath = filePath,
-                span = spanLines,
-                signature = signature,
-                sourceCode = sourceCode,
-                docComment = docComment,
-                meta = meta,
-            )
-        typeByFqn[fqn] = typeNode
+        val meta = NodeMeta(
+            source = "type",
+            pkgFqn = pkgFqn.ifBlank { null },
+            supertypesSimple = r.supertypesRepr,
+            imports = fileImports[r.filePath],
+            kdoc = r.attributes["kdoc"]?.let { null } ?: null, // не выдумываем, если нет
+            annotations = r.annotationsRepr,
+        )
+
+        val spanRange = r.span?.let { it.start..it.end }
+        val node = upsertNode(
+            fqn = fqn,
+            kind = kind,
+            name = r.simpleName,
+            packageName = pkgFqn.ifBlank { null },
+            parent = pkgNode,
+            lang = Lang.kotlin,
+            filePath = r.filePath,
+            span = spanRange,
+            signature = r.attributes["signature"] as? String,
+            sourceCode = r.text,
+            docComment = null, // сырой док не нормализуем
+            meta = meta,
+        )
+        typeByFqn[fqn] = node
     }
 
-    // -------------------- FIELD (basic) --------------------
+    // -------------------- FIELD --------------------
 
-    override fun onField(
-        ownerFqn: String,
-        name: String,
-        filePath: String,
-        spanLines: IntRange,
-    ) = onFieldEx(ownerFqn, name, filePath, spanLines, null, null, null)
+    override fun onField(r: RawField) {
+        val pkg = r.pkgFqn ?: filePkg[r.filePath]
+        val parent = r.ownerFqn?.let { typeByFqn[it] } ?: pkg?.let { packageByFqn[it] }
 
-    // -------------------- FIELD (extended) --------------------
+        val meta = NodeMeta(
+            source = "field",
+            pkgFqn = pkg,
+            ownerFqn = r.ownerFqn,
+            kdoc = r.kdoc?.let { KDocMeta(summary = it) },
+            annotations = r.annotationsRepr,
+        )
 
-    override fun onFieldEx(
-        ownerFqn: String,
-        name: String,
-        filePath: String,
-        spanLines: IntRange,
-        sourceCode: String?,
-        docComment: String?,
-        kdocMeta: Map<String, Any?>?,
-    ) {
-        val pkg = filePkg[filePath]
-        val parent = typeByFqn[ownerFqn] ?: packageByFqn[pkg.orEmpty()]
-
-        val meta =
-            NodeMeta(
-                source = "onField",
-                pkgFqn = pkg,
-                ownerFqn = ownerFqn,
-                kdoc =
-                    kdocMeta?.let {
-                        KDocMeta(
-                            summary = it["summary"] as? String,
-                            details = it["details"] as? String,
-                            tags =
-                                (it["tags"] as? Map<*, *>)?.entries?.associate { e ->
-                                    e.key.toString() to e.value.toString()
-                                },
-                        )
-                    },
-            )
-
+        val spanRange = r.span?.let { it.start..it.end }
         upsertNode(
-            fqn = "$ownerFqn.$name",
+            fqn = listOfNotNull(r.ownerFqn, r.name).joinToString("."),
             kind = NodeKind.FIELD,
-            name = name,
+            name = r.name,
             packageName = pkg,
             parent = parent,
             lang = Lang.kotlin,
-            filePath = filePath,
-            span = spanLines,
-            signature = null, // можно распарсить позднее
-            sourceCode = sourceCode,
-            docComment = docComment,
+            filePath = r.filePath,
+            span = spanRange,
+            signature = null,
+            sourceCode = r.text,
+            docComment = r.kdoc,
             meta = meta,
         )
     }
 
-    // -------------------- FUNCTION (basic) --------------------
+    // -------------------- FUNCTION --------------------
 
-    override fun onFunction(
-        ownerFqn: String?,
-        name: String,
-        paramNames: List<String>,
-        filePath: String,
-        spanLines: IntRange,
-        usages: List<RawUsage>,
-    ) = onFunctionEx(ownerFqn, name, paramNames, filePath, spanLines, usages, null, null, null, null, null, null)
+    override fun onFunction(r: RawFunction) {
+        val pkgFqn = r.pkgFqn ?: filePkg[r.filePath]
+        val fqn = when {
+            !r.ownerFqn.isNullOrBlank() -> "${r.ownerFqn}.${r.name}"
+            !pkgFqn.isNullOrBlank()     -> "$pkgFqn.${r.name}"
+            else                        -> r.name
+        }
 
-    // -------------------- FUNCTION (extended) --------------------
+        val parent = when {
+            !r.ownerFqn.isNullOrBlank() -> typeByFqn[r.ownerFqn]
+            !pkgFqn.isNullOrBlank()     -> packageByFqn[pkgFqn!!]
+            else                        -> null
+        }
 
-    override fun onFunctionEx(
-        ownerFqn: String?,
-        name: String,
-        paramNames: List<String>,
-        filePath: String,
-        spanLines: IntRange,
-        usages: List<RawUsage>,
-        sourceCode: String?,
-        signature: String?,
-        docComment: String?,
-        annotations: Set<String>?,
-        kdocMeta: Map<String, Any?>?,
-        throwsTypes: List<String>?,
-    ) {
-        val kind =
-            when {
-                annotations.isNullOrEmpty() -> NodeKind.METHOD
-                annotations.any { it.endsWith("Mapping") } -> NodeKind.ENDPOINT
-                "Scheduled" in annotations -> NodeKind.JOB
-                "KafkaListener" in annotations -> NodeKind.TOPIC
-                else -> NodeKind.METHOD
-            }
+        val sig = r.signatureRepr ?: buildString {
+            append(r.name).append('(').append(r.paramNames.joinToString(",")).append(')')
+        }
 
-        val pkgFqn = filePkg[filePath]
-        val fqn =
-            when {
-                !ownerFqn.isNullOrBlank() -> "$ownerFqn.$name"
-                !pkgFqn.isNullOrBlank() -> "$pkgFqn.$name"
-                else -> name
-            }
+        val meta = NodeMeta(
+            source = "function",
+            pkgFqn = pkgFqn,
+            ownerFqn = r.ownerFqn,
+            params = r.paramNames,
+            rawUsages = r.rawUsages,          // без нормализации/фильтрации
+            annotations = r.annotationsRepr.toList(),
+            imports = fileImports[r.filePath],
+            throwsTypes = r.throwsRepr,
+            kdoc = r.kdoc?.let { KDocMeta(summary = it) },
+        )
 
-        val sig =
-            signature ?: buildString {
-                append(name).append('(').append(paramNames.joinToString(",")).append(')')
-            }
-
-        // 1) Нормализуем под внутриклассовые вызовы
-        val usagesNormalized = normalizeUsagesForIntra(ownerFqn, usages)
-
-        // 2) Фильтруем шум уже по нормализованным вызовам
-        val callsFiltered =
-            usagesNormalized
-                .filterNot { usage ->
-                    when (usage) {
-                        is RawUsage.Dot -> usage.receiver in noise || usage.member in noise
-                        is RawUsage.Simple -> usage.name in noise
-                    }
-                }.filterNot {
-                    it is RawUsage.Dot && it.receiver == ownerFqn && it.member == name
-                }
-
-        val parent =
-            when {
-                ownerFqn != null -> typeByFqn[ownerFqn]
-                pkgFqn != null -> packageByFqn[pkgFqn]
-                else -> null
-            }
-
-        // Доп. флаг для диагностики (не обязателен)
-        val hasIntraCalls = callsFiltered.any { it is RawUsage.Dot && it.receiver == ownerFqn }
-
-        // Объединяем исключения из кода и из KDoc
-        val throwsFromCode = throwsTypes?.toSet() ?: emptySet()
-        val throwsFromKDoc = (kdocMeta?.get("throws") as? Map<*, *>)?.keys?.mapNotNull { it.toString() }?.toSet() ?: emptySet()
-        val allThrows = (throwsFromCode + throwsFromKDoc).toList().takeIf { it.isNotEmpty() }
-
-        val meta =
-            NodeMeta(
-                source = "onFunction",
-                pkgFqn = pkgFqn,
-                ownerFqn = ownerFqn,
-                params = paramNames,
-                rawUsages = callsFiltered,
-                annotations = annotations?.toList(),
-                imports = fileImports[filePath],
-                throwsTypes = allThrows,
-                kdoc =
-                    kdocMeta?.let {
-                        KDocMeta(
-                            summary = it["summary"] as? String,
-                            details = it["details"] as? String,
-                            tags =
-                                (it["tags"] as? Map<*, *>)?.entries?.associate { e ->
-                                    e.key.toString() to e.value.toString()
-                                },
-                        )
-                    },
-                // можно хранить флажок в modifiers для удобства
-                modifiers = mapOf("hasIntraCalls" to hasIntraCalls),
-            )
-
-        val fnNode =
-            upsertNode(
-                fqn = fqn,
-                kind = kind,
-                name = name,
-                packageName = pkgFqn,
-                parent = parent,
-                lang = Lang.kotlin,
-                filePath = filePath,
-                span = spanLines,
-                signature = sig,
-                sourceCode = sourceCode,
-                docComment = docComment,
-                meta = meta,
-            )
-        funcByFqn[fqn] = fnNode
+        val spanRange = r.span?.let { it.start..it.end }
+        val node = upsertNode(
+            fqn = fqn,
+            kind = NodeKind.METHOD,           // без эвристик
+            name = r.name,
+            packageName = pkgFqn,
+            parent = parent,
+            lang = Lang.kotlin,
+            filePath = r.filePath,
+            span = spanRange,
+            signature = sig,
+            sourceCode = r.text,
+            docComment = r.kdoc,
+            meta = meta,
+        )
+        funcByFqn[fqn] = node
     }
 
     // -------------------- UPSERT --------------------
@@ -346,10 +249,9 @@ class KotlinToDomainVisitor(
         val existing = nodeRepo.findByApplicationIdAndFqn(application.id!!, fqn)
         val metaMap = toMetaMap(meta)
 
-        var lineStart: Int = span?.first ?: 0
-        var lineEnd: Int = span?.last ?: 0
-        if (sourceCode?.isNotEmpty() == true) {
-            lineStart = span?.first ?: 0
+        var lineStart: Int? = span?.first
+        var lineEnd: Int? = span?.last
+        if (sourceCode?.isNotEmpty() == true && lineStart != null) {
             lineEnd = lineStart + countLinesNormalized(sourceCode) - 1
         }
 
@@ -377,15 +279,8 @@ class KotlinToDomainVisitor(
         } else {
             var changed = false
 
-            fun <T> setIfChanged(
-                curr: T,
-                new: T,
-                apply: (T) -> Unit,
-            ) {
-                if (curr != new) {
-                    apply(new)
-                    changed = true
-                }
+            fun <T> setIfChanged(curr: T, new: T, apply: (T) -> Unit) {
+                if (curr != new) { apply(new); changed = true }
             }
 
             setIfChanged(existing.name, name) { existing.name = it }
@@ -394,13 +289,12 @@ class KotlinToDomainVisitor(
             setIfChanged(existing.lang, lang) { existing.lang = it }
             setIfChanged(existing.parent?.id, parent?.id) { existing.parent = parent }
             setIfChanged(existing.filePath, filePath) { existing.filePath = it }
-            setIfChanged(existing.lineStart, span?.first) { existing.lineStart = it }
-            setIfChanged(existing.lineEnd, span?.last) { existing.lineEnd = it }
+            setIfChanged(existing.lineStart, lineStart) { existing.lineStart = it }
+            setIfChanged(existing.lineEnd, lineEnd) { existing.lineEnd = it }
             setIfChanged(existing.sourceCode, sourceCode) { existing.sourceCode = it }
             setIfChanged(existing.docComment, docComment) { existing.docComment = it }
             setIfChanged(existing.signature, signature) { existing.signature = it }
 
-            // merge meta (старое + новое), потом чистим пустое
             @Suppress("UNCHECKED_CAST")
             val currentMeta: Map<String, Any?> = (existing.meta as? Map<String, Any?>) ?: emptyMap()
             val merged = (currentMeta + metaMap).cleaned()
@@ -414,71 +308,29 @@ class KotlinToDomainVisitor(
 
     private fun countLinesNormalized(src: String): Int {
         if (src.isEmpty()) return 0
-        // нормализуем переводы строк: \r\n -> \n
         val s = src.replace("\r\n", "\n")
-        // считаем кол-во '\n' + последнюю строку (даже без \n)
         var count = 1
         for (ch in s) if (ch == '\n') count++
         return count
     }
 
-    /** Удаляем пустые поля у NodeMeta уже после convertValue → Map (чтобы JSONB был компактным). */
     private fun Map<String, Any?>.cleaned(): Map<String, Any> =
-        entries
-            .asSequence()
+        entries.asSequence()
             .filter { (_, v) ->
-                v != null &&
-                    when (v) {
-                        is Collection<*> -> v.isNotEmpty()
-                        is Map<*, *> -> v.isNotEmpty()
-                        else -> true
-                    }
-            }.associate { (k, v) ->
-                val vv =
-                    when (v) {
-                        is Map<*, *> ->
-                            @Suppress("UNCHECKED_CAST")
-                            (v as Map<String, Any?>).cleaned()
-                        else -> v
-                    }
+                v != null && when (v) {
+                    is Collection<*> -> v.isNotEmpty()
+                    is Map<*, *>     -> v.isNotEmpty()
+                    else             -> true
+                }
+            }
+            .associate { (k, v) ->
+                val vv = when (v) {
+                    is Map<*, *> -> @Suppress("UNCHECKED_CAST") (v as Map<String, Any?>).cleaned()
+                    else -> v
+                }
                 k to vv
             } as Map<String, Any>
 
-    private fun toMetaMap(meta: NodeMeta): Map<String, Any> = objectMapper.convertValue(meta, Map::class.java) as Map<String, Any>
-
-    // -------------------- FILE CONTEXT --------------------
-
-    override fun onFileContext(
-        pkgFqn: String,
-        filePath: String,
-        imports: List<String>,
-    ) {
-        filePkg[filePath] = pkgFqn
-        fileImports[filePath] = imports
-    }
-
-    // -------------------- ВСПОМОГАТЕЛЬНОЕ --------------------
-
-    /**
-     * Если ownerFqn задан, трактуем неквалифицированные вызовы как внутриклассовые:
-     * Simple("a") -> Dot(receiver = ownerFqn, member = "a").
-     * Это не ломает внешние вызовы иc помогает линковщику построить EdgeKind.CALLS.
-     */
-    private fun normalizeUsagesForIntra(
-        ownerFqn: String?,
-        usages: List<RawUsage>,
-    ): List<RawUsage> {
-        if (ownerFqn.isNullOrBlank()) return usages
-        return usages.map { u ->
-            when (u) {
-                is RawUsage.Simple ->
-                    RawUsage.Dot(
-                        receiver = ownerFqn,
-                        member = u.name,
-                        isCall = u.isCall,
-                    )
-                else -> u
-            }
-        }
-    }
+    private fun toMetaMap(meta: NodeMeta): Map<String, Any> =
+        objectMapper.convertValue(meta, Map::class.java) as Map<String, Any>
 }

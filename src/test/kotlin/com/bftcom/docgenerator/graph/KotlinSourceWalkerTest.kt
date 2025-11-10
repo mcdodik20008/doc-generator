@@ -37,11 +37,11 @@ class KotlinSourceWalkerTest {
         val walker = KotlinSourceWalker(KDocFetcherImpl())
         val calls = mutableListOf<String>()
         val v = object : SourceVisitor {
-            override fun onPackage(pkgFqn: String, filePath: String) {
+            fun onPackage(pkgFqn: String, filePath: String) {
                 calls += "pkg:$pkgFqn"
             }
 
-            override fun onType(
+            fun onType(
                 kind: NodeKind,
                 fqn: String,
                 pkgFqn: String,
@@ -53,11 +53,11 @@ class KotlinSourceWalkerTest {
                 calls += "type:${kind}:${fqn}:${supertypesSimple.joinToString()}"
             }
 
-            override fun onField(ownerFqn: String, name: String, filePath: String, spanLines: IntRange) {
+            fun onField(ownerFqn: String, name: String, filePath: String, spanLines: IntRange) {
                 calls += "field:$ownerFqn.$name"
             }
 
-            override fun onFunction(
+            fun onFunction(
                 ownerFqn: String?,
                 name: String,
                 paramNames: List<String>,
@@ -68,7 +68,7 @@ class KotlinSourceWalkerTest {
                 TODO("Not yet implemented")
             }
 
-            override fun onFileContext(
+            fun onFileContext(
                 pkgFqn: String,
                 filePath: String,
                 imports: List<String>
@@ -76,7 +76,7 @@ class KotlinSourceWalkerTest {
                 TODO("Not yet implemented")
             }
 
-            override fun onTypeEx(
+            fun onTypeEx(
                 kind: NodeKind,
                 fqn: String,
                 pkgFqn: String,
@@ -92,7 +92,7 @@ class KotlinSourceWalkerTest {
                 TODO("Not yet implemented")
             }
 
-            override fun onFieldEx(
+            fun onFieldEx(
                 ownerFqn: String,
                 name: String,
                 filePath: String,
@@ -104,7 +104,7 @@ class KotlinSourceWalkerTest {
                 TODO("Not yet implemented")
             }
 
-            override fun onFunctionEx(
+            fun onFunctionEx(
                 ownerFqn: String?,
                 name: String,
                 paramNames: List<String>,

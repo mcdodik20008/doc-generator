@@ -1,83 +1,26 @@
 package com.bftcom.docgenerator.graph.api
 
-import com.bftcom.docgenerator.domain.enums.NodeKind
-import com.bftcom.docgenerator.domain.node.RawUsage
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawDecl
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawField
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFileUnit
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawPackage
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 
 interface SourceVisitor {
-    fun onPackage(
-        pkgFqn: String,
-        filePath: String,
-    )
+    fun onDecl(raw: RawDecl) {
+        when (raw) {
+            is RawFileUnit -> onFile(raw)
+            is RawPackage  -> onPackage(raw)
+            is RawType     -> onType(raw)
+            is RawField    -> onField(raw)
+            is RawFunction -> onFunction(raw)
+        }
+    }
 
-    fun onType(
-        kind: NodeKind,
-        fqn: String,
-        pkgFqn: String,
-        name: String,
-        filePath: String,
-        spanLines: IntRange,
-        supertypesSimple: List<String>,
-    )
-
-    fun onField(
-        ownerFqn: String,
-        name: String,
-        filePath: String,
-        spanLines: IntRange,
-    )
-
-    fun onFunction(
-        ownerFqn: String?,
-        name: String,
-        paramNames: List<String>,
-        filePath: String,
-        spanLines: IntRange,
-        usages: List<RawUsage>,
-    )
-
-    /** Новый: передаём контекст файла (imports) перед типами/функциями этого файла */
-    fun onFileContext(
-        pkgFqn: String,
-        filePath: String,
-        imports: List<String>,
-    )
-
-    fun onTypeEx(
-        kind: NodeKind,
-        fqn: String,
-        pkgFqn: String,
-        name: String,
-        filePath: String,
-        spanLines: IntRange,
-        supertypesSimple: List<String>,
-        sourceCode: String?,
-        signature: String?,
-        docComment: String?,
-        kdocMeta: Map<String, Any?>? = null,
-    )
-
-    fun onFieldEx(
-        ownerFqn: String,
-        name: String,
-        filePath: String,
-        spanLines: IntRange,
-        sourceCode: String?,
-        docComment: String?,
-        kdocMeta: Map<String, Any?>? = null,
-    )
-
-    fun onFunctionEx(
-        ownerFqn: String?,
-        name: String,
-        paramNames: List<String>,
-        filePath: String,
-        spanLines: IntRange,
-        usages: List<RawUsage>,
-        sourceCode: String?,
-        signature: String?,
-        docComment: String?,
-        annotations: Set<String>?,
-        kdocMeta: Map<String, Any?>? = null,
-        throwsTypes: List<String>? = null,
-    )
+    fun onFile(unit: RawFileUnit) {}
+    fun onPackage(decl: RawPackage) {}
+    fun onType(decl: RawType) {}
+    fun onField(decl: RawField) {}
+    fun onFunction(decl: RawFunction) {}
 }

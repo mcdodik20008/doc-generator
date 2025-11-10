@@ -1,25 +1,30 @@
 package com.bftcom.docgenerator.domain.node
 
+/**
+ * Сырой вызов или упоминание внутри тела функции.
+ *
+ * Используется для анализа связей на уровне исходного кода (до Linker).
+ */
 sealed class RawUsage {
     /**
-     * Выражение с точкой: `receiver.member` или `receiver.member()`
-     * @param receiver Текст слева от точки (e.g., "myService", "Utils", "com.example.Utils")
-     * @param member Имя справа от точки (e.g., "doWork", "FIELD_NAME")
-     * @param isCall Это вызов `()` или просто доступ к полю
+     * Вызов или обращение вида `receiver.member(...)`.
+     *
+     * @param receiver текстовая часть до точки
+     * @param member имя вызываемого метода или свойства
+     * @param isCall true, если это именно вызов `()`, а не просто обращение
      */
     data class Dot(
         val receiver: String,
         val member: String,
-        val isCall: Boolean = true,
+        val isCall: Boolean = true
     ) : RawUsage()
 
     /**
-     * Простое выражение: `doLocalWork()` или `MyClass()`
-     * @param name Имя (e.g., "doLocalWork", "MyClass")
-     * @param isCall Это вызов `()` (для `Simple` это почти всегда true)
+     * Простое обращение или вызов без квалификатора,
+     * например `foo()` или `print`.
      */
     data class Simple(
         val name: String,
-        val isCall: Boolean,
+        val isCall: Boolean
     ) : RawUsage()
 }

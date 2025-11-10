@@ -3,8 +3,14 @@ package com.bftcom.docgenerator.graph.impl
 import com.bftcom.docgenerator.graph.api.KDocFetcher
 import com.bftcom.docgenerator.graph.api.SourceVisitor
 import com.bftcom.docgenerator.graph.api.SourceWalker
-import com.bftcom.docgenerator.domain.enums.NodeKind
+import com.bftcom.docgenerator.graph.api.model.RawAttrKey
+import com.bftcom.docgenerator.graph.api.model.rawdecl.LineSpan
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawField
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFileUnit
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.bftcom.docgenerator.domain.node.RawUsage
+import com.bftcom.docgenerator.graph.api.model.rawdecl.SrcLang
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
@@ -22,12 +28,17 @@ import kotlin.io.path.isDirectory
 
 @Component
 class KotlinSourceWalker(
-    val kDocFetcher: KDocFetcher,
+    private val kDocFetcher: KDocFetcher,
 ) : SourceWalker {
+
     companion object {
         private val log = LoggerFactory.getLogger(KotlinSourceWalker::class.java)
-        private val NOISE =
-            setOf("listOf", "map", "of", "timer", "start", "stop", "sequenceOf", "arrayOf", "mutableListOf")
+
+        // Лексический шум для грубого парсинга вызовов
+        private val NOISE = setOf(
+            "listOf", "map", "of", "timer", "start", "stop",
+            "sequenceOf", "arrayOf", "mutableListOf"
+        )
     }
 
     override fun walk(
@@ -42,58 +53,61 @@ class KotlinSourceWalker(
         try {
             val cfg = CompilerConfiguration().apply {
                 put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE)
-
                 if (classpath.isNotEmpty()) {
                     log.info("Feeding ${classpath.size} classpath roots to KotlinCoreEnvironment.")
                     addJvmClasspathRoots(classpath)
                 } else {
-                    log.warn("!!! Classpath is empty. PSI parser will be incomplete.")
-                    log.warn("!!! This may cause 'PSI body is NULL' warnings.")
+                    log.warn("Classpath is empty. PSI parser may be incomplete (body==NULL warnings possible).")
                 }
             }
 
             val env = KotlinCoreEnvironment.createForProduction(
-                disposable,
-                cfg,
-                EnvironmentConfigFiles.JVM_CONFIG_FILES
+                disposable, cfg, EnvironmentConfigFiles.JVM_CONFIG_FILES
             )
-
             val project = env.project
             val psiFactory = KtPsiFactory(project, markGenerated = false)
 
             log.info("Scanning for Kotlin files...")
             val paths = Files.walk(root).use { stream ->
-                stream.filter { Files.isRegularFile(it) }.filter {
-                    val s = it.toString()
-                    s.endsWith(".kt") // || s.endsWith(".kts")
-                }.filter { p ->
-                    val s = p.toString()
-                    !s.contains("${File.separator}.git${File.separator}") && !s.contains("${File.separator}build${File.separator}") && !s.contains(
-                        "${File.separator}out${File.separator}"
-                    ) && !s.contains("${File.separator}node_modules${File.separator}") && !s.contains("dependencies.kt")
-                }.toList()
+                stream.filter { Files.isRegularFile(it) }
+                    .filter { it.toString().endsWith(".kt") } // .kts не трогаем
+                    .filter { p ->
+                        val s = p.toString()
+                        !s.contains("${File.separator}.git${File.separator}") &&
+                                !s.contains("${File.separator}build${File.separator}") &&
+                                !s.contains("${File.separator}out${File.separator}") &&
+                                !s.contains("${File.separator}node_modules${File.separator}") &&
+                                !s.contains("dependencies.kt")
+                    }
+                    .toList()
             }
             log.info("Found ${paths.size} files to process.")
 
             val totalFiles = paths.size
-            log.info("Processing $totalFiles files...")
-
             paths.forEachIndexed { index, p ->
-                val relPath = try {
-                    root.relativize(p).toString()
-                } catch (_: IllegalArgumentException) {
-                    p.toString()
-                }
+                val relPath = try { root.relativize(p).toString() } catch (_: IllegalArgumentException) { p.toString() }
                 val percent = if (totalFiles > 0) ((index + 1) * 100.0 / totalFiles).toInt() else 100
                 log.info("[${index + 1}/$totalFiles, $percent%] Processing: $relPath")
 
                 val text = Files.readString(p)
                 val ktFile = psiFactory.createFile(p.fileName.toString(), text)
-                val pkg = ktFile.packageFqName.asString()
+                val pkgFqn = ktFile.packageFqName.asString().ifBlank { null }
                 val imports: List<String> = ktFile.importDirectives.mapNotNull { it.importPath?.pathStr }
 
-                visitor.onFileContext(pkg, relPath, imports)
-                processKtFile(ktFile, visitor, pkg, relPath, classpath)
+                // Контекст файла
+                visitor.onDecl(
+                    RawFileUnit(
+                        lang = SrcLang.kotlin,
+                        filePath = relPath,
+                        pkgFqn = pkgFqn,
+                        imports = imports,
+                        span = null,
+                        text = null,
+                        attributes = emptyMap()
+                    )
+                )
+
+                processKtFile(ktFile, visitor, pkgFqn, relPath, classpath)
             }
 
             log.info("Finished processing ${paths.size} files.")
@@ -106,177 +120,182 @@ class KotlinSourceWalker(
     private fun processKtFile(
         ktFile: KtFile,
         visitor: SourceVisitor,
-        pkg: String,
+        pkgFqn: String?,
         path: String,
         classpath: List<File>,
     ) {
-        // types
+        // Типы
         ktFile.declarations.filterIsInstance<KtClassOrObject>().forEach { decl ->
             val name = decl.name ?: return@forEach
-            val annotations = getAnnotationShortNames(decl)
-            val kind = when {
-                name.lowercase().contains("test") -> NodeKind.TEST
-                name.lowercase().contains("exception") -> NodeKind.EXCEPTION
-                annotations.contains("Controller") || name.contains("Controller") -> NodeKind.ENDPOINT
-                annotations.contains("Configuration") || name.contains("Configuration") -> NodeKind.CONFIG
-                annotations.contains("Service") || name.contains("Service") -> NodeKind.SERVICE
-                annotations.contains("Mapper") || name.contains("Mapper") -> NodeKind.MAPPER
-                decl is KtObjectDeclaration -> NodeKind.CLASS
-                decl is KtClass -> when {
-                    decl.isEnum() -> NodeKind.ENUM
-                    decl.isInterface() -> NodeKind.INTERFACE
-                    decl.isData() -> NodeKind.RECORD
-                    else -> NodeKind.CLASS
+
+            val kindRepr = when (decl) {
+                is KtObjectDeclaration -> "object"
+                is KtClass -> when {
+                    decl.isEnum() -> "enum"
+                    decl.isInterface() -> "interface"
+                    decl.isData() -> "record"
+                    else -> "class"
                 }
-
-                else -> NodeKind.CLASS
+                else -> "class"
             }
-            val fqn = listOfNotNull(pkg.takeIf { it.isNotBlank() }, name).joinToString(".")
-            val supertypes = decl.superTypeListEntries.mapNotNull { it.typeAsUserType?.referencedName }
-            val span = linesOf(ktFile, decl)
 
-            val src = decl.text
-            val sig = signatureFromDeclText(decl.text)
-            val doc = kDocFetcher.parseKDoc(decl)?.let { kDocFetcher.toDocString(it) }
+            val fqn = listOfNotNull(pkgFqn, name).joinToString(".")
+            val supertypesRepr = decl.superTypeListEntries.mapNotNull { it.typeReference?.text ?: it.typeAsUserType?.text }
+            val span = linesOf(ktFile, decl)?.let { LineSpan(it.first, it.last) }
+
+            val sourceText = decl.text
+            val signature = signatureFromDeclText(sourceText)
             val kdocParsed = kDocFetcher.parseKDoc(decl)
-            visitor.onTypeEx(
-                kind,
-                fqn,
-                pkg,
-                name,
-                path,
-                span,
-                supertypes,
-                src,
-                sig,
-                doc,
-                kDocFetcher.toMeta(kdocParsed),
+            val kdocText = kdocParsed?.let { kDocFetcher.toDocString(it) }
+            val kdocMeta = kDocFetcher.toMeta(kdocParsed)
+            val annotations = getAnnotationShortNames(decl).toList()
+
+            visitor.onDecl(
+                RawType(
+                    lang = SrcLang.kotlin,
+                    filePath = path,
+                    pkgFqn = pkgFqn,
+                    simpleName = name,
+                    kindRepr = kindRepr,
+                    supertypesRepr = supertypesRepr,
+                    annotationsRepr = annotations,
+                    span = span,
+                    text = sourceText,
+                    attributes = mapOf(
+                        RawAttrKey.FQN.key to fqn,
+                        RawAttrKey.SIGNATURE.key to signature,
+                        RawAttrKey.KDOC_TEXT.key to kdocText,
+                        RawAttrKey.KDOC_META.key to kdocMeta
+                    )
+                )
             )
 
-
-            // fields
+            // Поля
             decl.declarations.filterIsInstance<KtProperty>().forEach { prop ->
-                val pspan = linesOf(ktFile, prop)
-                val src = prop.text
-                val doc = kDocFetcher.parseKDoc(decl)?.let { kDocFetcher.toDocString(it) }
-                val kdocParsed = kDocFetcher.parseKDoc(prop)
-                visitor.onFieldEx(
-                    fqn,
-                    prop.name ?: return@forEach,
-                    path,
-                    pspan,
-                    src,
-                    doc,
-                    kDocFetcher.toMeta(kdocParsed),
+                val pspan = linesOf(ktFile, prop)?.let { LineSpan(it.first, it.last) }
+                val ptext = prop.text
+                val pkdoc = kDocFetcher.parseKDoc(prop)?.let { kDocFetcher.toDocString(it) }
+                val annotationsField = getAnnotationShortNames(prop).toList()
+
+                visitor.onDecl(
+                    RawField(
+                        lang = SrcLang.kotlin,
+                        filePath = path,
+                        pkgFqn = pkgFqn,
+                        ownerFqn = fqn,
+                        name = prop.name ?: return@forEach,
+                        typeRepr = prop.typeReference?.text,
+                        annotationsRepr = annotationsField,
+                        kdoc = pkdoc,
+                        span = pspan,
+                        text = ptext,
+                        attributes = emptyMap()
+                    )
                 )
             }
 
-            // member functions
+            // Методы
             decl.declarations.filterIsInstance<KtNamedFunction>().forEach { funDecl ->
-
                 if (funDecl.bodyExpression == null) {
-                    log.warn(
-                        "!!! PSI body for [${funDecl.name}] in [$path] is NULL! Usages will be empty. (Classpath was fed: ${classpath.isNotEmpty()})",
-                    )
+                    log.warn("PSI body for [${funDecl.name}] in [$path] is NULL (classpath fed: ${classpath.isNotEmpty()})")
                 }
 
-                val src = extractFunctionByIndent(ktFile, funDecl)
-                val (usages, isBodyNull) = if (funDecl.bodyExpression != null) {
-                    // "Правильный" путь, если PSI сработал
-                    Pair(collectRawUsagesFromPsi(funDecl), false)
+                val fsrc = extractFunctionByIndent(ktFile, funDecl)
+                val (rawUsages, bodyMissing) = if (funDecl.bodyExpression != null) {
+                    collectRawUsagesFromPsi(funDecl) to false
                 } else {
-                    // Наш "костыльный" путь, если PSI сдох
-                    Pair(collectRawUsagesFromText(src), true)
+                    collectRawUsagesFromText(fsrc) to true
                 }
-                if (isBodyNull) {
-                    log.warn(
-                        "!!! PSI body for [${funDecl.name}] in [$path] is NULL! (Classpath was fed: ${classpath.isNotEmpty()}). Using TEXT PARSER for usages.",
-                    )
+                if (bodyMissing) {
+                    log.warn("Using TEXT parser for usages in [${funDecl.name}] at [$path]")
                 }
 
-                // Собираем исключения (throw-выражения)
-                val throwsTypes = if (funDecl.bodyExpression != null) {
+                val throwsRepr = if (funDecl.bodyExpression != null) {
                     collectThrowsFromPsi(funDecl)
                 } else {
-                    collectThrowsFromText(src)
+                    collectThrowsFromText(fsrc)
                 }
 
-                val fspan = linesOf(ktFile, funDecl)
-                val sig = signatureFromFunction(funDecl)
-                val doc = kDocFetcher.parseKDoc(decl)?.let { kDocFetcher.toDocString(it) }
+                val fspan = linesOf(ktFile, funDecl)?.let { LineSpan(it.first, it.last) }
+                val fsig = signatureFromFunction(funDecl)
+                val fkdoc = kDocFetcher.parseKDoc(funDecl)?.let { kDocFetcher.toDocString(it) }
                 val annotationsFun = getAnnotationShortNames(funDecl)
-                val kdocParsed = kDocFetcher.parseKDoc(funDecl)
-                visitor.onFunctionEx(
-                    fqn,
-                    funDecl.name ?: return@forEach,
-                    funDecl.valueParameters.map { it.name ?: "_" },
-                    path,
-                    fspan,
-                    usages,
-                    src,
-                    sig,
-                    doc,
-                    annotationsFun,
-                    kDocFetcher.toMeta(kdocParsed),
-                    throwsTypes,
+
+                visitor.onDecl(
+                    RawFunction(
+                        lang = SrcLang.kotlin,
+                        filePath = path,
+                        pkgFqn = pkgFqn,
+                        ownerFqn = fqn,
+                        name = funDecl.name ?: return@forEach,
+                        signatureRepr = fsig,
+                        paramNames = funDecl.valueParameters.map { it.name ?: "_" },
+                        annotationsRepr = annotationsFun,
+                        rawUsages = rawUsages,
+                        throwsRepr = throwsRepr,
+                        kdoc = fkdoc,
+                        span = fspan,
+                        text = fsrc,
+                        attributes = emptyMap()
+                    )
                 )
             }
         }
 
-        // top-level functions
+        // Топ-левел функции
         ktFile.declarations.filterIsInstance<KtNamedFunction>().forEach { funDecl ->
             if (funDecl.bodyExpression == null) {
-                log.warn(
-                    "!!! PSI body for [${funDecl.name}] in [$path] is NULL! Usages will be empty. (Classpath was fed: ${classpath.isNotEmpty()})",
-                )
-            }
-            val src = funDecl.text
-            val (usages, isBodyNull) = if (funDecl.bodyExpression != null) {
-                // "Правильный" путь, если PSI сработал
-                Pair(collectRawUsagesFromPsi(funDecl), false)
-            } else {
-                // Наш "костыльный" путь, если PSI сдох
-                Pair(collectRawUsagesFromText(src), true)
-            }
-            if (isBodyNull) {
-                log.warn(
-                    "!!! PSI body for [${funDecl.name}] in [$path] is NULL! (Classpath was fed: ${classpath.isNotEmpty()}). Using TEXT PARSER for usages.",
-                )
+                log.warn("PSI body for top-level [${funDecl.name}] in [$path] is NULL (classpath fed: ${classpath.isNotEmpty()})")
             }
 
-            // Собираем исключения (throw-выражения)
-            val throwsTypes = if (funDecl.bodyExpression != null) {
+            val src = funDecl.text
+            val (rawUsages, bodyMissing) = if (funDecl.bodyExpression != null) {
+                collectRawUsagesFromPsi(funDecl) to false
+            } else {
+                collectRawUsagesFromText(src) to true
+            }
+            if (bodyMissing) {
+                log.warn("Using TEXT parser for usages in top-level [${funDecl.name}] at [$path]")
+            }
+
+            val throwsRepr = if (funDecl.bodyExpression != null) {
                 collectThrowsFromPsi(funDecl)
             } else {
                 collectThrowsFromText(src)
             }
-            val span = linesOf(ktFile, funDecl)
+
+            val span = linesOf(ktFile, funDecl)?.let { LineSpan(it.first, it.last) }
             val sig = signatureFromFunction(funDecl)
-            val doc = kDocFetcher.parseKDoc(funDecl)?.let { kDocFetcher.toDocString(it) }
+            val kdoc = kDocFetcher.parseKDoc(funDecl)?.let { kDocFetcher.toDocString(it) }
             val annotations = getAnnotationShortNames(funDecl)
-            val kdocParsed = kDocFetcher.parseKDoc(funDecl)
-            visitor.onFunctionEx(
-                null,
-                funDecl.name ?: return@forEach,
-                funDecl.valueParameters.map { it.name ?: "_" },
-                path,
-                span,
-                usages,
-                src,
-                sig,
-                doc,
-                annotations,
-                kDocFetcher.toMeta(kdocParsed),
-                throwsTypes,
+
+            visitor.onDecl(
+                RawFunction(
+                    lang = SrcLang.kotlin,
+                    filePath = path,
+                    pkgFqn = pkgFqn,
+                    ownerFqn = null,
+                    name = funDecl.name ?: return@forEach,
+                    signatureRepr = sig,
+                    paramNames = funDecl.valueParameters.map { it.name ?: "_" },
+                    annotationsRepr = annotations,
+                    rawUsages = rawUsages,
+                    throwsRepr = throwsRepr,
+                    kdoc = kdoc,
+                    span = span,
+                    text = src,
+                    attributes = emptyMap()
+                )
             )
         }
     }
+
+    // ===== Утилиты =====
 
     private fun extractFunctionByIndent(
         ktFile: KtFile,
         funDecl: KtNamedFunction,
     ): String {
-        // 1) нормальный путь через PSI
         funDecl.bodyBlockExpression?.let { body ->
             val start = funDecl.textRange.startOffset
             val end = body.textRange.endOffset
@@ -288,26 +307,18 @@ class KotlinSourceWalker(
             return ktFile.text.substring(start, end)
         }
 
-        // 2) фолбэк по индентации
         val text = ktFile.text
         val headerStart = funDecl.textRange.startOffset
-
-        // строка, где начинается "fun"
         val funLineStart = text.lastIndexOf('\n', startIndex = headerStart).let { if (it == -1) 0 else it + 1 }
         val funLineEnd = text.indexOf('\n', startIndex = funLineStart).let { if (it == -1) text.length else it }
-
-        val funIndent = leadingIndent(text, funLineStart, funLineEnd) // отступ строки с fun
+        val funIndent = leadingIndent(text, funLineStart, funLineEnd)
         val afterParams =
             (funDecl.valueParameterList?.textRange?.endOffset ?: funDecl.textRange.endOffset).coerceIn(0, text.length)
 
-        // пропустим пробелы/комменты от afterParams до тела
         var scan = skipWsAndComments(text, afterParams)
-
-        // expression-body: "=" раньше "{"
         val eqPos = text.indexOf('=', startIndex = scan)
         val bracePos = text.indexOf('{', startIndex = scan)
         if (eqPos != -1 && (bracePos == -1 || eqPos < bracePos)) {
-            // берём до конца строки / до ';'
             var end = text.indexOf('\n', startIndex = eqPos)
             if (end == -1) end = text.length
             val semi = text.indexOf(';', startIndex = eqPos)
@@ -315,45 +326,31 @@ class KotlinSourceWalker(
             return text.substring(headerStart, end)
         }
 
-        // блочное тело: ищем строку, где первый не-пробел — '}', и её отступ == отступу fun
         var i = if (bracePos != -1) bracePos else scan
         if (i < 0) i = scan
-        // начать поиск с начала следующей строки, чтобы точно попасть на линии тела
         i = text.indexOf('\n', startIndex = i).let { if (it == -1) scan else it + 1 }
 
         while (i < text.length) {
             val lineEnd = text.indexOf('\n', startIndex = i).let { if (it == -1) text.length else it }
-            // отступ текущей строки
             val lineIndent = leadingIndent(text, i, lineEnd)
             val firstNonWs = firstNonWhitespace(text, i, lineEnd)
 
             if (firstNonWs != -1 && text[firstNonWs] == '}' && lineIndent == funIndent) {
-                // нашли закрывающую скобку функции на той же колонке, что и "fun"
                 val end = (firstNonWs + 1).coerceAtMost(text.length)
                 return text.substring(headerStart, end)
             }
             i = lineEnd + 1
         }
-
-        // если не нашли — хотя бы вернём шапку функции
         return text.substring(headerStart, funLineEnd)
     }
 
-    private fun leadingIndent(
-        text: String,
-        lineStart: Int,
-        lineEnd: Int,
-    ): String {
+    private fun leadingIndent(text: String, lineStart: Int, lineEnd: Int): String {
         var p = lineStart
         while (p < lineEnd && (text[p] == ' ' || text[p] == '\t')) p++
         return text.substring(lineStart, p)
     }
 
-    private fun firstNonWhitespace(
-        text: String,
-        lineStart: Int,
-        lineEnd: Int,
-    ): Int {
+    private fun firstNonWhitespace(text: String, lineStart: Int, lineEnd: Int): Int {
         var p = lineStart
         while (p < lineEnd) {
             val c = text[p]
@@ -363,42 +360,32 @@ class KotlinSourceWalker(
         return -1
     }
 
-    private fun skipWsAndComments(
-        text: String,
-        start: Int,
-    ): Int {
+    private fun skipWsAndComments(text: String, start: Int): Int {
         var i = start
         while (i < text.length) {
             when (text[i]) {
                 ' ', '\t', '\r', '\n' -> i++
                 '/' -> if (i + 1 < text.length) {
                     val n = text[i + 1]
-                    if (n == '/') { // // коммент до конца строки
+                    if (n == '/') {
                         i += 2
                         while (i < text.length && text[i] != '\n') i++
-                    } else if (n == '*') { // /* ... */
+                    } else if (n == '*') {
                         i += 2
                         while (i + 1 < text.length && !(text[i] == '*' && text[i + 1] == '/')) i++
                         i = (i + 2).coerceAtMost(text.length)
-                    } else {
-                        return i
-                    }
-                } else {
-                    return i
-                }
-
+                    } else return i
+                } else return i
                 else -> return i
             }
         }
         return i
     }
 
-    /** 1-based диапазон строк элемента в файле. */
-    private fun linesOf(
-        file: KtFile,
-        element: KtElement,
-    ): IntRange {
+    /** Возвращает 1-based диапазон строк элемента (или null, если текст пуст). */
+    private fun linesOf(file: KtFile, element: KtElement): IntRange? {
         val text = file.text
+        if (text.isEmpty()) return null
 
         fun toLine(offset: Int): Int {
             var line = 1
@@ -406,7 +393,6 @@ class KotlinSourceWalker(
             while (i < offset && i < text.length) if (text[i++] == '\n') line++
             return line
         }
-
         val start = toLine(element.textRange.startOffset)
         val end = toLine(element.textRange.endOffset)
         return start..end
@@ -435,58 +421,47 @@ class KotlinSourceWalker(
     private fun getAnnotationShortNames(decl: KtDeclaration): Set<String> =
         decl.annotationEntries.mapNotNull { it.shortName?.asString() }.toSet()
 
-    /**
-     * Фаза 1: сбор "сырых" использований, с поддержкой safe-call, простых конструкторов и ссылок.
-     */
+    /** Сбор сырых использований через PSI. */
     private fun collectRawUsagesFromPsi(funDecl: KtNamedFunction): List<RawUsage> {
         val usages = mutableListOf<RawUsage>()
-        funDecl.bodyExpression?.accept(
-            object : KtTreeVisitorVoid() {
-                override fun visitDotQualifiedExpression(expr: KtDotQualifiedExpression) {
-                    val receiver = expr.receiverExpression.text.replace("?.", ".").replace("::", ".")
-                    val selector = expr.selectorExpression
-                    val isCall = selector is KtCallExpression
-                    val memberName = when (selector) {
-                        is KtCallExpression -> selector.calleeExpression?.text
-                        is KtNameReferenceExpression -> selector.getReferencedName()
-                        else -> null
+        funDecl.bodyExpression?.accept(object : KtTreeVisitorVoid() {
+            override fun visitDotQualifiedExpression(expr: KtDotQualifiedExpression) {
+                val receiver = expr.receiverExpression.text.replace("?.", ".").replace("::", ".")
+                val selector = expr.selectorExpression
+                val isCall = selector is KtCallExpression
+                val memberName = when (selector) {
+                    is KtCallExpression -> selector.calleeExpression?.text
+                    is KtNameReferenceExpression -> selector.getReferencedName()
+                    else -> null
+                }
+                if (receiver.isNotBlank() && !memberName.isNullOrBlank()) {
+                    if (!(NOISE.contains(receiver) || NOISE.contains(memberName))) {
+                        usages.add(RawUsage.Dot(receiver, memberName, isCall))
                     }
+                }
+                super.visitDotQualifiedExpression(expr)
+            }
 
-                    if (receiver.isNotBlank() && !memberName.isNullOrBlank()) {
-                        if (!(NOISE.contains(receiver) || NOISE.contains(memberName))) {
-                            usages.add(RawUsage.Dot(receiver, memberName, isCall))
+            override fun visitCallExpression(expression: KtCallExpression) {
+                val parent = expression.parent
+                val isPartOfDot = parent is KtDotQualifiedExpression && (parent.selectorExpression === expression)
+                if (!isPartOfDot) {
+                    expression.calleeExpression?.text?.let { name ->
+                        if (name.isNotBlank() && !NOISE.contains(name)) {
+                            usages.add(RawUsage.Simple(name, isCall = true))
                         }
                     }
-                    super.visitDotQualifiedExpression(expr)
                 }
-
-                override fun visitCallExpression(expression: KtCallExpression) {
-                    val parent = expression.parent
-                    // простые вызовы, не часть a.b()
-                    val isPartOfDot = parent is KtDotQualifiedExpression && (parent.selectorExpression === expression)
-                    if (!isPartOfDot) {
-                        expression.calleeExpression?.text?.let { name ->
-                            if (name.isNotBlank() && !NOISE.contains(name)) {
-                                usages.add(RawUsage.Simple(name, isCall = true)) // в т.ч. конструкторы Type(...)
-                            }
-                        }
-                    }
-                    super.visitCallExpression(expression)
-                }
-            },
-        )
+                super.visitCallExpression(expression)
+            }
+        })
         return usages
     }
 
-    /**
-     *
-     * Костыль 2.0: Сбор "сырых" использований через Regex (Фолбэк).
-     */
+    /** Фолбэк: сбор сырых использований по тексту. */
     private fun collectRawUsagesFromText(sourceCode: String): List<RawUsage> {
-        val usages = mutableSetOf<RawUsage>() // Используем Set, чтобы избежать дублей
+        val usages = mutableSetOf<RawUsage>()
 
-        // 1. Простые вызовы: calcA(...)
-        // Ищет "слово" (буквы/цифры/подчеркивание), после которого идет "("
         val simpleCallRegex = """\b(\w+)\s*\(""".toRegex()
         simpleCallRegex.findAll(sourceCode).forEach { match ->
             val name = match.groupValues[1]
@@ -495,21 +470,14 @@ class KotlinSourceWalker(
             }
         }
 
-        // 2. Вызовы через точку: dependenciesHolder.businessCalendarService.getWorkingDaysBetween(...)
-        // Ищет "что-то.слово("
-        // '([\w.]+\b)' - захватывает 'a.b.c'
-        // '\.(\w+)\s*\(' - захватывает '.method('
         val dotCallRegex = """([\w.]+\b)\.(\w+)\s*\(""".toRegex()
         dotCallRegex.findAll(sourceCode).forEach { match ->
             val receiver = match.groupValues[1]
             val member = match.groupValues[2]
-
-            // Отфильтровываем шум (e.g., "log.info", "map.forEach")
             val simpleReceiver = receiver.substringAfterLast('.')
-
-            if (receiver.isNotBlank() && member.isNotBlank() && !NOISE.contains(member) && !NOISE.contains(
-                    simpleReceiver
-                )
+            if (
+                receiver.isNotBlank() && member.isNotBlank() &&
+                !NOISE.contains(member) && !NOISE.contains(simpleReceiver)
             ) {
                 usages.add(RawUsage.Dot(receiver, member, isCall = true))
             }
@@ -518,67 +486,46 @@ class KotlinSourceWalker(
         return usages.toList()
     }
 
-    /**
-     * Сбор типов исключений из throw-выражений через PSI.
-     */
+    /** Сбор типов исключений через PSI. */
     private fun collectThrowsFromPsi(funDecl: KtNamedFunction): List<String> {
         val throwsTypes = mutableSetOf<String>()
-        funDecl.bodyExpression?.accept(
-            object : KtTreeVisitorVoid() {
-                override fun visitThrowExpression(expression: KtThrowExpression) {
-                    // Получаем тип исключения из throw-выражения
-                    val thrownExpression = expression.thrownExpression
-                    when (thrownExpression) {
-                        is KtNameReferenceExpression -> {
-                            // Простое имя: throw IllegalArgumentException()
-                            thrownExpression.getReferencedName().let { throwsTypes.add(it) }
+        funDecl.bodyExpression?.accept(object : KtTreeVisitorVoid() {
+            override fun visitThrowExpression(expression: KtThrowExpression) {
+                when (val thrown = expression.thrownExpression) {
+                    is KtNameReferenceExpression ->
+                        throwsTypes.add(thrown.getReferencedName())
+                    is KtCallExpression ->
+                        thrown.calleeExpression?.text?.let { throwsTypes.add(it) }
+                    is KtDotQualifiedExpression -> {
+                        val receiver = thrown.receiverExpression.text
+                        val selector = thrown.selectorExpression
+                        val typeName = when (selector) {
+                            is KtNameReferenceExpression -> selector.getReferencedName()
+                            is KtCallExpression -> selector.calleeExpression?.text
+                            else -> null
                         }
-
-                        is KtCallExpression -> {
-                            // Вызов конструктора: throw IllegalArgumentException("message")
-                            thrownExpression.calleeExpression?.text?.let { throwsTypes.add(it) }
-                        }
-
-                        is KtDotQualifiedExpression -> {
-                            // Квалифицированное имя: throw com.example.CustomException()
-                            val receiver = thrownExpression.receiverExpression.text
-                            val selector = thrownExpression.selectorExpression
-                            val typeName = when (selector) {
-                                is KtNameReferenceExpression -> selector.getReferencedName()
-                                is KtCallExpression -> selector.calleeExpression?.text
-                                else -> null
-                            }
-                            if (receiver.isNotBlank() && typeName != null) {
-                                throwsTypes.add("$receiver.$typeName")
-                            } else if (typeName != null) {
-                                throwsTypes.add(typeName)
-                            }
-                        }
-
-                        else -> {
-                            // Пытаемся извлечь тип из текста
-                            thrownExpression?.text?.let { text ->
-                                // Упрощённый парсинг: ищем имя типа
-                                val typeMatch = """\b([A-Z][A-Za-z0-9_]*)\b""".toRegex().find(text)
-                                typeMatch?.groupValues?.get(1)?.let { throwsTypes.add(it) }
-                            }
+                        if (!receiver.isNullOrBlank() && typeName != null) {
+                            throwsTypes.add("$receiver.$typeName")
+                        } else if (typeName != null) {
+                            throwsTypes.add(typeName)
                         }
                     }
-                    super.visitThrowExpression(expression)
+                    else -> {
+                        thrown?.text?.let { text ->
+                            val typeMatch = """\b([A-Z][A-Za-z0-9_]*)\b""".toRegex().find(text)
+                            typeMatch?.groupValues?.get(1)?.let { throwsTypes.add(it) }
+                        }
+                    }
                 }
-            },
-        )
+                super.visitThrowExpression(expression)
+            }
+        })
         return throwsTypes.toList()
     }
 
-    /**
-     * Сбор типов исключений из throw-выражений через Regex (fallback).
-     */
+    /** Фолбэк: сбор типов исключений по тексту. */
     private fun collectThrowsFromText(sourceCode: String): List<String> {
         val throwsTypes = mutableSetOf<String>()
-
-        // Паттерн для throw-выражений: throw Type(...) или throw Type
-        // Ищем "throw" за которым следует имя типа (начинается с заглавной буквы)
         val throwRegex = """\bthrow\s+([A-Z][A-Za-z0-9_]*(?:\.[A-Z][A-Za-z0-9_]*)*)""".toRegex()
         throwRegex.findAll(sourceCode).forEach { match ->
             val typeName = match.groupValues[1]
@@ -586,7 +533,6 @@ class KotlinSourceWalker(
                 throwsTypes.add(typeName)
             }
         }
-
         return throwsTypes.toList()
     }
 }
