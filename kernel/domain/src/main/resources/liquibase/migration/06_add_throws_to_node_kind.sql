@@ -1,1 +1,1 @@
-ALTER TYPE doc_generator."node_kind" ADD VALUE 'TEST';
+ALTER TYPE doc_generator."node_kind" ADD VALUE 'EXCEPTION';

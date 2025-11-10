@@ -59,4 +59,13 @@
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
+
+    <changeSet id="06-add-throws-to-node-kind" author="kaspshitskii">
+        <sqlFile
+                path="migration/06_add_throws_to_node_kind.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
 </databaseChangeLog>
