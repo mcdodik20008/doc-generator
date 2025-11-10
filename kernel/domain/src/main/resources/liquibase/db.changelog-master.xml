@@ -68,4 +68,13 @@
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
+
+    <changeSet id="07-recreate-enums-types" author="kaspshitskii">
+        <sqlFile
+                path="migration/07_recreate_enums_types.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
 </databaseChangeLog>

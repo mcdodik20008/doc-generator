@@ -2,33 +2,34 @@ package com.bftcom.docgenerator.domain.enums
 
 /**
  * Семантика ребра графа.
- *
- * - CALLS — src вызывает dst
- * - READS / WRITES — операции ввода/вывода
- * - QUERIES — выполняет SQL-запрос
- * - PUBLISHES / CONSUMES — pub/sub взаимодействие
- * - THROWS — генерирует исключение
- * - IMPLEMENTS / OVERRIDES — реализация / переопределение
- * - LOCKS — захватывает блокировку
- * - OPENTELEMETRY — связь по трейсам
- * - USES_FEATURE — обращается к фича-тогглу
- * - DEPENDS_ON — зависимость общего типа
  */
 enum class EdgeKind {
-    CALLS,
-    READS,
-    WRITES,
-    QUERIES,
-    PUBLISHES,
-    CONSUMES,
-    THROWS,
-    IMPLEMENTS,
-    OVERRIDES,
-    LOCKS,
-    OPENTELEMETRY,
-    USES_FEATURE,
-    CONTAINS,
-    DEPENDS_ON,
+    // Статика и ООП
+    CONTAINS,            // REPO→MODULE, MODULE→PACKAGE, CLASS→METHOD/FIELD и т.д.
+    DEPENDS_ON,          // модуль/класс зависит от (импорт/библиотека)
+    IMPLEMENTS,          // CLASS→INTERFACE
     INHERITS,
-    ANNOTATED_WITH,
+    EXTENDS,             // CLASS→CLASS, INTERFACE→INTERFACE
+    OVERRIDES,           // METHOD→METHOD
+    ANNOTATED_WITH,      // CLASS/METHOD/… → АННОТАЦИЯ (как узел CLASS)
+
+    // Вызовы в коде (внутри процесса)
+    CALLS,               // DEPRECATED
+    CALLS_CODE,          // METHOD→METHOD
+    THROWS,              // METHOD→EXCEPTION
+    LOCKS,               // METHOD→RESOURCE (если моделируете ресурс как CLASS/FIELD)
+
+    // Сетевые и интеграционные взаимодействия
+    CALLS_HTTP,          // CLIENT/SERVICE → ENDPOINT (HTTP/GraphQL/WS)
+    CALLS_GRPC,          // CLIENT/SERVICE → ENDPOINT (gRPC)
+    PRODUCES,            // METHOD/ENDPOINT → TOPIC
+    CONSUMES,            // WORKER/JOB/ENDPOINT → TOPIC
+    QUERIES,             // METHOD/SERVICE → DB_QUERY
+    READS,               // METHOD/SERVICE → DB_TABLE/DB_VIEW
+    WRITES,              // METHOD/SERVICE → DB_TABLE
+    CONTRACTS_WITH,      // ENDPOINT/TOPIC ↔ SCHEMA (JSON/Avro contract)
+    CONFIGURES,          // CONFIG → SERVICE/CLIENT/ENDPOINT (таймауты/ретраи/фичи)
+    CIRCUIT_BREAKER_TO,  // CLIENT/ENDPOINT → SERVICE (логический CB-линк)
+    RETRIES_TO,          // CLIENT/ENDPOINT → SERVICE
+    TIMEOUTS_TO,         // CONFIG/CLIENT/ENDPOINT → SERVICE
 }
