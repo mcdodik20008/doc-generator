@@ -6,8 +6,8 @@ import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.graph.api.model.BuildResult
 import com.bftcom.docgenerator.db.EdgeRepository
 import com.bftcom.docgenerator.db.NodeRepository
+import com.bftcom.docgenerator.graph.api.NodeKindRefiner
 import com.bftcom.docgenerator.graph.api.declhandler.DeclPlanner
-import com.bftcom.docgenerator.graph.api.model.rawdecl.RawDecl
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindExtractor
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
@@ -26,8 +26,8 @@ class KotlinGraphBuilder(
     private val graphLinker: GraphLinker,
     private val transactionManager: PlatformTransactionManager,
     private val objectMapper: ObjectMapper,
-    private val nodeKindExtractors: List<NodeKindExtractor>,
     private val planners: List<DeclPlanner<*>>,
+    private val nodeKindRefiner: NodeKindRefiner,
 ) : GraphBuilder {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -47,11 +47,11 @@ class KotlinGraphBuilder(
         tt.execute {
             val visitor =
                 KotlinToDomainVisitor(
-                    exec = Executor(
+                    exec = CommandExecutorImpl(
                         application = application,
                         nodeRepo = nodeRepo,
                         objectMapper = objectMapper,
-                        nodeKindExtractors = nodeKindExtractors,
+                        nodeKindRefiner = nodeKindRefiner,
                     ),
                     planners = planners
                 )

@@ -314,7 +314,7 @@ class KotlinSourceWalker(
         val afterParams =
             (funDecl.valueParameterList?.textRange?.endOffset ?: funDecl.textRange.endOffset).coerceIn(0, text.length)
 
-        var scan = skipWsAndComments(text, afterParams)
+        val scan = skipWsAndComments(text, afterParams)
         val eqPos = text.indexOf('=', startIndex = scan)
         val bracePos = text.indexOf('{', startIndex = scan)
         if (eqPos != -1 && (bracePos == -1 || eqPos < bracePos)) {

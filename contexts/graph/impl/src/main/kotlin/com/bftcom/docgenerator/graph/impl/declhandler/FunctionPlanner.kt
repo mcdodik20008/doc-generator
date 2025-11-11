@@ -1,5 +1,6 @@
 package com.bftcom.docgenerator.graph.impl.declhandler
 
+import com.bftcom.docgenerator.graph.api.declhandler.BaseDeclPlanner
 import com.bftcom.docgenerator.graph.api.declhandler.DeclCmd
 import com.bftcom.docgenerator.graph.api.declhandler.EnsurePackageCmd
 import com.bftcom.docgenerator.graph.api.declhandler.UpsertFunctionCmd
