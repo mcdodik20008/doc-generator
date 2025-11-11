@@ -19,5 +19,5 @@ data class RawType(
     val annotationsRepr: List<String>,
     override val span: LineSpan?,
     override val text: String?,
-    override val attributes: Map<String, Any?> = emptyMap()
+    override val attributes: Map<String, Any?> = emptyMap(),
 ) : RawDecl

@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service
 import java.io.File
 import java.nio.file.Path
 import java.time.OffsetDateTime
-import kotlin.use
 
 @Service
 class GitLabCheckoutService(
@@ -23,24 +22,25 @@ class GitLabCheckoutService(
     fun checkoutOrUpdate(
         repoPath: String,
         branch: String,
-        appKey: String
+        appKey: String,
     ): GitPullSummary {
         val checkoutDir: Path = Path.of(gitProps.basePath, appKey)
         val dir = checkoutDir.toFile()
         dir.mkdirs()
 
-        val creds = runCatching {
-            UsernamePasswordCredentialsProvider(gitProps.username, gitProps.password)
-        }.recoverCatching {
-            UsernamePasswordCredentialsProvider("oauth2", gitProps.token)
-        }.getOrThrow()
+        val creds =
+            runCatching {
+                UsernamePasswordCredentialsProvider(gitProps.username, gitProps.password)
+            }.recoverCatching {
+                UsernamePasswordCredentialsProvider("oauth2", gitProps.token)
+            }.getOrThrow()
 
         val repoUrl = resolveRepoUrl(gitProps.url, repoPath)
         val now = OffsetDateTime.now()
 
-        //------------------------------------------------------------------
+        // ------------------------------------------------------------------
         // 1) Если репозиторий уже есть — fetch + checkout + pull
-        //------------------------------------------------------------------
+        // ------------------------------------------------------------------
         val gitDir = File(dir, ".git")
         if (gitDir.exists()) {
             var before: String? = null
@@ -64,13 +64,14 @@ class GitLabCheckoutService(
                     operation = GitOperation.PULL,
                     beforeHead = before,
                     afterHead = after,
-                    fetchedAt = now
+                    fetchedAt = now,
                 )
             } catch (e: Exception) {
                 log.warn("Pull failed: ${e.message}", e)
-                val head = runCatching {
-                    Git.open(dir).use { resolveHead(it) }
-                }.getOrNull()
+                val head =
+                    runCatching {
+                        Git.open(dir).use { resolveHead(it) }
+                    }.getOrNull()
 
                 GitPullSummary(
                     repoUrl = repoUrl,
@@ -80,18 +81,19 @@ class GitLabCheckoutService(
                     operation = GitOperation.NOOP,
                     beforeHead = head,
                     afterHead = head,
-                    fetchedAt = now
+                    fetchedAt = now,
                 )
             }
         }
 
-        //------------------------------------------------------------------
+        // ------------------------------------------------------------------
         // 2) Иначе — clone
-        //------------------------------------------------------------------
+        // ------------------------------------------------------------------
         log.info("Cloning {} into {} (branch={})", repoUrl, dir, branch)
 
         try {
-            Git.cloneRepository()
+            Git
+                .cloneRepository()
                 .setURI(repoUrl)
                 .setBranch(branch)
                 .setDirectory(dir)
@@ -103,9 +105,10 @@ class GitLabCheckoutService(
             throw e
         }
 
-        val headAfter = runCatching {
-            Git.open(dir).use { resolveHead(it) }
-        }.getOrNull()
+        val headAfter =
+            runCatching {
+                Git.open(dir).use { resolveHead(it) }
+            }.getOrNull()
 
         return GitPullSummary(
             repoUrl = repoUrl,
@@ -115,12 +118,11 @@ class GitLabCheckoutService(
             operation = GitOperation.CLONE,
             beforeHead = null,
             afterHead = headAfter,
-            fetchedAt = now
+            fetchedAt = now,
         )
     }
 
-    private fun resolveHead(git: Git): String? =
-        git.repository.resolve("HEAD")?.let(ObjectId::name)
+    private fun resolveHead(git: Git): String? = git.repository.resolve("HEAD")?.let(ObjectId::name)
 
     fun resolveRepoUrl(
         baseUrlOrFull: String,

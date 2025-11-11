@@ -8,11 +8,9 @@ data class GitPullSummary(
     val branch: String,
     val appKey: String,
     val localPath: Path,
-
     val operation: GitOperation,
     val beforeHead: String?,
     val afterHead: String?,
-
     val fetchedAt: OffsetDateTime,
 ) {
     val updated: Boolean get() = beforeHead != afterHead

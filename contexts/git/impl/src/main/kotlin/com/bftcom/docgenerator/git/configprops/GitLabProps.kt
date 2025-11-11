@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.git.configprops
 
-import org.springframework.context.annotation.Primary
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.context.annotation.Primary
 
 @Primary
 @ConfigurationProperties(prefix = "gitlab")

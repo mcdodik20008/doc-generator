@@ -14,5 +14,5 @@ data class RawFileUnit(
     val imports: List<String>,
     override val span: LineSpan? = null,
     override val text: String? = null,
-    override val attributes: Map<String, Any?> = emptyMap()
+    override val attributes: Map<String, Any?> = emptyMap(),
 ) : RawDecl

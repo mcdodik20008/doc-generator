@@ -11,5 +11,5 @@ data class RawPackage(
     override val pkgFqn: String?,
     override val span: LineSpan?,
     override val text: String?,
-    override val attributes: Map<String, Any?> = emptyMap()
+    override val attributes: Map<String, Any?> = emptyMap(),
 ) : RawDecl

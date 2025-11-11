@@ -1,26 +1,21 @@
 package com.bftcom.docgenerator.graph.impl
 
-import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindExtractor
+import com.bftcom.docgenerator.db.NodeRepository
 import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
+import com.bftcom.docgenerator.domain.node.KDocMeta
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
-import com.bftcom.docgenerator.db.NodeRepository
-import com.bftcom.docgenerator.domain.node.KDocMeta
 import com.bftcom.docgenerator.graph.api.CommandExecutor
 import com.bftcom.docgenerator.graph.api.NodeKindRefiner
 import com.bftcom.docgenerator.graph.api.declhandler.DeclCmd
-import com.bftcom.docgenerator.graph.api.model.rawdecl.RawField
-import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFileUnit
-import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
-import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.bftcom.docgenerator.graph.api.declhandler.EnsurePackageCmd
 import com.bftcom.docgenerator.graph.api.declhandler.RememberFileUnitCmd
 import com.bftcom.docgenerator.graph.api.declhandler.UpsertFieldCmd
 import com.bftcom.docgenerator.graph.api.declhandler.UpsertFunctionCmd
 import com.bftcom.docgenerator.graph.api.declhandler.UpsertTypeCmd
-import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFileUnit
 import com.fasterxml.jackson.databind.ObjectMapper
 
 class CommandExecutorImpl(
@@ -76,48 +71,53 @@ class CommandExecutorImpl(
                 val pkgFqn = r.pkgFqn ?: filePkg[r.filePath].orEmpty()
                 val fqn = listOfNotNull(pkgFqn.takeIf { it.isNotBlank() }, r.simpleName).joinToString(".")
 
-                val pkgNode = if (pkgFqn.isNotBlank()) {
-                    packageByFqn.getOrPut(pkgFqn) {
-                        upsertNode(
-                            fqn = pkgFqn,
-                            kind = NodeKind.PACKAGE,
-                            name = pkgFqn.substringAfterLast('.'),
-                            packageName = pkgFqn,
-                            parent = null,
-                            lang = Lang.kotlin,
-                            filePath = r.filePath,
-                            span = null,
-                            signature = null,
-                            sourceCode = null,
-                            docComment = null,
-                            meta = NodeMeta(source = "type:pkgAuto", pkgFqn = pkgFqn),
-                        )
+                val pkgNode =
+                    if (pkgFqn.isNotBlank()) {
+                        packageByFqn.getOrPut(pkgFqn) {
+                            upsertNode(
+                                fqn = pkgFqn,
+                                kind = NodeKind.PACKAGE,
+                                name = pkgFqn.substringAfterLast('.'),
+                                packageName = pkgFqn,
+                                parent = null,
+                                lang = Lang.kotlin,
+                                filePath = r.filePath,
+                                span = null,
+                                signature = null,
+                                sourceCode = null,
+                                docComment = null,
+                                meta = NodeMeta(source = "type:pkgAuto", pkgFqn = pkgFqn),
+                            )
+                        }
+                    } else {
+                        null
                     }
-                } else null
 
                 val kind = nodeKindRefiner.forType(cmd.baseKind, r, fileUnitByPath[r.filePath])
 
-                val node = upsertNode(
-                    fqn = fqn,
-                    kind = kind,
-                    name = r.simpleName,
-                    packageName = pkgFqn.ifBlank { null },
-                    parent = pkgNode,
-                    lang = Lang.kotlin,
-                    filePath = r.filePath,
-                    span = r.span?.let { it.start..it.end },
-                    signature = r.attributes["signature"] as? String,
-                    sourceCode = r.text,
-                    docComment = null,
-                    meta = NodeMeta(
-                        source = "type",
-                        pkgFqn = pkgFqn.ifBlank { null },
-                        supertypesSimple = r.supertypesRepr,
-                        imports = fileImports[r.filePath],
-                        kdoc = null,
-                        annotations = r.annotationsRepr,
-                    ),
-                )
+                val node =
+                    upsertNode(
+                        fqn = fqn,
+                        kind = kind,
+                        name = r.simpleName,
+                        packageName = pkgFqn.ifBlank { null },
+                        parent = pkgNode,
+                        lang = Lang.kotlin,
+                        filePath = r.filePath,
+                        span = r.span?.let { it.start..it.end },
+                        signature = r.attributes["signature"] as? String,
+                        sourceCode = r.text,
+                        docComment = null,
+                        meta =
+                            NodeMeta(
+                                source = "type",
+                                pkgFqn = pkgFqn.ifBlank { null },
+                                supertypesSimple = r.supertypesRepr,
+                                imports = fileImports[r.filePath],
+                                kdoc = null,
+                                annotations = r.annotationsRepr,
+                            ),
+                    )
                 typeByFqn[fqn] = node
             }
 
@@ -138,57 +138,63 @@ class CommandExecutorImpl(
                     signature = null,
                     sourceCode = r.text,
                     docComment = r.kdoc,
-                    meta = NodeMeta(
-                        source = "field",
-                        pkgFqn = pkg,
-                        ownerFqn = r.ownerFqn,
-                        kdoc = r.kdoc?.let { KDocMeta(summary = it) },
-                        annotations = r.annotationsRepr,
-                    ),
+                    meta =
+                        NodeMeta(
+                            source = "field",
+                            pkgFqn = pkg,
+                            ownerFqn = r.ownerFqn,
+                            kdoc = r.kdoc?.let { KDocMeta(summary = it) },
+                            annotations = r.annotationsRepr,
+                        ),
                 )
             }
 
             is UpsertFunctionCmd -> {
                 val r = cmd.raw
                 val pkgFqn = r.pkgFqn ?: filePkg[r.filePath]
-                val fqn = when {
-                    !r.ownerFqn.isNullOrBlank() -> "${r.ownerFqn}.${r.name}"
-                    !pkgFqn.isNullOrBlank() -> "$pkgFqn.${r.name}"
-                    else -> r.name
-                }
-                val parent = when {
-                    !r.ownerFqn.isNullOrBlank() -> typeByFqn[r.ownerFqn!!]
-                    !pkgFqn.isNullOrBlank() -> packageByFqn[pkgFqn]
-                    else -> null
-                }
-                val sig = r.signatureRepr ?: buildString {
-                    append(r.name).append('(').append(r.paramNames.joinToString(",")).append(')')
-                }
+                val fqn =
+                    when {
+                        !r.ownerFqn.isNullOrBlank() -> "${r.ownerFqn}.${r.name}"
+                        !pkgFqn.isNullOrBlank() -> "$pkgFqn.${r.name}"
+                        else -> r.name
+                    }
+                val parent =
+                    when {
+                        !r.ownerFqn.isNullOrBlank() -> typeByFqn[r.ownerFqn!!]
+                        !pkgFqn.isNullOrBlank() -> packageByFqn[pkgFqn]
+                        else -> null
+                    }
+                val sig =
+                    r.signatureRepr ?: buildString {
+                        append(r.name).append('(').append(r.paramNames.joinToString(",")).append(')')
+                    }
                 val fnKind = nodeKindRefiner.forFunction(NodeKind.METHOD, r, fileUnitByPath[r.filePath])
-                val node = upsertNode(
-                    fqn = fqn,
-                    kind = fnKind,
-                    name = r.name,
-                    packageName = pkgFqn,
-                    parent = parent,
-                    lang = Lang.kotlin,
-                    filePath = r.filePath,
-                    span = r.span?.let { it.start..it.end },
-                    signature = sig,
-                    sourceCode = r.text,
-                    docComment = r.kdoc,
-                    meta = NodeMeta(
-                        source = "function",
-                        pkgFqn = pkgFqn,
-                        ownerFqn = r.ownerFqn,
-                        params = r.paramNames,
-                        rawUsages = r.rawUsages,
-                        annotations = r.annotationsRepr.toList(),
-                        imports = fileImports[r.filePath],
-                        throwsTypes = r.throwsRepr,
-                        kdoc = r.kdoc?.let { KDocMeta(summary = it) },
-                    ),
-                )
+                val node =
+                    upsertNode(
+                        fqn = fqn,
+                        kind = fnKind,
+                        name = r.name,
+                        packageName = pkgFqn,
+                        parent = parent,
+                        lang = Lang.kotlin,
+                        filePath = r.filePath,
+                        span = r.span?.let { it.start..it.end },
+                        signature = sig,
+                        sourceCode = r.text,
+                        docComment = r.kdoc,
+                        meta =
+                            NodeMeta(
+                                source = "function",
+                                pkgFqn = pkgFqn,
+                                ownerFqn = r.ownerFqn,
+                                params = r.paramNames,
+                                rawUsages = r.rawUsages,
+                                annotations = r.annotationsRepr.toList(),
+                                imports = fileImports[r.filePath],
+                                throwsTypes = r.throwsRepr,
+                                kdoc = r.kdoc?.let { KDocMeta(summary = it) },
+                            ),
+                    )
                 funcByFqn[fqn] = node
             }
         }
@@ -241,9 +247,15 @@ class CommandExecutorImpl(
             )
         } else {
             var changed = false
-            fun <T> setIfChanged(curr: T, new: T, apply: (T) -> Unit) {
+
+            fun <T> setIfChanged(
+                curr: T,
+                new: T,
+                apply: (T) -> Unit,
+            ) {
                 if (curr != new) {
-                    apply(new); changed = true
+                    apply(new)
+                    changed = true
                 }
             }
 
@@ -261,13 +273,15 @@ class CommandExecutorImpl(
 
             @Suppress("UNCHECKED_CAST")
             val currentMeta: Map<String, Any?> = (existing.meta as? Map<String, Any?>) ?: emptyMap()
-            val merged = (currentMeta + metaMap).filterValues {
-                it != null && when (it) {
-                    is Collection<*> -> it.isNotEmpty()
-                    is Map<*, *> -> it.isNotEmpty()
-                    else -> true
+            val merged =
+                (currentMeta + metaMap).filterValues {
+                    it != null &&
+                        when (it) {
+                            is Collection<*> -> it.isNotEmpty()
+                            is Map<*, *> -> it.isNotEmpty()
+                            else -> true
+                        }
                 }
-            }
             setIfChanged(existing.meta, merged) { existing.meta = it as Map<String, Any> }
 
             if (changed) {
@@ -285,7 +299,5 @@ class CommandExecutorImpl(
         return c
     }
 
-    private fun toMetaMap(meta: NodeMeta): Map<String, Any> =
-        objectMapper.convertValue(meta, Map::class.java) as Map<String, Any>
-
+    private fun toMetaMap(meta: NodeMeta): Map<String, Any> = objectMapper.convertValue(meta, Map::class.java) as Map<String, Any>
 }

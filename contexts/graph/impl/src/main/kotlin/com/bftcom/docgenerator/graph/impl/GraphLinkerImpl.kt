@@ -1,20 +1,19 @@
 package com.bftcom.docgenerator.graph.impl
 
-import com.bftcom.docgenerator.graph.api.GraphLinker
+import com.bftcom.docgenerator.db.EdgeRepository
+import com.bftcom.docgenerator.db.NodeRepository
 import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
 import com.bftcom.docgenerator.domain.node.RawUsage
-import com.bftcom.docgenerator.db.EdgeRepository
-import com.bftcom.docgenerator.db.NodeRepository
+import com.bftcom.docgenerator.graph.api.GraphLinker
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import kotlin.text.orEmpty
 
 @Service
 class GraphLinkerImpl(

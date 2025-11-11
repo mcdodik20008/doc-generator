@@ -4,5 +4,9 @@ import java.io.File
 import java.nio.file.Path
 
 interface SourceWalker {
-    fun walk(root: Path, visitor: SourceVisitor, classpath: List<File>)
+    fun walk(
+        root: Path,
+        visitor: SourceVisitor,
+        classpath: List<File>,
+    )
 }

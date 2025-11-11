@@ -11,16 +11,20 @@ interface SourceVisitor {
     fun onDecl(raw: RawDecl) {
         when (raw) {
             is RawFileUnit -> onFile(raw)
-            is RawPackage  -> onPackage(raw)
-            is RawType     -> onType(raw)
-            is RawField    -> onField(raw)
+            is RawPackage -> onPackage(raw)
+            is RawType -> onType(raw)
+            is RawField -> onField(raw)
             is RawFunction -> onFunction(raw)
         }
     }
 
     fun onFile(unit: RawFileUnit) {}
+
     fun onPackage(decl: RawPackage) {}
+
     fun onType(decl: RawType) {}
+
     fun onField(decl: RawField) {}
+
     fun onFunction(decl: RawFunction) {}
 }

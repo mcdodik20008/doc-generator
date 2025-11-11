@@ -5,8 +5,6 @@ import com.bftcom.docgenerator.git.gitlab.GitLabIngestOrchestrator
 import org.slf4j.LoggerFactory
 import org.springframework.boot.CommandLineRunner
 import org.springframework.stereotype.Component
-import kotlin.collections.forEach
-import kotlin.collections.listOf
 import kotlin.system.measureTimeMillis
 
 @Component

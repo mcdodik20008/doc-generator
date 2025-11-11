@@ -14,14 +14,29 @@ interface DeclProcessingContext {
     val lang: Lang
 
     fun getFilePkg(path: String): String?
+
     fun getFileImports(path: String): List<String>?
+
     fun rememberFileUnit(unit: RawFileUnit)
+
     fun getFileUnit(path: String): RawFileUnit?
 
-    fun getOrPutPackage(pkgFqn: String, builder: () -> Node): Node
-    fun rememberTypeNode(fqn: String, node: Node)
+    fun getOrPutPackage(
+        pkgFqn: String,
+        builder: () -> Node,
+    ): Node
+
+    fun rememberTypeNode(
+        fqn: String,
+        node: Node,
+    )
+
     fun getTypeNode(fqn: String): Node?
-    fun rememberFuncNode(fqn: String, node: Node)
+
+    fun rememberFuncNode(
+        fqn: String,
+        node: Node,
+    )
 
     fun upsertNode(
         fqn: String,
@@ -38,7 +53,21 @@ interface DeclProcessingContext {
         meta: NodeMeta,
     ): Node
 
-    fun refineKindForType(base: NodeKind, raw: RawType, fileUnit: RawFileUnit?): NodeKind
-    fun refineKindForFunction(base: NodeKind, raw: RawFunction, fileUnit: RawFileUnit?): NodeKind
-    fun refineKindForField(base: NodeKind, raw: RawField, fileUnit: RawFileUnit?): NodeKind
+    fun refineKindForType(
+        base: NodeKind,
+        raw: RawType,
+        fileUnit: RawFileUnit?,
+    ): NodeKind
+
+    fun refineKindForFunction(
+        base: NodeKind,
+        raw: RawFunction,
+        fileUnit: RawFileUnit?,
+    ): NodeKind
+
+    fun refineKindForField(
+        base: NodeKind,
+        raw: RawField,
+        fileUnit: RawFileUnit?,
+    ): NodeKind
 }

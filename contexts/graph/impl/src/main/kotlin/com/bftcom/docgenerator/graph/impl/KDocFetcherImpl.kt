@@ -12,8 +12,6 @@ import org.jetbrains.kotlin.kdoc.psi.impl.KDocSection
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import kotlin.collections.indexOf
-import kotlin.collections.plusAssign
 
 @Service
 class KDocFetcherImpl : KDocFetcher {

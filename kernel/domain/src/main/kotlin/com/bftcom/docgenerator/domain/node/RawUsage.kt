@@ -16,7 +16,7 @@ sealed class RawUsage {
     data class Dot(
         val receiver: String,
         val member: String,
-        val isCall: Boolean = true
+        val isCall: Boolean = true,
     ) : RawUsage()
 
     /**
@@ -25,6 +25,6 @@ sealed class RawUsage {
      */
     data class Simple(
         val name: String,
-        val isCall: Boolean
+        val isCall: Boolean,
     ) : RawUsage()
 }

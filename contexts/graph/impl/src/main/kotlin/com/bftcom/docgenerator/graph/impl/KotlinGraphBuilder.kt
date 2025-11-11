@@ -1,14 +1,13 @@
 package com.bftcom.docgenerator.graph.impl
 
-import com.bftcom.docgenerator.graph.api.GraphBuilder
-import com.bftcom.docgenerator.graph.api.GraphLinker
-import com.bftcom.docgenerator.domain.application.Application
-import com.bftcom.docgenerator.graph.api.model.BuildResult
 import com.bftcom.docgenerator.db.EdgeRepository
 import com.bftcom.docgenerator.db.NodeRepository
+import com.bftcom.docgenerator.domain.application.Application
+import com.bftcom.docgenerator.graph.api.GraphBuilder
+import com.bftcom.docgenerator.graph.api.GraphLinker
 import com.bftcom.docgenerator.graph.api.NodeKindRefiner
 import com.bftcom.docgenerator.graph.api.declhandler.DeclPlanner
-import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindExtractor
+import com.bftcom.docgenerator.graph.api.model.BuildResult
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -47,13 +46,14 @@ class KotlinGraphBuilder(
         tt.execute {
             val visitor =
                 KotlinToDomainVisitor(
-                    exec = CommandExecutorImpl(
-                        application = application,
-                        nodeRepo = nodeRepo,
-                        objectMapper = objectMapper,
-                        nodeKindRefiner = nodeKindRefiner,
-                    ),
-                    planners = planners
+                    exec =
+                        CommandExecutorImpl(
+                            application = application,
+                            nodeRepo = nodeRepo,
+                            objectMapper = objectMapper,
+                            nodeKindRefiner = nodeKindRefiner,
+                        ),
+                    planners = planners,
                 )
             kotlinWalker.walk(sourceRoot, visitor, classpath)
         }

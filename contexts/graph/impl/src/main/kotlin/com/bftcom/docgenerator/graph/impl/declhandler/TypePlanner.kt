@@ -12,13 +12,14 @@ import kotlin.reflect.KClass
 @Component
 class TypePlanner : BaseDeclPlanner<RawType>(RawType::class as KClass<RawType>) {
     override fun plan(raw: RawType): List<DeclCmd> {
-        val baseKind = when (raw.kindRepr) {
-            "interface" -> NodeKind.INTERFACE
-            "enum"      -> NodeKind.ENUM
-            "record"    -> NodeKind.RECORD
-            "object"    -> NodeKind.CLASS
-            else        -> NodeKind.CLASS
-        }
+        val baseKind =
+            when (raw.kindRepr) {
+                "interface" -> NodeKind.INTERFACE
+                "enum" -> NodeKind.ENUM
+                "record" -> NodeKind.RECORD
+                "object" -> NodeKind.CLASS
+                else -> NodeKind.CLASS
+            }
         return buildList {
             raw.pkgFqn?.let { add(EnsurePackageCmd(it, raw.filePath)) }
             add(UpsertTypeCmd(raw, baseKind))

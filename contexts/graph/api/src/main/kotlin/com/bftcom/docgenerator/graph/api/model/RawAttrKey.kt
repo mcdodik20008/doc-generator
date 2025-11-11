@@ -5,7 +5,9 @@ package com.bftcom.docgenerator.graph.api.model
  * Используются для унифицированного описания произвольных свойств,
  * чтобы не плодить "магические" строки при формировании деклараций.
  */
-enum class RawAttrKey(val key: String) {
+enum class RawAttrKey(
+    val key: String,
+) {
     /** Полный FQN элемента (если применимо). */
     FQN("fqn"),
 

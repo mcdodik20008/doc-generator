@@ -13,31 +13,45 @@ import org.springframework.stereotype.Component
 
 @Component
 class NodeKindRefinerImpl(
-    private val extractors: List<NodeKindExtractor>
+    private val extractors: List<NodeKindExtractor>,
 ) : NodeKindRefiner {
-
-    override fun forType(base: NodeKind, raw: RawType, fileUnit: RawFileUnit?): NodeKind {
+    override fun forType(
+        base: NodeKind,
+        raw: RawType,
+        fileUnit: RawFileUnit?,
+    ): NodeKind {
         if (extractors.isEmpty()) return base
         val ctx = NodeKindContext(lang = Lang.kotlin, file = fileUnit, imports = fileUnit?.imports)
-        return extractors.asSequence()
+        return extractors
+            .asSequence()
             .filter { it.supports(ctx.lang) }
             .mapNotNull { it.refineType(base, raw, ctx) }
             .firstOrNull() ?: base
     }
 
-    override fun forFunction(base: NodeKind, raw: RawFunction, fileUnit: RawFileUnit?): NodeKind {
+    override fun forFunction(
+        base: NodeKind,
+        raw: RawFunction,
+        fileUnit: RawFileUnit?,
+    ): NodeKind {
         if (extractors.isEmpty()) return base
         val ctx = NodeKindContext(lang = Lang.kotlin, file = fileUnit, imports = fileUnit?.imports)
-        return extractors.asSequence()
+        return extractors
+            .asSequence()
             .filter { it.supports(ctx.lang) }
             .mapNotNull { it.refineFunction(base, raw, ctx) }
             .firstOrNull() ?: base
     }
 
-    override fun forField(base: NodeKind, raw: RawField, fileUnit: RawFileUnit?): NodeKind {
+    override fun forField(
+        base: NodeKind,
+        raw: RawField,
+        fileUnit: RawFileUnit?,
+    ): NodeKind {
         if (extractors.isEmpty()) return base
         val ctx = NodeKindContext(lang = Lang.kotlin, file = fileUnit, imports = fileUnit?.imports)
-        return extractors.asSequence()
+        return extractors
+            .asSequence()
             .filter { it.supports(ctx.lang) }
             .mapNotNull { it.refineField(base, raw, ctx) }
             .firstOrNull() ?: base

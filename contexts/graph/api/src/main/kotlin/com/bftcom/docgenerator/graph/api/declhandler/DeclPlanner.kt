@@ -5,5 +5,6 @@ import kotlin.reflect.KClass
 
 interface DeclPlanner<T : RawDecl> {
     val target: KClass<T>
+
     fun plan(raw: T): List<DeclCmd>
 }

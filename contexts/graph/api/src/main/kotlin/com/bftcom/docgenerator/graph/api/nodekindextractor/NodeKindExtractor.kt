@@ -14,11 +14,23 @@ interface NodeKindExtractor {
     fun supports(lang: Lang): Boolean = true
 
     /** Уточнение типа (class/interface/enum/record/object). Возвращи null, если не применимо. */
-    fun refineType(base: NodeKind, raw: RawType, ctx: NodeKindContext): NodeKind? = null
+    fun refineType(
+        base: NodeKind,
+        raw: RawType,
+        ctx: NodeKindContext,
+    ): NodeKind? = null
 
     /** Уточнение функции/метода. Возвращи null, если не применимо. */
-    fun refineFunction(base: NodeKind, raw: RawFunction, ctx: NodeKindContext): NodeKind? = null
+    fun refineFunction(
+        base: NodeKind,
+        raw: RawFunction,
+        ctx: NodeKindContext,
+    ): NodeKind? = null
 
     /** Уточнение поля/свойства. Возвращи null, если не применимо. */
-    fun refineField(base: NodeKind, raw: RawField, ctx: NodeKindContext): NodeKind? = null
+    fun refineField(
+        base: NodeKind,
+        raw: RawField,
+        ctx: NodeKindContext,
+    ): NodeKind? = null
 }

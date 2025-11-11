@@ -21,7 +21,7 @@ class GitLabIngestOrchestrator(
     private val appRepo: ApplicationRepository,
     private val graphBuilder: GraphBuilder,
     private val gradleResolver: GradleClasspathResolver,
-    ) : GitIngestOrchestrator {
+) : GitIngestOrchestrator {
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional
@@ -30,25 +30,32 @@ class GitLabIngestOrchestrator(
         repoPath: String,
         branch: String,
     ): IngestSummary {
-        val summary: GitPullSummary = git.checkoutOrUpdate(
-            repoPath = repoPath,
-            branch = branch,
-            appKey = appKey
+        val summary: GitPullSummary =
+            git.checkoutOrUpdate(
+                repoPath = repoPath,
+                branch = branch,
+                appKey = appKey,
+            )
+        log.info(
+            "✅ Repo checked out at {} (op={}, head={} -> {})",
+            summary.localPath,
+            summary.operation,
+            summary.beforeHead,
+            summary.afterHead,
         )
-        log.info("✅ Repo checked out at {} (op={}, head={} -> {})",
-            summary.localPath, summary.operation, summary.beforeHead, summary.afterHead)
 
         val localPath = summary.localPath
         val headSha = summary.afterHead
 
         val parsed: RepoInfo = RepoUrlParser.parse(summary.repoUrl) // <- парсим именно summary.repoUrl
-        val app: Application = getOrCreateApp(
-            appKey = appKey,
-            repoUrl = summary.repoUrl,   // <- передаём отдельным параметром
-            parsed = parsed,
-            branch = branch,
-            headSha = headSha
-        )
+        val app: Application =
+            getOrCreateApp(
+                appKey = appKey,
+                repoUrl = summary.repoUrl, // <- передаём отдельным параметром
+                parsed = parsed,
+                branch = branch,
+                headSha = headSha,
+            )
         val savedApp = appRepo.save(app)
         log.info("📇 Using application id={} key={}", savedApp.id, savedApp.key)
 
@@ -103,8 +110,12 @@ class GitLabIngestOrchestrator(
             }
 
         val took = Duration.between(buildResult.startedAt, buildResult.finishedAt)
-        log.info("📦 Build done: nodes={}, edges={}, took={} ms",
-            buildResult.nodes, buildResult.edges, took.toMillis())
+        log.info(
+            "📦 Build done: nodes={}, edges={}, took={} ms",
+            buildResult.nodes,
+            buildResult.edges,
+            took.toMillis(),
+        )
 
         return IngestSummary(
             appKey = savedApp.key,
@@ -123,8 +134,9 @@ class GitLabIngestOrchestrator(
         repoUrl: String,
         parsed: RepoInfo,
         branch: String,
-        headSha: String?
-    ): Application = (
+        headSha: String?,
+    ): Application =
+        (
             appRepo.findByKey(appKey)
                 ?: Application(
                     key = appKey,
@@ -135,7 +147,7 @@ class GitLabIngestOrchestrator(
                     repoName = parsed.name,
                     defaultBranch = branch,
                 )
-            ).apply {
+        ).apply {
             // актуализируем метаданные всегда
             this.repoUrl = repoUrl
             this.repoProvider = parsed.provider

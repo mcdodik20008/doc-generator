@@ -3,7 +3,6 @@ package com.bftcom.docgenerator.postprocessor.utils
 import com.bftcom.docgenerator.postprocessor.model.FieldKey
 import com.bftcom.docgenerator.postprocessor.model.MergePolicy
 import com.bftcom.docgenerator.postprocessor.model.PartialMutation
-import kotlin.collections.iterator
 
 object MutationMerger {
     private val defaultPolicies: Map<FieldKey, MergePolicy> =

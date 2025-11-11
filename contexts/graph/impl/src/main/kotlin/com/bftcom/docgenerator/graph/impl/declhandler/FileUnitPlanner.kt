@@ -10,10 +10,11 @@ import kotlin.reflect.KClass
 
 @Component
 class FileUnitPlanner : BaseDeclPlanner<RawFileUnit>(RawFileUnit::class as KClass<RawFileUnit>) {
-    override fun plan(raw: RawFileUnit): List<DeclCmd> = buildList {
-        add(RememberFileUnitCmd(raw))
-        raw.pkgFqn?.let { pkg ->
-            add(EnsurePackageCmd(pkg, raw.filePath, raw.span?.start ?: 0, raw.span?.end ?: 1, raw.text))
+    override fun plan(raw: RawFileUnit): List<DeclCmd> =
+        buildList {
+            add(RememberFileUnitCmd(raw))
+            raw.pkgFqn?.let { pkg ->
+                add(EnsurePackageCmd(pkg, raw.filePath, raw.span?.start ?: 0, raw.span?.end ?: 1, raw.text))
+            }
         }
-    }
 }

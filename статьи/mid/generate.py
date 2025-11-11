@@ -1,5 +1,8 @@
 # Create LaTeX project files for arXiv preprint (EN + RU)
-import os, textwrap, json, pathlib
+import json
+import os
+import pathlib
+import textwrap
 
 base = "./"
 os.makedirs(base, exist_ok=True)

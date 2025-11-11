@@ -1,6 +1,5 @@
 package com.bftcom.docgenerator.config
 
-
 import com.bftcom.docgenerator.domain.node.RawUsage
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.DeserializationFeature

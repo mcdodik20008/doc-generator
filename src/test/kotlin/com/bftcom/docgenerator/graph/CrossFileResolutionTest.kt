@@ -1,5 +1,8 @@
 package com.bftcom.docgenerator.graph
 
+import com.bftcom.docgenerator.db.ChunkRepository
+import com.bftcom.docgenerator.db.EdgeRepository
+import com.bftcom.docgenerator.db.NodeRepository
 import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.enums.EdgeKind
@@ -7,19 +10,21 @@ import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.graph.impl.KDocFetcherImpl
 import com.bftcom.docgenerator.graph.impl.KotlinSourceWalker
 import com.bftcom.docgenerator.graph.impl.KotlinToDomainVisitor
-import com.bftcom.docgenerator.db.ChunkRepository
-import com.bftcom.docgenerator.db.EdgeRepository
-import com.bftcom.docgenerator.db.NodeRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import org.mockito.kotlin.*
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.atLeastOnce
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import java.nio.file.Files
 import java.nio.file.Path
 
 class CrossFileResolutionTest {
-
     @TempDir
     lateinit var temp: Path
 
@@ -30,16 +35,16 @@ class CrossFileResolutionTest {
         Files.writeString(
             src.resolve("00_B.kt"),
             """
-                package foo
-                fun baz(){}
-            """.trimIndent()
+            package foo
+            fun baz(){}
+            """.trimIndent(),
         )
         Files.writeString(
             src.resolve("10_A.kt"),
             """
-                package foo
-                class A { fun bar(){ baz() } }
-            """.trimIndent()
+            package foo
+            class A { fun bar(){ baz() } }
+            """.trimIndent(),
         )
 
         val nodeRepo: NodeRepository = mock()
@@ -71,26 +76,31 @@ class CrossFileResolutionTest {
         walker.walk(src, visitor, emptyList())
 
         // Диагностика: узел foo.baz должен существовать
-        val savedNodes = argumentCaptor<Node>().apply {
-            verify(nodeRepo, atLeastOnce()).save(capture())
-        }.allValues
+        val savedNodes =
+            argumentCaptor<Node>()
+                .apply {
+                    verify(nodeRepo, atLeastOnce()).save(capture())
+                }.allValues
 
-        val bazNode = savedNodes.firstOrNull { it.fqn == "foo.baz" }
-            ?: error(
-                "Узел функции baz не создан. Сохранённые узлы:\n" +
-                        savedNodes.joinToString("\n") { n -> "NODE ${n.id} ${n.fqn}" }
-            )
+        val bazNode =
+            savedNodes.firstOrNull { it.fqn == "foo.baz" }
+                ?: error(
+                    "Узел функции baz не создан. Сохранённые узлы:\n" +
+                        savedNodes.joinToString("\n") { n -> "NODE ${n.id} ${n.fqn}" },
+                )
 
         // Проверяем CALLS -> foo.baz
-        val savedEdges = argumentCaptor<Edge>().apply {
-            verify(edgeRepo, atLeastOnce()).save(capture())
-        }.allValues
+        val savedEdges =
+            argumentCaptor<Edge>()
+                .apply {
+                    verify(edgeRepo, atLeastOnce()).save(capture())
+                }.allValues
 
         val calls = savedEdges.filter { it.kind == EdgeKind.CALLS }
         if (calls.isEmpty()) {
             error(
                 "Не найдено ни одного CALLS. Сохранённые edges:\n" +
-                        savedEdges.joinToString("\n") { e -> "EDGE ${e.kind}: ${e.src.fqn} -> ${e.dst.fqn}" }
+                    savedEdges.joinToString("\n") { e -> "EDGE ${e.kind}: ${e.src.fqn} -> ${e.dst.fqn}" },
             )
         }
 
@@ -100,7 +110,7 @@ class CrossFileResolutionTest {
                 appendLine("Ожидался хотя бы один Edge CALLS к foo.baz")
                 appendLine("CALLS edges:")
                 calls.forEach { e -> appendLine(" - ${e.src.fqn} -> ${e.dst.fqn}") }
-            }
+            },
         )
     }
 }
