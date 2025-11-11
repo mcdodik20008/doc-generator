@@ -4,9 +4,11 @@ import com.bftcom.docgenerator.graph.api.GraphBuilder
 import com.bftcom.docgenerator.graph.api.GraphLinker
 import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.graph.api.model.BuildResult
-import com.bftcom.docgenerator.db.ChunkRepository
 import com.bftcom.docgenerator.db.EdgeRepository
 import com.bftcom.docgenerator.db.NodeRepository
+import com.bftcom.docgenerator.graph.api.declhandler.DeclPlanner
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawDecl
+import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindExtractor
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -20,11 +22,12 @@ import java.time.OffsetDateTime
 class KotlinGraphBuilder(
     private val nodeRepo: NodeRepository,
     private val edgeRepo: EdgeRepository,
-    private val chunkRepo: ChunkRepository,
     private val kotlinWalker: KotlinSourceWalker,
     private val graphLinker: GraphLinker,
     private val transactionManager: PlatformTransactionManager,
     private val objectMapper: ObjectMapper,
+    private val nodeKindExtractors: List<NodeKindExtractor>,
+    private val planners: List<DeclPlanner<*>>,
 ) : GraphBuilder {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -44,9 +47,13 @@ class KotlinGraphBuilder(
         tt.execute {
             val visitor =
                 KotlinToDomainVisitor(
-                    application = application,
-                    nodeRepo = nodeRepo,
-                    objectMapper = objectMapper,
+                    exec = Executor(
+                        application = application,
+                        nodeRepo = nodeRepo,
+                        objectMapper = objectMapper,
+                        nodeKindExtractors = nodeKindExtractors,
+                    ),
+                    planners = planners
                 )
             kotlinWalker.walk(sourceRoot, visitor, classpath)
         }

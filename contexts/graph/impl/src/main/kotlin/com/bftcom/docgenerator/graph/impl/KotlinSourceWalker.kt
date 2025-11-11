@@ -34,7 +34,6 @@ class KotlinSourceWalker(
     companion object {
         private val log = LoggerFactory.getLogger(KotlinSourceWalker::class.java)
 
-        // Лексический шум для грубого парсинга вызовов
         private val NOISE = setOf(
             "listOf", "map", "of", "timer", "start", "stop",
             "sequenceOf", "arrayOf", "mutableListOf"
