@@ -7,4 +7,5 @@ interface NodeIndex {
     fun findByFqn(fqn: String): Node?
     fun findByKind(kind: NodeKind): Sequence<Node>
     fun findAnnotatedWith(annotation: String): Sequence<Node>
+    fun resolveType(simpleOrFqn: String, imports: List<String>, pkg: String): Node?
 }
