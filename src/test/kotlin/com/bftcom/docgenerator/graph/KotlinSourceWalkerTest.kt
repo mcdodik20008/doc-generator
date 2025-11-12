@@ -2,9 +2,9 @@ package com.bftcom.docgenerator.graph
 
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.RawUsage
-import com.bftcom.docgenerator.graph.api.SourceVisitor
-import com.bftcom.docgenerator.graph.impl.KDocFetcherImpl
-import com.bftcom.docgenerator.graph.impl.KotlinSourceWalker
+import com.bftcom.docgenerator.graph.api.node.SourceVisitor
+import com.bftcom.docgenerator.graph.impl.node.KDocFetcherImpl
+import com.bftcom.docgenerator.graph.impl.node.KotlinSourceWalker
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files

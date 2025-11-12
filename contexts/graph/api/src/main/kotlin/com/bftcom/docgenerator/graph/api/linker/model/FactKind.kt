@@ -1,0 +1,33 @@
+package com.bftcom.docgenerator.graph.api.linker.model
+
+enum class FactKind {
+    // Структурные факты (из AST)
+    PACKAGE_DECLARATION,
+    CLASS_DECLARATION,
+    INTERFACE_DECLARATION,
+    FUNCTION_DECLARATION,
+    FIELD_DECLARATION,
+    IMPORT_STATEMENT,
+    EXTENDS_CLAUSE,
+    IMPLEMENTS_CLAUSE,
+    ANNOTATION_PRESENT,
+
+    // Динамические факты (из тела методов)
+    FUNCTION_CALL,
+    EXCEPTION_THROW,
+    SYNCHRONIZED_BLOCK,
+    RESOURCE_ACCESS,
+
+    // Интеграционные сигналы
+    HTTP_CALL_LITERAL,
+    GRPC_CLIENT_CALL,
+    KAFKA_PRODUCE,
+    KAFKA_CONSUME,
+    SQL_QUERY_LITERAL,
+    TABLE_ACCESS_READ,
+    TABLE_ACCESS_WRITE,
+    CONFIG_KEY_VALUE,
+    CIRCUIT_BREAKER_ANNOTATION,
+    RETRY_DECLARATION,
+    TIMEOUT_DECLARATION
+}

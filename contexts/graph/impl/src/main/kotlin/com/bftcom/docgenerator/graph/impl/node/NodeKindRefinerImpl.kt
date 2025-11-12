@@ -1,8 +1,8 @@
-package com.bftcom.docgenerator.graph.impl
+package com.bftcom.docgenerator.graph.impl.node
 
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
-import com.bftcom.docgenerator.graph.api.NodeKindRefiner
+import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawField
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFileUnit
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction

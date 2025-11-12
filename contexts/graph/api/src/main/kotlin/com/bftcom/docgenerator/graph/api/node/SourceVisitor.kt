@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.graph.api
+package com.bftcom.docgenerator.graph.api.node
 
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawDecl
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawField

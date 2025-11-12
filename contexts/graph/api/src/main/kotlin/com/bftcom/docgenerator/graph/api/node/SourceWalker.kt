@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.graph.api
+package com.bftcom.docgenerator.graph.api.node
 
 import java.io.File
 import java.nio.file.Path

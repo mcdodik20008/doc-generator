@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.graph.impl.declhandler
+package com.bftcom.docgenerator.graph.impl.declplanner
 
 import com.bftcom.docgenerator.graph.api.declplanner.BaseDeclPlanner
 import com.bftcom.docgenerator.graph.api.declplanner.DeclCmd

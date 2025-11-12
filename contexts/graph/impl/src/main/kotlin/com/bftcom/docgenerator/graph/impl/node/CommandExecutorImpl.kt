@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.graph.impl
+package com.bftcom.docgenerator.graph.impl.node
 
 import com.bftcom.docgenerator.db.NodeRepository
 import com.bftcom.docgenerator.domain.application.Application
@@ -7,8 +7,8 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.KDocMeta
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
-import com.bftcom.docgenerator.graph.api.CommandExecutor
-import com.bftcom.docgenerator.graph.api.NodeKindRefiner
+import com.bftcom.docgenerator.graph.api.node.CommandExecutor
+import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
 import com.bftcom.docgenerator.graph.api.declplanner.DeclCmd
 import com.bftcom.docgenerator.graph.api.declplanner.EnsurePackageCmd
 import com.bftcom.docgenerator.graph.api.declplanner.RememberFileUnitCmd
@@ -17,6 +17,7 @@ import com.bftcom.docgenerator.graph.api.declplanner.UpsertFunctionCmd
 import com.bftcom.docgenerator.graph.api.declplanner.UpsertTypeCmd
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFileUnit
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlin.text.iterator
 
 class CommandExecutorImpl(
     private val application: Application,

@@ -1,6 +1,6 @@
-package com.bftcom.docgenerator.graph.impl
+package com.bftcom.docgenerator.graph.impl.node
 
-import com.bftcom.docgenerator.graph.api.KDocFetcher
+import com.bftcom.docgenerator.graph.api.node.KDocFetcher
 import com.bftcom.docgenerator.graph.api.model.KDocParsed
 import org.jetbrains.kotlin.com.intellij.psi.PsiComment
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement

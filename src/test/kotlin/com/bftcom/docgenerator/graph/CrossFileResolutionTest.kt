@@ -7,9 +7,9 @@ import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.graph.impl.KDocFetcherImpl
-import com.bftcom.docgenerator.graph.impl.KotlinSourceWalker
-import com.bftcom.docgenerator.graph.impl.KotlinToDomainVisitor
+import com.bftcom.docgenerator.graph.impl.node.KDocFetcherImpl
+import com.bftcom.docgenerator.graph.impl.node.KotlinSourceWalker
+import com.bftcom.docgenerator.graph.impl.node.KotlinToDomainVisitor
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test

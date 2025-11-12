@@ -1,9 +1,9 @@
-package com.bftcom.docgenerator.graph.impl
+package com.bftcom.docgenerator.graph.impl.node
 
 import com.bftcom.docgenerator.domain.node.RawUsage
-import com.bftcom.docgenerator.graph.api.KDocFetcher
-import com.bftcom.docgenerator.graph.api.SourceVisitor
-import com.bftcom.docgenerator.graph.api.SourceWalker
+import com.bftcom.docgenerator.graph.api.node.KDocFetcher
+import com.bftcom.docgenerator.graph.api.node.SourceVisitor
+import com.bftcom.docgenerator.graph.api.node.SourceWalker
 import com.bftcom.docgenerator.graph.api.model.RawAttrKey
 import com.bftcom.docgenerator.graph.api.model.rawdecl.LineSpan
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawField

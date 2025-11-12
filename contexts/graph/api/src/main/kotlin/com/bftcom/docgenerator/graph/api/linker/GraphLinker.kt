@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.graph.api
+package com.bftcom.docgenerator.graph.api.linker
 
 import com.bftcom.docgenerator.domain.application.Application
 
