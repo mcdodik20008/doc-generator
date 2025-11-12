@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.graph.api.declhandler
+package com.bftcom.docgenerator.graph.api.declplanner
 
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawField

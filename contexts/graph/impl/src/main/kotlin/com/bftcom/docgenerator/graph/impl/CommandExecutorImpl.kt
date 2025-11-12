@@ -9,12 +9,12 @@ import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.CommandExecutor
 import com.bftcom.docgenerator.graph.api.NodeKindRefiner
-import com.bftcom.docgenerator.graph.api.declhandler.DeclCmd
-import com.bftcom.docgenerator.graph.api.declhandler.EnsurePackageCmd
-import com.bftcom.docgenerator.graph.api.declhandler.RememberFileUnitCmd
-import com.bftcom.docgenerator.graph.api.declhandler.UpsertFieldCmd
-import com.bftcom.docgenerator.graph.api.declhandler.UpsertFunctionCmd
-import com.bftcom.docgenerator.graph.api.declhandler.UpsertTypeCmd
+import com.bftcom.docgenerator.graph.api.declplanner.DeclCmd
+import com.bftcom.docgenerator.graph.api.declplanner.EnsurePackageCmd
+import com.bftcom.docgenerator.graph.api.declplanner.RememberFileUnitCmd
+import com.bftcom.docgenerator.graph.api.declplanner.UpsertFieldCmd
+import com.bftcom.docgenerator.graph.api.declplanner.UpsertFunctionCmd
+import com.bftcom.docgenerator.graph.api.declplanner.UpsertTypeCmd
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFileUnit
 import com.fasterxml.jackson.databind.ObjectMapper
 

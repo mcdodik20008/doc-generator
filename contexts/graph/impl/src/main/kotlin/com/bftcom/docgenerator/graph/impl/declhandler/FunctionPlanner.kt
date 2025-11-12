@@ -1,9 +1,9 @@
 package com.bftcom.docgenerator.graph.impl.declhandler
 
-import com.bftcom.docgenerator.graph.api.declhandler.BaseDeclPlanner
-import com.bftcom.docgenerator.graph.api.declhandler.DeclCmd
-import com.bftcom.docgenerator.graph.api.declhandler.EnsurePackageCmd
-import com.bftcom.docgenerator.graph.api.declhandler.UpsertFunctionCmd
+import com.bftcom.docgenerator.graph.api.declplanner.BaseDeclPlanner
+import com.bftcom.docgenerator.graph.api.declplanner.DeclCmd
+import com.bftcom.docgenerator.graph.api.declplanner.EnsurePackageCmd
+import com.bftcom.docgenerator.graph.api.declplanner.UpsertFunctionCmd
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
 import org.springframework.stereotype.Component
 import kotlin.reflect.KClass

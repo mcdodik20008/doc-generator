@@ -6,7 +6,7 @@ import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.graph.api.GraphBuilder
 import com.bftcom.docgenerator.graph.api.GraphLinker
 import com.bftcom.docgenerator.graph.api.NodeKindRefiner
-import com.bftcom.docgenerator.graph.api.declhandler.DeclPlanner
+import com.bftcom.docgenerator.graph.api.declplanner.DeclPlanner
 import com.bftcom.docgenerator.graph.api.model.BuildResult
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
