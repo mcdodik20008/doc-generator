@@ -77,4 +77,13 @@
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
+
+    <changeSet id="08-add-inherits-to-edge" author="kaspshitskii">
+        <sqlFile
+                path="migration/08_add_inherits_to_edge.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
 </databaseChangeLog>

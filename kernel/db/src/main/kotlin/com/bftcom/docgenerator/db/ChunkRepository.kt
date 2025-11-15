@@ -13,7 +13,7 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
         value = """
             SELECT *
             FROM doc_generator.chunk
-            WHERE content_raw IS NULL --  and title like '%Step%' or title like '%calc%'
+            WHERE content_raw IS NULL and title like '%Step%' or title like '%calc%'
             ORDER BY created_at
             LIMIT :limit
             FOR UPDATE SKIP LOCKED

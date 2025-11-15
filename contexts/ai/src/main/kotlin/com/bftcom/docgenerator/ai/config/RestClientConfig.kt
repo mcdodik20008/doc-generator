@@ -33,7 +33,7 @@ class RestClientConfig {
                         .build(),
                 ).setMaxConnTotal(200) // Макс. соединений всего
                 .setMaxConnPerRoute(50) // Макс. соединений на один хост (например, на твой Ollama)
-                .setConnectionTimeToLive(TimeValue.ofMinutes(10)) // Как долго соединение может жить в пуле
+                .setConnectionTimeToLive(TimeValue.ofMinutes(30)) // Как долго соединение может жить в пуле
                 .build()
 
         // 2. Настраиваем таймауты
@@ -46,7 +46,7 @@ class RestClientConfig {
                 .setConnectionRequestTimeout(Timeout.ofSeconds(5))
                 // !!! ГЛАВНЫЙ ФИКС !!!
                 // Таймаут на ОЖИДАНИЕ ОТВЕТА (ReadTimeout)
-                .setResponseTimeout(Timeout.ofMinutes(5)) // <-- Ставим 5 минут. Можешь ставить 10.
+                .setResponseTimeout(Timeout.ofMinutes(15)) // <-- Ставим 5 минут. Можешь ставить 10.
                 .build()
 
         // 3. Собираем HTTP-клиент
