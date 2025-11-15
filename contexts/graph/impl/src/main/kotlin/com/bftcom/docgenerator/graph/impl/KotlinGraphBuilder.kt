@@ -48,21 +48,29 @@ class KotlinGraphBuilder(
 //        val chunksBefore = chunkRepo.count()
 
         // --- ФАЗА 1: создаём ноды ---
-        tt.execute {
-            val visitor =
-                KotlinToDomainVisitor(
-                    exec =
-                        CommandExecutorImpl(
-                            application = application,
-                            nodeRepo = nodeRepo,
-                            objectMapper = objectMapper,
-                            nodeKindRefiner = nodeKindRefiner,
-                            apiMetadataCollector = apiMetadataCollector,
-                        ),
-                    planners = planners,
+        val executor = tt.execute {
+            val exec =
+                CommandExecutorImpl(
+                    application = application,
+                    nodeRepo = nodeRepo,
+                    objectMapper = objectMapper,
+                    nodeKindRefiner = nodeKindRefiner,
+                    apiMetadataCollector = apiMetadataCollector,
                 )
+            val visitor = KotlinToDomainVisitor(exec = exec, planners = planners)
             kotlinWalker.walk(sourceRoot, visitor, classpath)
-        }
+            exec
+        } ?: throw IllegalStateException("Failed to create nodes: transaction returned null")
+        
+        // Логируем статистику построения нод
+        val stats = executor.getBuilderStats()
+        log.info(
+            "Node building stats: created={}, updated={}, skipped={}, total={}",
+            stats.created,
+            stats.updated,
+            stats.skipped,
+            stats.total,
+        )
 
         // --- ФАЗА 2: линковка ---
         tt.execute { graphLinker.link(application) }

@@ -20,6 +20,7 @@ import com.bftcom.docgenerator.graph.impl.node.handlers.UpsertFunctionHandler
 import com.bftcom.docgenerator.graph.impl.node.handlers.UpsertTypeHandler
 import com.bftcom.docgenerator.graph.impl.node.state.GraphState
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.slf4j.LoggerFactory
 
 /**
  * 
@@ -32,11 +33,13 @@ class CommandExecutorImpl(
     private val nodeKindRefiner: NodeKindRefiner,
     private val apiMetadataCollector: ApiMetadataCollector? = null,
 ) : CommandExecutor {
+    private val log = LoggerFactory.getLogger(javaClass)
+    
     // Состояние сборки графа (создается при каждом execute)
     private val state = GraphState()
     
     // Строитель нод
-    private val builder = NodeBuilder(application, nodeRepo, objectMapper)
+    val builder = NodeBuilder(application, nodeRepo, objectMapper)
     
     // Handler'ы для каждой команды
     private val rememberFileUnitHandler = RememberFileUnitHandler()
@@ -46,12 +49,22 @@ class CommandExecutorImpl(
     private val upsertFunctionHandler = UpsertFunctionHandler(nodeKindRefiner, apiMetadataCollector)
 
     override fun execute(cmd: DeclCmd) {
-        when (cmd) {
-            is RememberFileUnitCmd -> rememberFileUnitHandler.handle(cmd, state, builder)
-            is EnsurePackageCmd -> ensurePackageHandler.handle(cmd, state, builder)
-            is UpsertTypeCmd -> upsertTypeHandler.handle(cmd, state, builder)
-            is UpsertFieldCmd -> upsertFieldHandler.handle(cmd, state, builder)
-            is UpsertFunctionCmd -> upsertFunctionHandler.handle(cmd, state, builder)
+        try {
+            when (cmd) {
+                is RememberFileUnitCmd -> rememberFileUnitHandler.handle(cmd, state, builder)
+                is EnsurePackageCmd -> ensurePackageHandler.handle(cmd, state, builder)
+                is UpsertTypeCmd -> upsertTypeHandler.handle(cmd, state, builder)
+                is UpsertFieldCmd -> upsertFieldHandler.handle(cmd, state, builder)
+                is UpsertFunctionCmd -> upsertFunctionHandler.handle(cmd, state, builder)
+            }
+        } catch (e: Exception) {
+            log.error("Failed to execute command: type={}, error={}", cmd::class.simpleName, e.message, e)
+            throw e
         }
     }
+    
+    /**
+     * Получить статистику операций NodeBuilder.
+     */
+    fun getBuilderStats() = builder.getStats()
 }
