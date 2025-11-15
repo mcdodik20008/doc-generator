@@ -10,6 +10,7 @@ import com.bftcom.docgenerator.graph.api.declplanner.UpsertFunctionCmd
 import com.bftcom.docgenerator.graph.api.declplanner.UpsertTypeCmd
 import com.bftcom.docgenerator.graph.api.node.CommandExecutor
 import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
+import com.bftcom.docgenerator.graph.impl.apimetadata.ApiMetadataCollector
 import com.bftcom.docgenerator.graph.impl.node.builder.NodeBuilder
 import com.bftcom.docgenerator.graph.impl.node.handlers.CommandHandler
 import com.bftcom.docgenerator.graph.impl.node.handlers.EnsurePackageHandler
@@ -29,6 +30,7 @@ class CommandExecutorImpl(
     private val nodeRepo: NodeRepository,
     private val objectMapper: ObjectMapper,
     private val nodeKindRefiner: NodeKindRefiner,
+    private val apiMetadataCollector: ApiMetadataCollector? = null,
 ) : CommandExecutor {
     // Состояние сборки графа (создается при каждом execute)
     private val state = GraphState()
@@ -39,9 +41,9 @@ class CommandExecutorImpl(
     // Handler'ы для каждой команды
     private val rememberFileUnitHandler = RememberFileUnitHandler()
     private val ensurePackageHandler = EnsurePackageHandler()
-    private val upsertTypeHandler = UpsertTypeHandler(nodeKindRefiner)
+    private val upsertTypeHandler = UpsertTypeHandler(nodeKindRefiner, apiMetadataCollector)
     private val upsertFieldHandler = UpsertFieldHandler(nodeKindRefiner)
-    private val upsertFunctionHandler = UpsertFunctionHandler(nodeKindRefiner)
+    private val upsertFunctionHandler = UpsertFunctionHandler(nodeKindRefiner, apiMetadataCollector)
 
     override fun execute(cmd: DeclCmd) {
         when (cmd) {

@@ -8,6 +8,7 @@ import com.bftcom.docgenerator.graph.api.linker.GraphLinker
 import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
 import com.bftcom.docgenerator.graph.api.declplanner.DeclPlanner
 import com.bftcom.docgenerator.graph.api.model.BuildResult
+import com.bftcom.docgenerator.graph.impl.apimetadata.ApiMetadataCollector
 import com.bftcom.docgenerator.graph.impl.node.CommandExecutorImpl
 import com.bftcom.docgenerator.graph.impl.node.KotlinSourceWalker
 import com.bftcom.docgenerator.graph.impl.node.KotlinToDomainVisitor
@@ -30,6 +31,7 @@ class KotlinGraphBuilder(
     private val objectMapper: ObjectMapper,
     private val planners: List<DeclPlanner<*>>,
     private val nodeKindRefiner: NodeKindRefiner,
+    private val apiMetadataCollector: ApiMetadataCollector? = null,
 ) : GraphBuilder {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -55,6 +57,7 @@ class KotlinGraphBuilder(
                             nodeRepo = nodeRepo,
                             objectMapper = objectMapper,
                             nodeKindRefiner = nodeKindRefiner,
+                            apiMetadataCollector = apiMetadataCollector,
                         ),
                     planners = planners,
                 )

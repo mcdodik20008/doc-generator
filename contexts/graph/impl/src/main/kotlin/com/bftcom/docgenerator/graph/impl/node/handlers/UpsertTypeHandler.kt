@@ -5,6 +5,9 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.declplanner.UpsertTypeCmd
 import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
+import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
+import com.bftcom.docgenerator.graph.impl.apimetadata.ApiMetadataCollector
+import com.bftcom.docgenerator.graph.impl.apimetadata.util.ApiMetadataSerializer
 import com.bftcom.docgenerator.graph.impl.node.builder.FqnBuilder
 import com.bftcom.docgenerator.graph.impl.node.builder.NodeBuilder
 import com.bftcom.docgenerator.graph.impl.node.state.GraphState
@@ -14,6 +17,7 @@ import com.bftcom.docgenerator.graph.impl.node.state.GraphState
  */
 class UpsertTypeHandler(
     private val nodeKindRefiner: NodeKindRefiner,
+    private val apiMetadataCollector: ApiMetadataCollector? = null,
 ) : CommandHandler<UpsertTypeCmd> {
     override fun handle(cmd: UpsertTypeCmd, state: GraphState, builder: NodeBuilder) {
         val r = cmd.raw
@@ -46,6 +50,14 @@ class UpsertTypeHandler(
         // Уточняем kind через классификаторы
         val kind = nodeKindRefiner.forType(cmd.baseKind, r, state.getFileUnit(r.filePath))
 
+        // Извлекаем метаданные API для типа (например, basePath из @RequestMapping)
+        val ctx = NodeKindContext(
+            lang = Lang.kotlin,
+            file = state.getFileUnit(r.filePath),
+            imports = state.getFileImports(r.filePath),
+        )
+        val apiMetadata = apiMetadataCollector?.extractTypeMetadata(r, ctx)
+
         // Создаем/обновляем ноду типа
         val node = builder.upsertNode(
             fqn = fqn,
@@ -67,6 +79,7 @@ class UpsertTypeHandler(
                     imports = state.getFileImports(r.filePath),
                     kdoc = null,
                     annotations = r.annotationsRepr,
+                    apiMetadata = ApiMetadataSerializer.serialize(apiMetadata),
                 ),
         )
         

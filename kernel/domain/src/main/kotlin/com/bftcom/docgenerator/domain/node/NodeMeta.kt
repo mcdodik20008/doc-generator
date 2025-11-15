@@ -45,4 +45,6 @@ data class NodeMeta(
     val lineRange: Pair<Int, Int>? = null,
     /** Хэш исходника (для быстрого сравнения изменений) */
     val sourceHash: String? = null,
+    /** Метаданные API endpoint'а (HTTP, GraphQL, gRPC, Message Broker и т.д.) */
+    val apiMetadata: Map<String, Any>? = null,
 )

@@ -6,6 +6,9 @@ import com.bftcom.docgenerator.domain.node.KDocMeta
 import com.bftcom.docgenerator.domain.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.declplanner.UpsertFunctionCmd
 import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
+import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
+import com.bftcom.docgenerator.graph.impl.apimetadata.ApiMetadataCollector
+import com.bftcom.docgenerator.graph.impl.apimetadata.util.ApiMetadataSerializer
 import com.bftcom.docgenerator.graph.impl.node.builder.FqnBuilder
 import com.bftcom.docgenerator.graph.impl.node.builder.NodeBuilder
 import com.bftcom.docgenerator.graph.impl.node.state.GraphState
@@ -15,6 +18,7 @@ import com.bftcom.docgenerator.graph.impl.node.state.GraphState
  */
 class UpsertFunctionHandler(
     private val nodeKindRefiner: NodeKindRefiner,
+    private val apiMetadataCollector: ApiMetadataCollector? = null,
 ) : CommandHandler<UpsertFunctionCmd> {
     override fun handle(cmd: UpsertFunctionCmd, state: GraphState, builder: NodeBuilder) {
         val r = cmd.raw
@@ -34,6 +38,22 @@ class UpsertFunctionHandler(
             }
         
         val fnKind = nodeKindRefiner.forFunction(NodeKind.METHOD, r, state.getFileUnit(r.filePath))
+        
+        // Извлекаем метаданные API (HTTP, GraphQL, gRPC, Message Broker и т.д.)
+        val ownerType = r.ownerFqn?.let { state.getType(it) }
+        val ctx = NodeKindContext(
+            lang = Lang.kotlin,
+            file = state.getFileUnit(r.filePath),
+            imports = state.getFileImports(r.filePath),
+        )
+        val apiMetadata = apiMetadataCollector?.extractFunctionMetadata(
+            function = r,
+            ownerType = ownerType?.let {
+                // TODO: нужно получить RawType из ownerType, но пока используем только аннотации
+                null // пока null, потом добавим
+            },
+            ctx = ctx,
+        )
         
         val node = builder.upsertNode(
             fqn = fqn,
@@ -58,6 +78,7 @@ class UpsertFunctionHandler(
                     imports = state.getFileImports(r.filePath),
                     throwsTypes = r.throwsRepr,
                     kdoc = r.kdoc?.let { KDocMeta(summary = it) },
+                    apiMetadata = ApiMetadataSerializer.serialize(apiMetadata),
                 ),
         )
         
