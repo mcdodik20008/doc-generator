@@ -7,6 +7,8 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.slf4j.LoggerFactory
+import java.security.MessageDigest
 
 /**
  * Строитель нод - отвечает за создание и обновление Node сущностей.
@@ -16,6 +18,12 @@ class NodeBuilder(
     private val nodeRepo: NodeRepository,
     private val objectMapper: ObjectMapper,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+    
+    // Счетчики для статистики
+    private var createdCount = 0
+    private var updatedCount = 0
+    private var skippedCount = 0
     fun upsertNode(
         fqn: String,
         kind: NodeKind,
@@ -30,7 +38,13 @@ class NodeBuilder(
         docComment: String?,
         meta: NodeMeta,
     ): Node {
-        val existing = nodeRepo.findByApplicationIdAndFqn(application.id!!, fqn)
+        // Валидация входных данных
+        validateNodeData(fqn, span, parent)
+        
+        val existing = nodeRepo.findByApplicationIdAndFqn(
+            requireNotNull(application.id) { "Application must have an ID" },
+            fqn
+        )
         val metaMap = toMetaMap(meta)
 
         val lineStart: Int? = span?.first
@@ -38,9 +52,14 @@ class NodeBuilder(
         if (sourceCode?.isNotEmpty() == true && lineStart != null) {
             lineEnd = lineStart + countLinesNormalized(sourceCode) - 1
         }
+        
+        // Вычисляем хеш исходного кода
+        val codeHash = computeCodeHash(sourceCode)
 
         return if (existing == null) {
-            nodeRepo.save(
+            // Создание новой ноды
+            log.debug("Creating new node: kind={}, fqn={}, file={}", kind, fqn, filePath)
+            val newNode = nodeRepo.save(
                 Node(
                     id = null,
                     application = application,
@@ -56,12 +75,17 @@ class NodeBuilder(
                     sourceCode = sourceCode,
                     docComment = docComment,
                     signature = signature,
-                    codeHash = null,
+                    codeHash = codeHash,
                     meta = metaMap,
                 ),
             )
+            createdCount++
+            log.trace("Node created: id={}, fqn={}, hash={}", newNode.id, fqn, codeHash?.take(8))
+            newNode
         } else {
-            updateExistingNode(existing, name, packageName, kind, lang, parent, filePath, lineStart, lineEnd, sourceCode, docComment, signature, metaMap)
+            // Обновление существующей ноды
+            log.debug("Updating existing node: id={}, kind={}, fqn={}", existing.id, kind, fqn)
+            updateExistingNode(existing, name, packageName, kind, lang, parent, filePath, lineStart, lineEnd, sourceCode, docComment, signature, codeHash, metaMap)
         }
     }
 
@@ -78,6 +102,7 @@ class NodeBuilder(
         sourceCode: String?,
         docComment: String?,
         signature: String?,
+        codeHash: String?,
         metaMap: Map<String, Any>,
     ): Node {
         var changed = false
@@ -104,6 +129,7 @@ class NodeBuilder(
         setIfChanged(existing.sourceCode, sourceCode) { existing.sourceCode = it }
         setIfChanged(existing.docComment, docComment) { existing.docComment = it }
         setIfChanged(existing.signature, signature) { existing.signature = it }
+        setIfChanged(existing.codeHash, codeHash) { existing.codeHash = it }
 
         @Suppress("UNCHECKED_CAST")
         val currentMeta: Map<String, Any?> = (existing.meta as? Map<String, Any?>) ?: emptyMap()
@@ -119,17 +145,72 @@ class NodeBuilder(
         setIfChanged(existing.meta, merged) { existing.meta = it as Map<String, Any> }
 
         return if (changed) {
+            log.debug("Node updated: id={}, fqn={}, changes detected", existing.id, existing.fqn)
+            updatedCount++
             nodeRepo.save(existing)
         } else {
+            log.trace("Node unchanged: id={}, fqn={}, skipping save", existing.id, existing.fqn)
+            skippedCount++
             existing
         }
     }
 
+    /**
+     * Оптимизированный подсчет строк с нормализацией окончаний строк.
+     */
     private fun countLinesNormalized(src: String): Int {
         if (src.isEmpty()) return 0
-        var c = 1
-        for (ch in src.replace("\r\n", "\n")) if (ch == '\n') c++
-        return c
+        return src.replace("\r\n", "\n").count { it == '\n' } + 1
+    }
+
+    /**
+     * Вычисляет SHA-256 хеш исходного кода для отслеживания изменений.
+     */
+    private fun computeCodeHash(sourceCode: String?): String? {
+        if (sourceCode.isNullOrBlank()) return null
+        
+        return try {
+            val digest = MessageDigest.getInstance("SHA-256")
+            val hashBytes = digest.digest(sourceCode.toByteArray(Charsets.UTF_8))
+            hashBytes.joinToString("") { "%02x".format(it) }
+        } catch (e: Exception) {
+            // Если не удалось вычислить хеш, возвращаем null
+            // Это не критично для работы системы
+            null
+        }
+    }
+
+    /**
+     * Валидация данных ноды перед сохранением.
+     */
+    private fun validateNodeData(
+        fqn: String,
+        span: IntRange?,
+        parent: Node?,
+    ) {
+        // Валидация FQN
+        require(fqn.isNotBlank()) { "FQN cannot be blank" }
+        require(fqn.length <= 1000) { "FQN is too long: ${fqn.length} characters (max 1000)" }
+        
+        // Валидация диапазона строк
+        span?.let {
+            require(it.first >= 0) { "lineStart must be non-negative, got ${it.first}" }
+            require(it.first <= it.last) { 
+                "lineStart (${it.first}) must be <= lineEnd (${it.last})" 
+            }
+        }
+        
+        // Валидация parent
+        parent?.let {
+            require(it.application.id == application.id) {
+                "Parent node (${it.fqn}) must belong to the same application (${application.id})"
+            }
+            
+            // Проверка на циклические зависимости (базовая)
+            require(it.id != null) {
+                "Parent node must be persisted before being used as parent"
+            }
+        }
     }
 
     private fun toMetaMap(meta: NodeMeta): Map<String, Any> = 
