@@ -92,6 +92,7 @@ class GitLabIngestOrchestrator(
         eventPublisher.publishEvent(
             LibraryBuildRequestedEvent(
                 applicationId = savedApp.id!!,
+                sourceRoot = localPath,
                 classpath = classpath,
             ),
         )

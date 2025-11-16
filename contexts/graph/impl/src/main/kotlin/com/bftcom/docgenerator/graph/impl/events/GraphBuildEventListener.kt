@@ -3,7 +3,9 @@ package com.bftcom.docgenerator.graph.impl.events
 import com.bftcom.docgenerator.db.ApplicationRepository
 import com.bftcom.docgenerator.graph.api.GraphBuilder
 import com.bftcom.docgenerator.graph.api.events.GraphBuildRequestedEvent
+import com.bftcom.docgenerator.graph.api.events.LinkRequestedEvent
 import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Component
@@ -17,6 +19,7 @@ import java.time.OffsetDateTime
 class GraphBuildEventListener(
     private val graphBuilder: GraphBuilder,
     private val appRepo: ApplicationRepository,
+    private val eventPublisher: ApplicationEventPublisher,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -56,6 +59,12 @@ class GraphBuildEventListener(
                 result.nodes,
                 result.edges,
             )
+
+            // После успешной сборки графа инициируем линковку
+            eventPublisher.publishEvent(
+                LinkRequestedEvent(applicationId = app.id!!),
+            )
+            log.debug("LinkRequestedEvent published for application key={}", app.key)
         } catch (e: Exception) {
             app.lastIndexStatus = "failed"
             app.lastIndexedAt = OffsetDateTime.now()

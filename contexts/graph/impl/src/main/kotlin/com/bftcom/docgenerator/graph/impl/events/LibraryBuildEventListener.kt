@@ -50,8 +50,7 @@ class LibraryBuildEventListener(
             eventPublisher.publishEvent(
                 GraphBuildRequestedEvent(
                     applicationId = app.id!!,
-                    sourceRoot = event.classpath.firstOrNull()?.toPath()
-                        ?: error("Cannot start graph build: sourceRoot is unknown for app ${app.key}"),
+                    sourceRoot = event.sourceRoot,
                     classpath = event.classpath,
                 ),
             )
