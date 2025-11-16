@@ -5,9 +5,9 @@ import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.git.api.GitIngestOrchestrator
 import com.bftcom.docgenerator.git.model.GitPullSummary
 import com.bftcom.docgenerator.git.model.IngestSummary
-import com.bftcom.docgenerator.graph.api.GraphBuilder
-import com.bftcom.docgenerator.graph.api.model.BuildResult
+import com.bftcom.docgenerator.graph.api.events.GraphBuildRequestedEvent
 import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.io.File
@@ -19,7 +19,7 @@ import java.time.OffsetDateTime
 class GitLabIngestOrchestrator(
     private val git: GitLabCheckoutService,
     private val appRepo: ApplicationRepository,
-    private val graphBuilder: GraphBuilder,
+    private val eventPublisher: ApplicationEventPublisher,
     private val gradleResolver: GradleClasspathResolver,
 ) : GitIngestOrchestrator {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -87,45 +87,32 @@ class GitLabIngestOrchestrator(
             log.info("Resolved ${classpath.size} TOTAL classpath entries for [${savedApp.key}].")
         }
 
-        // --- 5) build graph ---
-        val buildResult: BuildResult =
-            try {
-                graphBuilder
-                    .build(
-                        application = savedApp,
-                        sourceRoot = localPath,
-                        classpath = classpath,
-                    ).also {
-                        savedApp.lastIndexStatus = "success"
-                        savedApp.lastIndexedAt = OffsetDateTime.now()
-                        savedApp.lastIndexError = null
-                        appRepo.save(savedApp)
-                    }
-            } catch (e: Exception) {
-                savedApp.lastIndexStatus = "failed"
-                savedApp.lastIndexedAt = OffsetDateTime.now()
-                savedApp.lastIndexError = (e.message ?: e::class.java.simpleName)
-                appRepo.save(savedApp)
-                throw e
-            }
-
-        val took = Duration.between(buildResult.startedAt, buildResult.finishedAt)
-        log.info(
-            "📦 Build done: nodes={}, edges={}, took={} ms",
-            buildResult.nodes,
-            buildResult.edges,
-            took.toMillis(),
+        // --- 5) async build graph via event ---
+        log.info("Publishing GraphBuildRequestedEvent for application id={} key={}", savedApp.id, savedApp.key)
+        eventPublisher.publishEvent(
+            GraphBuildRequestedEvent(
+                applicationId = savedApp.id!!,
+                sourceRoot = localPath,
+                classpath = classpath,
+            ),
         )
 
+        val now = OffsetDateTime.now()
+        savedApp.lastIndexStatus = "queued"
+        savedApp.lastIndexedAt = now
+        savedApp.lastIndexError = null
+        appRepo.save(savedApp)
+
+        // Возвращаем краткое резюме, сама сборка будет выполняться асинхронно
         return IngestSummary(
             appKey = savedApp.key,
             repoPath = localPath.toString(),
             headSha = headSha,
-            nodes = buildResult.nodes,
-            edges = buildResult.edges,
-            startedAt = buildResult.startedAt,
-            finishedAt = buildResult.finishedAt,
-            tookMs = took.toMillis(),
+            nodes = 0,
+            edges = 0,
+            startedAt = now,
+            finishedAt = now,
+            tookMs = 0,
         )
     }
 
