@@ -24,6 +24,13 @@ class NodeBuilder(
     private var createdCount = 0
     private var updatedCount = 0
     private var skippedCount = 0
+    
+    // Кэш существующих нод для избежания N+1 запросов
+    private val existingNodesCache = mutableMapOf<String, Node?>()
+    
+    // Максимальный размер sourceCode (10MB)
+    private val maxSourceCodeSize = 10 * 1024 * 1024
+    
     fun upsertNode(
         fqn: String,
         kind: NodeKind,
@@ -39,21 +46,39 @@ class NodeBuilder(
         meta: NodeMeta,
     ): Node {
         // Валидация входных данных
-        validateNodeData(fqn, span, parent)
+        validateNodeData(fqn, span, parent, sourceCode)
 
-        val existing = nodeRepo.findByApplicationIdAndFqn(
-            requireNotNull(application.id) { "Application must have an ID" },
-            fqn
-        )
+        // Кэшируем запросы к БД для избежания N+1 проблемы
+        val existing = existingNodesCache.getOrPut(fqn) {
+            nodeRepo.findByApplicationIdAndFqn(
+                requireNotNull(application.id) { "Application must have an ID" },
+                fqn
+            )
+        }
         val metaMap = toMetaMap(meta)
 
+        // Ограничиваем размер sourceCode для защиты от переполнения
+        val normalizedSourceCode = sourceCode?.let {
+            if (it.length > maxSourceCodeSize) {
+                log.warn(
+                    "Source code truncated: fqn={}, originalSize={}, maxSize={}",
+                    fqn,
+                    it.length,
+                    maxSourceCodeSize,
+                )
+                it.take(maxSourceCodeSize) + "\n... [truncated]"
+            } else {
+                it
+            }
+        }
+        
         val lineStart: Int? = span?.first
         var lineEnd: Int? = span?.last
-        if (sourceCode?.isNotEmpty() == true && lineStart != null) {
-            lineEnd = lineStart + countLinesNormalized(sourceCode) - 1
+        if (normalizedSourceCode?.isNotEmpty() == true && lineStart != null) {
+            lineEnd = lineStart + countLinesNormalized(normalizedSourceCode) - 1
         }
 
-        // Вычисляем хеш исходного кода
+        // Вычисляем хеш исходного кода (используем оригинальный, не обрезанный)
         val codeHash = computeCodeHash(sourceCode)
 
         return if (existing == null) {
@@ -73,13 +98,15 @@ class NodeBuilder(
                         filePath = filePath,
                         lineStart = lineStart,
                         lineEnd = lineEnd,
-                        sourceCode = sourceCode,
+                        sourceCode = normalizedSourceCode,
                         docComment = docComment,
                         signature = signature,
                         codeHash = codeHash,
                         meta = metaMap,
                     ),
                 )
+                // Обновляем кэш
+                existingNodesCache[fqn] = newNode
                 createdCount++
                 log.trace("Node created: id={}, fqn={}, hash={}", newNode.id, fqn, codeHash?.take(8))
                 newNode
@@ -100,7 +127,7 @@ class NodeBuilder(
                 filePath,
                 lineStart,
                 lineEnd,
-                sourceCode,
+                normalizedSourceCode,
                 docComment,
                 signature,
                 codeHash,
@@ -138,15 +165,28 @@ class NodeBuilder(
             }
         }
 
+        // Оптимизация: если codeHash не изменился, код не изменился
+        // Можно пропустить обновление sourceCode и связанных полей
+        val codeHashChanged = existing.codeHash != codeHash
+        
         setIfChanged(existing.name, name) { existing.name = it }
         setIfChanged(existing.packageName, packageName) { existing.packageName = it }
         setIfChanged(existing.kind, kind) { existing.kind = it }
         setIfChanged(existing.lang, lang) { existing.lang = it }
         setIfChanged(existing.parent?.id, parent?.id) { existing.parent = parent }
         setIfChanged(existing.filePath, filePath) { existing.filePath = it }
-        setIfChanged(existing.lineStart, lineStart) { existing.lineStart = it }
-        setIfChanged(existing.lineEnd, lineEnd) { existing.lineEnd = it }
-        setIfChanged(existing.sourceCode, sourceCode) { existing.sourceCode = it }
+        
+        // Обновляем lineStart/lineEnd только если код изменился или они явно указаны
+        if (codeHashChanged || lineStart != existing.lineStart || lineEnd != existing.lineEnd) {
+            setIfChanged(existing.lineStart, lineStart) { existing.lineStart = it }
+            setIfChanged(existing.lineEnd, lineEnd) { existing.lineEnd = it }
+        }
+        
+        // Обновляем sourceCode только если codeHash изменился
+        if (codeHashChanged) {
+            setIfChanged(existing.sourceCode, sourceCode) { existing.sourceCode = it }
+        }
+        
         setIfChanged(existing.docComment, docComment) { existing.docComment = it }
         setIfChanged(existing.signature, signature) { existing.signature = it }
         setIfChanged(existing.codeHash, codeHash) { existing.codeHash = it }
@@ -167,8 +207,11 @@ class NodeBuilder(
         return if (changed) {
             log.debug("Node updated: id={}, fqn={}, changes detected", existing.id, existing.fqn)
             try {
+                val updated = nodeRepo.save(existing)
+                // Обновляем кэш
+                existingNodesCache[existing.fqn] = updated
                 updatedCount++
-                nodeRepo.save(existing)
+                updated
             } catch (e: Exception) {
                 log.error("Failed to update node: id={}, fqn={}, error={}", existing.id, existing.fqn, e.message, e)
                 throw e
@@ -213,11 +256,17 @@ class NodeBuilder(
         fqn: String,
         span: IntRange?,
         parent: Node?,
+        sourceCode: String?,
     ) {
         try {
             // Валидация FQN
             require(fqn.isNotBlank()) { "FQN cannot be blank" }
             require(fqn.length <= 1000) { "FQN is too long: ${fqn.length} characters (max 1000)" }
+            
+            // Валидация формата FQN (базовая проверка)
+            require(fqn.matches(Regex("^[a-zA-Z_][a-zA-Z0-9_.]*$"))) {
+                "FQN has invalid format: $fqn (must start with letter/underscore, contain only alphanumeric, dots, underscores)"
+            }
 
             // Валидация диапазона строк
             span?.let {
@@ -237,6 +286,23 @@ class NodeBuilder(
                 require(it.id != null) {
                     "Parent node must be persisted before being used as parent"
                 }
+                
+                // Проверка, что parent не является самим узлом (защита от самоссылки)
+                require(it.fqn != fqn) {
+                    "Node cannot be its own parent: fqn=$fqn"
+                }
+            }
+            
+            // Валидация размера sourceCode
+            sourceCode?.let {
+                if (it.length > maxSourceCodeSize) {
+                    log.warn(
+                        "Source code too large: fqn={}, size={} bytes (max {}), truncating",
+                        fqn,
+                        it.length,
+                        maxSourceCodeSize,
+                    )
+                }
             }
         } catch (e: IllegalArgumentException) {
             log.error("Validation failed for node: fqn={}, error={}", fqn, e.message)
@@ -252,12 +318,23 @@ class NodeBuilder(
     }
 
     /**
-     * Сбросить счетчики статистики.
+     * Сбросить счетчики статистики и кэш.
      */
     fun resetStats() {
         createdCount = 0
         updatedCount = 0
         skippedCount = 0
+        existingNodesCache.clear()
+        log.debug("NodeBuilder stats and cache reset")
+    }
+    
+    /**
+     * Очистить кэш существующих нод (можно вызывать периодически для освобождения памяти).
+     */
+    fun clearCache() {
+        val size = existingNodesCache.size
+        existingNodesCache.clear()
+        log.debug("Cleared node cache: removed {} entries", size)
     }
 
     private fun toMetaMap(meta: NodeMeta): Map<String, Any> =
