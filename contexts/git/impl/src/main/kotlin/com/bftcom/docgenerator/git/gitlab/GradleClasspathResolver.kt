@@ -38,6 +38,7 @@ class GradleClasspathResolver {
                         }
                     } catch (Exception e) {
                         // Игнорируем, если конфигурации 'runtimeClasspath' нет
+                        log.debug("Failed to access runtimeClasspath configuration: {}", e.message)
                     }
                 }
             }

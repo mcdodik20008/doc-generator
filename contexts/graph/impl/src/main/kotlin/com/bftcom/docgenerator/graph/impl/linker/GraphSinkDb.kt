@@ -21,17 +21,38 @@ class GraphSinkDb(
     @Transactional
     override fun upsertEdges(edges: Sequence<EdgeProposal>) {
         var written = 0
+        var skipped = 0
+        var errors = 0
+        
         edges.forEach { e ->
             val srcId = e.source.id
             val dstId = e.target.id
             if (srcId != null && dstId != null) {
-                edgeRepository.upsert(srcId, dstId, e.kind.name)
-                written++
+                try {
+                    edgeRepository.upsert(srcId, dstId, e.kind.name)
+                    written++
+                } catch (ex: Exception) {
+                    errors++
+                    log.error(
+                        "Failed to upsert edge: sourceId={}, targetId={}, kind={}, error={}",
+                        srcId,
+                        dstId,
+                        e.kind.name,
+                        ex.message,
+                        ex,
+                    )
+                }
             } else {
-                // тихо пропускаем «сырые» ноды без id
-                // (политика полностью соответствует прежнему upsertEdge(..) в линкере)
+                skipped++
+                log.trace("Skipping edge without node id: sourceId={}, targetId={}", srcId, dstId)
             }
         }
-        log.info("GraphSinkDb: upserted $written edges")
+        
+        if (errors > 0) {
+            log.warn("GraphSinkDb: upserted={}, skipped={}, errors={}", written, skipped, errors)
+        } else {
+            log.info("GraphSinkDb: upserted={}, skipped={}", written, skipped)
+        }
     }
 }
+

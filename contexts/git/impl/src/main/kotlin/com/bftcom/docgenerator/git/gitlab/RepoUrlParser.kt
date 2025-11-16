@@ -1,8 +1,11 @@
 package com.bftcom.docgenerator.git.gitlab
 
+import org.slf4j.LoggerFactory
 import java.net.URI
 
 object RepoUrlParser {
+    private val log = LoggerFactory.getLogger(javaClass)
+    
     fun parse(repoUrl: String?): RepoInfo {
         if (repoUrl.isNullOrBlank()) return RepoInfo(null, null, null)
         return try {
@@ -20,8 +23,11 @@ object RepoUrlParser {
             val parts = uri.path.trim('/').split('/')
             val nameRaw = parts.lastOrNull()?.removeSuffix(".git")
             val owner = if (parts.size >= 2) parts[parts.size - 2] else null
-            RepoInfo(provider, owner, nameRaw)
-        } catch (_: Exception) {
+            val info = RepoInfo(provider, owner, nameRaw)
+            log.debug("Parsed repo URL: url={}, provider={}, owner={}, name={}", repoUrl, provider, owner, nameRaw)
+            info
+        } catch (e: Exception) {
+            log.warn("Failed to parse repo URL: url={}, error={}", repoUrl, e.message)
             RepoInfo(null, null, null)
         }
     }

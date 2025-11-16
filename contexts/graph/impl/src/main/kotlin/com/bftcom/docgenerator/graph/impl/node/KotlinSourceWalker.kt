@@ -113,7 +113,8 @@ class KotlinSourceWalker(
                 val relPath =
                     try {
                         root.relativize(p).toString()
-                    } catch (_: IllegalArgumentException) {
+                    } catch (e: IllegalArgumentException) {
+                        log.warn("Failed to relativize path: root={}, path={}, error={}", root, p, e.message)
                         p.toString()
                     }
                 val percent = if (totalFiles > 0) ((index + 1) * 100.0 / totalFiles).toInt() else 100

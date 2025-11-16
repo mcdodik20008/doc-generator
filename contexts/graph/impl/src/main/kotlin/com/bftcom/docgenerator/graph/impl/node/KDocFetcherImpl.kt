@@ -29,7 +29,8 @@ class KDocFetcherImpl : KDocFetcher {
         val def: KDocSection? =
             try {
                 kdoc.getDefaultSection()
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
+                log.debug("Failed to get default KDoc section for declaration: ${decl.name}, error: ${e.message}")
                 null
             }
 
