@@ -227,6 +227,80 @@ CREATE INDEX IF NOT EXISTS idx_node_doc_tsv ON doc_generator.node USING GIN (to_
 CREATE INDEX IF NOT EXISTS idx_node_meta_gin ON doc_generator.node USING GIN (meta);
 CREATE INDEX IF NOT EXISTS idx_node_created_brin ON doc_generator.node USING BRIN (created_at);
 
+--changeset arch:002_library context:prod
+--comment: Libraries (jar artifacts) and their internal nodes
+CREATE TABLE IF NOT EXISTS doc_generator.library
+(
+    id         BIGSERIAL PRIMARY KEY,
+
+    -- Идентичность артефакта
+    coordinate TEXT    NOT NULL, -- groupId:artifactId:version
+    group_id   TEXT    NOT NULL,
+    artifact_id TEXT   NOT NULL,
+    version    TEXT    NOT NULL,
+
+    kind       TEXT,             -- internal|external|system и т.п.
+
+    metadata   JSONB   NOT NULL DEFAULT '{}'::jsonb,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    CONSTRAINT ux_library_coordinate UNIQUE (coordinate)
+);
+
+COMMENT ON TABLE doc_generator.library IS
+    'Библиотечный артефакт (jar): groupId:artifactId:version.';
+
+CREATE INDEX IF NOT EXISTS idx_library_ga ON doc_generator.library (group_id, artifact_id);
+CREATE INDEX IF NOT EXISTS idx_library_metadata_gin ON doc_generator.library USING GIN (metadata);
+
+CREATE TABLE IF NOT EXISTS doc_generator.library_node
+(
+    id          BIGSERIAL PRIMARY KEY,
+    library_id  BIGINT NOT NULL REFERENCES doc_generator.library (id) ON DELETE CASCADE,
+
+    -- Идентификация внутри библиотеки
+    fqn         TEXT   NOT NULL,
+    name        TEXT,
+    package     TEXT,
+
+    kind        doc_generator.node_kind NOT NULL,
+    lang        doc_generator.lang      NOT NULL,
+
+    -- Иерархия
+    parent_id   BIGINT REFERENCES doc_generator.library_node (id) ON DELETE CASCADE,
+
+    -- Расположение внутри артефакта (условное)
+    file_path   TEXT,
+    line_start  INT,
+    line_end    INT,
+
+    source_code TEXT,
+    doc_comment TEXT,
+
+    signature   TEXT,
+
+    meta        JSONB  NOT NULL DEFAULT '{}'::jsonb,
+
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    CONSTRAINT ux_library_node_lib_fqn UNIQUE (library_id, fqn),
+    CONSTRAINT ck_library_node_lines CHECK (
+        (line_start IS NULL AND line_end IS NULL)
+            OR (line_start IS NOT NULL AND line_end IS NOT NULL AND line_start <= line_end)
+        )
+);
+
+COMMENT ON TABLE doc_generator.library_node IS
+    'Узел внутри библиотечного артефакта (jar): класс/метод/тип и т.п.';
+
+CREATE INDEX IF NOT EXISTS idx_library_node_lib_kind ON doc_generator.library_node (library_id, kind);
+CREATE INDEX IF NOT EXISTS idx_library_node_lib_pkg ON doc_generator.library_node (library_id, package);
+CREATE INDEX IF NOT EXISTS idx_library_node_fqn_trgm ON doc_generator.library_node USING GIN (fqn gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_library_node_meta_gin ON doc_generator.library_node USING GIN (meta);
+
 --changeset arch:003_edge context:prod
 --comment: Graph edges with structured evidence and LLM explanation
 CREATE TABLE IF NOT EXISTS doc_generator.edge
