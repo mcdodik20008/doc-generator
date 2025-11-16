@@ -5,7 +5,7 @@ import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.git.api.GitIngestOrchestrator
 import com.bftcom.docgenerator.git.model.GitPullSummary
 import com.bftcom.docgenerator.git.model.IngestSummary
-import com.bftcom.docgenerator.graph.api.events.GraphBuildRequestedEvent
+import com.bftcom.docgenerator.graph.api.events.LibraryBuildRequestedEvent
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
@@ -87,12 +87,11 @@ class GitLabIngestOrchestrator(
             log.info("Resolved ${classpath.size} TOTAL classpath entries for [${savedApp.key}].")
         }
 
-        // --- 5) async build graph via event ---
-        log.info("Publishing GraphBuildRequestedEvent for application id={} key={}", savedApp.id, savedApp.key)
+        // --- 5) async library build via event ---
+        log.info("Publishing LibraryBuildRequestedEvent for application id={} key={}", savedApp.id, savedApp.key)
         eventPublisher.publishEvent(
-            GraphBuildRequestedEvent(
+            LibraryBuildRequestedEvent(
                 applicationId = savedApp.id!!,
-                sourceRoot = localPath,
                 classpath = classpath,
             ),
         )
