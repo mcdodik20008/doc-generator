@@ -15,6 +15,7 @@ repositories {
 
 dependencies {
     implementation(projects.contexts.graph.contextsGraphApi)
+    implementation(projects.contexts.library.contextsLibraryApi)
     implementation(projects.kernel.domain)
     implementation(projects.kernel.db)
 

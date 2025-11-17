@@ -32,6 +32,14 @@ project(":contexts:git:impl").name = "contexts-git-impl"
 include("contexts:postprocess")
 project(":contexts:postprocess").projectDir = file("contexts/postprocess")
 
+include(":contexts:library:api")
+project(":contexts:library:api").projectDir = file("contexts/library/api")
+project(":contexts:library:api").name = "contexts-library-api"
+
+include(":contexts:library:impl")
+project(":contexts:library:impl").projectDir = file("contexts/library/impl")
+project(":contexts:library:impl").name = "contexts-library-impl"
+
 include(":kernel:domain")
 project(":kernel:domain").projectDir = file("kernel/domain")
 
