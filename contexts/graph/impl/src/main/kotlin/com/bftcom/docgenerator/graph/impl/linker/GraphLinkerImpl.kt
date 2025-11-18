@@ -44,11 +44,13 @@ class GraphLinkerImpl(
         }
         log.info("Fetched ${all.size} total nodes to link.")
 
-        val index = nodeIndexFactory.create(all)
+        // Используем мутабельный индекс, чтобы можно было добавлять новые узлы
+        val index = nodeIndexFactory.createMutable(all)
 
         fun metaOf(n: Node): NodeMeta = objectMapper.convertValue(n.meta, NodeMeta::class.java)
 
         val edges = mutableListOf<Triple<Node, Node, EdgeKind>>()
+        val newlyCreatedNodes = mutableListOf<Node>()
 
         // === STRUCTURE ===
         edges += linkContains(all, index, ::metaOf)
@@ -66,12 +68,23 @@ class GraphLinkerImpl(
                 try {
                     edges += linkCalls(node, meta, index)
                     // Создаем интеграционные Edge на основе LibraryNode
-                    edges += linkIntegrationEdges(node, meta, index)
+                    // Собираем новые узлы для обновления индекса
+                    val (integrationEdges, newNodes) = linkIntegrationEdgesWithNodes(node, meta, index, application)
+                    edges += integrationEdges
+                    newlyCreatedNodes += newNodes
                 } catch (e: Exception) {
                     callsErrors++
                     log.error("CALLS linking failed for ${node.fqn}: ${e.message}", e)
                 }
                 edges += linkThrows(node, meta, index)
+            }
+        }
+        
+        // Обновляем индекс новыми узлами
+        if (newlyCreatedNodes.isNotEmpty()) {
+            log.info("Updating index with ${newlyCreatedNodes.size} newly created nodes (ENDPOINT/TOPIC)")
+            if (index is NodeIndexFactory.MutableNodeIndex) {
+                index.addNodes(newlyCreatedNodes)
             }
         }
 
@@ -80,7 +93,7 @@ class GraphLinkerImpl(
             SimpleEdgeProposal(kind, src, dst)
         })
 
-        log.info("Finished linking. CALLS errors: $callsErrors")
+        log.info("Finished linking. CALLS errors: $callsErrors, new integration nodes: ${newlyCreatedNodes.size}")
     }
 
     // ================= helpers =================
@@ -259,6 +272,26 @@ class GraphLinkerImpl(
     
     /**
      * Создает интеграционные Edge (CALLS_HTTP, PRODUCES, CONSUMES) на основе LibraryNode.
+     * Возвращает пару: (список Edge, список новых созданных узлов).
+     */
+    private fun linkIntegrationEdgesWithNodes(
+        fn: Node,
+        meta: NodeMeta,
+        index: NodeIndex,
+        application: Application,
+    ): Pair<List<Triple<Node, Node, EdgeKind>>, List<Node>> {
+        val edges = mutableListOf<Triple<Node, Node, EdgeKind>>()
+        val newNodes = mutableListOf<Node>()
+        
+        val result = linkIntegrationEdgesInternal(fn, meta, index, application)
+        edges += result.first
+        newNodes += result.second
+        
+        return Pair(edges, newNodes)
+    }
+    
+    /**
+     * Создает интеграционные Edge (CALLS_HTTP, PRODUCES, CONSUMES) на основе LibraryNode.
      * 
      * Алгоритм:
      * 1. Анализирует rawUsages метода приложения
@@ -270,8 +303,18 @@ class GraphLinkerImpl(
         meta: NodeMeta,
         index: NodeIndex,
     ): List<Triple<Node, Node, EdgeKind>> {
+        return linkIntegrationEdgesInternal(fn, meta, index, fn.application).first
+    }
+    
+    private fun linkIntegrationEdgesInternal(
+        fn: Node,
+        meta: NodeMeta,
+        index: NodeIndex,
+        application: Application,
+    ): Pair<List<Triple<Node, Node, EdgeKind>>, List<Node>> {
         val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
-        val usages = meta.rawUsages ?: return emptyList()
+        val newNodes = mutableListOf<Node>()
+        val usages = meta.rawUsages ?: return Pair(emptyList(), emptyList())
         val imports = meta.imports ?: emptyList()
         val owner = meta.ownerFqn?.let { index.findByFqn(it) }
         val pkg = fn.packageName.orEmpty()
@@ -308,13 +351,16 @@ class GraphLinkerImpl(
                         when (point) {
                             is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.HttpEndpoint -> {
                                 // Создаем или находим узел ENDPOINT
-                                val endpointNode = getOrCreateEndpointNode(
+                                val (endpointNode, isNew) = getOrCreateEndpointNode(
                                     url = point.url ?: "unknown",
                                     httpMethod = point.httpMethod,
                                     index = index,
-                                    application = fn.application,
+                                    application = application,
                                 )
                                 if (endpointNode != null) {
+                                    if (isNew) {
+                                        newNodes.add(endpointNode)
+                                    }
                                     res += Triple(fn, endpointNode, EdgeKind.CALLS_HTTP)
                                     
                                     // Создаем дополнительные Edge для retry/timeout/circuit breaker
@@ -331,12 +377,15 @@ class GraphLinkerImpl(
                             }
                             is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.KafkaTopic -> {
                                 // Создаем или находим узел TOPIC
-                                val topicNode = getOrCreateTopicNode(
+                                val (topicNode, isNew) = getOrCreateTopicNode(
                                     topic = point.topic ?: "unknown",
                                     index = index,
-                                    application = fn.application,
+                                    application = application,
                                 )
                                 if (topicNode != null) {
+                                    if (isNew) {
+                                        newNodes.add(topicNode)
+                                    }
                                     when (point.operation) {
                                         "PRODUCE" -> res += Triple(fn, topicNode, EdgeKind.PRODUCES)
                                         "CONSUME" -> res += Triple(fn, topicNode, EdgeKind.CONSUMES)
@@ -345,13 +394,16 @@ class GraphLinkerImpl(
                             }
                             is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.CamelRoute -> {
                                 // Для Camel создаем ENDPOINT узел
-                                val endpointNode = getOrCreateEndpointNode(
+                                val (endpointNode, isNew) = getOrCreateEndpointNode(
                                     url = point.uri ?: "unknown",
                                     httpMethod = null,
                                     index = index,
-                                    application = fn.application,
+                                    application = application,
                                 )
                                 if (endpointNode != null) {
+                                    if (isNew) {
+                                        newNodes.add(endpointNode)
+                                    }
                                     // Camel может быть как HTTP, так и другими протоколами
                                     if (point.endpointType == "http" || point.uri?.startsWith("http") == true) {
                                         res += Triple(fn, endpointNode, EdgeKind.CALLS_HTTP)
@@ -365,18 +417,19 @@ class GraphLinkerImpl(
             }
         }
         
-        return res
+        return Pair(res, newNodes)
     }
     
     /**
      * Создает или находит узел ENDPOINT для указанного URL.
+     * Возвращает пару: (узел, был ли создан новый узел).
      */
     private fun getOrCreateEndpointNode(
         url: String,
         httpMethod: String?,
         index: NodeIndex,
         application: com.bftcom.docgenerator.domain.application.Application,
-    ): Node? {
+    ): Pair<Node?, Boolean> {
         // Создаем FQN для endpoint: "endpoint://{httpMethod} {url}"
         val endpointFqn = if (httpMethod != null) {
             "endpoint://$httpMethod $url"
@@ -387,7 +440,7 @@ class GraphLinkerImpl(
         // Пытаемся найти существующий узел
         val existing = index.findByFqn(endpointFqn)
         if (existing != null) {
-            return existing
+            return Pair(existing, false)
         }
         
         // Создаем новый узел ENDPOINT
@@ -417,26 +470,27 @@ class GraphLinkerImpl(
                 ),
             )
             log.debug("Created ENDPOINT node: {}", endpointFqn)
-            return endpointNode
+            return Pair(endpointNode, true)
         } catch (e: Exception) {
             log.warn("Failed to create ENDPOINT node {}: {}", endpointFqn, e.message)
-            return null
+            return Pair(null, false)
         }
     }
     
     /**
      * Создает или находит узел TOPIC для указанного Kafka topic.
+     * Возвращает пару: (узел, был ли создан новый узел).
      */
     private fun getOrCreateTopicNode(
         topic: String,
         index: NodeIndex,
         application: com.bftcom.docgenerator.domain.application.Application,
-    ): Node? {
+    ): Pair<Node?, Boolean> {
         val topicFqn = "topic://$topic"
         
         val existing = index.findByFqn(topicFqn)
         if (existing != null) {
-            return existing
+            return Pair(existing, false)
         }
         
         // Создаем новый узел TOPIC
@@ -464,10 +518,10 @@ class GraphLinkerImpl(
                 ),
             )
             log.debug("Created TOPIC node: {}", topicFqn)
-            return topicNode
+            return Pair(topicNode, true)
         } catch (e: Exception) {
             log.warn("Failed to create TOPIC node {}: {}", topicFqn, e.message)
-            return null
+            return Pair(null, false)
         }
     }
 }
