@@ -107,8 +107,7 @@ class GradleClasspathResolver {
                         classpathFiles.add(file)
                     }
                 } else {
-                    // --- МЕНЯЕМ log.debug НА log.warn ---
-                    log.warn("[Gradle RAW]: $line")
+                    log.debug("[Gradle RAW]: $line")
                 }
             }
 

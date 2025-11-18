@@ -2,7 +2,6 @@ package com.bftcom.docgenerator.library.impl
 
 import com.bftcom.docgenerator.db.LibraryNodeRepository
 import com.bftcom.docgenerator.db.LibraryRepository
-import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.library.Library
 import com.bftcom.docgenerator.domain.library.LibraryNode
@@ -18,7 +17,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.io.File
-import java.time.OffsetDateTime
 import org.springframework.context.annotation.Lazy
 import org.springframework.transaction.annotation.Propagation
 
@@ -37,6 +35,13 @@ class LibraryBuilderImpl(
     @Lazy private val self: LibraryBuilderImpl?, // важно для вызова @Transactional-метода
 ) : LibraryBuilder {
     private val log = LoggerFactory.getLogger(javaClass)
+
+    private val whiteList = listOf(
+        "com.bftcom",
+        "ru.bftcom",
+        "ru.supercode",
+        "rrbpm"
+    )
 
     data class SingleLibraryResult(
         val librariesProcessed: Int = 0,
@@ -100,6 +105,20 @@ class LibraryBuilderImpl(
             return SingleLibraryResult(
                 librariesProcessed = 0,
                 librariesSkipped = 0,
+                nodesCreated = 0,
+            )
+        }
+
+        // 1.1. Проверяем, является ли библиотека библиотекой компании
+        if (!isCompanyLibrary(coordinate)) {
+            log.debug(
+                "Skipping external library (not company): {} (groupId: {})",
+                jarFile.name,
+                coordinate.groupId,
+            )
+            return SingleLibraryResult(
+                librariesProcessed = 0,
+                librariesSkipped = 1, // Считаем как пропущенную
                 nodesCreated = 0,
             )
         }
@@ -510,11 +529,23 @@ class LibraryBuilderImpl(
         return false
     }
 
-    private fun determineLibraryKind(coordinate: LibraryCoordinate): String? {
+    /**
+     * Определяет, является ли библиотека библиотекой компании.
+     * Проверяет groupId на соответствие префиксам компании.
+     */
+    private fun isCompanyLibrary(coordinate: LibraryCoordinate): Boolean {
+        val groupId = coordinate.groupId.lowercase()
+        return whiteList.any { prefix ->
+            groupId.startsWith(prefix.lowercase())
+        }
+    }
+
+    private fun determineLibraryKind(coordinate: LibraryCoordinate): String {
         return when {
             coordinate.groupId.startsWith("org.springframework") -> "framework"
             coordinate.groupId.startsWith("com.fasterxml.jackson") -> "library"
             coordinate.groupId.startsWith("org.jetbrains.kotlin") -> "language"
+            isCompanyLibrary(coordinate) -> "company"
             else -> "external"
         }
     }
