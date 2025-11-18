@@ -37,7 +37,7 @@ class LibraryCoordinateParser {
                 }
 
                 // Пробуем извлечь из имени файла (fallback)
-                val fromFileName = extractFromFileName(jarFile.name)
+                val fromFileName = recoverFromPathAndName(jarFile)
                 if (fromFileName != null) {
                     log.trace("Extracted coordinates from filename for jar: {}", jarFile.name)
                     return fromFileName
@@ -75,23 +75,66 @@ class LibraryCoordinateParser {
         return null
     }
 
-    private fun extractFromFileName(fileName: String): LibraryCoordinate? {
-        // Пробуем извлечь из имени файла вида: artifactId-version.jar
-        // Это не очень надёжно, но лучше чем ничего
+    private fun recoverFromPathAndName(jarFile: File): LibraryCoordinate? {
+        val fileName = jarFile.name
+
+        // 1. Парсим имя файла: artifactId-version.jar
         val nameWithoutExt = fileName.removeSuffix(".jar").removeSuffix(".JAR")
-        val parts = nameWithoutExt.split("-")
-        if (parts.size >= 2) {
-            // Последняя часть может быть версией
-            val possibleVersion = parts.last()
-            if (possibleVersion.matches(Regex("""\d+\.\d+.*"""))) {
-                val artifactId = parts.dropLast(1).joinToString("-")
-                // Для groupId используем "unknown" если не можем определить
-                return LibraryCoordinate(
-                    groupId = "unknown",
-                    artifactId = artifactId,
-                    version = possibleVersion,
-                )
+
+        // Ищем версию (цифры с точками в конце)
+        // Регулярка ищет дефис, после которого идут цифры (версия)
+        // Например: my-lib-1.0.2.jar -> artifact: my-lib, version: 1.0.2
+        val versionMatch = Regex("""-(\d+(\.\d+).*)$""").find(nameWithoutExt) ?: return null
+
+        val version = versionMatch.groupValues[1] // "1.0.2"
+        val artifactId = nameWithoutExt.substring(0, versionMatch.range.first) // "my-lib"
+
+        // 2. Теперь самое интересное: пытаемся восстановить GroupId из пути
+        val groupId = tryDetectGroupIdFromPath(jarFile, artifactId, version)
+            ?: "unknown" // Если путь не стандартный, все-таки придется unknown
+
+        return LibraryCoordinate(
+            groupId = groupId,
+            artifactId = artifactId,
+            version = version
+        )
+    }
+
+    private fun tryDetectGroupIdFromPath(jarFile: File, artifactId: String, version: String): String? {
+        try {
+            // Стандартная структура Maven: .../group/id/parts/artifactId/version/file.jar
+            // Родитель файла должен быть версией
+            val versionDir = jarFile.parentFile ?: return null
+            if (versionDir.name != version) return null
+
+            // Родитель версии должен быть артефактом
+            val artifactDir = versionDir.parentFile ?: return null
+            if (artifactDir.name != artifactId) return null
+
+            // Всё, что выше artifactDir — это части groupId.
+            // Но нам нужно знать, где остановиться.
+            // Обычно останавливаются на папках типа "repository", "m2", ".gradle", "libs" или корне диска.
+
+            val groupParts = mutableListOf<String>()
+            var currentDir = artifactDir.parentFile
+
+            // Список слов-маркеров, на которых надо остановиться (корни репозиториев)
+            val stopWords = setOf("repository", "libs", ".m2", ".gradle", "caches", "maven", "m2")
+
+            while (currentDir != null && currentDir.name.isNotEmpty()) {
+                if (stopWords.contains(currentDir.name) || currentDir.name.startsWith(".")) {
+                    break
+                }
+                // Добавляем часть пути в начало списка
+                groupParts.add(0, currentDir.name)
+                currentDir = currentDir.parentFile
             }
+
+            if (groupParts.isNotEmpty()) {
+                return groupParts.joinToString(".")
+            }
+        } catch (e: Exception) {
+            // Игнорируем ошибки доступа к ФС
         }
         return null
     }
