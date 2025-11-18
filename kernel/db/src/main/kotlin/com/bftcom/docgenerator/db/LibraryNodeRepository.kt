@@ -12,14 +12,16 @@ interface LibraryNodeRepository : JpaRepository<LibraryNode, Long> {
      * Находит все методы библиотеки, которые являются родительскими клиентами.
      */
     @Query(
-        """
-        SELECT ln FROM LibraryNode ln 
-        WHERE ln.library.id = :libraryId 
-        AND ln.kind = 'METHOD'
-        AND (ln.meta->'integrationAnalysis'->>'isParentClient')::boolean = true
-        """
+        value = """
+            SELECT ln.*
+            FROM doc_generator.library_node ln
+            WHERE ln.library_id = :libraryId
+              AND ln.kind = 'METHOD'
+              AND ((ln.meta -> 'integrationAnalysis' ->> 'isParentClient')::boolean) = true
+        """,
+        nativeQuery = true
     )
-    fun findParentClientsByLibraryId(@Param("libraryId") libraryId: Long): List<LibraryNode>
+    fun findParentClientsByLibraryId(libraryId: Long): List<LibraryNode>
     
     /**
      * Находит все методы, которые используют указанный URL (через JSONB поиск).

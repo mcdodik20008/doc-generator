@@ -6,7 +6,6 @@ import com.bftcom.docgenerator.db.NodeRepository
 import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.NodeKind
-import com.bftcom.docgenerator.library.api.integration.IntegrationLinkResult
 import com.bftcom.docgenerator.library.api.integration.IntegrationPoint
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointLinker
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointService
@@ -32,7 +31,7 @@ class IntegrationPointLinkerImpl(
     private val log = LoggerFactory.getLogger(javaClass)
     
     @Transactional
-    override fun linkIntegrationPoints(application: Application): IntegrationLinkResult {
+    override fun linkIntegrationPoints(application: Application): IntegrationPointLinker.IntegrationLinkResult {
         log.info("Linking integration points for application: {}", application.key)
         
         var httpEdgesCreated = 0
@@ -68,7 +67,7 @@ class IntegrationPointLinkerImpl(
             errors.size,
         )
         
-        return IntegrationLinkResult(
+        return IntegrationPointLinker.IntegrationLinkResult(
             httpEdgesCreated = httpEdgesCreated,
             kafkaEdgesCreated = kafkaEdgesCreated,
             camelEdgesCreated = camelEdgesCreated,

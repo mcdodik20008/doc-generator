@@ -54,7 +54,8 @@ class NodeIndexFactory {
                 all.add(node)
             }
             byFqn[node.fqn] = node
-            bySimple.getOrPut(node.name ?: "") { mutableListOf() }.add(node)
+            val updated = (bySimple[node.name] ?: emptyList()) + node
+            bySimple[node.name] = updated
             if (node.kind == NodeKind.PACKAGE) {
                 packages[node.fqn] = node
             }

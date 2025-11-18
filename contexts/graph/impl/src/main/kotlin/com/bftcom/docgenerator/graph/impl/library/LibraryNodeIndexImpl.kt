@@ -3,9 +3,9 @@ package com.bftcom.docgenerator.graph.impl.library
 import com.bftcom.docgenerator.db.LibraryNodeRepository
 import com.bftcom.docgenerator.domain.library.LibraryNode
 import com.bftcom.docgenerator.graph.api.library.LibraryNodeIndex
+import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
-import javax.annotation.PostConstruct
 
 /**
  * Реализация индекса LibraryNode.

@@ -1,7 +1,6 @@
 package com.bftcom.docgenerator.api.integration
 
 import com.bftcom.docgenerator.domain.library.LibraryNode
-import com.bftcom.docgenerator.library.api.integration.IntegrationMethodSummary
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointService
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
@@ -59,7 +58,7 @@ class IntegrationPointController(
     fun getMethodSummary(
         @RequestParam methodFqn: String,
         @RequestParam libraryId: Long,
-    ): IntegrationMethodSummary? {
+    ): IntegrationPointService.IntegrationMethodSummary? {
         return integrationPointService.getMethodIntegrationSummary(methodFqn, libraryId)
     }
     

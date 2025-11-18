@@ -2,7 +2,6 @@ package com.bftcom.docgenerator.library.impl.integration
 
 import com.bftcom.docgenerator.db.LibraryNodeRepository
 import com.bftcom.docgenerator.domain.library.LibraryNode
-import com.bftcom.docgenerator.library.api.integration.IntegrationMethodSummary
 import com.bftcom.docgenerator.library.api.integration.IntegrationPoint
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointService
 import org.slf4j.LoggerFactory
@@ -109,7 +108,7 @@ class IntegrationPointServiceImpl(
     override fun getMethodIntegrationSummary(
         methodFqn: String,
         libraryId: Long,
-    ): IntegrationMethodSummary? {
+    ): IntegrationPointService.IntegrationMethodSummary? {
         val node = libraryNodeRepo.findByLibraryIdAndFqn(libraryId, methodFqn) ?: return null
         
         val points = extractIntegrationPoints(node)
@@ -123,7 +122,7 @@ class IntegrationPointServiceImpl(
         val hasTimeout = integrationMeta?.get("hasTimeout") as? Boolean ?: false
         val hasCircuitBreaker = integrationMeta?.get("hasCircuitBreaker") as? Boolean ?: false
         
-        return IntegrationMethodSummary(
+        return IntegrationPointService.IntegrationMethodSummary(
             methodFqn = methodFqn,
             isParentClient = isParentClient,
             httpEndpoints = httpEndpoints,
