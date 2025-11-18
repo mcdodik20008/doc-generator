@@ -7,9 +7,11 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
 import com.bftcom.docgenerator.domain.node.RawUsage
+import com.bftcom.docgenerator.graph.api.library.LibraryNodeIndex
 import com.bftcom.docgenerator.graph.api.linker.GraphLinker
 import com.bftcom.docgenerator.graph.api.linker.indexing.NodeIndex
 import com.bftcom.docgenerator.graph.api.linker.sink.GraphSink
+import com.bftcom.docgenerator.library.api.integration.IntegrationPointService
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Pageable
@@ -22,6 +24,8 @@ class GraphLinkerImpl(
     private val nodeIndexFactory: NodeIndexFactory,
     private val sink: GraphSink,
     private val objectMapper: ObjectMapper,
+    private val libraryNodeIndex: LibraryNodeIndex,
+    private val integrationPointService: IntegrationPointService,
 ) : GraphLinker {
 
     companion object {
@@ -61,6 +65,8 @@ class GraphLinkerImpl(
                 edges += linkSignatureDepends(node, meta, index)
                 try {
                     edges += linkCalls(node, meta, index)
+                    // Создаем интеграционные Edge на основе LibraryNode
+                    edges += linkIntegrationEdges(node, meta, index)
                 } catch (e: Exception) {
                     callsErrors++
                     log.error("CALLS linking failed for ${node.fqn}: ${e.message}", e)
@@ -250,4 +256,218 @@ class GraphLinkerImpl(
 
     private fun Node.isFunctionNode(): Boolean =
         kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
+    
+    /**
+     * Создает интеграционные Edge (CALLS_HTTP, PRODUCES, CONSUMES) на основе LibraryNode.
+     * 
+     * Алгоритм:
+     * 1. Анализирует rawUsages метода приложения
+     * 2. Для каждого вызова метода библиотеки проверяет, есть ли интеграционные точки
+     * 3. Создает соответствующие Edge и виртуальные узлы (ENDPOINT, TOPIC)
+     */
+    private fun linkIntegrationEdges(
+        fn: Node,
+        meta: NodeMeta,
+        index: NodeIndex,
+    ): List<Triple<Node, Node, EdgeKind>> {
+        val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
+        val usages = meta.rawUsages ?: return emptyList()
+        val imports = meta.imports ?: emptyList()
+        val owner = meta.ownerFqn?.let { index.findByFqn(it) }
+        val pkg = fn.packageName.orEmpty()
+        
+        usages.forEach { u ->
+            // Пытаемся найти метод в библиотеках
+            val libraryMethodFqn = when (u) {
+                is RawUsage.Simple -> {
+                    if (owner != null) {
+                        "${owner.fqn}.${u.name}"
+                    } else {
+                        // Пытаемся разрешить через imports
+                        imports.firstOrNull { it.endsWith(".${u.name}") }?.let { "$it.${u.name}" }
+                            ?: if (u.name.contains('.')) u.name else null
+                    }
+                }
+                is RawUsage.Dot -> {
+                    val recvType = if (u.receiver.firstOrNull()?.isUpperCase() == true) {
+                        index.resolveType(u.receiver, imports, pkg)?.fqn
+                    } else {
+                        owner?.fqn
+                    }
+                    recvType?.let { "$it.${u.member}" }
+                }
+            }
+            
+            if (libraryMethodFqn != null) {
+                val libraryNode = libraryNodeIndex.findByMethodFqn(libraryMethodFqn)
+                if (libraryNode != null) {
+                    // Нашли метод в библиотеке - извлекаем интеграционные точки
+                    val integrationPoints = integrationPointService.extractIntegrationPoints(libraryNode)
+                    
+                    for (point in integrationPoints) {
+                        when (point) {
+                            is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.HttpEndpoint -> {
+                                // Создаем или находим узел ENDPOINT
+                                val endpointNode = getOrCreateEndpointNode(
+                                    url = point.url ?: "unknown",
+                                    httpMethod = point.httpMethod,
+                                    index = index,
+                                    application = fn.application,
+                                )
+                                if (endpointNode != null) {
+                                    res += Triple(fn, endpointNode, EdgeKind.CALLS_HTTP)
+                                    
+                                    // Создаем дополнительные Edge для retry/timeout/circuit breaker
+                                    if (point.hasRetry) {
+                                        res += Triple(fn, endpointNode, EdgeKind.RETRIES_TO)
+                                    }
+                                    if (point.hasTimeout) {
+                                        res += Triple(fn, endpointNode, EdgeKind.TIMEOUTS_TO)
+                                    }
+                                    if (point.hasCircuitBreaker) {
+                                        res += Triple(fn, endpointNode, EdgeKind.CIRCUIT_BREAKER_TO)
+                                    }
+                                }
+                            }
+                            is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.KafkaTopic -> {
+                                // Создаем или находим узел TOPIC
+                                val topicNode = getOrCreateTopicNode(
+                                    topic = point.topic ?: "unknown",
+                                    index = index,
+                                    application = fn.application,
+                                )
+                                if (topicNode != null) {
+                                    when (point.operation) {
+                                        "PRODUCE" -> res += Triple(fn, topicNode, EdgeKind.PRODUCES)
+                                        "CONSUME" -> res += Triple(fn, topicNode, EdgeKind.CONSUMES)
+                                    }
+                                }
+                            }
+                            is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.CamelRoute -> {
+                                // Для Camel создаем ENDPOINT узел
+                                val endpointNode = getOrCreateEndpointNode(
+                                    url = point.uri ?: "unknown",
+                                    httpMethod = null,
+                                    index = index,
+                                    application = fn.application,
+                                )
+                                if (endpointNode != null) {
+                                    // Camel может быть как HTTP, так и другими протоколами
+                                    if (point.endpointType == "http" || point.uri?.startsWith("http") == true) {
+                                        res += Triple(fn, endpointNode, EdgeKind.CALLS_HTTP)
+                                    }
+                                    // TODO: можно добавить другие типы Camel endpoints
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return res
+    }
+    
+    /**
+     * Создает или находит узел ENDPOINT для указанного URL.
+     */
+    private fun getOrCreateEndpointNode(
+        url: String,
+        httpMethod: String?,
+        index: NodeIndex,
+        application: com.bftcom.docgenerator.domain.application.Application,
+    ): Node? {
+        // Создаем FQN для endpoint: "endpoint://{httpMethod} {url}"
+        val endpointFqn = if (httpMethod != null) {
+            "endpoint://$httpMethod $url"
+        } else {
+            "endpoint://$url"
+        }
+        
+        // Пытаемся найти существующий узел
+        val existing = index.findByFqn(endpointFqn)
+        if (existing != null) {
+            return existing
+        }
+        
+        // Создаем новый узел ENDPOINT
+        try {
+            val endpointName = url.substringAfterLast('/').takeIf { it.isNotBlank() } ?: url
+            val endpointNode = nodeRepo.save(
+                Node(
+                    application = application,
+                    fqn = endpointFqn,
+                    name = endpointName,
+                    packageName = null,
+                    kind = NodeKind.ENDPOINT,
+                    lang = com.bftcom.docgenerator.domain.enums.Lang.java, // виртуальный узел
+                    parent = null,
+                    filePath = null,
+                    lineStart = null,
+                    lineEnd = null,
+                    sourceCode = null,
+                    docComment = null,
+                    signature = null,
+                    codeHash = null,
+                    meta = mapOf(
+                        "url" to url,
+                        "httpMethod" to (httpMethod ?: "UNKNOWN"),
+                        "source" to "library_analysis",
+                    ),
+                ),
+            )
+            log.debug("Created ENDPOINT node: {}", endpointFqn)
+            return endpointNode
+        } catch (e: Exception) {
+            log.warn("Failed to create ENDPOINT node {}: {}", endpointFqn, e.message)
+            return null
+        }
+    }
+    
+    /**
+     * Создает или находит узел TOPIC для указанного Kafka topic.
+     */
+    private fun getOrCreateTopicNode(
+        topic: String,
+        index: NodeIndex,
+        application: com.bftcom.docgenerator.domain.application.Application,
+    ): Node? {
+        val topicFqn = "topic://$topic"
+        
+        val existing = index.findByFqn(topicFqn)
+        if (existing != null) {
+            return existing
+        }
+        
+        // Создаем новый узел TOPIC
+        try {
+            val topicNode = nodeRepo.save(
+                Node(
+                    application = application,
+                    fqn = topicFqn,
+                    name = topic,
+                    packageName = null,
+                    kind = NodeKind.TOPIC,
+                    lang = com.bftcom.docgenerator.domain.enums.Lang.java, // виртуальный узел
+                    parent = null,
+                    filePath = null,
+                    lineStart = null,
+                    lineEnd = null,
+                    sourceCode = null,
+                    docComment = null,
+                    signature = null,
+                    codeHash = null,
+                    meta = mapOf(
+                        "topic" to topic,
+                        "source" to "library_analysis",
+                    ),
+                ),
+            )
+            log.debug("Created TOPIC node: {}", topicFqn)
+            return topicNode
+        } catch (e: Exception) {
+            log.warn("Failed to create TOPIC node {}: {}", topicFqn, e.message)
+            return null
+        }
+    }
 }

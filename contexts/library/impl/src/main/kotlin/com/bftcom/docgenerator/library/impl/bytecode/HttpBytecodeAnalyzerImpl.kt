@@ -37,6 +37,22 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
     )
 
     private val restTemplateOwner = "org/springframework/web/client/RestTemplate"
+    
+    // OkHttp
+    private val okHttpClientOwner = "okhttp3/OkHttpClient"
+    private val okHttpRequestOwner = "okhttp3/Request"
+    private val okHttpRequestBuilderOwner = "okhttp3/Request\$Builder"
+    private val okHttpCallOwner = "okhttp3/Call"
+    
+    // Apache HttpClient
+    private val apacheHttpClientOwner = "org/apache/http/client/HttpClient"
+    private val apacheHttpGetOwner = "org/apache/http/client/methods/HttpGet"
+    private val apacheHttpPostOwner = "org/apache/http/client/methods/HttpPost"
+    private val apacheHttpPutOwner = "org/apache/http/client/methods/HttpPut"
+    private val apacheHttpDeleteOwner = "org/apache/http/client/methods/HttpDelete"
+    private val apacheHttpPatchOwner = "org/apache/http/client/methods/HttpPatch"
+    private val apacheHttpUriRequestOwner = "org/apache/http/client/methods/HttpUriRequest"
+    private val apacheHttpRequestBaseOwner = "org/apache/http/client/methods/HttpRequestBase"
 
     // Методы для определения HTTP-метода
     private val httpMethodNames = setOf("get", "post", "put", "delete", "patch", "head", "options")
@@ -66,6 +82,7 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
         }
 
         val calls = mutableMapOf<MethodId, MutableSet<MethodId>>()
+        val methodAccessFlags = mutableMapOf<MethodId, Int>() // Храним access flags для проверки модификаторов
         val httpCallSites = mutableListOf<HttpCallSite>()
         val kafkaCallSites = mutableListOf<KafkaCallSite>()
         val camelCallSites = mutableListOf<CamelCallSite>()
@@ -86,7 +103,7 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                 for (entry in classEntries) {
                     try {
                         jar.getInputStream(entry).use { input ->
-                            analyzeClass(input, calls, httpCallSites, kafkaCallSites, camelCallSites)
+                            analyzeClass(input, calls, methodAccessFlags, httpCallSites, kafkaCallSites, camelCallSites)
                         }
                     } catch (e: Exception) {
                         log.debug("Failed to analyze class {}: {}", entry.name, e.message)
@@ -101,7 +118,7 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
         val allCallSites = httpCallSites.map { it.methodId } + 
             kafkaCallSites.map { it.methodId } + 
             camelCallSites.map { it.methodId }
-        val parentClients = findParentClients(allCallSites.toSet(), callGraph)
+        val parentClients = findParentClients(allCallSites.toSet(), callGraph, methodAccessFlags)
         val methodSummaries = buildMethodSummaries(
             httpCallSites, 
             kafkaCallSites, 
@@ -132,18 +149,20 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
     private fun analyzeClass(
         input: InputStream,
         calls: MutableMap<MethodId, MutableSet<MethodId>>,
+        methodAccessFlags: MutableMap<MethodId, Int>,
         httpCallSites: MutableList<HttpCallSite>,
         kafkaCallSites: MutableList<KafkaCallSite>,
         camelCallSites: MutableList<CamelCallSite>,
     ) {
         val reader = ClassReader(input.readBytes())
-        val visitor = HttpAnalysisClassVisitor(calls, httpCallSites, kafkaCallSites, camelCallSites)
+        val visitor = HttpAnalysisClassVisitor(calls, methodAccessFlags, httpCallSites, kafkaCallSites, camelCallSites)
         // УБИРАЕМ SKIP_CODE - теперь анализируем код методов!
         reader.accept(visitor, ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)
     }
 
     private inner class HttpAnalysisClassVisitor(
         private val calls: MutableMap<MethodId, MutableSet<MethodId>>,
+        private val methodAccessFlags: MutableMap<MethodId, Int>,
         private val httpCallSites: MutableList<HttpCallSite>,
         private val kafkaCallSites: MutableList<KafkaCallSite>,
         private val camelCallSites: MutableList<CamelCallSite>,
@@ -173,15 +192,28 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
 
             val owner = currentOwner ?: return null
             val methodId = MethodId(owner, name, descriptor)
+            
+            // Сохраняем access flags
+            methodAccessFlags[methodId] = access
 
             return HttpAnalysisMethodVisitor(
                 methodId, 
+                access,
                 calls, 
                 httpCallSites, 
                 kafkaCallSites,
                 camelCallSites,
                 webClientOwners, 
                 restTemplateOwner,
+                okHttpClientOwner,
+                okHttpRequestOwner,
+                okHttpRequestBuilderOwner,
+                okHttpCallOwner,
+                apacheHttpGetOwner,
+                apacheHttpPostOwner,
+                apacheHttpPutOwner,
+                apacheHttpDeleteOwner,
+                apacheHttpPatchOwner,
                 kafkaProducerOwner,
                 kafkaConsumerOwner,
                 camelRouteBuilderOwner,
@@ -192,18 +224,29 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
 
     private inner class HttpAnalysisMethodVisitor(
         private val methodId: MethodId,
+        private val methodAccess: Int,
         private val calls: MutableMap<MethodId, MutableSet<MethodId>>,
         private val httpCallSites: MutableList<HttpCallSite>,
         private val kafkaCallSites: MutableList<KafkaCallSite>,
         private val camelCallSites: MutableList<CamelCallSite>,
         private val webClientOwners: Set<String>,
         private val restTemplateOwner: String,
+        private val okHttpClientOwner: String,
+        private val okHttpRequestOwner: String,
+        private val okHttpRequestBuilderOwner: String,
+        private val okHttpCallOwner: String,
+        private val apacheHttpGetOwner: String,
+        private val apacheHttpPostOwner: String,
+        private val apacheHttpPutOwner: String,
+        private val apacheHttpDeleteOwner: String,
+        private val apacheHttpPatchOwner: String,
         private val kafkaProducerOwner: String,
         private val kafkaConsumerOwner: String,
         private val camelRouteBuilderOwner: String,
         private val camelEndpointOwners: Set<String>,
     ) : MethodVisitor(Opcodes.ASM9) {
         private val callees = mutableSetOf<MethodId>()
+        private val stackInterpreter = StackInterpreter()
         private var currentUrl: String? = null
         private var currentHttpMethod: String? = null
         private var currentClientType: String? = null
@@ -231,6 +274,43 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
             val calleeId = MethodId(owner, name, descriptor)
             callees.add(calleeId)
 
+            // Обрабатываем StringBuilder операции
+            if (owner == "java/lang/StringBuilder") {
+                when (name) {
+                    "append" -> {
+                        stackInterpreter.visitStringBuilderAppend(descriptor)
+                    }
+                    "toString" -> {
+                        stackInterpreter.visitStringBuilderToString()
+                        // После toString() можем извлечь URL если это строка
+                        if (currentClientType != null && currentUrl == null) {
+                            val urlFromStack = stackInterpreter.peekString()
+                            if (urlFromStack != null && 
+                                (urlFromStack.startsWith("http://") || 
+                                 urlFromStack.startsWith("https://") || 
+                                 urlFromStack.startsWith("/"))) {
+                                currentUrl = urlFromStack
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Обрабатываем конкатенацию строк через String.concat
+            if (owner == "java/lang/String" && name == "concat") {
+                stackInterpreter.visitStringConcat()
+                // После конкатенации проверяем URL
+                if (currentClientType != null && currentUrl == null) {
+                    val urlFromStack = stackInterpreter.peekString()
+                    if (urlFromStack != null && 
+                        (urlFromStack.startsWith("http://") || 
+                         urlFromStack.startsWith("https://") || 
+                         urlFromStack.startsWith("/"))) {
+                        currentUrl = urlFromStack
+                    }
+                }
+            }
+
             // Проверяем, является ли это вызовом HTTP-клиента
             when {
                 owner in webClientOwners -> {
@@ -245,8 +325,11 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                         "retry" -> hasRetry = true
                         "timeout" -> hasTimeout = true
                         "uri" -> {
-                            // URL будет на стеке, но мы его не можем извлечь без интерпретации
-                            // Пока оставляем null
+                            // URL из стека
+                            val urlFromStack = stackInterpreter.popStringArg()
+                            if (urlFromStack != null && currentUrl == null) {
+                                currentUrl = urlFromStack
+                            }
                         }
                     }
                 }
@@ -260,6 +343,84 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                         method.startsWith("put") -> currentHttpMethod = "PUT"
                         method.startsWith("delete") -> currentHttpMethod = "DELETE"
                         method.startsWith("patch") -> currentHttpMethod = "PATCH"
+                    }
+                    // URL может быть в параметрах метода
+                    val urlFromStack = stackInterpreter.popStringArg()
+                    if (urlFromStack != null && currentUrl == null) {
+                        currentUrl = urlFromStack
+                    }
+                }
+                // OkHttp Request.Builder
+                owner == okHttpRequestBuilderOwner -> {
+                    currentClientType = "OkHttp"
+                    when (name) {
+                        "url" -> {
+                            // URL из стека
+                            val urlFromStack = stackInterpreter.popStringArg()
+                            if (urlFromStack != null) {
+                                currentUrl = urlFromStack
+                            }
+                        }
+                        "get", "post", "put", "delete", "patch", "head" -> {
+                            // HTTP-метод определяется по имени метода
+                            currentHttpMethod = name.uppercase()
+                        }
+                    }
+                }
+                // OkHttp Request
+                owner == okHttpRequestOwner && name == "newBuilder" -> {
+                    currentClientType = "OkHttp"
+                }
+                // OkHttp Call.execute() или enqueue()
+                owner == okHttpCallOwner -> {
+                    if (currentClientType == null) {
+                        currentClientType = "OkHttp"
+                    }
+                }
+                // Apache HttpClient - HttpGet
+                owner == apacheHttpGetOwner -> {
+                    currentClientType = "ApacheHttpClient"
+                    currentHttpMethod = "GET"
+                    // URL в конструкторе
+                    val urlFromStack = stackInterpreter.popStringArg()
+                    if (urlFromStack != null) {
+                        currentUrl = urlFromStack
+                    }
+                }
+                // Apache HttpClient - HttpPost
+                owner == apacheHttpPostOwner -> {
+                    currentClientType = "ApacheHttpClient"
+                    currentHttpMethod = "POST"
+                    val urlFromStack = stackInterpreter.popStringArg()
+                    if (urlFromStack != null) {
+                        currentUrl = urlFromStack
+                    }
+                }
+                // Apache HttpClient - HttpPut
+                owner == apacheHttpPutOwner -> {
+                    currentClientType = "ApacheHttpClient"
+                    currentHttpMethod = "PUT"
+                    val urlFromStack = stackInterpreter.popStringArg()
+                    if (urlFromStack != null) {
+                        currentUrl = urlFromStack
+                    }
+                }
+                // Apache HttpClient - HttpDelete
+                owner == apacheHttpDeleteOwner -> {
+                    currentClientType = "ApacheHttpClient"
+                    currentHttpMethod = "DELETE"
+                    val urlFromStack = stackInterpreter.popStringArg()
+                    if (urlFromStack != null) {
+                        currentUrl = urlFromStack
+                    }
+                }
+                // Apache HttpClient - HttpPatch
+                owner == apacheHttpPatchOwner -> {
+                    currentClientType = "ApacheHttpClient"
+                    currentHttpMethod = "PATCH"
+                    val urlFromStack = stackInterpreter.popStringArg()
+                    if (urlFromStack != null) {
+                        currentUrl = urlFromStack
                     }
                 }
                 // Kafka Producer
@@ -309,9 +470,12 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
         }
 
         override fun visitLdcInsn(cst: Any?) {
+            // Всегда добавляем в интерпретатор стека
+            stackInterpreter.visitLdc(cst)
+            
             if (cst !is String) return
             
-            // HTTP: URL
+            // HTTP: URL (используем интерпретатор стека)
             if (currentClientType != null && currentUrl == null) {
                 // Простая эвристика: если строка похожа на URL
                 if (cst.startsWith("http://") || cst.startsWith("https://") || cst.startsWith("/")) {
@@ -338,6 +502,13 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                         currentCamelEndpointType = cst.substring(0, colonIndex)
                     }
                 }
+            }
+        }
+        
+        override fun visitTypeInsn(opcode: Int, type: String) {
+            // NEW StringBuilder
+            if (opcode == Opcodes.NEW && type == "java/lang/StringBuilder") {
+                stackInterpreter.visitNewStringBuilder()
             }
         }
 
@@ -394,13 +565,14 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
     private fun findParentClients(
         callSiteMethodIds: Set<MethodId>,
         callGraph: CallGraph,
+        methodAccessFlags: Map<MethodId, Int>,
     ): Set<MethodId> {
         val parentClients = mutableSetOf<MethodId>()
         val visited = mutableSetOf<MethodId>()
 
         // Стартовые точки - все методы с интеграционными вызовами
         for (startMethod in callSiteMethodIds) {
-            findParentClientRecursive(startMethod, callGraph, visited, parentClients)
+            findParentClientRecursive(startMethod, callGraph, visited, parentClients, methodAccessFlags)
         }
 
         return parentClients.toSet()
@@ -411,12 +583,14 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
         callGraph: CallGraph,
         visited: MutableSet<MethodId>,
         parentClients: MutableSet<MethodId>,
+        methodAccessFlags: Map<MethodId, Int>,
     ) {
         if (methodId in visited) return
         visited.add(methodId)
 
         // Проверяем, является ли текущий метод родительским клиентом
-        if (isParentClientMethod(methodId)) {
+        val accessFlags = methodAccessFlags[methodId] ?: 0
+        if (isParentClientMethod(methodId, accessFlags)) {
             parentClients.add(methodId)
             // Останавливаемся здесь - это верхний уровень
             return
@@ -432,7 +606,7 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
 
         // Поднимаемся дальше
         for (caller in callers) {
-            findParentClientRecursive(caller, callGraph, visited, parentClients)
+            findParentClientRecursive(caller, callGraph, visited, parentClients, methodAccessFlags)
         }
     }
 
@@ -441,12 +615,22 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
      * Критерии:
      * - public метод
      * - не synthetic, не bridge
-     * - находится в пакете с "client" или класс заканчивается на "Client"/"Gateway"
+     * - находится в пакете с "client" или класс заканчивается на "Client"/"Gateway"/"Service"
      */
-    private fun isParentClientMethod(methodId: MethodId): Boolean {
+    private fun isParentClientMethod(methodId: MethodId, accessFlags: Int): Boolean {
         val ownerFqn = methodId.ownerFqn
         val packageName = ownerFqn.substringBeforeLast('.')
         val className = ownerFqn.substringAfterLast('.')
+
+        // Проверяем модификаторы
+        val isPublic = (accessFlags and Opcodes.ACC_PUBLIC) != 0
+        val isSynthetic = (accessFlags and Opcodes.ACC_SYNTHETIC) != 0
+        val isBridge = (accessFlags and Opcodes.ACC_BRIDGE) != 0
+        
+        // Должен быть public и не synthetic/bridge
+        if (!isPublic || isSynthetic || isBridge) {
+            return false
+        }
 
         // Проверяем пакет и имя класса
         val isClientPackage = "client" in packageName.lowercase() ||
@@ -454,7 +638,6 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
             className.endsWith("Gateway") ||
             className.endsWith("Service")
 
-        // TODO: можно добавить проверку модификаторов, если они доступны
         return isClientPackage
     }
 

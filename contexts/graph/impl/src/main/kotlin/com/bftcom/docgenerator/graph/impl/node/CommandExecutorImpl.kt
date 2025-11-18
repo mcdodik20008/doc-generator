@@ -8,6 +8,7 @@ import com.bftcom.docgenerator.graph.api.declplanner.RememberFileUnitCmd
 import com.bftcom.docgenerator.graph.api.declplanner.UpsertFieldCmd
 import com.bftcom.docgenerator.graph.api.declplanner.UpsertFunctionCmd
 import com.bftcom.docgenerator.graph.api.declplanner.UpsertTypeCmd
+import com.bftcom.docgenerator.graph.api.library.LibraryNodeEnricher
 import com.bftcom.docgenerator.graph.api.node.CommandExecutor
 import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
 import com.bftcom.docgenerator.graph.impl.apimetadata.ApiMetadataCollector
@@ -32,6 +33,7 @@ class CommandExecutorImpl(
     private val objectMapper: ObjectMapper,
     private val nodeKindRefiner: NodeKindRefiner,
     private val apiMetadataCollector: ApiMetadataCollector? = null,
+    private val libraryNodeEnricher: LibraryNodeEnricher? = null,
 ) : CommandExecutor {
     private val log = LoggerFactory.getLogger(javaClass)
     
@@ -46,7 +48,7 @@ class CommandExecutorImpl(
     private val ensurePackageHandler = EnsurePackageHandler()
     private val upsertTypeHandler = UpsertTypeHandler(nodeKindRefiner, apiMetadataCollector)
     private val upsertFieldHandler = UpsertFieldHandler(nodeKindRefiner)
-    private val upsertFunctionHandler = UpsertFunctionHandler(nodeKindRefiner, apiMetadataCollector)
+    private val upsertFunctionHandler = UpsertFunctionHandler(nodeKindRefiner, apiMetadataCollector, libraryNodeEnricher)
 
     override fun execute(cmd: DeclCmd) {
         try {

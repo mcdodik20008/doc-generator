@@ -56,6 +56,7 @@ class KotlinGraphBuilder(
                     objectMapper = objectMapper,
                     nodeKindRefiner = nodeKindRefiner,
                     apiMetadataCollector = apiMetadataCollector,
+                    libraryNodeEnricher = null, // Пока не используем при создании Node
                 )
             val visitor = KotlinToDomainVisitor(exec = exec, planners = planners)
             kotlinWalker.walk(sourceRoot, visitor, classpath)

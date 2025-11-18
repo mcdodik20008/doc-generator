@@ -5,6 +5,7 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.KDocMeta
 import com.bftcom.docgenerator.domain.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.declplanner.UpsertFunctionCmd
+import com.bftcom.docgenerator.graph.api.library.LibraryNodeEnricher
 import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
 import com.bftcom.docgenerator.graph.impl.apimetadata.ApiMetadataCollector
@@ -19,6 +20,7 @@ import com.bftcom.docgenerator.graph.impl.node.state.GraphState
 class UpsertFunctionHandler(
     private val nodeKindRefiner: NodeKindRefiner,
     private val apiMetadataCollector: ApiMetadataCollector? = null,
+    private val libraryNodeEnricher: LibraryNodeEnricher? = null,
 ) : CommandHandler<UpsertFunctionCmd> {
     override fun handle(cmd: UpsertFunctionCmd, state: GraphState, builder: NodeBuilder) {
         val r = cmd.raw
@@ -55,6 +57,24 @@ class UpsertFunctionHandler(
             ctx = ctx,
         )
         
+        val baseMeta = NodeMeta(
+            source = "function",
+            pkgFqn = pkgFqn,
+            ownerFqn = r.ownerFqn,
+            params = r.paramNames,
+            rawUsages = r.rawUsages,
+            annotations = r.annotationsRepr.toList(),
+            imports = state.getFileImports(r.filePath),
+            throwsTypes = r.throwsRepr,
+            kdoc = r.kdoc?.let { KDocMeta(summary = it) },
+            apiMetadata = ApiMetadataSerializer.serialize(apiMetadata),
+        )
+        
+        // Обогащаем метаданные информацией из библиотек
+        // Пока пропускаем обогащение - оно будет происходить позже при линковке
+        // TODO: можно добавить обогащение здесь, если нужно обогащать метаданные Node
+        val enrichedMeta = baseMeta
+        
         val node = builder.upsertNode(
             fqn = fqn,
             kind = fnKind,
@@ -67,19 +87,7 @@ class UpsertFunctionHandler(
             signature = sig,
             sourceCode = r.text,
             docComment = r.kdoc,
-            meta =
-                NodeMeta(
-                    source = "function",
-                    pkgFqn = pkgFqn,
-                    ownerFqn = r.ownerFqn,
-                    params = r.paramNames,
-                    rawUsages = r.rawUsages,
-                    annotations = r.annotationsRepr.toList(),
-                    imports = state.getFileImports(r.filePath),
-                    throwsTypes = r.throwsRepr,
-                    kdoc = r.kdoc?.let { KDocMeta(summary = it) },
-                    apiMetadata = ApiMetadataSerializer.serialize(apiMetadata),
-                ),
+            meta = enrichedMeta,
         )
         
         state.putFunction(fqn, node)
