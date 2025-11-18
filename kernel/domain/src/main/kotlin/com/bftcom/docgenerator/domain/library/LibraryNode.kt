@@ -16,7 +16,9 @@ import jakarta.persistence.PrePersist
 import jakarta.persistence.PreUpdate
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
+import org.hibernate.annotations.JdbcType
 import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.dialect.PostgreSQLEnumJdbcType
 import org.hibernate.type.SqlTypes
 import java.time.OffsetDateTime
 
@@ -53,11 +55,13 @@ class LibraryNode(
     var packageName: String? = null,
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "kind", nullable = false)
+    @JdbcType(PostgreSQLEnumJdbcType::class)
+    @Column(name = "kind", nullable = false, columnDefinition = "doc_generator.node_kind")
     var kind: NodeKind,
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "lang", nullable = false)
+    @JdbcType(PostgreSQLEnumJdbcType::class)
+    @Column(name = "lang", nullable = false, columnDefinition = "doc_generator.lang")
     var lang: Lang,
 
     // --- Иерархия ---

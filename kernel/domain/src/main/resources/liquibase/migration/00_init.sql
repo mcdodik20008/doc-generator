@@ -126,7 +126,7 @@ CREATE TABLE doc_generator.application
     CONSTRAINT ck_app_key_slug CHECK (key ~ '^[a-z0-9][a-z0-9\\-]{2,64}$'),
     CONSTRAINT ck_app_embedding_dim CHECK (embedding_dim > 0),
     CONSTRAINT ck_app_last_index_status CHECK (last_index_status IS NULL OR
-                                               last_index_status IN ('success', 'failed', 'partial', 'running')),
+                                               last_index_status IN ('success', 'failed', 'partial', 'running', 'queued')),
     CONSTRAINT ck_app_repo_provider CHECK (repo_provider IS NULL OR
                                            repo_provider IN ('github', 'gitlab', 'bitbucket', 'gitea', 'other')),
 

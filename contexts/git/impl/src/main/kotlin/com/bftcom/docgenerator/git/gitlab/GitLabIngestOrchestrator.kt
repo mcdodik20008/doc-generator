@@ -24,7 +24,6 @@ class GitLabIngestOrchestrator(
 ) : GitIngestOrchestrator {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @Transactional
     override fun runOnce(
         appKey: String,
         repoPath: String,
@@ -47,11 +46,11 @@ class GitLabIngestOrchestrator(
         val localPath = summary.localPath
         val headSha = summary.afterHead
 
-        val parsed: RepoInfo = RepoUrlParser.parse(summary.repoUrl) // <- парсим именно summary.repoUrl
+        val parsed: RepoInfo = RepoUrlParser.parse(summary.repoUrl)
         val app: Application =
             getOrCreateApp(
                 appKey = appKey,
-                repoUrl = summary.repoUrl, // <- передаём отдельным параметром
+                repoUrl = summary.repoUrl,
                 parsed = parsed,
                 branch = branch,
                 headSha = headSha,

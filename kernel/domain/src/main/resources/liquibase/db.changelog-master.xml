@@ -33,54 +33,18 @@
                 stripComments="true"/>
     </changeSet>
 
-    <changeSet id="03-add-service-maper-to-node-kind" author="kaspshitskii">
+    <changeSet id="03-recreate-enums-types" author="kaspshitskii">
         <sqlFile
-                path="migration/03_add_service_maper_to_node_kind.sql"
+                path="migration/03_recreate_enums_types.sql"
                 relativeToChangelogFile="true"
                 endDelimiter=";"
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
 
-    <changeSet id="04-add-contains-inherits-to-edge-kind" author="kaspshitskii">
+    <changeSet id="04-add-inherits-to-edge" author="kaspshitskii">
         <sqlFile
-                path="migration/04_add_contains_inherits_to_edge_kind.sql"
-                relativeToChangelogFile="true"
-                endDelimiter=";"
-                splitStatements="true"
-                stripComments="true"/>
-    </changeSet>
-
-    <changeSet id="05-add-test-to-node-kind" author="kaspshitskii">
-        <sqlFile
-                path="migration/05_add_test_to_node_kind.sql"
-                relativeToChangelogFile="true"
-                endDelimiter=";"
-                splitStatements="true"
-                stripComments="true"/>
-    </changeSet>
-
-    <changeSet id="06-add-throws-to-node-kind" author="kaspshitskii">
-        <sqlFile
-                path="migration/06_add_throws_to_node_kind.sql"
-                relativeToChangelogFile="true"
-                endDelimiter=";"
-                splitStatements="true"
-                stripComments="true"/>
-    </changeSet>
-
-    <changeSet id="07-recreate-enums-types" author="kaspshitskii">
-        <sqlFile
-                path="migration/07_recreate_enums_types.sql"
-                relativeToChangelogFile="true"
-                endDelimiter=";"
-                splitStatements="true"
-                stripComments="true"/>
-    </changeSet>
-
-    <changeSet id="08-add-inherits-to-edge" author="kaspshitskii">
-        <sqlFile
-                path="migration/08_add_inherits_to_edge.sql"
+                path="migration/04_add_inherits_to_edge.sql"
                 relativeToChangelogFile="true"
                 endDelimiter=";"
                 splitStatements="true"

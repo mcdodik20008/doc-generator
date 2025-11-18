@@ -36,17 +36,59 @@ class BytecodeParserImpl : BytecodeParser {
 
         try {
             JarFile(jarFile).use { jar ->
-                val entries = jar.entries()
-                while (entries.hasMoreElements()) {
-                    val entry = entries.nextElement()
-                    if (entry.name.endsWith(".class") && !entry.isDirectory) {
-                        try {
-                            jar.getInputStream(entry).use { input ->
-                                parseClass(input, entry.name, nodes)
-                            }
-                        } catch (e: Exception) {
-                            log.debug("Failed to parse class {}: {}", entry.name, e.message)
+                // 1. Собираем все .class-entries, чтобы знать общее количество
+                val classEntries = mutableListOf<ZipEntry>()
+                val entriesEnum = jar.entries()
+                while (entriesEnum.hasMoreElements()) {
+                    val entry = entriesEnum.nextElement()
+                    if (!entry.isDirectory && entry.name.endsWith(".class")) {
+                        classEntries += entry
+                    }
+                }
+
+                val totalClasses = classEntries.size
+                if (totalClasses == 0) {
+                    log.debug("Jar {} has no .class entries, skipping", jarFile.name)
+                    return emptyList()
+                }
+
+                log.info(
+                    "Start parsing jar {} ({} class files)",
+                    jarFile.name,
+                    totalClasses,
+                )
+
+                var processedClasses = 0
+                var lastLoggedProgress = -1
+
+                // 2. Парсим классы и логируем прогресс
+                for (entry in classEntries) {
+                    try {
+                        jar.getInputStream(entry).use { input ->
+                            parseClass(input, entry.name, nodes)
                         }
+                    } catch (e: Exception) {
+                        log.debug(
+                            "Failed to parse class {} in jar {}: {}",
+                            entry.name,
+                            jarFile.name,
+                            e.message,
+                        )
+                    }
+
+                    processedClasses++
+
+                    val progress = (processedClasses * 100) / totalClasses
+                    // Логируем, только когда пересекаем новый порог 10%, чтобы не спамить
+                    if (progress % 10 == 0 && progress != lastLoggedProgress) {
+                        log.info(
+                            "Parsing jar {}: {}% ({}/{})",
+                            jarFile.name,
+                            progress,
+                            processedClasses,
+                            totalClasses,
+                        )
+                        lastLoggedProgress = progress
                     }
                 }
             }
@@ -72,11 +114,16 @@ class BytecodeParserImpl : BytecodeParser {
         private val filePath: String,
         private val nodes: MutableList<RawLibraryNode>,
     ) : ClassVisitor(Opcodes.ASM9) {
-        private var className: String? = null
+        private var internalName: String? = null          // org/example/MyClass (с /)
+        private var classFqn: String? = null              // org.example.MyClass
         private var packageName: String? = null
+        private var simpleName: String? = null
         private var classModifiers: Set<String> = emptySet()
         private var classAnnotations: List<String> = emptyList()
-        private var outerClass: String? = null
+        private var outerClassFqn: String? = null
+        private var superClassFqn: String? = null
+        private var interfaceFqns: List<String> = emptyList()
+        private var classSignature: String? = null
 
         override fun visit(
             version: Int,
@@ -86,14 +133,22 @@ class BytecodeParserImpl : BytecodeParser {
             superName: String?,
             interfaces: Array<out String>?,
         ) {
-            className = name.replace('/', '.')
-            packageName = className?.substringBeforeLast('.')
+            internalName = name
+            classFqn = name.replace('/', '.')
+            simpleName = classFqn!!.substringAfterLast('.')
+            packageName = classFqn!!.substringBeforeLast('.')
+
             classModifiers = extractModifiers(access)
-            outerClass = null
+            classAnnotations = emptyList()
+            classSignature = signature
+
+            superClassFqn = superName?.replace('/', '.')
+            interfaceFqns = interfaces?.map { it.replace('/', '.') } ?: emptyList()
+            outerClassFqn = null
         }
 
         override fun visitOuterClass(owner: String?, name: String?, desc: String?) {
-            outerClass = owner?.replace('/', '.')
+            outerClassFqn = owner?.replace('/', '.')
         }
 
         override fun visitAnnotation(descriptor: String, visible: Boolean): AnnotationVisitor? {
@@ -103,9 +158,21 @@ class BytecodeParserImpl : BytecodeParser {
         }
 
         override fun visitEnd() {
-            val fqn = className ?: return
-            val name = fqn.substringAfterLast('.')
+            val fqn = classFqn ?: return
+            val name = simpleName ?: fqn.substringAfterLast('.')
             val kind = determineClassKind(classModifiers)
+
+            val meta = mutableMapOf<String, Any>()
+
+            classSignature?.let { meta["signature"] = it }
+            superClassFqn?.let { meta["superClass"] = it }
+            if (interfaceFqns.isNotEmpty()) {
+                meta["interfaces"] = interfaceFqns
+            }
+
+            if (isCoroutineStateMachineClass(internalName ?: fqn, classModifiers)) {
+                meta["synthetic_coroutine_class"] = true
+            }
 
             nodes.add(
                 RawLibraryNode(
@@ -113,16 +180,17 @@ class BytecodeParserImpl : BytecodeParser {
                     name = name,
                     packageName = packageName,
                     kind = kind,
-                    lang = Lang.java, // TODO: можно определить по kotlin-metadata
+                    lang = Lang.java, // байткод; язык исходника можно вычислять отдельно
                     filePath = filePath,
                     signature = null,
                     annotations = classAnnotations,
                     modifiers = classModifiers,
-                    parentFqn = outerClass,
-                    meta = emptyMap(),
+                    parentFqn = outerClassFqn,
+                    meta = meta,
                 ),
             )
         }
+        // --- FIELD ---
 
         override fun visitField(
             access: Int,
@@ -131,9 +199,22 @@ class BytecodeParserImpl : BytecodeParser {
             signature: String?,
             value: Any?,
         ): FieldVisitor? {
-            val fieldFqn = "${className}.$name"
+            val ownerFqn = classFqn ?: return null
+            val fieldFqn = "$ownerFqn.$name"
             val fieldType = Type.getType(descriptor).className
             val modifiers = extractModifiers(access)
+
+            val meta = mutableMapOf<String, Any>(
+                "descriptor" to descriptor,
+                "type" to fieldType,
+            )
+
+            signature?.let { meta["signature"] = it }
+            value?.let { meta["initialValue"] = it }
+
+            if (access and Opcodes.ACC_SYNTHETIC != 0) {
+                meta["synthetic"] = true
+            }
 
             nodes.add(
                 RawLibraryNode(
@@ -144,14 +225,18 @@ class BytecodeParserImpl : BytecodeParser {
                     lang = Lang.java,
                     filePath = filePath,
                     signature = fieldType,
-                    annotations = emptyList(), // TODO: можно добавить парсинг аннотаций полей
+                    annotations = emptyList(), // при необходимости можно дописать парсинг аннотаций
                     modifiers = modifiers,
-                    parentFqn = className,
-                    meta = emptyMap(),
+                    parentFqn = ownerFqn,
+                    meta = meta,
                 ),
             )
+
+            // Код нам не нужен, аннотации полей пока игнорируем
             return null
         }
+
+        // --- METHOD ---
 
         override fun visitMethod(
             access: Int,
@@ -160,30 +245,61 @@ class BytecodeParserImpl : BytecodeParser {
             signature: String?,
             exceptions: Array<out String>?,
         ): MethodVisitor? {
-            // Пропускаем синтетические методы и конструкторы (если нужно)
+            // Статические инициализаторы неинтересны
             if (name == "<clinit>") return null
 
-            val methodFqn = "${className}.$name"
+            val ownerFqn = classFqn ?: return null
+            val methodFqn = "$ownerFqn.$name"
             val methodSignature = buildMethodSignature(name, descriptor)
             val modifiers = extractModifiers(access)
+
+            val isSuspend = isSuspendMethod(descriptor)
+            val isSyntheticHelper = isSyntheticCoroutineHelper(name, access)
+
+            val meta = mutableMapOf<String, Any>(
+                "descriptor" to descriptor,
+            )
+
+            signature?.let { meta["signature"] = it }
+
+            if (exceptions != null && exceptions.isNotEmpty()) {
+                meta["exceptions"] = exceptions.map { it.replace('/', '.') }
+            }
+
+            if (isSuspend) {
+                meta["kotlin_suspend"] = true
+            }
+            if (isSyntheticHelper) {
+                meta["synthetic_coroutine_helper"] = true
+            }
+            if (access and Opcodes.ACC_BRIDGE != 0) {
+                meta["bridge"] = true
+            }
+            if (access and Opcodes.ACC_SYNTHETIC != 0) {
+                meta["synthetic"] = true
+            }
 
             nodes.add(
                 RawLibraryNode(
                     fqn = methodFqn,
                     name = name,
                     packageName = packageName,
-                    kind = if (name == "<init>") NodeKind.METHOD else NodeKind.METHOD,
+                    kind = NodeKind.METHOD,
                     lang = Lang.java,
                     filePath = filePath,
                     signature = methodSignature,
-                    annotations = emptyList(), // TODO: можно добавить парсинг аннотаций методов
+                    annotations = emptyList(), // можно позже дописать парсинг аннотаций методов
                     modifiers = modifiers,
-                    parentFqn = className,
-                    meta = emptyMap(),
+                    parentFqn = ownerFqn,
+                    meta = meta,
                 ),
             )
+
+            // Тело метода нам не нужно (SKIP_CODE), аннотации пока не собираем
             return null
         }
+
+        // --- Вспомогательные методы ---
 
         private fun extractModifiers(access: Int): Set<String> {
             val modifiers = mutableSetOf<String>()
@@ -200,8 +316,8 @@ class BytecodeParserImpl : BytecodeParser {
 
         private fun determineClassKind(modifiers: Set<String>): NodeKind {
             return when {
-                modifiers.contains("enum") -> NodeKind.ENUM
-                modifiers.contains("interface") -> NodeKind.INTERFACE
+                "enum" in modifiers -> NodeKind.ENUM
+                "interface" in modifiers -> NodeKind.INTERFACE
                 else -> NodeKind.CLASS
             }
         }
@@ -212,6 +328,34 @@ class BytecodeParserImpl : BytecodeParser {
             val returnType = methodType.returnType.className
             return "$name($params): $returnType"
         }
+
+        private fun isSuspendMethod(descriptor: String): Boolean {
+            val methodType = Type.getMethodType(descriptor)
+            val argTypes = methodType.argumentTypes
+            if (argTypes.isEmpty()) return false
+
+            val lastArg = argTypes.last().className
+            val returnType = methodType.returnType.className
+
+            return lastArg == "kotlin.coroutines.Continuation" &&
+                    returnType == "java.lang.Object"
+        }
+
+        private fun isSyntheticCoroutineHelper(name: String, access: Int): Boolean {
+            if (access and Opcodes.ACC_SYNTHETIC != 0) return true
+            if ("\$default" in name) return true
+            if ("\$SuspendLambda" in name) return true
+            return false
+        }
+
+        private fun isCoroutineStateMachineClass(internalName: String, modifiers: Set<String>): Boolean {
+            // Грубые, но полезные эвристики для корутинных генераций Kotlin
+            if ("interface" in modifiers) return false
+            if ("\$SuspendLambda" in internalName) return true
+            if ("\$Continuation" in internalName) return true
+            if ("\$WhenMappings" in internalName) return true
+            if ("\$DefaultImpls" in internalName) return true
+            return false
+        }
     }
 }
-

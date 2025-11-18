@@ -10,6 +10,7 @@ import com.bftcom.docgenerator.library.api.BytecodeParser
 import com.bftcom.docgenerator.library.api.LibraryBuilder
 import com.bftcom.docgenerator.library.api.LibraryBuildResult
 import com.bftcom.docgenerator.library.api.LibraryCoordinate
+import com.bftcom.docgenerator.library.api.RawLibraryNode
 import com.bftcom.docgenerator.library.impl.coordinate.LibraryCoordinateParser
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.io.File
 import java.time.OffsetDateTime
+import org.springframework.context.annotation.Lazy
+import org.springframework.transaction.annotation.Propagation
 
 /**
  * Реализация построителя графа библиотек.
@@ -29,10 +32,16 @@ class LibraryBuilderImpl(
     private val libraryRepo: LibraryRepository,
     private val libraryNodeRepo: LibraryNodeRepository,
     private val objectMapper: ObjectMapper,
+    @Lazy private val self: LibraryBuilderImpl?, // важно для вызова @Transactional-метода
 ) : LibraryBuilder {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @Transactional
+    data class SingleLibraryResult(
+        val librariesProcessed: Int = 0,
+        val librariesSkipped: Int = 0,
+        val nodesCreated: Int = 0,
+    )
+
     override fun buildLibraries(classpath: List<File>): LibraryBuildResult {
         log.info("Starting library build for {} classpath entries", classpath.size)
 
@@ -41,56 +50,16 @@ class LibraryBuilderImpl(
         var nodesCreated = 0
         val errors = mutableListOf<String>()
 
-        // Фильтруем только jar-файлы
         val jarFiles = classpath.filter { it.name.endsWith(".jar", ignoreCase = true) }
         log.debug("Found {} jar files in classpath", jarFiles.size)
 
         for (jarFile in jarFiles) {
             try {
-                // 1. Извлекаем координаты
-                val coordinate = coordinateParser.parseCoordinate(jarFile)
-                if (coordinate == null) {
-                    log.debug("Skipping jar without coordinates: {}", jarFile.name)
-                    continue
-                }
+                val result = self?.processSingleLibrary(jarFile) ?: SingleLibraryResult()
 
-                // 2. Проверяем, существует ли библиотека
-                val existingLibrary = libraryRepo.findByCoordinate(coordinate.coordinate)
-                val library = existingLibrary ?: run {
-                    librariesProcessed++
-                    Library(
-                        coordinate = coordinate.coordinate,
-                        groupId = coordinate.groupId,
-                        artifactId = coordinate.artifactId,
-                        version = coordinate.version,
-                        kind = determineLibraryKind(coordinate),
-                        metadata = emptyMap(),
-                    ).also {
-                        libraryRepo.save(it)
-                        log.debug("Created library: {}", coordinate.coordinate)
-                    }
-                }
-
-                if (existingLibrary != null) {
-                    librariesSkipped++
-                    log.debug("Library already exists, skipping: {}", coordinate.coordinate)
-                    // Можно проверить, нужно ли обновить ноды (если версия изменилась)
-                    continue
-                }
-
-                // 3. Парсим байткод
-                val rawNodes = bytecodeParser.parseJar(jarFile)
-                log.debug("Parsed {} raw nodes from jar: {}", rawNodes.size, jarFile.name)
-
-                // 4. Сохраняем LibraryNode
-                val savedNodes = saveLibraryNodes(library, rawNodes)
-                nodesCreated += savedNodes
-
-                log.info(
-                    "Processed library: {} ({} nodes)",
-                    coordinate.coordinate,
-                    savedNodes,
-                )
+                librariesProcessed += result.librariesProcessed
+                librariesSkipped += result.librariesSkipped
+                nodesCreated += result.nodesCreated
             } catch (e: Exception) {
                 val errorMsg = "Failed to process jar ${jarFile.name}: ${e.message}"
                 log.error(errorMsg, e)
@@ -116,20 +85,104 @@ class LibraryBuilderImpl(
         return result
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    fun processSingleLibrary(jarFile: File): SingleLibraryResult {
+        var librariesProcessed = 0
+        var librariesSkipped = 0
+        var nodesCreated = 0
+
+        // 1. Извлекаем координаты
+        val coordinate = coordinateParser.parseCoordinate(jarFile)
+        if (coordinate == null) {
+            log.debug("Skipping jar without coordinates: {}", jarFile.name)
+            return SingleLibraryResult(
+                librariesProcessed = 0,
+                librariesSkipped = 0,
+                nodesCreated = 0,
+            )
+        }
+
+        // 2. Проверяем, существует ли библиотека
+        val existingLibrary = libraryRepo.findByCoordinate(coordinate.coordinate)
+        val library = existingLibrary ?: run {
+            librariesProcessed++
+            Library(
+                coordinate = coordinate.coordinate,
+                groupId = coordinate.groupId,
+                artifactId = coordinate.artifactId,
+                version = coordinate.version,
+                kind = determineLibraryKind(coordinate),
+                metadata = emptyMap(),
+            ).also {
+                libraryRepo.save(it)
+                log.debug("Created library: {}", coordinate.coordinate)
+            }
+        }
+
+        if (existingLibrary != null) {
+            librariesSkipped++
+            log.debug("Library already exists, skipping: {}", coordinate.coordinate)
+            // Можно добавить логику обновления нод при изменении версии, если понадобится
+            return SingleLibraryResult(
+                librariesProcessed = librariesProcessed,
+                librariesSkipped = librariesSkipped,
+                nodesCreated = nodesCreated,
+            )
+        }
+
+        // 3. Парсим байткод
+        val rawNodes = bytecodeParser.parseJar(jarFile)
+        log.debug("Parsed {} raw nodes from jar: {}", rawNodes.size, jarFile.name)
+
+        // 4. Сохраняем LibraryNode
+        val savedNodes = saveLibraryNodes(library, rawNodes)
+        nodesCreated += savedNodes
+
+        log.info(
+            "Processed library: {} ({} nodes)",
+            coordinate.coordinate,
+            savedNodes,
+        )
+
+        return SingleLibraryResult(
+            librariesProcessed = librariesProcessed,
+            librariesSkipped = librariesSkipped,
+            nodesCreated = nodesCreated,
+        )
+    }
+
     private fun saveLibraryNodes(
         library: Library,
-        rawNodes: List<com.bftcom.docgenerator.library.api.RawLibraryNode>,
+        rawNodes: List<RawLibraryNode>,
     ): Int {
+        val startedNs = System.nanoTime()
+
         var saved = 0
         val parentMap = mutableMapOf<String, LibraryNode>()
 
-        // Сначала создаём классы (чтобы потом можно было ссылаться на них как на parent)
+        var tFindExisting = 0L
+        var tSave = 0L
+        var tCreate = 0L
+
+        fun now() = System.nanoTime()
+
+        // Сначала классы
         val classNodes = rawNodes.filter { it.kind in setOf(NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM) }
         for (raw in classNodes) {
+
+            val t0 = now()
             val existing = libraryNodeRepo.findByLibraryIdAndFqn(library.id!!, raw.fqn)
+            tFindExisting += now() - t0
+
             if (existing == null) {
+                val t1 = now()
                 val node = createLibraryNode(library, raw, null)
+                tCreate += now() - t1
+
+                val t2 = now()
                 val savedNode = libraryNodeRepo.save(node)
+                tSave += now() - t2
+
                 parentMap[raw.fqn] = savedNode
                 saved++
             } else {
@@ -137,24 +190,52 @@ class LibraryBuilderImpl(
             }
         }
 
-        // Затем создаём методы и поля
+        // Методы и поля
         val memberNodes = rawNodes.filter { it.kind in setOf(NodeKind.METHOD, NodeKind.FIELD) }
         for (raw in memberNodes) {
+
+            val t0 = now()
             val existing = libraryNodeRepo.findByLibraryIdAndFqn(library.id!!, raw.fqn)
+            tFindExisting += now() - t0
+
             if (existing == null) {
                 val parent = raw.parentFqn?.let { parentMap[it] }
+
+                val t1 = now()
                 val node = createLibraryNode(library, raw, parent)
+                tCreate += now() - t1
+
+                val t2 = now()
                 libraryNodeRepo.save(node)
+                tSave += now() - t2
+
                 saved++
             }
         }
+
+        // Финальный лог
+        val totalMs = (System.nanoTime() - startedNs) / 1_000_000
+        val findMs = tFindExisting / 1_000_000
+        val saveMs = tSave / 1_000_000
+        val createMs = tCreate / 1_000_000
+
+        val pctFind = findMs * 100.0 / totalMs
+        val pctSave = saveMs * 100.0 / totalMs
+        val pctCreate = createMs * 100.0 / totalMs
+
+        log.info(
+            "saveLibraryNodes: total=${totalMs}ms, saved=$saved | " +
+                    "find=${findMs}ms (${String.format("%.1f", pctFind)}%), " +
+                    "create=${createMs}ms (${String.format("%.1f", pctCreate)}%), " +
+                    "save=${saveMs}ms (${String.format("%.1f", pctSave)}%)"
+        )
 
         return saved
     }
 
     private fun createLibraryNode(
         library: Library,
-        raw: com.bftcom.docgenerator.library.api.RawLibraryNode,
+        raw: RawLibraryNode,
         parent: LibraryNode?,
     ): LibraryNode {
         val metaMap = mapOf(
