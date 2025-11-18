@@ -177,9 +177,34 @@ class LibraryBuilderImpl(
 
         fun now() = System.nanoTime()
 
+        // Создаем мапу методов с интеграционными вызовами для быстрой проверки
+        val integrationMethods = analysisResult?.methodSummaries?.keys?.map { methodId ->
+            "${methodId.ownerFqn.replace('/', '.')}.${methodId.name}"
+        }?.toSet() ?: emptySet()
+
+        // Фильтруем узлы, оставляем только значимые для интеграции
+        val allClassNodes = rawNodes.filter { it.kind in setOf(NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM) }
+        val relevantClassNodes = allClassNodes.filter { raw ->
+            isIntegrationRelevantClass(raw)
+        }
+        
+        // Создаем множество FQN релевантных классов для быстрой проверки родительских классов
+        val relevantClassFqns = relevantClassNodes.map { it.fqn }.toSet()
+        
+        val allMemberNodes = rawNodes.filter { it.kind in setOf(NodeKind.METHOD, NodeKind.FIELD) }
+        val relevantMemberNodes = allMemberNodes.filter { raw ->
+            isIntegrationRelevantMember(raw, relevantClassFqns, integrationMethods, analysisResult)
+        }
+
+        log.info(
+            "Filtering library nodes: total classes={}, relevant classes={}, " +
+                    "total members={}, relevant members={}",
+            allClassNodes.size, relevantClassNodes.size,
+            allMemberNodes.size, relevantMemberNodes.size
+        )
+
         // Сначала классы
-        val classNodes = rawNodes.filter { it.kind in setOf(NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM) }
-        for (raw in classNodes) {
+        for (raw in relevantClassNodes) {
 
             val t0 = now()
             val existing = libraryNodeRepo.findByLibraryIdAndFqn(library.id!!, raw.fqn)
@@ -202,8 +227,7 @@ class LibraryBuilderImpl(
         }
 
         // Методы и поля
-        val memberNodes = rawNodes.filter { it.kind in setOf(NodeKind.METHOD, NodeKind.FIELD) }
-        for (raw in memberNodes) {
+        for (raw in relevantMemberNodes) {
 
             val t0 = now()
             val existing = libraryNodeRepo.findByLibraryIdAndFqn(library.id!!, raw.fqn)
@@ -359,6 +383,131 @@ class LibraryBuilderImpl(
         }
 
         return null
+    }
+
+    /**
+     * Определяет, является ли класс значимым для интеграции между приложениями.
+     */
+    private fun isIntegrationRelevantClass(raw: RawLibraryNode): Boolean {
+        // Только публичные классы/интерфейсы/енумы
+        if ("public" !in raw.modifiers) {
+            return false
+        }
+
+        // Классы с интеграционными аннотациями
+        val hasIntegrationAnnotation = raw.annotations.any { ann ->
+            ann.contains("RestController", ignoreCase = true) ||
+            ann.contains("Controller", ignoreCase = true) ||
+            ann.contains("FeignClient", ignoreCase = true) ||
+            ann.contains("KafkaListener", ignoreCase = true) ||
+            ann.contains("RabbitListener", ignoreCase = true) ||
+            ann.contains("Service", ignoreCase = true) ||
+            ann.contains("Component", ignoreCase = true) ||
+            ann.contains("WebClient", ignoreCase = true)
+        }
+        if (hasIntegrationAnnotation) {
+            return true
+        }
+
+        // HTTP клиенты
+        val fqn = raw.fqn.lowercase()
+        if (fqn.contains("webclient") ||
+            fqn.contains("resttemplate") ||
+            fqn.contains("okhttp") ||
+            fqn.contains("httpclient") ||
+            fqn.contains("feign") ||
+            fqn.contains("restclient")) {
+            return true
+        }
+
+        // Kafka клиенты
+        if (fqn.contains("kafkaproducer") ||
+            fqn.contains("kafkaconsumer") ||
+            fqn.contains("kafka")) {
+            return true
+        }
+
+        // Camel
+        if (fqn.contains("routebuilder") ||
+            fqn.contains("camel")) {
+            return true
+        }
+
+        // Интерфейсы - могут быть контрактами интеграции
+        if (raw.kind == NodeKind.INTERFACE) {
+            return true
+        }
+
+        return false
+    }
+
+    /**
+     * Определяет, является ли метод/поле значимым для интеграции.
+     */
+    private fun isIntegrationRelevantMember(
+        raw: RawLibraryNode,
+        relevantClassFqns: Set<String>,
+        integrationMethods: Set<String>,
+        analysisResult: com.bftcom.docgenerator.library.api.bytecode.BytecodeAnalysisResult?,
+    ): Boolean {
+        // Для методов
+        if (raw.kind == NodeKind.METHOD) {
+            // Публичные методы
+            if ("public" !in raw.modifiers) {
+                return false
+            }
+
+            // Методы с интеграционными аннотациями
+            val hasIntegrationAnnotation = raw.annotations.any { ann ->
+                ann.contains("GetMapping", ignoreCase = true) ||
+                ann.contains("PostMapping", ignoreCase = true) ||
+                ann.contains("PutMapping", ignoreCase = true) ||
+                ann.contains("DeleteMapping", ignoreCase = true) ||
+                ann.contains("PatchMapping", ignoreCase = true) ||
+                ann.contains("RequestMapping", ignoreCase = true) ||
+                ann.contains("KafkaListener", ignoreCase = true) ||
+                ann.contains("RabbitListener", ignoreCase = true) ||
+                ann.contains("Scheduled", ignoreCase = true) ||
+                ann.contains("EventListener", ignoreCase = true)
+            }
+            if (hasIntegrationAnnotation) {
+                return true
+            }
+
+            // Методы с интеграционными вызовами (HTTP/Kafka/Camel)
+            if (raw.fqn in integrationMethods) {
+                return true
+            }
+
+            // Публичные методы интеграционных классов
+            val parentFqn = raw.parentFqn
+            if (parentFqn != null && parentFqn in relevantClassFqns) {
+                // Если родительский класс является интеграционным, сохраняем публичные методы
+                return true
+            }
+        }
+
+        // Для полей
+        if (raw.kind == NodeKind.FIELD) {
+            // Публичные поля интеграционных классов
+            if ("public" in raw.modifiers) {
+                val parentFqn = raw.parentFqn
+                if (parentFqn != null && parentFqn in relevantClassFqns) {
+                    // Сохраняем публичные поля интеграционных классов
+                    return true
+                }
+            }
+
+            // Статические константы интеграционных классов
+            if ("static" in raw.modifiers && "final" in raw.modifiers) {
+                val parentFqn = raw.parentFqn
+                if (parentFqn != null && parentFqn in relevantClassFqns) {
+                    return true
+                }
+            }
+        }
+
+        return false
     }
 
     private fun determineLibraryKind(coordinate: LibraryCoordinate): String? {
