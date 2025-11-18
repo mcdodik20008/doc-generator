@@ -16,14 +16,18 @@ import com.bftcom.docgenerator.graph.impl.node.state.GraphState
 class UpsertFieldHandler(
     private val nodeKindRefiner: NodeKindRefiner,
 ) : CommandHandler<UpsertFieldCmd> {
-    override fun handle(cmd: UpsertFieldCmd, state: GraphState, builder: NodeBuilder) {
+    override fun handle(
+        cmd: UpsertFieldCmd,
+        state: GraphState,
+        builder: NodeBuilder,
+    ) {
         val r = cmd.raw
         val pkg = r.pkgFqn ?: state.getFilePackage(r.filePath)
         val parent = r.ownerFqn?.let { state.getType(it) } ?: pkg?.let { state.getPackage(it) }
         val fieldKind = nodeKindRefiner.forField(NodeKind.FIELD, r, state.getFileUnit(r.filePath))
-        
+
         val fqn = FqnBuilder.buildFieldFqn(r.ownerFqn, r.name)
-        
+
         builder.upsertNode(
             fqn = fqn,
             kind = fieldKind,
@@ -47,4 +51,3 @@ class UpsertFieldHandler(
         )
     }
 }
-

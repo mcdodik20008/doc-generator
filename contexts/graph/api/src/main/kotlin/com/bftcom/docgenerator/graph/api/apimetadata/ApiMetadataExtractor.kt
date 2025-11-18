@@ -39,4 +39,3 @@ interface ApiMetadataExtractor {
         ctx: NodeKindContext,
     ): ApiMetadata? = null
 }
-

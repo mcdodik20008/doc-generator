@@ -15,4 +15,3 @@ interface HttpBytecodeAnalyzer {
      */
     fun analyzeJar(jarFile: File): BytecodeAnalysisResult
 }
-

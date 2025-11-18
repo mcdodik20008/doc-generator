@@ -13,7 +13,7 @@ class ChunkWriterImpl(
     private val chunkRepo: ChunkRepository,
 ) : ChunkWriter {
     private val log = LoggerFactory.getLogger(javaClass)
-    
+
     override fun savePlan(plans: List<ChunkPlan>): ChunkWriter.SaveResult {
         log.debug("Saving chunk plans: count={}", plans.size)
         var written = 0L

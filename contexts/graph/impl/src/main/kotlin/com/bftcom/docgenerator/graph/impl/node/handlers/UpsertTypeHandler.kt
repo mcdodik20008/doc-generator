@@ -19,7 +19,11 @@ class UpsertTypeHandler(
     private val nodeKindRefiner: NodeKindRefiner,
     private val apiMetadataCollector: ApiMetadataCollector? = null,
 ) : CommandHandler<UpsertTypeCmd> {
-    override fun handle(cmd: UpsertTypeCmd, state: GraphState, builder: NodeBuilder) {
+    override fun handle(
+        cmd: UpsertTypeCmd,
+        state: GraphState,
+        builder: NodeBuilder,
+    ) {
         val r = cmd.raw
         val pkgFqn = r.pkgFqn ?: state.getFilePackage(r.filePath).orEmpty()
         val fqn = FqnBuilder.buildTypeFqn(pkgFqn.ifBlank { null }, r.simpleName)
@@ -51,39 +55,40 @@ class UpsertTypeHandler(
         val kind = nodeKindRefiner.forType(cmd.baseKind, r, state.getFileUnit(r.filePath))
 
         // Извлекаем метаданные API для типа (например, basePath из @RequestMapping)
-        val ctx = NodeKindContext(
-            lang = Lang.kotlin,
-            file = state.getFileUnit(r.filePath),
-            imports = state.getFileImports(r.filePath),
-        )
+        val ctx =
+            NodeKindContext(
+                lang = Lang.kotlin,
+                file = state.getFileUnit(r.filePath),
+                imports = state.getFileImports(r.filePath),
+            )
         val apiMetadata = apiMetadataCollector?.extractTypeMetadata(r, ctx)
 
         // Создаем/обновляем ноду типа
-        val node = builder.upsertNode(
-            fqn = fqn,
-            kind = kind,
-            name = r.simpleName,
-            packageName = pkgFqn.ifBlank { null },
-            parent = pkgNode,
-            lang = Lang.kotlin,
-            filePath = r.filePath,
-            span = r.span?.let { it.start..it.end },
-            signature = r.attributes["signature"] as? String,
-            sourceCode = r.text,
-            docComment = null,
-            meta =
-                NodeMeta(
-                    source = "type",
-                    pkgFqn = pkgFqn.ifBlank { null },
-                    supertypesSimple = r.supertypesRepr,
-                    imports = state.getFileImports(r.filePath),
-                    kdoc = null,
-                    annotations = r.annotationsRepr,
-                    apiMetadata = ApiMetadataSerializer.serialize(apiMetadata),
-                ),
-        )
-        
+        val node =
+            builder.upsertNode(
+                fqn = fqn,
+                kind = kind,
+                name = r.simpleName,
+                packageName = pkgFqn.ifBlank { null },
+                parent = pkgNode,
+                lang = Lang.kotlin,
+                filePath = r.filePath,
+                span = r.span?.let { it.start..it.end },
+                signature = r.attributes["signature"] as? String,
+                sourceCode = r.text,
+                docComment = null,
+                meta =
+                    NodeMeta(
+                        source = "type",
+                        pkgFqn = pkgFqn.ifBlank { null },
+                        supertypesSimple = r.supertypesRepr,
+                        imports = state.getFileImports(r.filePath),
+                        kdoc = null,
+                        annotations = r.annotationsRepr,
+                        apiMetadata = ApiMetadataSerializer.serialize(apiMetadata),
+                    ),
+            )
+
         state.putType(fqn, node)
     }
 }
-

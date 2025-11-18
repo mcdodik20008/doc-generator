@@ -53,23 +53,24 @@ class HttpEndpointExtractor : ApiMetadataExtractor {
         classAnnotations: List<String>,
     ): ApiMetadata.HttpEndpoint? {
         val anns = NkxUtil.anns(methodAnnotations.toList() + classAnnotations)
-        
+
         // Определяем HTTP метод
-        val method = when {
-            NkxUtil.hasAnyAnn(anns, "GetMapping") -> "GET"
-            NkxUtil.hasAnyAnn(anns, "PostMapping") -> "POST"
-            NkxUtil.hasAnyAnn(anns, "PutMapping") -> "PUT"
-            NkxUtil.hasAnyAnn(anns, "DeleteMapping") -> "DELETE"
-            NkxUtil.hasAnyAnn(anns, "PatchMapping") -> "PATCH"
-            NkxUtil.hasAnyAnn(anns, "RequestMapping") -> extractMethodFromRequestMapping(methodAnnotations)
-            else -> return null
-        }
+        val method =
+            when {
+                NkxUtil.hasAnyAnn(anns, "GetMapping") -> "GET"
+                NkxUtil.hasAnyAnn(anns, "PostMapping") -> "POST"
+                NkxUtil.hasAnyAnn(anns, "PutMapping") -> "PUT"
+                NkxUtil.hasAnyAnn(anns, "DeleteMapping") -> "DELETE"
+                NkxUtil.hasAnyAnn(anns, "PatchMapping") -> "PATCH"
+                NkxUtil.hasAnyAnn(anns, "RequestMapping") -> extractMethodFromRequestMapping(methodAnnotations)
+                else -> return null
+            }
 
         // Извлекаем путь - нужно парсить текст аннотации
         // TODO: пока упрощенная версия, потом добавим полный парсинг PSI
         val path = extractPathFromAnnotations(methodAnnotations, classAnnotations) ?: "/"
         val basePath = extractBasePath(classAnnotations)
-        
+
         return ApiMetadata.HttpEndpoint(
             method = method,
             path = path,
@@ -106,4 +107,3 @@ class HttpEndpointExtractor : ApiMetadataExtractor {
         return null
     }
 }
-

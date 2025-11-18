@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional
 class GraphSinkDb(
     private val edgeRepository: EdgeRepository,
 ) : GraphSink {
-
     private val log = LoggerFactory.getLogger(javaClass)
 
     /**
@@ -23,7 +22,7 @@ class GraphSinkDb(
         var written = 0
         var skipped = 0
         var errors = 0
-        
+
         edges.forEach { e ->
             val srcId = e.source.id
             val dstId = e.target.id
@@ -47,7 +46,7 @@ class GraphSinkDb(
                 log.trace("Skipping edge without node id: sourceId={}, targetId={}", srcId, dstId)
             }
         }
-        
+
         if (errors > 0) {
             log.warn("GraphSinkDb: upserted={}, skipped={}, errors={}", written, skipped, errors)
         } else {
@@ -55,4 +54,3 @@ class GraphSinkDb(
         }
     }
 }
-

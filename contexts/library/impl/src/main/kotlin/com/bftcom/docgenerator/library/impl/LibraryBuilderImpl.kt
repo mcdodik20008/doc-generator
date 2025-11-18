@@ -6,19 +6,19 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.library.Library
 import com.bftcom.docgenerator.domain.library.LibraryNode
 import com.bftcom.docgenerator.library.api.BytecodeParser
-import com.bftcom.docgenerator.library.api.LibraryBuilder
 import com.bftcom.docgenerator.library.api.LibraryBuildResult
+import com.bftcom.docgenerator.library.api.LibraryBuilder
 import com.bftcom.docgenerator.library.api.LibraryCoordinate
 import com.bftcom.docgenerator.library.api.RawLibraryNode
 import com.bftcom.docgenerator.library.api.bytecode.HttpBytecodeAnalyzer
 import com.bftcom.docgenerator.library.impl.coordinate.LibraryCoordinateParser
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
+import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.io.File
-import org.springframework.context.annotation.Lazy
-import org.springframework.transaction.annotation.Propagation
 
 /**
  * Реализация построителя графа библиотек.
@@ -36,12 +36,13 @@ class LibraryBuilderImpl(
 ) : LibraryBuilder {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val whiteList = listOf(
-        "com.bftcom",
-        "ru.bftcom",
-        "ru.supercode",
-        "rrbpm"
-    )
+    private val whiteList =
+        listOf(
+            "com.bftcom",
+            "ru.bftcom",
+            "ru.supercode",
+            "rrbpm",
+        )
 
     data class SingleLibraryResult(
         val librariesProcessed: Int = 0,
@@ -74,12 +75,13 @@ class LibraryBuilderImpl(
             }
         }
 
-        val result = LibraryBuildResult(
-            librariesProcessed = librariesProcessed,
-            nodesCreated = nodesCreated,
-            librariesSkipped = librariesSkipped,
-            errors = errors,
-        )
+        val result =
+            LibraryBuildResult(
+                librariesProcessed = librariesProcessed,
+                nodesCreated = nodesCreated,
+                librariesSkipped = librariesSkipped,
+                errors = errors,
+            )
 
         log.info(
             "Library build completed: processed={}, skipped={}, nodes={}, errors={}",
@@ -125,20 +127,21 @@ class LibraryBuilderImpl(
 
         // 2. Проверяем, существует ли библиотека
         val existingLibrary = libraryRepo.findByCoordinate(coordinate.coordinate)
-        val library = existingLibrary ?: run {
-            librariesProcessed++
-            Library(
-                coordinate = coordinate.coordinate,
-                groupId = coordinate.groupId,
-                artifactId = coordinate.artifactId,
-                version = coordinate.version,
-                kind = determineLibraryKind(coordinate),
-                metadata = emptyMap(),
-            ).also {
-                libraryRepo.save(it)
-                log.debug("Created library: {}", coordinate.coordinate)
+        val library =
+            existingLibrary ?: run {
+                librariesProcessed++
+                Library(
+                    coordinate = coordinate.coordinate,
+                    groupId = coordinate.groupId,
+                    artifactId = coordinate.artifactId,
+                    version = coordinate.version,
+                    kind = determineLibraryKind(coordinate),
+                    metadata = emptyMap(),
+                ).also {
+                    libraryRepo.save(it)
+                    log.debug("Created library: {}", coordinate.coordinate)
+                }
             }
-        }
 
         if (existingLibrary != null) {
             librariesSkipped++
@@ -156,12 +159,13 @@ class LibraryBuilderImpl(
         log.debug("Parsed {} raw nodes from jar: {}", rawNodes.size, jarFile.name)
 
         // 3.1. Анализируем HTTP-вызовы (байткод-анализ)
-        val analysisResult = try {
-            httpBytecodeAnalyzer.analyzeJar(jarFile)
-        } catch (e: Exception) {
-            log.warn("HTTP bytecode analysis failed for {}: {}", jarFile.name, e.message)
-            null
-        }
+        val analysisResult =
+            try {
+                httpBytecodeAnalyzer.analyzeJar(jarFile)
+            } catch (e: Exception) {
+                log.warn("HTTP bytecode analysis failed for {}: {}", jarFile.name, e.message)
+                null
+            }
 
         // 4. Сохраняем LibraryNode
         val savedNodes = saveLibraryNodes(library, rawNodes, analysisResult)
@@ -197,34 +201,41 @@ class LibraryBuilderImpl(
         fun now() = System.nanoTime()
 
         // Создаем мапу методов с интеграционными вызовами для быстрой проверки
-        val integrationMethods = analysisResult?.methodSummaries?.keys?.map { methodId ->
-            "${methodId.ownerFqn.replace('/', '.')}.${methodId.name}"
-        }?.toSet() ?: emptySet()
+        val integrationMethods =
+            analysisResult
+                ?.methodSummaries
+                ?.keys
+                ?.map { methodId ->
+                    "${methodId.ownerFqn.replace('/', '.')}.${methodId.name}"
+                }?.toSet() ?: emptySet()
 
         // Фильтруем узлы, оставляем только значимые для интеграции
         val allClassNodes = rawNodes.filter { it.kind in setOf(NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM) }
-        val relevantClassNodes = allClassNodes.filter { raw ->
-            isIntegrationRelevantClass(raw)
-        }
-        
+        val relevantClassNodes =
+            allClassNodes.filter { raw ->
+                isIntegrationRelevantClass(raw)
+            }
+
         // Создаем множество FQN релевантных классов для быстрой проверки родительских классов
         val relevantClassFqns = relevantClassNodes.map { it.fqn }.toSet()
-        
+
         val allMemberNodes = rawNodes.filter { it.kind in setOf(NodeKind.METHOD, NodeKind.FIELD) }
-        val relevantMemberNodes = allMemberNodes.filter { raw ->
-            isIntegrationRelevantMember(raw, relevantClassFqns, integrationMethods, analysisResult)
-        }
+        val relevantMemberNodes =
+            allMemberNodes.filter { raw ->
+                isIntegrationRelevantMember(raw, relevantClassFqns, integrationMethods, analysisResult)
+            }
 
         log.info(
             "Filtering library nodes: total classes={}, relevant classes={}, " +
-                    "total members={}, relevant members={}",
-            allClassNodes.size, relevantClassNodes.size,
-            allMemberNodes.size, relevantMemberNodes.size
+                "total members={}, relevant members={}",
+            allClassNodes.size,
+            relevantClassNodes.size,
+            allMemberNodes.size,
+            relevantMemberNodes.size,
         )
 
         // Сначала классы
         for (raw in relevantClassNodes) {
-
             val t0 = now()
             val existing = libraryNodeRepo.findByLibraryIdAndFqn(library.id!!, raw.fqn)
             tFindExisting += now() - t0
@@ -247,7 +258,6 @@ class LibraryBuilderImpl(
 
         // Методы и поля
         for (raw in relevantMemberNodes) {
-
             val t0 = now()
             val existing = libraryNodeRepo.findByLibraryIdAndFqn(library.id!!, raw.fqn)
             tFindExisting += now() - t0
@@ -279,9 +289,9 @@ class LibraryBuilderImpl(
 
         log.info(
             "saveLibraryNodes: total=${totalMs}ms, saved=$saved | " +
-                    "find=${findMs}ms (${String.format("%.1f", pctFind)}%), " +
-                    "create=${createMs}ms (${String.format("%.1f", pctCreate)}%), " +
-                    "save=${saveMs}ms (${String.format("%.1f", pctSave)}%)"
+                "find=${findMs}ms (${String.format("%.1f", pctFind)}%), " +
+                "create=${createMs}ms (${String.format("%.1f", pctCreate)}%), " +
+                "save=${saveMs}ms (${String.format("%.1f", pctSave)}%)",
         )
 
         return saved
@@ -293,10 +303,11 @@ class LibraryBuilderImpl(
         parent: LibraryNode?,
         analysisResult: com.bftcom.docgenerator.library.api.bytecode.BytecodeAnalysisResult?,
     ): LibraryNode {
-        val metaMap = mutableMapOf<String, Any>(
-            "annotations" to raw.annotations,
-            "modifiers" to raw.modifiers.toList(),
-        )
+        val metaMap =
+            mutableMapOf<String, Any>(
+                "annotations" to raw.annotations,
+                "modifiers" to raw.modifiers.toList(),
+            )
         metaMap.putAll(raw.meta)
 
         // Добавляем информацию об интеграционных вызовах (HTTP/Kafka/Camel) для методов
@@ -304,11 +315,11 @@ class LibraryBuilderImpl(
             val methodSummary = findMethodSummary(raw.fqn, analysisResult)
             if (methodSummary != null) {
                 val integrationMeta = mutableMapOf<String, Any>()
-                
+
                 if (methodSummary.isParentClient) {
                     integrationMeta["isParentClient"] = true
                 }
-                
+
                 // HTTP
                 if (methodSummary.urls.isNotEmpty()) {
                     integrationMeta["urls"] = methodSummary.urls.toList()
@@ -325,35 +336,37 @@ class LibraryBuilderImpl(
                 if (methodSummary.hasCircuitBreaker) {
                     integrationMeta["hasCircuitBreaker"] = true
                 }
-                
+
                 // Kafka
                 if (methodSummary.kafkaTopics.isNotEmpty()) {
                     integrationMeta["kafkaTopics"] = methodSummary.kafkaTopics.toList()
                 }
                 if (methodSummary.directKafkaCalls.isNotEmpty()) {
-                    integrationMeta["kafkaCalls"] = methodSummary.directKafkaCalls.map { call ->
-                        mapOf(
-                            "topic" to (call.topic ?: ""),
-                            "operation" to call.operation,
-                            "clientType" to call.clientType,
-                        )
-                    }
+                    integrationMeta["kafkaCalls"] =
+                        methodSummary.directKafkaCalls.map { call ->
+                            mapOf(
+                                "topic" to (call.topic ?: ""),
+                                "operation" to call.operation,
+                                "clientType" to call.clientType,
+                            )
+                        }
                 }
-                
+
                 // Camel
                 if (methodSummary.camelUris.isNotEmpty()) {
                     integrationMeta["camelUris"] = methodSummary.camelUris.toList()
                 }
                 if (methodSummary.directCamelCalls.isNotEmpty()) {
-                    integrationMeta["camelCalls"] = methodSummary.directCamelCalls.map { call ->
-                        mapOf(
-                            "uri" to (call.uri ?: ""),
-                            "endpointType" to (call.endpointType ?: ""),
-                            "direction" to call.direction,
-                        )
-                    }
+                    integrationMeta["camelCalls"] =
+                        methodSummary.directCamelCalls.map { call ->
+                            mapOf(
+                                "uri" to (call.uri ?: ""),
+                                "endpointType" to (call.endpointType ?: ""),
+                                "direction" to call.direction,
+                            )
+                        }
                 }
-                
+
                 if (integrationMeta.isNotEmpty()) {
                     metaMap["integrationAnalysis"] = integrationMeta
                 }
@@ -414,16 +427,17 @@ class LibraryBuilderImpl(
         }
 
         // Классы с интеграционными аннотациями
-        val hasIntegrationAnnotation = raw.annotations.any { ann ->
-            ann.contains("RestController", ignoreCase = true) ||
-            ann.contains("Controller", ignoreCase = true) ||
-            ann.contains("FeignClient", ignoreCase = true) ||
-            ann.contains("KafkaListener", ignoreCase = true) ||
-            ann.contains("RabbitListener", ignoreCase = true) ||
-            ann.contains("Service", ignoreCase = true) ||
-            ann.contains("Component", ignoreCase = true) ||
-            ann.contains("WebClient", ignoreCase = true)
-        }
+        val hasIntegrationAnnotation =
+            raw.annotations.any { ann ->
+                ann.contains("RestController", ignoreCase = true) ||
+                    ann.contains("Controller", ignoreCase = true) ||
+                    ann.contains("FeignClient", ignoreCase = true) ||
+                    ann.contains("KafkaListener", ignoreCase = true) ||
+                    ann.contains("RabbitListener", ignoreCase = true) ||
+                    ann.contains("Service", ignoreCase = true) ||
+                    ann.contains("Component", ignoreCase = true) ||
+                    ann.contains("WebClient", ignoreCase = true)
+            }
         if (hasIntegrationAnnotation) {
             return true
         }
@@ -435,20 +449,23 @@ class LibraryBuilderImpl(
             fqn.contains("okhttp") ||
             fqn.contains("httpclient") ||
             fqn.contains("feign") ||
-            fqn.contains("restclient")) {
+            fqn.contains("restclient")
+        ) {
             return true
         }
 
         // Kafka клиенты
         if (fqn.contains("kafkaproducer") ||
             fqn.contains("kafkaconsumer") ||
-            fqn.contains("kafka")) {
+            fqn.contains("kafka")
+        ) {
             return true
         }
 
         // Camel
         if (fqn.contains("routebuilder") ||
-            fqn.contains("camel")) {
+            fqn.contains("camel")
+        ) {
             return true
         }
 
@@ -477,18 +494,19 @@ class LibraryBuilderImpl(
             }
 
             // Методы с интеграционными аннотациями
-            val hasIntegrationAnnotation = raw.annotations.any { ann ->
-                ann.contains("GetMapping", ignoreCase = true) ||
-                ann.contains("PostMapping", ignoreCase = true) ||
-                ann.contains("PutMapping", ignoreCase = true) ||
-                ann.contains("DeleteMapping", ignoreCase = true) ||
-                ann.contains("PatchMapping", ignoreCase = true) ||
-                ann.contains("RequestMapping", ignoreCase = true) ||
-                ann.contains("KafkaListener", ignoreCase = true) ||
-                ann.contains("RabbitListener", ignoreCase = true) ||
-                ann.contains("Scheduled", ignoreCase = true) ||
-                ann.contains("EventListener", ignoreCase = true)
-            }
+            val hasIntegrationAnnotation =
+                raw.annotations.any { ann ->
+                    ann.contains("GetMapping", ignoreCase = true) ||
+                        ann.contains("PostMapping", ignoreCase = true) ||
+                        ann.contains("PutMapping", ignoreCase = true) ||
+                        ann.contains("DeleteMapping", ignoreCase = true) ||
+                        ann.contains("PatchMapping", ignoreCase = true) ||
+                        ann.contains("RequestMapping", ignoreCase = true) ||
+                        ann.contains("KafkaListener", ignoreCase = true) ||
+                        ann.contains("RabbitListener", ignoreCase = true) ||
+                        ann.contains("Scheduled", ignoreCase = true) ||
+                        ann.contains("EventListener", ignoreCase = true)
+                }
             if (hasIntegrationAnnotation) {
                 return true
             }
@@ -540,14 +558,12 @@ class LibraryBuilderImpl(
         }
     }
 
-    private fun determineLibraryKind(coordinate: LibraryCoordinate): String {
-        return when {
+    private fun determineLibraryKind(coordinate: LibraryCoordinate): String =
+        when {
             coordinate.groupId.startsWith("org.springframework") -> "framework"
             coordinate.groupId.startsWith("com.fasterxml.jackson") -> "library"
             coordinate.groupId.startsWith("org.jetbrains.kotlin") -> "language"
             isCompanyLibrary(coordinate) -> "company"
             else -> "external"
         }
-    }
 }
-

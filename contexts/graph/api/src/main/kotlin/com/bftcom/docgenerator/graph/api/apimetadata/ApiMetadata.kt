@@ -54,4 +54,3 @@ sealed interface ApiMetadata {
         SQS, // AWS SQS
     }
 }
-

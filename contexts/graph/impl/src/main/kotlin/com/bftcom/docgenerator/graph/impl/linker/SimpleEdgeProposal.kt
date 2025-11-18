@@ -7,7 +7,7 @@ import com.bftcom.docgenerator.graph.api.linker.detector.EdgeProposal
 data class SimpleEdgeProposal(
     override val kind: EdgeKind,
     override val source: Node,
-    override val target: Node
+    override val target: Node,
 ) : EdgeProposal {
     override val evidence = emptyList<com.bftcom.docgenerator.graph.api.linker.model.Evidence>()
     override val confidence = 1.0

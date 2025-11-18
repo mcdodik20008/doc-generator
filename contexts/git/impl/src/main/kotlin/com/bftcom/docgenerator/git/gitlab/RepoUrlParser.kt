@@ -5,7 +5,7 @@ import java.net.URI
 
 object RepoUrlParser {
     private val log = LoggerFactory.getLogger(javaClass)
-    
+
     fun parse(repoUrl: String?): RepoInfo {
         if (repoUrl.isNullOrBlank()) return RepoInfo(null, null, null)
         return try {

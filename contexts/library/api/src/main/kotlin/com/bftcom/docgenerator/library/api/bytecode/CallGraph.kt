@@ -13,16 +13,12 @@ data class CallGraph(
     /**
      * Получить все методы, которые вызывают данный метод.
      */
-    fun getCallers(methodId: MethodId): Set<MethodId> {
-        return reverseCalls[methodId] ?: emptySet()
-    }
+    fun getCallers(methodId: MethodId): Set<MethodId> = reverseCalls[methodId] ?: emptySet()
 
     /**
      * Получить все методы, которые вызываются из данного метода.
      */
-    fun getCallees(methodId: MethodId): Set<MethodId> {
-        return calls[methodId] ?: emptySet()
-    }
+    fun getCallees(methodId: MethodId): Set<MethodId> = calls[methodId] ?: emptySet()
 
     /**
      * Построить обратный граф из прямого.
@@ -44,4 +40,3 @@ data class CallGraph(
         }
     }
 }
-

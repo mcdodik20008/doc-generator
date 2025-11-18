@@ -90,17 +90,22 @@ class LibraryCoordinateParser {
         val artifactId = nameWithoutExt.substring(0, versionMatch.range.first) // "my-lib"
 
         // 2. Теперь самое интересное: пытаемся восстановить GroupId из пути
-        val groupId = tryDetectGroupIdFromPath(jarFile, artifactId, version)
-            ?: "unknown" // Если путь не стандартный, все-таки придется unknown
+        val groupId =
+            tryDetectGroupIdFromPath(jarFile, artifactId, version)
+                ?: "unknown" // Если путь не стандартный, все-таки придется unknown
 
         return LibraryCoordinate(
             groupId = groupId,
             artifactId = artifactId,
-            version = version
+            version = version,
         )
     }
 
-    private fun tryDetectGroupIdFromPath(jarFile: File, artifactId: String, version: String): String? {
+    private fun tryDetectGroupIdFromPath(
+        jarFile: File,
+        artifactId: String,
+        version: String,
+    ): String? {
         try {
             // Стандартная структура Maven: .../group/id/parts/artifactId/version/file.jar
             // Родитель файла должен быть версией
@@ -139,4 +144,3 @@ class LibraryCoordinateParser {
         return null
     }
 }
-

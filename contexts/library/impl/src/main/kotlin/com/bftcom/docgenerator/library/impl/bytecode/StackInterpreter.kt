@@ -6,25 +6,31 @@ import org.objectweb.asm.Type
 /**
  * Простой интерпретатор стека для извлечения строковых значений (URL, топики и т.д.).
  * Поддерживает базовые операции: LDC строк, конкатенацию через +, StringBuilder.
- * 
+ *
  * Это упрощенная версия для MVP - не покрывает все случаи, но обрабатывает большинство простых паттернов.
  */
 class StackInterpreter {
     private val stack = mutableListOf<StackValue>()
-    
+
     /**
      * Значение на стеке.
      */
     sealed class StackValue {
-        data class StringValue(val value: String) : StackValue()
-        data class UnknownValue(val type: String) : StackValue()
-        
-        fun asString(): String? = when (this) {
-            is StringValue -> value
-            is UnknownValue -> null
-        }
+        data class StringValue(
+            val value: String,
+        ) : StackValue()
+
+        data class UnknownValue(
+            val type: String,
+        ) : StackValue()
+
+        fun asString(): String? =
+            when (this) {
+                is StringValue -> value
+                is UnknownValue -> null
+            }
     }
-    
+
     /**
      * Обрабатывает инструкцию LDC (загрузка константы).
      */
@@ -36,7 +42,7 @@ class StackInterpreter {
             else -> push(StackValue.UnknownValue("Unknown"))
         }
     }
-    
+
     /**
      * Обрабатывает создание StringBuilder.
      */
@@ -44,37 +50,38 @@ class StackInterpreter {
         // StringBuilder создается, но пока не знаем его содержимое
         push(StackValue.UnknownValue("StringBuilder"))
     }
-    
+
     /**
      * Обрабатывает вызов append на StringBuilder.
      */
     fun visitStringBuilderAppend(descriptor: String) {
         if (stack.size < 2) return
-        
+
         val value = stack.removeAt(stack.size - 1)
         val sb = stack.removeAt(stack.size - 1)
-        
+
         // Если StringBuilder был Unknown, но теперь добавляем строку - создаем новый StringBuilder
-        val appendedValue = when {
-            value is StackValue.StringValue && sb is StackValue.UnknownValue && sb.type == "StringBuilder" -> {
-                StackValue.StringValue(value.value)
+        val appendedValue =
+            when {
+                value is StackValue.StringValue && sb is StackValue.UnknownValue && sb.type == "StringBuilder" -> {
+                    StackValue.StringValue(value.value)
+                }
+                value is StackValue.StringValue && sb is StackValue.StringValue -> {
+                    // Конкатенация двух строк
+                    StackValue.StringValue(sb.value + value.value)
+                }
+                else -> StackValue.UnknownValue("StringBuilder")
             }
-            value is StackValue.StringValue && sb is StackValue.StringValue -> {
-                // Конкатенация двух строк
-                StackValue.StringValue(sb.value + value.value)
-            }
-            else -> StackValue.UnknownValue("StringBuilder")
-        }
-        
+
         push(appendedValue)
     }
-    
+
     /**
      * Обрабатывает вызов toString() на StringBuilder.
      */
     fun visitStringBuilderToString() {
         if (stack.isEmpty()) return
-        
+
         val top = stack.removeAt(stack.size - 1)
         // Если это был StringBuilder со строкой, возвращаем строку
         when (top) {
@@ -89,34 +96,35 @@ class StackInterpreter {
             }
         }
     }
-    
+
     /**
      * Обрабатывает конкатенацию строк через + (invokevirtual String.concat или через StringBuilder).
      */
     fun visitStringConcat() {
         if (stack.size < 2) return
-        
+
         val right = stack.removeAt(stack.size - 1)
         val left = stack.removeAt(stack.size - 1)
-        
-        val result = when {
-            left is StackValue.StringValue && right is StackValue.StringValue -> {
-                StackValue.StringValue(left.value + right.value)
+
+        val result =
+            when {
+                left is StackValue.StringValue && right is StackValue.StringValue -> {
+                    StackValue.StringValue(left.value + right.value)
+                }
+                left is StackValue.StringValue && right is StackValue.UnknownValue -> {
+                    // Левая часть известна, правая нет - сохраняем левую
+                    left
+                }
+                right is StackValue.StringValue && left is StackValue.UnknownValue -> {
+                    // Правая часть известна, левая нет - сохраняем правую
+                    right
+                }
+                else -> StackValue.UnknownValue("String")
             }
-            left is StackValue.StringValue && right is StackValue.UnknownValue -> {
-                // Левая часть известна, правая нет - сохраняем левую
-                left
-            }
-            right is StackValue.StringValue && left is StackValue.UnknownValue -> {
-                // Правая часть известна, левая нет - сохраняем правую
-                right
-            }
-            else -> StackValue.UnknownValue("String")
-        }
-        
+
         push(result)
     }
-    
+
     /**
      * Получить строковое значение с вершины стека (если доступно).
      */
@@ -124,7 +132,7 @@ class StackInterpreter {
         if (stack.isEmpty()) return null
         return stack.last().asString()
     }
-    
+
     /**
      * Получить строковое значение и удалить его со стека.
      */
@@ -133,7 +141,7 @@ class StackInterpreter {
         val value = stack.removeAt(stack.size - 1)
         return value.asString()
     }
-    
+
     /**
      * Получить строковое значение из аргументов метода (для методов с одним строковым параметром).
      */
@@ -149,19 +157,19 @@ class StackInterpreter {
         }
         return null
     }
-    
+
     /**
      * Очистить стек (при переходе к новой инструкции или блоку).
      */
     fun clear() {
         stack.clear()
     }
-    
+
     /**
      * Получить текущий размер стека (для отладки).
      */
     fun size(): Int = stack.size
-    
+
     private fun push(value: StackValue) {
         stack.add(value)
         // Ограничиваем размер стека для безопасности
@@ -170,4 +178,3 @@ class StackInterpreter {
         }
     }
 }
-

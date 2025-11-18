@@ -114,8 +114,8 @@ class BytecodeParserImpl : BytecodeParser {
         private val filePath: String,
         private val nodes: MutableList<RawLibraryNode>,
     ) : ClassVisitor(Opcodes.ASM9) {
-        private var internalName: String? = null          // org/example/MyClass (с /)
-        private var classFqn: String? = null              // org.example.MyClass
+        private var internalName: String? = null // org/example/MyClass (с /)
+        private var classFqn: String? = null // org.example.MyClass
         private var packageName: String? = null
         private var simpleName: String? = null
         private var classModifiers: Set<String> = emptySet()
@@ -147,11 +147,18 @@ class BytecodeParserImpl : BytecodeParser {
             outerClassFqn = null
         }
 
-        override fun visitOuterClass(owner: String?, name: String?, desc: String?) {
+        override fun visitOuterClass(
+            owner: String?,
+            name: String?,
+            desc: String?,
+        ) {
             outerClassFqn = owner?.replace('/', '.')
         }
 
-        override fun visitAnnotation(descriptor: String, visible: Boolean): AnnotationVisitor? {
+        override fun visitAnnotation(
+            descriptor: String,
+            visible: Boolean,
+        ): AnnotationVisitor? {
             val annotationFqn = Type.getType(descriptor).className
             classAnnotations = classAnnotations + annotationFqn
             return null
@@ -204,10 +211,11 @@ class BytecodeParserImpl : BytecodeParser {
             val fieldType = Type.getType(descriptor).className
             val modifiers = extractModifiers(access)
 
-            val meta = mutableMapOf<String, Any>(
-                "descriptor" to descriptor,
-                "type" to fieldType,
-            )
+            val meta =
+                mutableMapOf<String, Any>(
+                    "descriptor" to descriptor,
+                    "type" to fieldType,
+                )
 
             signature?.let { meta["signature"] = it }
             value?.let { meta["initialValue"] = it }
@@ -256,9 +264,10 @@ class BytecodeParserImpl : BytecodeParser {
             val isSuspend = isSuspendMethod(descriptor)
             val isSyntheticHelper = isSyntheticCoroutineHelper(name, access)
 
-            val meta = mutableMapOf<String, Any>(
-                "descriptor" to descriptor,
-            )
+            val meta =
+                mutableMapOf<String, Any>(
+                    "descriptor" to descriptor,
+                )
 
             signature?.let { meta["signature"] = it }
 
@@ -314,15 +323,17 @@ class BytecodeParserImpl : BytecodeParser {
             return modifiers
         }
 
-        private fun determineClassKind(modifiers: Set<String>): NodeKind {
-            return when {
+        private fun determineClassKind(modifiers: Set<String>): NodeKind =
+            when {
                 "enum" in modifiers -> NodeKind.ENUM
                 "interface" in modifiers -> NodeKind.INTERFACE
                 else -> NodeKind.CLASS
             }
-        }
 
-        private fun buildMethodSignature(name: String, descriptor: String): String {
+        private fun buildMethodSignature(
+            name: String,
+            descriptor: String,
+        ): String {
             val methodType = Type.getMethodType(descriptor)
             val params = methodType.argumentTypes.joinToString(", ") { it.className }
             val returnType = methodType.returnType.className
@@ -338,17 +349,23 @@ class BytecodeParserImpl : BytecodeParser {
             val returnType = methodType.returnType.className
 
             return lastArg == "kotlin.coroutines.Continuation" &&
-                    returnType == "java.lang.Object"
+                returnType == "java.lang.Object"
         }
 
-        private fun isSyntheticCoroutineHelper(name: String, access: Int): Boolean {
+        private fun isSyntheticCoroutineHelper(
+            name: String,
+            access: Int,
+        ): Boolean {
             if (access and Opcodes.ACC_SYNTHETIC != 0) return true
             if ("\$default" in name) return true
             if ("\$SuspendLambda" in name) return true
             return false
         }
 
-        private fun isCoroutineStateMachineClass(internalName: String, modifiers: Set<String>): Boolean {
+        private fun isCoroutineStateMachineClass(
+            internalName: String,
+            modifiers: Set<String>,
+        ): Boolean {
             // Грубые, но полезные эвристики для корутинных генераций Kotlin
             if ("interface" in modifiers) return false
             if ("\$SuspendLambda" in internalName) return true

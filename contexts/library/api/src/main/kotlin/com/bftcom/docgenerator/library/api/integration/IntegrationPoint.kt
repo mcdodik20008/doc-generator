@@ -6,7 +6,7 @@ package com.bftcom.docgenerator.library.api.integration
 sealed class IntegrationPoint {
     abstract val url: String?
     abstract val methodId: String
-    
+
     /**
      * HTTP endpoint
      */
@@ -19,7 +19,7 @@ sealed class IntegrationPoint {
         val hasTimeout: Boolean = false,
         val hasCircuitBreaker: Boolean = false,
     ) : IntegrationPoint()
-    
+
     /**
      * Kafka topic
      */
@@ -31,7 +31,7 @@ sealed class IntegrationPoint {
     ) : IntegrationPoint() {
         override val url: String? = topic
     }
-    
+
     /**
      * Camel route
      */
@@ -44,4 +44,3 @@ sealed class IntegrationPoint {
         override val url: String? = uri
     }
 }
-

@@ -16,4 +16,3 @@ data class CamelCallSite(
     /** Дополнительные метаданные */
     val metadata: Map<String, Any> = emptyMap(),
 )
-

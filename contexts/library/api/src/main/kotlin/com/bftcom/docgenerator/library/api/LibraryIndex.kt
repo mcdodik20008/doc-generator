@@ -20,7 +20,10 @@ interface LibraryIndex {
      * @param methodName Имя метода, например "getForObject"
      * @return LibraryNode или null, если не найдено
      */
-    fun findByClassAndMethod(classFqn: String, methodName: String): LibraryNode?
+    fun findByClassAndMethod(
+        classFqn: String,
+        methodName: String,
+    ): LibraryNode?
 
     /**
      * Проверяет, существует ли библиотека с указанной координатой.
@@ -29,4 +32,3 @@ interface LibraryIndex {
      */
     fun hasLibrary(coordinate: String): Boolean
 }
-

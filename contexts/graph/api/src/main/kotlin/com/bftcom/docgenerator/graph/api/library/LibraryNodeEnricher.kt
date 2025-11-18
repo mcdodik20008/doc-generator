@@ -5,7 +5,7 @@ import com.bftcom.docgenerator.domain.node.NodeMeta
 
 /**
  * Компонент для обогащения Node приложения информацией из LibraryNode.
- * 
+ *
  * При создании Node метода приложения:
  * 1. Проверяет, вызывает ли метод методы библиотек
  * 2. Если да, извлекает информацию об интеграционных точках из LibraryNode
@@ -14,11 +14,13 @@ import com.bftcom.docgenerator.domain.node.NodeMeta
 interface LibraryNodeEnricher {
     /**
      * Обогащает метаданные Node информацией из библиотек.
-     * 
+     *
      * @param node Node метода приложения
      * @param meta Текущие метаданные Node
      * @return Обогащенные метаданные (или исходные, если ничего не найдено)
      */
-    fun enrichNodeMeta(node: Node, meta: NodeMeta): NodeMeta
+    fun enrichNodeMeta(
+        node: Node,
+        meta: NodeMeta,
+    ): NodeMeta
 }
-

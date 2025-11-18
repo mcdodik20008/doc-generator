@@ -18,4 +18,3 @@ data class BytecodeAnalysisResult(
     /** Родительские клиенты (верхнеуровневые методы) */
     val parentClients: Set<MethodId>,
 )
-

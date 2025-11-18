@@ -28,9 +28,10 @@ class GrpcEndpointExtractor : ApiMetadataExtractor {
         val imps = NkxUtil.imps(ctx.imports)
 
         // Проверяем наличие gRPC
-        val isGrpc = NkxUtil.hasAnyAnn(anns, "GrpcMethod") ||
-                     NkxUtil.importsContain(imps, "io.grpc") ||
-                     ownerType?.let { NkxUtil.hasAnyAnn(NkxUtil.anns(it.annotationsRepr), "GrpcService") } == true
+        val isGrpc =
+            NkxUtil.hasAnyAnn(anns, "GrpcMethod") ||
+                NkxUtil.importsContain(imps, "io.grpc") ||
+                ownerType?.let { NkxUtil.hasAnyAnn(NkxUtil.anns(it.annotationsRepr), "GrpcService") } == true
 
         if (!isGrpc) return null
 
@@ -54,7 +55,8 @@ class GrpcEndpointExtractor : ApiMetadataExtractor {
         val imps = NkxUtil.imps(ctx.imports)
 
         if (NkxUtil.hasAnyAnn(anns, "GrpcService") ||
-            NkxUtil.importsContain(imps, "io.grpc", "net.devh.boot.grpc")) {
+            NkxUtil.importsContain(imps, "io.grpc", "net.devh.boot.grpc")
+        ) {
             // Это gRPC сервис - базовое метаданное
             return ApiMetadata.GrpcEndpoint(
                 service = type.simpleName,
@@ -71,4 +73,3 @@ class GrpcEndpointExtractor : ApiMetadataExtractor {
         return pkg?.substringAfterLast('.') ?: "UnknownService"
     }
 }
-

@@ -16,21 +16,21 @@ class LibraryNodeIndexImpl(
     private val libraryNodeRepo: LibraryNodeRepository,
 ) : LibraryNodeIndex {
     private val log = LoggerFactory.getLogger(javaClass)
-    
+
     // Индексы для быстрого поиска
     private val byMethodFqn = mutableMapOf<String, LibraryNode>()
     private val byClassAndMethod = mutableMapOf<String, LibraryNode>()
-    
+
     @PostConstruct
     fun buildIndex() {
         log.info("Building LibraryNode index...")
         val allNodes = libraryNodeRepo.findAll()
-        
+
         for (node in allNodes) {
             if (node.kind.name == "METHOD") {
                 // Индекс по полному FQN метода
                 byMethodFqn[node.fqn] = node
-                
+
                 // Индекс по классу и методу
                 val lastDot = node.fqn.lastIndexOf('.')
                 if (lastDot > 0) {
@@ -41,19 +41,20 @@ class LibraryNodeIndexImpl(
                 }
             }
         }
-        
+
         log.info("LibraryNode index built: {} methods indexed", byMethodFqn.size)
     }
-    
-    override fun findByMethodFqn(methodFqn: String): LibraryNode? {
-        return byMethodFqn[methodFqn]
-    }
-    
-    override fun findByClassAndMethod(classFqn: String, methodName: String): LibraryNode? {
+
+    override fun findByMethodFqn(methodFqn: String): LibraryNode? = byMethodFqn[methodFqn]
+
+    override fun findByClassAndMethod(
+        classFqn: String,
+        methodName: String,
+    ): LibraryNode? {
         val key = "$classFqn.$methodName"
         return byClassAndMethod[key]
     }
-    
+
     @Suppress("UNCHECKED_CAST")
     override fun isParentClient(methodFqn: String): Boolean {
         val node = findByMethodFqn(methodFqn) ?: return false
@@ -61,4 +62,3 @@ class LibraryNodeIndexImpl(
         return integrationMeta?.get("isParentClient") as? Boolean ?: false
     }
 }
-

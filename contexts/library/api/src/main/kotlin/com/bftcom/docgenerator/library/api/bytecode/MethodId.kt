@@ -20,4 +20,3 @@ data class MethodId(
 
     override fun toString(): String = "$ownerFqn.$name$descriptor"
 }
-

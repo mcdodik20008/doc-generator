@@ -1,9 +1,6 @@
 package com.bftcom.docgenerator.graph.impl.node
 
 import com.bftcom.docgenerator.domain.node.RawUsage
-import com.bftcom.docgenerator.graph.api.node.KDocFetcher
-import com.bftcom.docgenerator.graph.api.node.SourceVisitor
-import com.bftcom.docgenerator.graph.api.node.SourceWalker
 import com.bftcom.docgenerator.graph.api.model.RawAttrKey
 import com.bftcom.docgenerator.graph.api.model.rawdecl.LineSpan
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawField
@@ -11,6 +8,9 @@ import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFileUnit
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.bftcom.docgenerator.graph.api.model.rawdecl.SrcLang
+import com.bftcom.docgenerator.graph.api.node.KDocFetcher
+import com.bftcom.docgenerator.graph.api.node.SourceVisitor
+import com.bftcom.docgenerator.graph.api.node.SourceWalker
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles

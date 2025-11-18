@@ -24,13 +24,13 @@ class NodeBuilder(
     private var createdCount = 0
     private var updatedCount = 0
     private var skippedCount = 0
-    
+
     // Кэш существующих нод для избежания N+1 запросов
     private val existingNodesCache = mutableMapOf<String, Node?>()
-    
+
     // Максимальный размер sourceCode (10MB)
     private val maxSourceCodeSize = 10 * 1024 * 1024
-    
+
     fun upsertNode(
         fqn: String,
         kind: NodeKind,
@@ -49,29 +49,31 @@ class NodeBuilder(
         validateNodeData(fqn, span, parent, sourceCode)
 
         // Кэшируем запросы к БД для избежания N+1 проблемы
-        val existing = existingNodesCache.getOrPut(fqn) {
-            nodeRepo.findByApplicationIdAndFqn(
-                requireNotNull(application.id) { "Application must have an ID" },
-                fqn
-            )
-        }
+        val existing =
+            existingNodesCache.getOrPut(fqn) {
+                nodeRepo.findByApplicationIdAndFqn(
+                    requireNotNull(application.id) { "Application must have an ID" },
+                    fqn,
+                )
+            }
         val metaMap = toMetaMap(meta)
 
         // Ограничиваем размер sourceCode для защиты от переполнения
-        val normalizedSourceCode = sourceCode?.let {
-            if (it.length > maxSourceCodeSize) {
-                log.warn(
-                    "Source code truncated: fqn={}, originalSize={}, maxSize={}",
-                    fqn,
-                    it.length,
-                    maxSourceCodeSize,
-                )
-                it.take(maxSourceCodeSize) + "\n... [truncated]"
-            } else {
-                it
+        val normalizedSourceCode =
+            sourceCode?.let {
+                if (it.length > maxSourceCodeSize) {
+                    log.warn(
+                        "Source code truncated: fqn={}, originalSize={}, maxSize={}",
+                        fqn,
+                        it.length,
+                        maxSourceCodeSize,
+                    )
+                    it.take(maxSourceCodeSize) + "\n... [truncated]"
+                } else {
+                    it
+                }
             }
-        }
-        
+
         val lineStart: Int? = span?.first
         var lineEnd: Int? = span?.last
         if (normalizedSourceCode?.isNotEmpty() == true && lineStart != null) {
@@ -85,26 +87,27 @@ class NodeBuilder(
             // Создание новой ноды
             log.debug("Creating new node: kind={}, fqn={}, file={}", kind, fqn, filePath)
             try {
-                val newNode = nodeRepo.save(
-                    Node(
-                        id = null,
-                        application = application,
-                        fqn = fqn,
-                        name = name,
-                        packageName = packageName,
-                        kind = kind,
-                        lang = lang,
-                        parent = parent,
-                        filePath = filePath,
-                        lineStart = lineStart,
-                        lineEnd = lineEnd,
-                        sourceCode = normalizedSourceCode,
-                        docComment = docComment,
-                        signature = signature,
-                        codeHash = codeHash,
-                        meta = metaMap,
-                    ),
-                )
+                val newNode =
+                    nodeRepo.save(
+                        Node(
+                            id = null,
+                            application = application,
+                            fqn = fqn,
+                            name = name,
+                            packageName = packageName,
+                            kind = kind,
+                            lang = lang,
+                            parent = parent,
+                            filePath = filePath,
+                            lineStart = lineStart,
+                            lineEnd = lineEnd,
+                            sourceCode = normalizedSourceCode,
+                            docComment = docComment,
+                            signature = signature,
+                            codeHash = codeHash,
+                            meta = metaMap,
+                        ),
+                    )
                 // Обновляем кэш
                 existingNodesCache[fqn] = newNode
                 createdCount++
@@ -131,7 +134,7 @@ class NodeBuilder(
                 docComment,
                 signature,
                 codeHash,
-                metaMap
+                metaMap,
             )
         }
     }
@@ -168,25 +171,25 @@ class NodeBuilder(
         // Оптимизация: если codeHash не изменился, код не изменился
         // Можно пропустить обновление sourceCode и связанных полей
         val codeHashChanged = existing.codeHash != codeHash
-        
+
         setIfChanged(existing.name, name) { existing.name = it }
         setIfChanged(existing.packageName, packageName) { existing.packageName = it }
         setIfChanged(existing.kind, kind) { existing.kind = it }
         setIfChanged(existing.lang, lang) { existing.lang = it }
         setIfChanged(existing.parent?.id, parent?.id) { existing.parent = parent }
         setIfChanged(existing.filePath, filePath) { existing.filePath = it }
-        
+
         // Обновляем lineStart/lineEnd только если код изменился или они явно указаны
         if (codeHashChanged || lineStart != existing.lineStart || lineEnd != existing.lineEnd) {
             setIfChanged(existing.lineStart, lineStart) { existing.lineStart = it }
             setIfChanged(existing.lineEnd, lineEnd) { existing.lineEnd = it }
         }
-        
+
         // Обновляем sourceCode только если codeHash изменился
         if (codeHashChanged) {
             setIfChanged(existing.sourceCode, sourceCode) { existing.sourceCode = it }
         }
-        
+
         setIfChanged(existing.docComment, docComment) { existing.docComment = it }
         setIfChanged(existing.signature, signature) { existing.signature = it }
         setIfChanged(existing.codeHash, codeHash) { existing.codeHash = it }
@@ -196,11 +199,11 @@ class NodeBuilder(
         val merged =
             (currentMeta + metaMap).filterValues {
                 it != null &&
-                        when (it) {
-                            is Collection<*> -> it.isNotEmpty()
-                            is Map<*, *> -> it.isNotEmpty()
-                            else -> true
-                        }
+                    when (it) {
+                        is Collection<*> -> it.isNotEmpty()
+                        is Map<*, *> -> it.isNotEmpty()
+                        else -> true
+                    }
             }
         setIfChanged(existing.meta, merged) { existing.meta = it as Map<String, Any> }
 
@@ -262,7 +265,7 @@ class NodeBuilder(
             // Валидация FQN
             require(fqn.isNotBlank()) { "FQN cannot be blank" }
             require(fqn.length <= 1000) { "FQN is too long: ${fqn.length} characters (max 1000)" }
-            
+
             // Валидация формата FQN (базовая проверка)
             require(fqn.matches(Regex("^[a-zA-Z_][a-zA-Z0-9_.]*$"))) {
                 "FQN has invalid format: $fqn (must start with letter/underscore, contain only alphanumeric, dots, underscores)"
@@ -286,13 +289,13 @@ class NodeBuilder(
                 require(it.id != null) {
                     "Parent node must be persisted before being used as parent"
                 }
-                
+
                 // Проверка, что parent не является самим узлом (защита от самоссылки)
                 require(it.fqn != fqn) {
                     "Node cannot be its own parent: fqn=$fqn"
                 }
             }
-            
+
             // Валидация размера sourceCode
             sourceCode?.let {
                 if (it.length > maxSourceCodeSize) {
@@ -313,9 +316,7 @@ class NodeBuilder(
     /**
      * Получить статистику операций (для логирования на уровне выше).
      */
-    fun getStats(): NodeBuilderStats {
-        return NodeBuilderStats(createdCount, updatedCount, skippedCount)
-    }
+    fun getStats(): NodeBuilderStats = NodeBuilderStats(createdCount, updatedCount, skippedCount)
 
     /**
      * Сбросить счетчики статистики и кэш.
@@ -327,7 +328,7 @@ class NodeBuilder(
         existingNodesCache.clear()
         log.debug("NodeBuilder stats and cache reset")
     }
-    
+
     /**
      * Очистить кэш существующих нод (можно вызывать периодически для освобождения памяти).
      */
@@ -337,8 +338,7 @@ class NodeBuilder(
         log.debug("Cleared node cache: removed {} entries", size)
     }
 
-    private fun toMetaMap(meta: NodeMeta): Map<String, Any> =
-        objectMapper.convertValue(meta, Map::class.java) as Map<String, Any>
+    private fun toMetaMap(meta: NodeMeta): Map<String, Any> = objectMapper.convertValue(meta, Map::class.java) as Map<String, Any>
 
     /**
      * Статистика операций NodeBuilder.
@@ -350,6 +350,4 @@ class NodeBuilder(
     ) {
         val total: Int get() = created + updated + skipped
     }
-
 }
-

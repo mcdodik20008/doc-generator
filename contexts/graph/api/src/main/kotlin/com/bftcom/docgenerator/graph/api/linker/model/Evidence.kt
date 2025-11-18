@@ -11,5 +11,5 @@ data class Evidence(
     val snippet: String?,
     val factKind: String,
     val confidence: Double = 1.0,
-    val meta: Map<String, Any?> = emptyMap()
+    val meta: Map<String, Any?> = emptyMap(),
 )

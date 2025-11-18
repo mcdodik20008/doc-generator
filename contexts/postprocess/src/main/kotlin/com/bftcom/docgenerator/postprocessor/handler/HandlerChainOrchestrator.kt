@@ -19,6 +19,7 @@ class HandlerChainOrchestrator(
     private val handlers: List<PostprocessHandler>,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun processOne(chunk: Chunk) {
         log.debug("Processing chunk: id={}, nodeId={}, source={}", chunk.id, chunk.node?.id, chunk.source)

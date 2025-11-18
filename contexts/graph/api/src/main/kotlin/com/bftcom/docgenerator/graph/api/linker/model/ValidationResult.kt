@@ -7,5 +7,5 @@ package com.bftcom.docgenerator.graph.api.linker.model
 data class ValidationResult(
     val isValid: Boolean,
     val message: String? = null,
-    val warnings: List<String> = emptyList()
+    val warnings: List<String> = emptyList(),
 )

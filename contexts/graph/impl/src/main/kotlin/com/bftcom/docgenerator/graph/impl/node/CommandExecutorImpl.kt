@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 
 /**
- * 
+ *
  * Вся логика обработки команд вынесена в отдельные handler'ы.
  */
 class CommandExecutorImpl(
@@ -36,13 +36,13 @@ class CommandExecutorImpl(
     private val libraryNodeEnricher: LibraryNodeEnricher? = null,
 ) : CommandExecutor {
     private val log = LoggerFactory.getLogger(javaClass)
-    
+
     // Состояние сборки графа (создается при каждом execute)
     private val state = GraphState()
-    
+
     // Строитель нод
     val builder = NodeBuilder(application, nodeRepo, objectMapper)
-    
+
     // Handler'ы для каждой команды
     private val rememberFileUnitHandler = RememberFileUnitHandler()
     private val ensurePackageHandler = EnsurePackageHandler()
@@ -64,7 +64,7 @@ class CommandExecutorImpl(
             throw e
         }
     }
-    
+
     /**
      * Получить статистику операций NodeBuilder.
      */

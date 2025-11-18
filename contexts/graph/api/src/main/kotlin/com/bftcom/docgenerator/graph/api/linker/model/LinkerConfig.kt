@@ -6,5 +6,6 @@ import kotlin.reflect.KClass
 
 interface LinkerConfig {
     fun isEnabled(detector: KClass<out EdgeDetector>): Boolean
+
     fun getPriority(kind: EdgeKind): Int
 }

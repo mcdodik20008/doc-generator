@@ -27,7 +27,6 @@ class GraphLinkerImpl(
     private val libraryNodeIndex: LibraryNodeIndex,
     private val integrationPointService: IntegrationPointService,
 ) : GraphLinker {
-
     companion object {
         private val log = LoggerFactory.getLogger(GraphLinker::class.java)
         private val TYPE_TOKEN = Regex("""\:\s*([A-Za-z_][A-Za-z0-9_\.]*)""")
@@ -79,7 +78,7 @@ class GraphLinkerImpl(
                 edges += linkThrows(node, meta, index)
             }
         }
-        
+
         // Обновляем индекс новыми узлами
         if (newlyCreatedNodes.isNotEmpty()) {
             log.info("Updating index with ${newlyCreatedNodes.size} newly created nodes (ENDPOINT/TOPIC)")
@@ -89,9 +88,11 @@ class GraphLinkerImpl(
         }
 
         // === persist ===
-        sink.upsertEdges(edges.asSequence().map { (src, dst, kind) ->
-            SimpleEdgeProposal(kind, src, dst)
-        })
+        sink.upsertEdges(
+            edges.asSequence().map { (src, dst, kind) ->
+                SimpleEdgeProposal(kind, src, dst)
+            },
+        )
 
         log.info("Finished linking. CALLS errors: $callsErrors, new integration nodes: ${newlyCreatedNodes.size}")
     }
@@ -101,31 +102,43 @@ class GraphLinkerImpl(
     private fun linkContains(
         all: List<Node>,
         index: NodeIndex,
-        metaOf: (Node) -> NodeMeta
+        metaOf: (Node) -> NodeMeta,
     ): List<Triple<Node, Node, EdgeKind>> {
         val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
 
-        all.filter {
-            it.kind in setOf(
-                NodeKind.INTERFACE, NodeKind.SERVICE, NodeKind.RECORD,
-                NodeKind.MAPPER, NodeKind.ENDPOINT, NodeKind.CLASS,
-                NodeKind.ENUM, NodeKind.CONFIG
-            )
-        }.forEach { type ->
-            val pkg = index.findByFqn(type.packageName ?: return@forEach) ?: return@forEach
-            res += Triple(pkg, type, EdgeKind.CONTAINS)
-        }
+        all
+            .filter {
+                it.kind in
+                    setOf(
+                        NodeKind.INTERFACE,
+                        NodeKind.SERVICE,
+                        NodeKind.RECORD,
+                        NodeKind.MAPPER,
+                        NodeKind.ENDPOINT,
+                        NodeKind.CLASS,
+                        NodeKind.ENUM,
+                        NodeKind.CONFIG,
+                    )
+            }.forEach { type ->
+                val pkg = index.findByFqn(type.packageName ?: return@forEach) ?: return@forEach
+                res += Triple(pkg, type, EdgeKind.CONTAINS)
+            }
 
-        all.filter {
-            it.kind in setOf(
-                NodeKind.METHOD, NodeKind.FIELD, NodeKind.ENDPOINT,
-                NodeKind.JOB, NodeKind.TOPIC
-            )
-        }.forEach { member ->
-            val ownerFqn = metaOf(member).ownerFqn ?: return@forEach
-            val owner = index.findByFqn(ownerFqn) ?: return@forEach
-            res += Triple(owner, member, EdgeKind.CONTAINS)
-        }
+        all
+            .filter {
+                it.kind in
+                    setOf(
+                        NodeKind.METHOD,
+                        NodeKind.FIELD,
+                        NodeKind.ENDPOINT,
+                        NodeKind.JOB,
+                        NodeKind.TOPIC,
+                    )
+            }.forEach { member ->
+                val ownerFqn = metaOf(member).ownerFqn ?: return@forEach
+                val owner = index.findByFqn(ownerFqn) ?: return@forEach
+                res += Triple(owner, member, EdgeKind.CONTAINS)
+            }
 
         return res
     }
@@ -133,7 +146,7 @@ class GraphLinkerImpl(
     private fun linkInheritsImplements(
         node: Node,
         meta: NodeMeta,
-        index: NodeIndex
+        index: NodeIndex,
     ): List<Triple<Node, Node, EdgeKind>> {
         val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
         val imports = meta.imports ?: emptyList()
@@ -159,7 +172,7 @@ class GraphLinkerImpl(
     private fun linkAnnotations(
         node: Node,
         meta: NodeMeta,
-        index: NodeIndex
+        index: NodeIndex,
     ): List<Triple<Node, Node, EdgeKind>> {
         val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
         val annotations = meta.annotations ?: return emptyList()
@@ -177,7 +190,7 @@ class GraphLinkerImpl(
     private fun linkSignatureDepends(
         fn: Node,
         meta: NodeMeta,
-        index: NodeIndex
+        index: NodeIndex,
     ): List<Triple<Node, Node, EdgeKind>> {
         val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
         val imports = meta.imports ?: emptyList()
@@ -188,7 +201,8 @@ class GraphLinkerImpl(
                 !meta.paramTypes.isNullOrEmpty() || !meta.returnType.isNullOrBlank() ->
                     (meta.paramTypes.orEmpty() + listOfNotNull(meta.returnType)).toSet()
                 !fn.signature.isNullOrBlank() ->
-                    TYPE_TOKEN.findAll(fn.signature!!)
+                    TYPE_TOKEN
+                        .findAll(fn.signature!!)
                         .map { it.groupValues[1].substringBefore('<').substringBefore('?') }
                         .toSet()
                 else -> emptySet()
@@ -207,7 +221,7 @@ class GraphLinkerImpl(
     private fun linkCalls(
         fn: Node,
         meta: NodeMeta,
-        index: NodeIndex
+        index: NodeIndex,
     ): List<Triple<Node, Node, EdgeKind>> {
         val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
         val usages = meta.rawUsages ?: return emptyList()
@@ -218,11 +232,12 @@ class GraphLinkerImpl(
         usages.forEach { u ->
             when (u) {
                 is RawUsage.Simple -> {
-                    if (owner != null)
+                    if (owner != null) {
                         index.findByFqn("${owner.fqn}.${u.name}")?.let {
                             res += Triple(fn, it, EdgeKind.CALLS)
                             return@forEach
                         }
+                    }
                     if (u.isCall) {
                         index.resolveType(u.name, imports, pkg)?.let {
                             res += Triple(fn, it, EdgeKind.CALLS)
@@ -230,9 +245,12 @@ class GraphLinkerImpl(
                     }
                 }
                 is RawUsage.Dot -> {
-                    val recvType = if (u.receiver.firstOrNull()?.isUpperCase() == true) {
-                        index.resolveType(u.receiver, imports, pkg)
-                    } else owner
+                    val recvType =
+                        if (u.receiver.firstOrNull()?.isUpperCase() == true) {
+                            index.resolveType(u.receiver, imports, pkg)
+                        } else {
+                            owner
+                        }
                     recvType?.let { r ->
                         index.findByFqn("${r.fqn}.${u.member}")?.let {
                             res += Triple(fn, it, EdgeKind.CALLS)
@@ -247,7 +265,7 @@ class GraphLinkerImpl(
     private fun linkThrows(
         fn: Node,
         meta: NodeMeta,
-        index: NodeIndex
+        index: NodeIndex,
     ): List<Triple<Node, Node, EdgeKind>> {
         val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
         val throwsTypes = meta.throwsTypes ?: return emptyList()
@@ -262,14 +280,20 @@ class GraphLinkerImpl(
         return res
     }
 
-    private fun Node.isTypeNode(): Boolean = kind in setOf(
-        NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM, NodeKind.RECORD,
-        NodeKind.SERVICE, NodeKind.MAPPER, NodeKind.CONFIG
-    )
+    private fun Node.isTypeNode(): Boolean =
+        kind in
+            setOf(
+                NodeKind.CLASS,
+                NodeKind.INTERFACE,
+                NodeKind.ENUM,
+                NodeKind.RECORD,
+                NodeKind.SERVICE,
+                NodeKind.MAPPER,
+                NodeKind.CONFIG,
+            )
 
-    private fun Node.isFunctionNode(): Boolean =
-        kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
-    
+    private fun Node.isFunctionNode(): Boolean = kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
+
     /**
      * Создает интеграционные Edge (CALLS_HTTP, PRODUCES, CONSUMES) на основе LibraryNode.
      * Возвращает пару: (список Edge, список новых созданных узлов).
@@ -282,17 +306,17 @@ class GraphLinkerImpl(
     ): Pair<List<Triple<Node, Node, EdgeKind>>, List<Node>> {
         val edges = mutableListOf<Triple<Node, Node, EdgeKind>>()
         val newNodes = mutableListOf<Node>()
-        
+
         val result = linkIntegrationEdgesInternal(fn, meta, index, application)
         edges += result.first
         newNodes += result.second
-        
+
         return Pair(edges, newNodes)
     }
-    
+
     /**
      * Создает интеграционные Edge (CALLS_HTTP, PRODUCES, CONSUMES) на основе LibraryNode.
-     * 
+     *
      * Алгоритм:
      * 1. Анализирует rawUsages метода приложения
      * 2. Для каждого вызова метода библиотеки проверяет, есть ли интеграционные точки
@@ -302,10 +326,8 @@ class GraphLinkerImpl(
         fn: Node,
         meta: NodeMeta,
         index: NodeIndex,
-    ): List<Triple<Node, Node, EdgeKind>> {
-        return linkIntegrationEdgesInternal(fn, meta, index, fn.application).first
-    }
-    
+    ): List<Triple<Node, Node, EdgeKind>> = linkIntegrationEdgesInternal(fn, meta, index, fn.application).first
+
     private fun linkIntegrationEdgesInternal(
         fn: Node,
         meta: NodeMeta,
@@ -318,51 +340,54 @@ class GraphLinkerImpl(
         val imports = meta.imports ?: emptyList()
         val owner = meta.ownerFqn?.let { index.findByFqn(it) }
         val pkg = fn.packageName.orEmpty()
-        
+
         usages.forEach { u ->
             // Пытаемся найти метод в библиотеках
-            val libraryMethodFqn = when (u) {
-                is RawUsage.Simple -> {
-                    if (owner != null) {
-                        "${owner.fqn}.${u.name}"
-                    } else {
-                        // Пытаемся разрешить через imports
-                        imports.firstOrNull { it.endsWith(".${u.name}") }?.let { "$it.${u.name}" }
-                            ?: if (u.name.contains('.')) u.name else null
+            val libraryMethodFqn =
+                when (u) {
+                    is RawUsage.Simple -> {
+                        if (owner != null) {
+                            "${owner.fqn}.${u.name}"
+                        } else {
+                            // Пытаемся разрешить через imports
+                            imports.firstOrNull { it.endsWith(".${u.name}") }?.let { "$it.${u.name}" }
+                                ?: if (u.name.contains('.')) u.name else null
+                        }
+                    }
+                    is RawUsage.Dot -> {
+                        val recvType =
+                            if (u.receiver.firstOrNull()?.isUpperCase() == true) {
+                                index.resolveType(u.receiver, imports, pkg)?.fqn
+                            } else {
+                                owner?.fqn
+                            }
+                        recvType?.let { "$it.${u.member}" }
                     }
                 }
-                is RawUsage.Dot -> {
-                    val recvType = if (u.receiver.firstOrNull()?.isUpperCase() == true) {
-                        index.resolveType(u.receiver, imports, pkg)?.fqn
-                    } else {
-                        owner?.fqn
-                    }
-                    recvType?.let { "$it.${u.member}" }
-                }
-            }
-            
+
             if (libraryMethodFqn != null) {
                 val libraryNode = libraryNodeIndex.findByMethodFqn(libraryMethodFqn)
                 if (libraryNode != null) {
                     // Нашли метод в библиотеке - извлекаем интеграционные точки
                     val integrationPoints = integrationPointService.extractIntegrationPoints(libraryNode)
-                    
+
                     for (point in integrationPoints) {
                         when (point) {
                             is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.HttpEndpoint -> {
                                 // Создаем или находим узел ENDPOINT
-                                val (endpointNode, isNew) = getOrCreateEndpointNode(
-                                    url = point.url ?: "unknown",
-                                    httpMethod = point.httpMethod,
-                                    index = index,
-                                    application = application,
-                                )
+                                val (endpointNode, isNew) =
+                                    getOrCreateEndpointNode(
+                                        url = point.url ?: "unknown",
+                                        httpMethod = point.httpMethod,
+                                        index = index,
+                                        application = application,
+                                    )
                                 if (endpointNode != null) {
                                     if (isNew) {
                                         newNodes.add(endpointNode)
                                     }
                                     res += Triple(fn, endpointNode, EdgeKind.CALLS_HTTP)
-                                    
+
                                     // Создаем дополнительные Edge для retry/timeout/circuit breaker
                                     if (point.hasRetry) {
                                         res += Triple(fn, endpointNode, EdgeKind.RETRIES_TO)
@@ -377,11 +402,12 @@ class GraphLinkerImpl(
                             }
                             is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.KafkaTopic -> {
                                 // Создаем или находим узел TOPIC
-                                val (topicNode, isNew) = getOrCreateTopicNode(
-                                    topic = point.topic ?: "unknown",
-                                    index = index,
-                                    application = application,
-                                )
+                                val (topicNode, isNew) =
+                                    getOrCreateTopicNode(
+                                        topic = point.topic ?: "unknown",
+                                        index = index,
+                                        application = application,
+                                    )
                                 if (topicNode != null) {
                                     if (isNew) {
                                         newNodes.add(topicNode)
@@ -394,12 +420,13 @@ class GraphLinkerImpl(
                             }
                             is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.CamelRoute -> {
                                 // Для Camel создаем ENDPOINT узел
-                                val (endpointNode, isNew) = getOrCreateEndpointNode(
-                                    url = point.uri ?: "unknown",
-                                    httpMethod = null,
-                                    index = index,
-                                    application = application,
-                                )
+                                val (endpointNode, isNew) =
+                                    getOrCreateEndpointNode(
+                                        url = point.uri ?: "unknown",
+                                        httpMethod = null,
+                                        index = index,
+                                        application = application,
+                                    )
                                 if (endpointNode != null) {
                                     if (isNew) {
                                         newNodes.add(endpointNode)
@@ -416,10 +443,10 @@ class GraphLinkerImpl(
                 }
             }
         }
-        
+
         return Pair(res, newNodes)
     }
-    
+
     /**
      * Создает или находит узел ENDPOINT для указанного URL.
      * Возвращает пару: (узел, был ли создан новый узел).
@@ -431,44 +458,47 @@ class GraphLinkerImpl(
         application: com.bftcom.docgenerator.domain.application.Application,
     ): Pair<Node?, Boolean> {
         // Создаем FQN для endpoint: "endpoint://{httpMethod} {url}"
-        val endpointFqn = if (httpMethod != null) {
-            "endpoint://$httpMethod $url"
-        } else {
-            "endpoint://$url"
-        }
-        
+        val endpointFqn =
+            if (httpMethod != null) {
+                "endpoint://$httpMethod $url"
+            } else {
+                "endpoint://$url"
+            }
+
         // Пытаемся найти существующий узел
         val existing = index.findByFqn(endpointFqn)
         if (existing != null) {
             return Pair(existing, false)
         }
-        
+
         // Создаем новый узел ENDPOINT
         try {
             val endpointName = url.substringAfterLast('/').takeIf { it.isNotBlank() } ?: url
-            val endpointNode = nodeRepo.save(
-                Node(
-                    application = application,
-                    fqn = endpointFqn,
-                    name = endpointName,
-                    packageName = null,
-                    kind = NodeKind.ENDPOINT,
-                    lang = com.bftcom.docgenerator.domain.enums.Lang.java, // виртуальный узел
-                    parent = null,
-                    filePath = null,
-                    lineStart = null,
-                    lineEnd = null,
-                    sourceCode = null,
-                    docComment = null,
-                    signature = null,
-                    codeHash = null,
-                    meta = mapOf(
-                        "url" to url,
-                        "httpMethod" to (httpMethod ?: "UNKNOWN"),
-                        "source" to "library_analysis",
+            val endpointNode =
+                nodeRepo.save(
+                    Node(
+                        application = application,
+                        fqn = endpointFqn,
+                        name = endpointName,
+                        packageName = null,
+                        kind = NodeKind.ENDPOINT,
+                        lang = com.bftcom.docgenerator.domain.enums.Lang.java, // виртуальный узел
+                        parent = null,
+                        filePath = null,
+                        lineStart = null,
+                        lineEnd = null,
+                        sourceCode = null,
+                        docComment = null,
+                        signature = null,
+                        codeHash = null,
+                        meta =
+                            mapOf(
+                                "url" to url,
+                                "httpMethod" to (httpMethod ?: "UNKNOWN"),
+                                "source" to "library_analysis",
+                            ),
                     ),
-                ),
-            )
+                )
             log.debug("Created ENDPOINT node: {}", endpointFqn)
             return Pair(endpointNode, true)
         } catch (e: Exception) {
@@ -476,7 +506,7 @@ class GraphLinkerImpl(
             return Pair(null, false)
         }
     }
-    
+
     /**
      * Создает или находит узел TOPIC для указанного Kafka topic.
      * Возвращает пару: (узел, был ли создан новый узел).
@@ -487,36 +517,38 @@ class GraphLinkerImpl(
         application: com.bftcom.docgenerator.domain.application.Application,
     ): Pair<Node?, Boolean> {
         val topicFqn = "topic://$topic"
-        
+
         val existing = index.findByFqn(topicFqn)
         if (existing != null) {
             return Pair(existing, false)
         }
-        
+
         // Создаем новый узел TOPIC
         try {
-            val topicNode = nodeRepo.save(
-                Node(
-                    application = application,
-                    fqn = topicFqn,
-                    name = topic,
-                    packageName = null,
-                    kind = NodeKind.TOPIC,
-                    lang = com.bftcom.docgenerator.domain.enums.Lang.java, // виртуальный узел
-                    parent = null,
-                    filePath = null,
-                    lineStart = null,
-                    lineEnd = null,
-                    sourceCode = null,
-                    docComment = null,
-                    signature = null,
-                    codeHash = null,
-                    meta = mapOf(
-                        "topic" to topic,
-                        "source" to "library_analysis",
+            val topicNode =
+                nodeRepo.save(
+                    Node(
+                        application = application,
+                        fqn = topicFqn,
+                        name = topic,
+                        packageName = null,
+                        kind = NodeKind.TOPIC,
+                        lang = com.bftcom.docgenerator.domain.enums.Lang.java, // виртуальный узел
+                        parent = null,
+                        filePath = null,
+                        lineStart = null,
+                        lineEnd = null,
+                        sourceCode = null,
+                        docComment = null,
+                        signature = null,
+                        codeHash = null,
+                        meta =
+                            mapOf(
+                                "topic" to topic,
+                                "source" to "library_analysis",
+                            ),
                     ),
-                ),
-            )
+                )
             log.debug("Created TOPIC node: {}", topicFqn)
             return Pair(topicNode, true)
         } catch (e: Exception) {

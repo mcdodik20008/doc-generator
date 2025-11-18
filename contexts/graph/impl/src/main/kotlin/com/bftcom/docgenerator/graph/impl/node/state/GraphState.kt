@@ -16,33 +16,57 @@ class GraphState {
     private val fileUnitByPath = mutableMapOf<String, RawFileUnit>()
 
     fun getPackage(fqn: String): Node? = packageByFqn[fqn]
-    fun getOrPutPackage(fqn: String, factory: () -> Node): Node = packageByFqn.getOrPut(fqn, factory)
-    
+
+    fun getOrPutPackage(
+        fqn: String,
+        factory: () -> Node,
+    ): Node = packageByFqn.getOrPut(fqn, factory)
+
     fun getType(fqn: String): Node? = typeByFqn[fqn]
-    fun putType(fqn: String, node: Node) {
+
+    fun putType(
+        fqn: String,
+        node: Node,
+    ) {
         typeByFqn[fqn] = node
     }
-    
+
     fun getFunction(fqn: String): Node? = funcByFqn[fqn]
-    fun putFunction(fqn: String, node: Node) {
+
+    fun putFunction(
+        fqn: String,
+        node: Node,
+    ) {
         funcByFqn[fqn] = node
     }
-    
+
     fun getFilePackage(filePath: String): String? = filePkg[filePath]
-    fun setFilePackage(filePath: String, pkg: String) {
+
+    fun setFilePackage(
+        filePath: String,
+        pkg: String,
+    ) {
         filePkg[filePath] = pkg
     }
-    
+
     fun getFileImports(filePath: String): List<String>? = fileImports[filePath]
-    fun setFileImports(filePath: String, imports: List<String>) {
+
+    fun setFileImports(
+        filePath: String,
+        imports: List<String>,
+    ) {
         fileImports[filePath] = imports
     }
-    
+
     fun getFileUnit(filePath: String): RawFileUnit? = fileUnitByPath[filePath]
-    fun putFileUnit(filePath: String, unit: RawFileUnit) {
+
+    fun putFileUnit(
+        filePath: String,
+        unit: RawFileUnit,
+    ) {
         fileUnitByPath[filePath] = unit
     }
-    
+
     fun rememberFileUnit(unit: RawFileUnit) {
         fileUnitByPath[unit.filePath] = unit
         if (unit.pkgFqn != null) {
@@ -54,4 +78,3 @@ class GraphState {
         }
     }
 }
-

@@ -18,19 +18,22 @@ class LibraryNodeEnricherImpl(
     private val integrationPointService: IntegrationPointService,
 ) : LibraryNodeEnricher {
     private val log = LoggerFactory.getLogger(javaClass)
-    
+
     @Suppress("UNCHECKED_CAST")
-    override fun enrichNodeMeta(node: Node, meta: NodeMeta): NodeMeta {
+    override fun enrichNodeMeta(
+        node: Node,
+        meta: NodeMeta,
+    ): NodeMeta {
         // Обогащаем метаданные только для методов
         if (node.kind.name != "METHOD") {
             return meta
         }
-        
+
         val usages = meta.rawUsages ?: return meta
         val imports = meta.imports ?: emptyList()
         val ownerFqn = meta.ownerFqn
         val pkg = node.packageName.orEmpty()
-        
+
         val integrationPoints = mutableListOf<Map<String, Any>>()
         val httpEndpoints = mutableSetOf<String>()
         val kafkaTopics = mutableSetOf<String>()
@@ -38,30 +41,31 @@ class LibraryNodeEnricherImpl(
         var hasRetry = false
         var hasTimeout = false
         var hasCircuitBreaker = false
-        
+
         // Анализируем вызовы методов
         usages.forEach { u ->
-            val libraryMethodFqn = when (u) {
-                is RawUsage.Simple -> {
-                    if (ownerFqn != null) {
-                        "$ownerFqn.${u.name}"
-                    } else {
-                        imports.firstOrNull { it.endsWith(".${u.name}") }?.let { "$it.${u.name}" }
-                            ?: if (u.name.contains('.')) u.name else null
+            val libraryMethodFqn =
+                when (u) {
+                    is RawUsage.Simple -> {
+                        if (ownerFqn != null) {
+                            "$ownerFqn.${u.name}"
+                        } else {
+                            imports.firstOrNull { it.endsWith(".${u.name}") }?.let { "$it.${u.name}" }
+                                ?: if (u.name.contains('.')) u.name else null
+                        }
+                    }
+                    is RawUsage.Dot -> {
+                        // Для Dot usage нужно разрешить receiver
+                        // Упрощенная версия - используем ownerFqn
+                        ownerFqn?.let { "$it.${u.member}" }
                     }
                 }
-                is RawUsage.Dot -> {
-                    // Для Dot usage нужно разрешить receiver
-                    // Упрощенная версия - используем ownerFqn
-                    ownerFqn?.let { "$it.${u.member}" }
-                }
-            }
-            
+
             if (libraryMethodFqn != null) {
                 val libraryNode = libraryNodeIndex.findByMethodFqn(libraryMethodFqn)
                 if (libraryNode != null) {
                     val points = integrationPointService.extractIntegrationPoints(libraryNode)
-                    
+
                     for (point in points) {
                         when (point) {
                             is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.HttpEndpoint -> {
@@ -69,7 +73,7 @@ class LibraryNodeEnricherImpl(
                                 if (point.hasRetry) hasRetry = true
                                 if (point.hasTimeout) hasTimeout = true
                                 if (point.hasCircuitBreaker) hasCircuitBreaker = true
-                                
+
                                 integrationPoints.add(
                                     mapOf(
                                         "type" to "HTTP",
@@ -106,27 +110,31 @@ class LibraryNodeEnricherImpl(
                 }
             }
         }
-        
+
         // Если нашли интеграционные точки, обогащаем метаданные
         if (integrationPoints.isNotEmpty() || httpEndpoints.isNotEmpty() || kafkaTopics.isNotEmpty() || camelUris.isNotEmpty()) {
             // Создаем обогащенную версию NodeMeta
             // Используем copy() для создания новой версии с дополнительными полями
             // Но так как NodeMeta - это data class без поля libraryIntegration,
             // мы добавим эту информацию позже в Node.meta при сохранении
-            
+
             // Пока просто возвращаем исходные метаданные
             // Информация об интеграционных точках будет доступна через Edge
             // и через запросы к IntegrationPointService
-            
+
             // TODO: если нужно сохранить эту информацию в Node.meta,
             // можно добавить поле libraryIntegration в NodeMeta или
             // сохранить его напрямую в Node.meta при создании Node
-            
-            log.debug("Found integration points for method {}: {} HTTP, {} Kafka, {} Camel", 
-                node.fqn, httpEndpoints.size, kafkaTopics.size, camelUris.size)
+
+            log.debug(
+                "Found integration points for method {}: {} HTTP, {} Kafka, {} Camel",
+                node.fqn,
+                httpEndpoints.size,
+                kafkaTopics.size,
+                camelUris.size,
+            )
         }
-        
+
         return meta
     }
 }
-

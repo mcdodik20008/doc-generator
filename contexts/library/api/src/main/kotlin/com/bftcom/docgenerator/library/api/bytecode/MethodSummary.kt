@@ -33,4 +33,3 @@ data class MethodSummary(
     /** Дополнительные метаданные */
     val metadata: Map<String, Any> = emptyMap(),
 )
-

@@ -9,5 +9,5 @@ data class DbTable(
     val name: String,
     val type: TableType = TableType.TABLE,
     val columns: List<String> = emptyList(),
-    val comment: String? = null
+    val comment: String? = null,
 )

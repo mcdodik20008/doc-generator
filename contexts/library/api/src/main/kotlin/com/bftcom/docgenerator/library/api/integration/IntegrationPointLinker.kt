@@ -6,7 +6,7 @@ import com.bftcom.docgenerator.domain.node.Node
 
 /**
  * Компонент для создания связей (Edge) между методами приложения и интеграционными точками.
- * 
+ *
  * Использует информацию из LibraryNode.meta.integrationAnalysis для создания:
  * - CALLS_HTTP edges между методами приложения и HTTP endpoints
  * - PRODUCES/CONSUMES edges между методами и Kafka topics
@@ -15,7 +15,7 @@ import com.bftcom.docgenerator.domain.node.Node
 interface IntegrationPointLinker {
     /**
      * Создает связи между методами приложения и интеграционными точками из библиотек.
-     * 
+     *
      * Алгоритм:
      * 1. Находит все методы приложения, которые вызывают методы библиотек с интеграционными точками
      * 2. Создает Edge между методом приложения и интеграционной точкой
@@ -35,4 +35,3 @@ interface IntegrationPointLinker {
         val errors: List<String> = emptyList(),
     )
 }
-

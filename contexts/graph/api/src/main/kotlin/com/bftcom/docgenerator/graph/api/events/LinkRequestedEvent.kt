@@ -7,4 +7,3 @@ package com.bftcom.docgenerator.graph.api.events
 data class LinkRequestedEvent(
     val applicationId: Long,
 )
-

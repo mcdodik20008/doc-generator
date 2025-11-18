@@ -8,6 +8,9 @@ import com.bftcom.docgenerator.graph.impl.node.state.GraphState
  * Интерфейс обработчика команд для построения графа.
  */
 interface CommandHandler<in T : DeclCmd> {
-    fun handle(cmd: T, state: GraphState, builder: NodeBuilder)
+    fun handle(
+        cmd: T,
+        state: GraphState,
+        builder: NodeBuilder,
+    )
 }
-

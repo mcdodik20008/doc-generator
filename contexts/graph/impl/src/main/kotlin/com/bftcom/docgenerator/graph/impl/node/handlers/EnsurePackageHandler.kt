@@ -11,7 +11,11 @@ import com.bftcom.docgenerator.graph.impl.node.state.GraphState
  * Обработчик команды EnsurePackageCmd - создает ноду пакета, если её еще нет.
  */
 class EnsurePackageHandler : CommandHandler<EnsurePackageCmd> {
-    override fun handle(cmd: EnsurePackageCmd, state: GraphState, builder: NodeBuilder) {
+    override fun handle(
+        cmd: EnsurePackageCmd,
+        state: GraphState,
+        builder: NodeBuilder,
+    ) {
         val pkg = cmd.pkgFqn
         state.getOrPutPackage(pkg) {
             builder.upsertNode(
@@ -31,4 +35,3 @@ class EnsurePackageHandler : CommandHandler<EnsurePackageCmd> {
         }
     }
 }
-

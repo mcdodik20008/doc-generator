@@ -22,11 +22,11 @@ class IntegrationPointController(
     fun findMethodsByUrl(
         @RequestParam url: String,
         @RequestParam(required = false) libraryId: Long?,
-    ): List<MethodInfo> {
-        return integrationPointService.findMethodsByUrl(url, libraryId)
+    ): List<MethodInfo> =
+        integrationPointService
+            .findMethodsByUrl(url, libraryId)
             .map { MethodInfo.fromLibraryNode(it) }
-    }
-    
+
     /**
      * Найти все методы, которые используют указанный Kafka topic.
      */
@@ -34,11 +34,11 @@ class IntegrationPointController(
     fun findMethodsByKafkaTopic(
         @RequestParam topic: String,
         @RequestParam(required = false) libraryId: Long?,
-    ): List<MethodInfo> {
-        return integrationPointService.findMethodsByKafkaTopic(topic, libraryId)
+    ): List<MethodInfo> =
+        integrationPointService
+            .findMethodsByKafkaTopic(topic, libraryId)
             .map { MethodInfo.fromLibraryNode(it) }
-    }
-    
+
     /**
      * Найти все методы, которые используют указанный Camel URI.
      */
@@ -46,11 +46,11 @@ class IntegrationPointController(
     fun findMethodsByCamelUri(
         @RequestParam uri: String,
         @RequestParam(required = false) libraryId: Long?,
-    ): List<MethodInfo> {
-        return integrationPointService.findMethodsByCamelUri(uri, libraryId)
+    ): List<MethodInfo> =
+        integrationPointService
+            .findMethodsByCamelUri(uri, libraryId)
             .map { MethodInfo.fromLibraryNode(it) }
-    }
-    
+
     /**
      * Получить сводку по интеграционным точкам для метода.
      */
@@ -58,20 +58,18 @@ class IntegrationPointController(
     fun getMethodSummary(
         @RequestParam methodFqn: String,
         @RequestParam libraryId: Long,
-    ): IntegrationPointService.IntegrationMethodSummary? {
-        return integrationPointService.getMethodIntegrationSummary(methodFqn, libraryId)
-    }
-    
+    ): IntegrationPointService.IntegrationMethodSummary? = integrationPointService.getMethodIntegrationSummary(methodFqn, libraryId)
+
     /**
      * Найти все родительские клиенты в библиотеке.
      */
     @GetMapping("/parent-clients")
     fun findParentClients(
         @RequestParam libraryId: Long,
-    ): List<MethodInfo> {
-        return integrationPointService.findParentClients(libraryId)
+    ): List<MethodInfo> =
+        integrationPointService
+            .findParentClients(libraryId)
             .map { MethodInfo.fromLibraryNode(it) }
-    }
 
     /**
      * Информация о методе для API.

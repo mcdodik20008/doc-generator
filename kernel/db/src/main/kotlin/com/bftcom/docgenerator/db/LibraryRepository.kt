@@ -6,5 +6,3 @@ import org.springframework.data.jpa.repository.JpaRepository
 interface LibraryRepository : JpaRepository<Library, Long> {
     fun findByCoordinate(coordinate: String): Library?
 }
-
-

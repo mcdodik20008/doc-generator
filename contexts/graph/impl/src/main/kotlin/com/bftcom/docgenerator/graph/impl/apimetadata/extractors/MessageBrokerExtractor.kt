@@ -31,7 +31,7 @@ class MessageBrokerExtractor : ApiMetadataExtractor {
         if (NkxUtil.hasAnyAnn(anns, "KafkaListener")) {
             val topic = extractTopicFromAnnotation(function.annotationsRepr, "topic", "topics")
             val groupId = extractTopicFromAnnotation(function.annotationsRepr, "groupId", "group")
-            
+
             return ApiMetadata.MessageBrokerEndpoint(
                 broker = ApiMetadata.BrokerType.KAFKA,
                 topic = topic,
@@ -44,7 +44,7 @@ class MessageBrokerExtractor : ApiMetadataExtractor {
             val queue = extractTopicFromAnnotation(function.annotationsRepr, "queue", "queues")
             val exchange = extractTopicFromAnnotation(function.annotationsRepr, "exchange")
             val routingKey = extractTopicFromAnnotation(function.annotationsRepr, "routingKey", "key")
-            
+
             return ApiMetadata.MessageBrokerEndpoint(
                 broker = ApiMetadata.BrokerType.RABBITMQ,
                 queue = queue,
@@ -54,10 +54,11 @@ class MessageBrokerExtractor : ApiMetadataExtractor {
         }
 
         // NATS
-        if (NkxUtil.hasAnyAnn(anns, "NatsListener") || 
-            NkxUtil.importsContain(imps, "io.nats")) {
+        if (NkxUtil.hasAnyAnn(anns, "NatsListener") ||
+            NkxUtil.importsContain(imps, "io.nats")
+        ) {
             val subject = extractTopicFromAnnotation(function.annotationsRepr, "subject")
-            
+
             return ApiMetadata.MessageBrokerEndpoint(
                 broker = ApiMetadata.BrokerType.NATS,
                 topic = subject, // NATS использует subject как топик
@@ -84,12 +85,13 @@ class MessageBrokerExtractor : ApiMetadataExtractor {
             // Ищем параметр в тексте аннотации: @KafkaListener(topics = ["topic1"])
             for (paramName in paramNames) {
                 // Простой regex поиск: topics = ["topic1"] или topic = "topic1"
-                val patterns = listOf(
-                    """$paramName\s*=\s*\["([^"]+)"""".toRegex(), // массивы
-                    """$paramName\s*=\s*"([^"]+)"""".toRegex(), // строки
-                    """$paramName\s*=\s*'([^']+)'""".toRegex(), // одинарные кавычки
-                )
-                
+                val patterns =
+                    listOf(
+                        """$paramName\s*=\s*\["([^"]+)"""".toRegex(), // массивы
+                        """$paramName\s*=\s*"([^"]+)"""".toRegex(), // строки
+                        """$paramName\s*=\s*'([^']+)'""".toRegex(), // одинарные кавычки
+                    )
+
                 for (pattern in patterns) {
                     val match = pattern.find(ann)
                     if (match != null) return match.groupValues[1]
@@ -99,4 +101,3 @@ class MessageBrokerExtractor : ApiMetadataExtractor {
         return null
     }
 }
-

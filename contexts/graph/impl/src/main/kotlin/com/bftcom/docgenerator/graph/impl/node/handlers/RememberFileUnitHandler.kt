@@ -8,8 +8,11 @@ import com.bftcom.docgenerator.graph.impl.node.state.GraphState
  * Обработчик команды RememberFileUnitCmd - сохраняет информацию о файле в состояние.
  */
 class RememberFileUnitHandler : CommandHandler<RememberFileUnitCmd> {
-    override fun handle(cmd: RememberFileUnitCmd, state: GraphState, builder: NodeBuilder) {
+    override fun handle(
+        cmd: RememberFileUnitCmd,
+        state: GraphState,
+        builder: NodeBuilder,
+    ) {
         state.rememberFileUnit(cmd.unit)
     }
 }
-

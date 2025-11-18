@@ -22,4 +22,3 @@ data class HttpCallSite(
     /** Дополнительные метаданные */
     val metadata: Map<String, Any> = emptyMap(),
 )
-

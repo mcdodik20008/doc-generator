@@ -23,13 +23,12 @@ class ApiMetadataCollector(
         function: RawFunction,
         ownerType: RawType?,
         ctx: NodeKindContext,
-    ): ApiMetadata? {
-        return extractors
+    ): ApiMetadata? =
+        extractors
             .asSequence()
             .filter { it.supports(ctx.lang) }
             .mapNotNull { it.extractFunctionMetadata(function, ownerType, ctx) }
             .firstOrNull()
-    }
 
     /**
      * Извлечь метаданные API для типа (класса).
@@ -37,12 +36,10 @@ class ApiMetadataCollector(
     fun extractTypeMetadata(
         type: RawType,
         ctx: NodeKindContext,
-    ): ApiMetadata? {
-        return extractors
+    ): ApiMetadata? =
+        extractors
             .asSequence()
             .filter { it.supports(ctx.lang) }
             .mapNotNull { it.extractTypeMetadata(type, ctx) }
             .firstOrNull()
-    }
 }
-

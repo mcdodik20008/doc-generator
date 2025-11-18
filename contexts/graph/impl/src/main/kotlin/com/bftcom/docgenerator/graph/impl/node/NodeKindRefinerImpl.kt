@@ -2,11 +2,11 @@ package com.bftcom.docgenerator.graph.impl.node
 
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
-import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawField
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFileUnit
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
+import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindExtractor
 import org.springframework.stereotype.Component

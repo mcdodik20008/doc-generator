@@ -11,15 +11,17 @@ interface LibraryNodeIndex {
      * Находит LibraryNode по FQN метода.
      */
     fun findByMethodFqn(methodFqn: String): LibraryNode?
-    
+
     /**
      * Находит LibraryNode по FQN класса и имени метода.
      */
-    fun findByClassAndMethod(classFqn: String, methodName: String): LibraryNode?
-    
+    fun findByClassAndMethod(
+        classFqn: String,
+        methodName: String,
+    ): LibraryNode?
+
     /**
      * Проверяет, является ли метод родительским клиентом.
      */
     fun isParentClient(methodFqn: String): Boolean
 }
-

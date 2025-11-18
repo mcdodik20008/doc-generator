@@ -16,4 +16,3 @@ data class KafkaCallSite(
     /** Дополнительные метаданные */
     val metadata: Map<String, Any> = emptyMap(),
 )
-

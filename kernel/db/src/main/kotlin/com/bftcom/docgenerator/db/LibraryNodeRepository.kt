@@ -6,8 +6,11 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 
 interface LibraryNodeRepository : JpaRepository<LibraryNode, Long> {
-    fun findByLibraryIdAndFqn(libraryId: Long, fqn: String): LibraryNode?
-    
+    fun findByLibraryIdAndFqn(
+        libraryId: Long,
+        fqn: String,
+    ): LibraryNode?
+
     /**
      * Находит все методы библиотеки, которые являются родительскими клиентами.
      */
@@ -19,10 +22,10 @@ interface LibraryNodeRepository : JpaRepository<LibraryNode, Long> {
               AND ln.kind = 'METHOD'
               AND ((ln.meta -> 'integrationAnalysis' ->> 'isParentClient')::boolean) = true
         """,
-        nativeQuery = true
+        nativeQuery = true,
     )
     fun findParentClientsByLibraryId(libraryId: Long): List<LibraryNode>
-    
+
     /**
      * Находит все методы, которые используют указанный URL (через JSONB поиск).
      */
@@ -39,7 +42,7 @@ interface LibraryNodeRepository : JpaRepository<LibraryNode, Long> {
         @Param("urlJson") urlJson: String,
         @Param("libraryId") libraryId: Long?,
     ): List<LibraryNode>
-    
+
     /**
      * Находит все методы, которые используют указанный Kafka topic.
      */
@@ -56,7 +59,7 @@ interface LibraryNodeRepository : JpaRepository<LibraryNode, Long> {
         @Param("topicJson") topicJson: String,
         @Param("libraryId") libraryId: Long?,
     ): List<LibraryNode>
-    
+
     /**
      * Находит все методы, которые используют указанный Camel URI.
      */
@@ -74,4 +77,3 @@ interface LibraryNodeRepository : JpaRepository<LibraryNode, Long> {
         @Param("libraryId") libraryId: Long?,
     ): List<LibraryNode>
 }
-

@@ -1,9 +1,9 @@
 package com.bftcom.docgenerator.graph.impl.node
 
-import com.bftcom.docgenerator.graph.api.node.CommandExecutor
-import com.bftcom.docgenerator.graph.api.node.SourceVisitor
 import com.bftcom.docgenerator.graph.api.declplanner.DeclPlanner
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawDecl
+import com.bftcom.docgenerator.graph.api.node.CommandExecutor
+import com.bftcom.docgenerator.graph.api.node.SourceVisitor
 import kotlin.reflect.KClass
 
 class KotlinToDomainVisitor(
