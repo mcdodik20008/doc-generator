@@ -11,6 +11,7 @@ import com.bftcom.docgenerator.library.api.LibraryBuilder
 import com.bftcom.docgenerator.library.api.LibraryBuildResult
 import com.bftcom.docgenerator.library.api.LibraryCoordinate
 import com.bftcom.docgenerator.library.api.RawLibraryNode
+import com.bftcom.docgenerator.library.api.bytecode.HttpBytecodeAnalyzer
 import com.bftcom.docgenerator.library.impl.coordinate.LibraryCoordinateParser
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Propagation
 class LibraryBuilderImpl(
     private val coordinateParser: LibraryCoordinateParser,
     private val bytecodeParser: BytecodeParser,
+    private val httpBytecodeAnalyzer: HttpBytecodeAnalyzer,
     private val libraryRepo: LibraryRepository,
     private val libraryNodeRepo: LibraryNodeRepository,
     private val objectMapper: ObjectMapper,
@@ -134,8 +136,16 @@ class LibraryBuilderImpl(
         val rawNodes = bytecodeParser.parseJar(jarFile)
         log.debug("Parsed {} raw nodes from jar: {}", rawNodes.size, jarFile.name)
 
+        // 3.1. Анализируем HTTP-вызовы (байткод-анализ)
+        val analysisResult = try {
+            httpBytecodeAnalyzer.analyzeJar(jarFile)
+        } catch (e: Exception) {
+            log.warn("HTTP bytecode analysis failed for {}: {}", jarFile.name, e.message)
+            null
+        }
+
         // 4. Сохраняем LibraryNode
-        val savedNodes = saveLibraryNodes(library, rawNodes)
+        val savedNodes = saveLibraryNodes(library, rawNodes, analysisResult)
         nodesCreated += savedNodes
 
         log.info(
@@ -154,6 +164,7 @@ class LibraryBuilderImpl(
     private fun saveLibraryNodes(
         library: Library,
         rawNodes: List<RawLibraryNode>,
+        analysisResult: com.bftcom.docgenerator.library.api.bytecode.BytecodeAnalysisResult?,
     ): Int {
         val startedNs = System.nanoTime()
 
@@ -176,7 +187,7 @@ class LibraryBuilderImpl(
 
             if (existing == null) {
                 val t1 = now()
-                val node = createLibraryNode(library, raw, null)
+                val node = createLibraryNode(library, raw, null, analysisResult)
                 tCreate += now() - t1
 
                 val t2 = now()
@@ -202,7 +213,7 @@ class LibraryBuilderImpl(
                 val parent = raw.parentFqn?.let { parentMap[it] }
 
                 val t1 = now()
-                val node = createLibraryNode(library, raw, parent)
+                val node = createLibraryNode(library, raw, parent, analysisResult)
                 tCreate += now() - t1
 
                 val t2 = now()
@@ -237,11 +248,42 @@ class LibraryBuilderImpl(
         library: Library,
         raw: RawLibraryNode,
         parent: LibraryNode?,
+        analysisResult: com.bftcom.docgenerator.library.api.bytecode.BytecodeAnalysisResult?,
     ): LibraryNode {
-        val metaMap = mapOf(
+        val metaMap = mutableMapOf<String, Any>(
             "annotations" to raw.annotations,
             "modifiers" to raw.modifiers.toList(),
-        ) + raw.meta
+        )
+        metaMap.putAll(raw.meta)
+
+        // Добавляем информацию об HTTP-вызовах для методов
+        if (raw.kind == NodeKind.METHOD && analysisResult != null) {
+            val methodSummary = findMethodSummary(raw.fqn, analysisResult)
+            if (methodSummary != null) {
+                val httpMeta = mutableMapOf<String, Any>()
+                if (methodSummary.isParentClient) {
+                    httpMeta["isParentClient"] = true
+                }
+                if (methodSummary.urls.isNotEmpty()) {
+                    httpMeta["urls"] = methodSummary.urls.toList()
+                }
+                if (methodSummary.httpMethods.isNotEmpty()) {
+                    httpMeta["httpMethods"] = methodSummary.httpMethods.toList()
+                }
+                if (methodSummary.hasRetry) {
+                    httpMeta["hasRetry"] = true
+                }
+                if (methodSummary.hasTimeout) {
+                    httpMeta["hasTimeout"] = true
+                }
+                if (methodSummary.hasCircuitBreaker) {
+                    httpMeta["hasCircuitBreaker"] = true
+                }
+                if (httpMeta.isNotEmpty()) {
+                    metaMap["httpAnalysis"] = httpMeta
+                }
+            }
+        }
 
         return LibraryNode(
             library = library,
@@ -259,6 +301,32 @@ class LibraryBuilderImpl(
             signature = raw.signature,
             meta = objectMapper.convertValue(metaMap, Map::class.java) as Map<String, Any>,
         )
+    }
+
+    /**
+     * Находит сводку по методу по его FQN.
+     * FQN метода имеет формат: com.example.Class.methodName
+     */
+    private fun findMethodSummary(
+        methodFqn: String,
+        analysisResult: com.bftcom.docgenerator.library.api.bytecode.BytecodeAnalysisResult,
+    ): com.bftcom.docgenerator.library.api.bytecode.MethodSummary? {
+        // Парсим FQN метода: com.example.Class.methodName -> owner=com.example.Class, name=methodName
+        val lastDot = methodFqn.lastIndexOf('.')
+        if (lastDot == -1) return null
+
+        val ownerFqn = methodFqn.substring(0, lastDot)
+        val methodName = methodFqn.substring(lastDot + 1)
+        val owner = ownerFqn.replace('.', '/')
+
+        // Ищем метод в сводках
+        for ((methodId, summary) in analysisResult.methodSummaries) {
+            if (methodId.ownerFqn == ownerFqn && methodId.name == methodName) {
+                return summary
+            }
+        }
+
+        return null
     }
 
     private fun determineLibraryKind(coordinate: LibraryCoordinate): String? {
