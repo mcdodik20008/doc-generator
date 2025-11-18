@@ -1,8 +1,6 @@
 package com.bftcom.docgenerator.library.api.integration
 
 import com.bftcom.docgenerator.domain.application.Application
-import com.bftcom.docgenerator.domain.enums.EdgeKind
-import com.bftcom.docgenerator.domain.node.Node
 
 /**
  * Компонент для создания связей (Edge) между методами приложения и интеграционными точками.

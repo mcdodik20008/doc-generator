@@ -4,7 +4,6 @@ import com.bftcom.docgenerator.db.EdgeRepository
 import com.bftcom.docgenerator.db.LibraryNodeRepository
 import com.bftcom.docgenerator.db.NodeRepository
 import com.bftcom.docgenerator.domain.application.Application
-import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.library.api.integration.IntegrationPoint
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointLinker

@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.io.File
 import java.util.jar.JarFile
-import java.util.zip.ZipEntry
 
 /**
  * Парсер координат библиотеки из jar-файла.

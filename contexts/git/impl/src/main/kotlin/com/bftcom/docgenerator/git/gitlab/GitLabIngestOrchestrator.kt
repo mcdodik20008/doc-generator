@@ -9,10 +9,8 @@ import com.bftcom.docgenerator.graph.api.events.LibraryBuildRequestedEvent
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import java.io.File
 import java.nio.file.Files
-import java.time.Duration
 import java.time.OffsetDateTime
 
 @Service

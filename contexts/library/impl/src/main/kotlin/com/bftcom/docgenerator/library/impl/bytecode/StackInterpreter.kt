@@ -1,6 +1,5 @@
 package com.bftcom.docgenerator.library.impl.bytecode
 
-import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 
 /**

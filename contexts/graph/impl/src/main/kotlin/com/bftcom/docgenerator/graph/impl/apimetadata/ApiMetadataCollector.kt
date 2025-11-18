@@ -1,6 +1,5 @@
 package com.bftcom.docgenerator.graph.impl.apimetadata
 
-import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.graph.api.apimetadata.ApiMetadata
 import com.bftcom.docgenerator.graph.api.apimetadata.ApiMetadataExtractor
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction

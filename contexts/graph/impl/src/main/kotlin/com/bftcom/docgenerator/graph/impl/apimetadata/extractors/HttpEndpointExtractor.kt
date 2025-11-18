@@ -6,10 +6,7 @@ import com.bftcom.docgenerator.graph.api.apimetadata.ApiMetadataExtractor
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
-import com.bftcom.docgenerator.graph.impl.apimetadata.util.AnnotationParser
 import com.bftcom.docgenerator.graph.impl.util.NkxUtil
-import org.jetbrains.kotlin.psi.KtAnnotationEntry
-import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.springframework.stereotype.Component
 
 /**

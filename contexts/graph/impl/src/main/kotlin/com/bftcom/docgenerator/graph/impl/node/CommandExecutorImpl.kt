@@ -13,7 +13,6 @@ import com.bftcom.docgenerator.graph.api.node.CommandExecutor
 import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
 import com.bftcom.docgenerator.graph.impl.apimetadata.ApiMetadataCollector
 import com.bftcom.docgenerator.graph.impl.node.builder.NodeBuilder
-import com.bftcom.docgenerator.graph.impl.node.handlers.CommandHandler
 import com.bftcom.docgenerator.graph.impl.node.handlers.EnsurePackageHandler
 import com.bftcom.docgenerator.graph.impl.node.handlers.RememberFileUnitHandler
 import com.bftcom.docgenerator.graph.impl.node.handlers.UpsertFieldHandler
