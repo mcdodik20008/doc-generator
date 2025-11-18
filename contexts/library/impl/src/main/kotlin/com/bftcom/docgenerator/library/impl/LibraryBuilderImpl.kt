@@ -256,31 +256,63 @@ class LibraryBuilderImpl(
         )
         metaMap.putAll(raw.meta)
 
-        // Добавляем информацию об HTTP-вызовах для методов
+        // Добавляем информацию об интеграционных вызовах (HTTP/Kafka/Camel) для методов
         if (raw.kind == NodeKind.METHOD && analysisResult != null) {
             val methodSummary = findMethodSummary(raw.fqn, analysisResult)
             if (methodSummary != null) {
-                val httpMeta = mutableMapOf<String, Any>()
+                val integrationMeta = mutableMapOf<String, Any>()
+                
                 if (methodSummary.isParentClient) {
-                    httpMeta["isParentClient"] = true
+                    integrationMeta["isParentClient"] = true
                 }
+                
+                // HTTP
                 if (methodSummary.urls.isNotEmpty()) {
-                    httpMeta["urls"] = methodSummary.urls.toList()
+                    integrationMeta["urls"] = methodSummary.urls.toList()
                 }
                 if (methodSummary.httpMethods.isNotEmpty()) {
-                    httpMeta["httpMethods"] = methodSummary.httpMethods.toList()
+                    integrationMeta["httpMethods"] = methodSummary.httpMethods.toList()
                 }
                 if (methodSummary.hasRetry) {
-                    httpMeta["hasRetry"] = true
+                    integrationMeta["hasRetry"] = true
                 }
                 if (methodSummary.hasTimeout) {
-                    httpMeta["hasTimeout"] = true
+                    integrationMeta["hasTimeout"] = true
                 }
                 if (methodSummary.hasCircuitBreaker) {
-                    httpMeta["hasCircuitBreaker"] = true
+                    integrationMeta["hasCircuitBreaker"] = true
                 }
-                if (httpMeta.isNotEmpty()) {
-                    metaMap["httpAnalysis"] = httpMeta
+                
+                // Kafka
+                if (methodSummary.kafkaTopics.isNotEmpty()) {
+                    integrationMeta["kafkaTopics"] = methodSummary.kafkaTopics.toList()
+                }
+                if (methodSummary.directKafkaCalls.isNotEmpty()) {
+                    integrationMeta["kafkaCalls"] = methodSummary.directKafkaCalls.map { call ->
+                        mapOf(
+                            "topic" to (call.topic ?: ""),
+                            "operation" to call.operation,
+                            "clientType" to call.clientType,
+                        )
+                    }
+                }
+                
+                // Camel
+                if (methodSummary.camelUris.isNotEmpty()) {
+                    integrationMeta["camelUris"] = methodSummary.camelUris.toList()
+                }
+                if (methodSummary.directCamelCalls.isNotEmpty()) {
+                    integrationMeta["camelCalls"] = methodSummary.directCamelCalls.map { call ->
+                        mapOf(
+                            "uri" to (call.uri ?: ""),
+                            "endpointType" to (call.endpointType ?: ""),
+                            "direction" to call.direction,
+                        )
+                    }
+                }
+                
+                if (integrationMeta.isNotEmpty()) {
+                    metaMap["integrationAnalysis"] = integrationMeta
                 }
             }
         }

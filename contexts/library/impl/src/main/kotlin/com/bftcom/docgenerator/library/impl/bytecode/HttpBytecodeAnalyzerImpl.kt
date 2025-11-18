@@ -2,8 +2,10 @@ package com.bftcom.docgenerator.library.impl.bytecode
 
 import com.bftcom.docgenerator.library.api.bytecode.BytecodeAnalysisResult
 import com.bftcom.docgenerator.library.api.bytecode.CallGraph
+import com.bftcom.docgenerator.library.api.bytecode.CamelCallSite
 import com.bftcom.docgenerator.library.api.bytecode.HttpBytecodeAnalyzer
 import com.bftcom.docgenerator.library.api.bytecode.HttpCallSite
+import com.bftcom.docgenerator.library.api.bytecode.KafkaCallSite
 import com.bftcom.docgenerator.library.api.bytecode.MethodId
 import com.bftcom.docgenerator.library.api.bytecode.MethodSummary
 import org.objectweb.asm.ClassReader
@@ -39,12 +41,25 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
     // Методы для определения HTTP-метода
     private val httpMethodNames = setOf("get", "post", "put", "delete", "patch", "head", "options")
 
+    // Паттерны для поиска Kafka-клиентов
+    private val kafkaProducerOwner = "org/apache/kafka/clients/producer/KafkaProducer"
+    private val kafkaConsumerOwner = "org/apache/kafka/clients/consumer/KafkaConsumer"
+
+    // Паттерны для поиска Camel
+    private val camelRouteBuilderOwner = "org/apache/camel/builder/RouteBuilder"
+    private val camelEndpointOwners = setOf(
+        "org/apache/camel/Route",
+        "org/apache/camel/builder/RouteBuilder",
+    )
+
     override fun analyzeJar(jarFile: File): BytecodeAnalysisResult {
         if (!jarFile.exists() || !jarFile.name.endsWith(".jar", ignoreCase = true)) {
             log.debug("Skipping non-jar file: {}", jarFile.name)
             return BytecodeAnalysisResult(
                 callGraph = CallGraph(),
                 httpCallSites = emptyList(),
+                kafkaCallSites = emptyList(),
+                camelCallSites = emptyList(),
                 methodSummaries = emptyMap(),
                 parentClients = emptySet(),
             )
@@ -52,6 +67,8 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
 
         val calls = mutableMapOf<MethodId, MutableSet<MethodId>>()
         val httpCallSites = mutableListOf<HttpCallSite>()
+        val kafkaCallSites = mutableListOf<KafkaCallSite>()
+        val camelCallSites = mutableListOf<CamelCallSite>()
 
         try {
             JarFile(jarFile).use { jar ->
@@ -69,7 +86,7 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                 for (entry in classEntries) {
                     try {
                         jar.getInputStream(entry).use { input ->
-                            analyzeClass(input, calls, httpCallSites)
+                            analyzeClass(input, calls, httpCallSites, kafkaCallSites, camelCallSites)
                         }
                     } catch (e: Exception) {
                         log.debug("Failed to analyze class {}: {}", entry.name, e.message)
@@ -81,19 +98,32 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
         }
 
         val callGraph = CallGraph.build(calls)
-        val parentClients = findParentClients(httpCallSites, callGraph)
-        val methodSummaries = buildMethodSummaries(httpCallSites, callGraph, parentClients)
+        val allCallSites = httpCallSites.map { it.methodId } + 
+            kafkaCallSites.map { it.methodId } + 
+            camelCallSites.map { it.methodId }
+        val parentClients = findParentClients(allCallSites.toSet(), callGraph)
+        val methodSummaries = buildMethodSummaries(
+            httpCallSites, 
+            kafkaCallSites, 
+            camelCallSites, 
+            callGraph, 
+            parentClients
+        )
 
         log.info(
-            "Analysis completed: calls={}, httpCalls={}, parentClients={}",
+            "Analysis completed: calls={}, httpCalls={}, kafkaCalls={}, camelCalls={}, parentClients={}",
             calls.size,
             httpCallSites.size,
+            kafkaCallSites.size,
+            camelCallSites.size,
             parentClients.size,
         )
 
         return BytecodeAnalysisResult(
             callGraph = callGraph,
             httpCallSites = httpCallSites,
+            kafkaCallSites = kafkaCallSites,
+            camelCallSites = camelCallSites,
             methodSummaries = methodSummaries,
             parentClients = parentClients,
         )
@@ -103,9 +133,11 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
         input: InputStream,
         calls: MutableMap<MethodId, MutableSet<MethodId>>,
         httpCallSites: MutableList<HttpCallSite>,
+        kafkaCallSites: MutableList<KafkaCallSite>,
+        camelCallSites: MutableList<CamelCallSite>,
     ) {
         val reader = ClassReader(input.readBytes())
-        val visitor = HttpAnalysisClassVisitor(calls, httpCallSites)
+        val visitor = HttpAnalysisClassVisitor(calls, httpCallSites, kafkaCallSites, camelCallSites)
         // УБИРАЕМ SKIP_CODE - теперь анализируем код методов!
         reader.accept(visitor, ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)
     }
@@ -113,6 +145,8 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
     private inner class HttpAnalysisClassVisitor(
         private val calls: MutableMap<MethodId, MutableSet<MethodId>>,
         private val httpCallSites: MutableList<HttpCallSite>,
+        private val kafkaCallSites: MutableList<KafkaCallSite>,
+        private val camelCallSites: MutableList<CamelCallSite>,
     ) : org.objectweb.asm.ClassVisitor(Opcodes.ASM9) {
         private var currentOwner: String? = null
 
@@ -140,7 +174,19 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
             val owner = currentOwner ?: return null
             val methodId = MethodId(owner, name, descriptor)
 
-            return HttpAnalysisMethodVisitor(methodId, calls, httpCallSites, webClientOwners, restTemplateOwner)
+            return HttpAnalysisMethodVisitor(
+                methodId, 
+                calls, 
+                httpCallSites, 
+                kafkaCallSites,
+                camelCallSites,
+                webClientOwners, 
+                restTemplateOwner,
+                kafkaProducerOwner,
+                kafkaConsumerOwner,
+                camelRouteBuilderOwner,
+                camelEndpointOwners,
+            )
         }
     }
 
@@ -148,8 +194,14 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
         private val methodId: MethodId,
         private val calls: MutableMap<MethodId, MutableSet<MethodId>>,
         private val httpCallSites: MutableList<HttpCallSite>,
+        private val kafkaCallSites: MutableList<KafkaCallSite>,
+        private val camelCallSites: MutableList<CamelCallSite>,
         private val webClientOwners: Set<String>,
         private val restTemplateOwner: String,
+        private val kafkaProducerOwner: String,
+        private val kafkaConsumerOwner: String,
+        private val camelRouteBuilderOwner: String,
+        private val camelEndpointOwners: Set<String>,
     ) : MethodVisitor(Opcodes.ASM9) {
         private val callees = mutableSetOf<MethodId>()
         private var currentUrl: String? = null
@@ -158,6 +210,16 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
         private var hasRetry = false
         private var hasTimeout = false
         private var hasCircuitBreaker = false
+        
+        // Kafka
+        private var currentKafkaTopic: String? = null
+        private var currentKafkaOperation: String? = null
+        private var currentKafkaClientType: String? = null
+        
+        // Camel
+        private var currentCamelUri: String? = null
+        private var currentCamelDirection: String? = null
+        private var currentCamelEndpointType: String? = null
 
         override fun visitMethodInsn(
             opcode: Int,
@@ -200,16 +262,81 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                         method.startsWith("patch") -> currentHttpMethod = "PATCH"
                     }
                 }
+                // Kafka Producer
+                owner == kafkaProducerOwner -> {
+                    currentKafkaClientType = "KafkaProducer"
+                    currentKafkaOperation = "PRODUCE"
+                    if (name == "send") {
+                        // Топик будет в параметрах, но без интерпретации стека сложно извлечь
+                    }
+                }
+                // Kafka Consumer
+                owner == kafkaConsumerOwner -> {
+                    currentKafkaClientType = "KafkaConsumer"
+                    currentKafkaOperation = "CONSUME"
+                    when (name) {
+                        "subscribe" -> {
+                            // Топик будет в параметрах
+                        }
+                        "poll" -> {
+                            // Операция чтения
+                        }
+                    }
+                }
+                // Camel RouteBuilder
+                owner == camelRouteBuilderOwner -> {
+                    when (name) {
+                        "from" -> {
+                            currentCamelDirection = "FROM"
+                        }
+                        "to" -> {
+                            currentCamelDirection = "TO"
+                        }
+                    }
+                }
+                // Camel endpoints (from/to могут быть вызваны на Route)
+                owner in camelEndpointOwners -> {
+                    when (name) {
+                        "from" -> {
+                            currentCamelDirection = "FROM"
+                        }
+                        "to" -> {
+                            currentCamelDirection = "TO"
+                        }
+                    }
+                }
             }
         }
 
         override fun visitLdcInsn(cst: Any?) {
-            // Простой анализ: если встречаем строковую константу после вызова uri(),
-            // это может быть URL
-            if (cst is String && currentClientType != null && currentUrl == null) {
+            if (cst !is String) return
+            
+            // HTTP: URL
+            if (currentClientType != null && currentUrl == null) {
                 // Простая эвристика: если строка похожа на URL
                 if (cst.startsWith("http://") || cst.startsWith("https://") || cst.startsWith("/")) {
                     currentUrl = cst
+                }
+            }
+            
+            // Kafka: топик (простая эвристика - любая строка после Kafka-вызова)
+            if (currentKafkaClientType != null && currentKafkaTopic == null) {
+                // Топики обычно не содержат пробелов и специальных символов
+                if (cst.isNotBlank() && !cst.contains(" ") && cst.length < 200) {
+                    currentKafkaTopic = cst
+                }
+            }
+            
+            // Camel: URI endpoint
+            if (currentCamelDirection != null && currentCamelUri == null) {
+                // Camel URI обычно имеют формат: "kafka:topic", "http://host/path", "jms:queue"
+                if (cst.contains(":") || cst.startsWith("http://") || cst.startsWith("https://")) {
+                    currentCamelUri = cst
+                    // Определяем тип endpoint по префиксу
+                    val colonIndex = cst.indexOf(':')
+                    if (colonIndex > 0) {
+                        currentCamelEndpointType = cst.substring(0, colonIndex)
+                    }
                 }
             }
         }
@@ -234,6 +361,30 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                     ),
                 )
             }
+            
+            // Если нашли Kafka-вызов, сохраняем его
+            if (currentKafkaClientType != null) {
+                kafkaCallSites.add(
+                    KafkaCallSite(
+                        methodId = methodId,
+                        topic = currentKafkaTopic,
+                        operation = currentKafkaOperation ?: "UNKNOWN",
+                        clientType = currentKafkaClientType!!,
+                    ),
+                )
+            }
+            
+            // Если нашли Camel-вызов, сохраняем его
+            if (currentCamelDirection != null && currentCamelUri != null) {
+                camelCallSites.add(
+                    CamelCallSite(
+                        methodId = methodId,
+                        uri = currentCamelUri,
+                        endpointType = currentCamelEndpointType,
+                        direction = currentCamelDirection!!,
+                    ),
+                )
+            }
         }
     }
 
@@ -241,16 +392,14 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
      * Фаза 2: Находим родительские клиенты, поднимаясь вверх по call graph.
      */
     private fun findParentClients(
-        httpCallSites: List<HttpCallSite>,
+        callSiteMethodIds: Set<MethodId>,
         callGraph: CallGraph,
     ): Set<MethodId> {
         val parentClients = mutableSetOf<MethodId>()
         val visited = mutableSetOf<MethodId>()
 
-        // Стартовые точки - все методы с HTTP-вызовами
-        val startMethods = httpCallSites.map { it.methodId }.toSet()
-
-        for (startMethod in startMethods) {
+        // Стартовые точки - все методы с интеграционными вызовами
+        for (startMethod in callSiteMethodIds) {
             findParentClientRecursive(startMethod, callGraph, visited, parentClients)
         }
 
@@ -314,16 +463,25 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
      */
     private fun buildMethodSummaries(
         httpCallSites: List<HttpCallSite>,
+        kafkaCallSites: List<KafkaCallSite>,
+        camelCallSites: List<CamelCallSite>,
         callGraph: CallGraph,
         parentClients: Set<MethodId>,
     ): Map<MethodId, MethodSummary> {
         val summaries = mutableMapOf<MethodId, MethodSummary>()
 
-        // Сначала собираем прямые HTTP-вызовы
-        val directCallsByMethod = httpCallSites.groupBy { it.methodId }
+        // Собираем прямые вызовы по методам
+        val directHttpCallsByMethod = httpCallSites.groupBy { it.methodId }
+        val directKafkaCallsByMethod = kafkaCallSites.groupBy { it.methodId }
+        val directCamelCallsByMethod = camelCallSites.groupBy { it.methodId }
 
         // Собираем сводки снизу вверх (от листьев к корням)
-        val allMethods = (httpCallSites.map { it.methodId } + parentClients).toSet()
+        val allMethods = (
+            httpCallSites.map { it.methodId } + 
+            kafkaCallSites.map { it.methodId } + 
+            camelCallSites.map { it.methodId } + 
+            parentClients
+        ).toSet()
         val processed = mutableSetOf<MethodId>()
 
         fun processMethod(methodId: MethodId): MethodSummary {
@@ -332,18 +490,32 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
             }
             processed.add(methodId)
 
-            val directCalls = directCallsByMethod[methodId] ?: emptyList()
+            val directHttpCalls = directHttpCallsByMethod[methodId] ?: emptyList()
+            val directKafkaCalls = directKafkaCallsByMethod[methodId] ?: emptyList()
+            val directCamelCalls = directCamelCallsByMethod[methodId] ?: emptyList()
             val callees = callGraph.getCallees(methodId)
 
             // Собираем сводки от вызываемых методов
             val calleeSummaries = callees.map { processMethod(it) }
 
             // Объединяем информацию
-            val urls = (directCalls.mapNotNull { it.url } + calleeSummaries.flatMap { it.urls }).toSet()
-            val httpMethods = (directCalls.mapNotNull { it.httpMethod } + calleeSummaries.flatMap { it.httpMethods }).toSet()
-            val hasRetry = directCalls.any { it.hasRetry } || calleeSummaries.any { it.hasRetry }
-            val hasTimeout = directCalls.any { it.hasTimeout } || calleeSummaries.any { it.hasTimeout }
-            val hasCircuitBreaker = directCalls.any { it.hasCircuitBreaker } || calleeSummaries.any { it.hasCircuitBreaker }
+            val urls = (directHttpCalls.mapNotNull { it.url } + calleeSummaries.flatMap { it.urls }).toSet()
+            val httpMethods = (directHttpCalls.mapNotNull { it.httpMethod } + calleeSummaries.flatMap { it.httpMethods }).toSet()
+            val hasRetry = directHttpCalls.any { it.hasRetry } || calleeSummaries.any { it.hasRetry }
+            val hasTimeout = directHttpCalls.any { it.hasTimeout } || calleeSummaries.any { it.hasTimeout }
+            val hasCircuitBreaker = directHttpCalls.any { it.hasCircuitBreaker } || calleeSummaries.any { it.hasCircuitBreaker }
+            
+            // Kafka
+            val kafkaTopics = (
+                directKafkaCalls.mapNotNull { it.topic } + 
+                calleeSummaries.flatMap { it.kafkaTopics }
+            ).toSet()
+            
+            // Camel
+            val camelUris = (
+                directCamelCalls.mapNotNull { it.uri } + 
+                calleeSummaries.flatMap { it.camelUris }
+            ).toSet()
 
             val summary = MethodSummary(
                 methodId = methodId,
@@ -352,7 +524,11 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                 hasRetry = hasRetry,
                 hasTimeout = hasTimeout,
                 hasCircuitBreaker = hasCircuitBreaker,
-                directHttpCalls = directCalls,
+                directHttpCalls = directHttpCalls,
+                kafkaTopics = kafkaTopics,
+                directKafkaCalls = directKafkaCalls,
+                camelUris = camelUris,
+                directCamelCalls = directCamelCalls,
                 isParentClient = methodId in parentClients,
             )
 

@@ -9,6 +9,10 @@ data class BytecodeAnalysisResult(
     val callGraph: CallGraph,
     /** HTTP-вызовы, найденные в байткоде (Фаза 1) */
     val httpCallSites: List<HttpCallSite>,
+    /** Kafka-вызовы, найденные в байткоде (Фаза 1) */
+    val kafkaCallSites: List<KafkaCallSite>,
+    /** Camel-вызовы, найденные в байткоде (Фаза 1) */
+    val camelCallSites: List<CamelCallSite>,
     /** Сводки по методам (Фаза 3) */
     val methodSummaries: Map<MethodId, MethodSummary>,
     /** Родительские клиенты (верхнеуровневые методы) */

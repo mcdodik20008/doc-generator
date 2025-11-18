@@ -2,8 +2,8 @@ package com.bftcom.docgenerator.library.api.bytecode
 
 /**
  * Сводка по методу (Фаза 3).
- * Содержит информацию о всех HTTP-вызовах, которые могут быть выполнены из этого метода
- * (прямо или через вызовы других методов).
+ * Содержит информацию о всех интеграционных вызовах (HTTP/Kafka/Camel),
+ * которые могут быть выполнены из этого метода (прямо или через вызовы других методов).
  */
 data class MethodSummary(
     /** Идентификатор метода */
@@ -20,6 +20,14 @@ data class MethodSummary(
     val hasCircuitBreaker: Boolean = false,
     /** Прямые HTTP-вызовы в этом методе */
     val directHttpCalls: List<HttpCallSite> = emptyList(),
+    /** Список Kafka-топиков (для Producer/Consumer) */
+    val kafkaTopics: Set<String> = emptySet(),
+    /** Прямые Kafka-вызовы в этом методе */
+    val directKafkaCalls: List<KafkaCallSite> = emptyList(),
+    /** Список Camel URI endpoints */
+    val camelUris: Set<String> = emptySet(),
+    /** Прямые Camel-вызовы в этом методе */
+    val directCamelCalls: List<CamelCallSite> = emptyList(),
     /** Является ли этот метод "родительским клиентом" */
     val isParentClient: Boolean = false,
     /** Дополнительные метаданные */
