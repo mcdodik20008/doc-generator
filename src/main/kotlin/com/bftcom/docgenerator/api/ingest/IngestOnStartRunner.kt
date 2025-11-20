@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.api.ingest
 
 import com.bftcom.docgenerator.db.ApplicationRepository
-import com.bftcom.docgenerator.git.gitlab.GitLabIngestOrchestrator
+import com.bftcom.docgenerator.git.api.GitIngestOrchestratorFactory
 import org.slf4j.LoggerFactory
 import org.springframework.boot.CommandLineRunner
 import org.springframework.stereotype.Component
@@ -9,7 +9,7 @@ import kotlin.system.measureTimeMillis
 
 @Component
 class IngestOnStartRunner(
-    private val orchestrator: GitLabIngestOrchestrator,
+    private val orchestratorFactory: GitIngestOrchestratorFactory,
     private val appRepo: ApplicationRepository,
 ) : CommandLineRunner {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -49,6 +49,7 @@ class IngestOnStartRunner(
         log.info("Starting ingest for ${apps.size} application(s): {}", apps.map { it.key })
         apps.forEach { app ->
             try {
+                val orchestrator = orchestratorFactory.getOrchestratorByProvider(app.repoProvider)
                 val took =
                     measureTimeMillis {
                         val summary =
