@@ -32,6 +32,14 @@ project(":contexts:git:impl").name = "contexts-git-impl"
 include("contexts:postprocess")
 project(":contexts:postprocess").projectDir = file("contexts/postprocess")
 
+include(":contexts:embedding:api")
+project(":contexts:embedding:api").projectDir = file("contexts/embedding/api")
+project(":contexts:embedding:api").name = "contexts-embedding-api"
+
+include(":contexts:embedding:impl")
+project(":contexts:embedding:impl").projectDir = file("contexts/embedding/impl")
+project(":contexts:embedding:impl").name = "contexts-embedding-impl"
+
 include(":contexts:library:api")
 project(":contexts:library:api").projectDir = file("contexts/library/api")
 project(":contexts:library:api").name = "contexts-library-api"
@@ -45,3 +53,11 @@ project(":kernel:domain").projectDir = file("kernel/domain")
 
 include(":kernel:db")
 project(":kernel:db").projectDir = file("kernel/db")
+
+include(":contexts:rag:api")
+project(":contexts:rag:api").projectDir = file("contexts/rag/api")
+project(":contexts:rag:api").name = "contexts-rag-api"
+
+include(":contexts:rag:impl")
+project(":contexts:rag:impl").projectDir = file("contexts/rag/impl")
+project(":contexts:rag:impl").name = "contexts-rag-impl"

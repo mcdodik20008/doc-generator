@@ -41,8 +41,12 @@ dependencies {
     implementation(projects.contexts.library.contextsLibraryApi)
     implementation(projects.contexts.library.contextsLibraryImpl)
     implementation(projects.contexts.postprocess)
+    implementation(projects.contexts.embedding.contextsEmbeddingApi)
+    implementation(projects.contexts.embedding.contextsEmbeddingImpl)
     implementation(projects.kernel.domain)
     implementation(projects.kernel.db)
+    implementation(projects.contexts.rag.contextsRagApi)
+    implementation(projects.contexts.rag.contextsRagImpl)
 
     // ===== Core / Kotlin / JSON =====
     implementation("org.jetbrains.kotlin:kotlin-reflect")
