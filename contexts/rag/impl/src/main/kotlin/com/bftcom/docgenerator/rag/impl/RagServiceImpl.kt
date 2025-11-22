@@ -10,20 +10,23 @@ import org.springframework.stereotype.Service
 
 @Service
 class RagServiceImpl(
-    private val embeddingSearchService: EmbeddingSearchService,
-    @Qualifier("coderChatClient")
-    private val chatClient: ChatClient,
+        private val embeddingSearchService: EmbeddingSearchService,
+        @Qualifier("ragChatClient") private val chatClient: ChatClient,
 ) : RagService {
 
-    override fun ask(query: String): RagResponse {
-        val searchResults = embeddingSearchService.searchByText(query, topK = 5)
+        override fun ask(query: String, sessionId: String): RagResponse {
+                val searchResults = embeddingSearchService.searchByText(query, topK = 5)
 
-        val context = searchResults.joinToString("\n\n") { "Source (ID: ${it.id}):\n${it.content}" }
+                val context =
+                        searchResults.joinToString("\n\n") { "Source [${it.id}]:\n${it.content}" }
 
-        val prompt =
-            """
+                val prompt =
+                        """
             Ты — умный ассистент разработчика. Ответь на вопрос, используя только предоставленный контекст.
             Если в контексте нет информации, так и скажи.
+            
+            ОБЯЗАТЕЛЬНО указывай источники информации в формате [ID], где ID — это идентификатор источника из контекста.
+            Пример: "Этот метод используется в классе Foo [123]".
             
             Контекст:
             $context
@@ -32,19 +35,28 @@ class RagServiceImpl(
             $query
             """.trimIndent()
 
-        val response =
-            chatClient
-                .prompt()
-                .user(prompt)
-                .call()
-                .content() ?: "Не удалось получить ответ."
+                val response =
+                        chatClient
+                                .prompt()
+                                .user(prompt)
+                                .advisors { a ->
+                                        a.param(
+                                                org.springframework.ai.chat.client.advisor
+                                                        .AbstractChatMemoryAdvisor
+                                                        .CHAT_MEMORY_CONVERSATION_ID_KEY,
+                                                sessionId
+                                        )
+                                }
+                                .call()
+                                .content()
+                                ?: "Не удалось получить ответ."
 
-        return RagResponse(
-            answer = response,
-            sources =
-                searchResults.map {
-                    RagSource(it.id, it.content, it.metadata, it.similarity)
-                },
-        )
-    }
+                return RagResponse(
+                        answer = response,
+                        sources =
+                                searchResults.map {
+                                        RagSource(it.id, it.content, it.metadata, it.similarity)
+                                },
+                )
+        }
 }

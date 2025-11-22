@@ -76,6 +76,7 @@ dependencies {
     implementation("org.springframework.ai:spring-ai-starter-model-chat-memory-repository-jdbc")
     implementation("org.springframework.ai:spring-ai-markdown-document-reader")
     implementation("org.springframework.ai:spring-ai-starter-model-openai")
+    implementation("org.springframework.ai:spring-ai-starter-model-chat-memory-jdbc")
 
     // ===== Dev-only =====
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
