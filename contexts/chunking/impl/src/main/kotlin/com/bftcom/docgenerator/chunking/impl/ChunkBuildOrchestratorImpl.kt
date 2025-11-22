@@ -20,6 +20,9 @@ import java.time.Duration
 import java.time.Instant
 import kotlin.math.max
 
+/**
+ * Оркестратор процесса разбиения узлов графа на чанки.
+ */
 @Service
 class ChunkBuildOrchestratorImpl(
     private val nodeRepo: NodeRepository,

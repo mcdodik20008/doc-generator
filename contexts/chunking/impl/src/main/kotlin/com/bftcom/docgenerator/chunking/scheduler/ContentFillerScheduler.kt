@@ -10,6 +10,9 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import java.time.OffsetDateTime
 
+/**
+ * Планировщик для заполнения content через LLM (speaker/talker этап).
+ */
 @Service
 class ContentFillerScheduler(
     txManager: PlatformTransactionManager,

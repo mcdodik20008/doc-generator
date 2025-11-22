@@ -6,6 +6,9 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import java.util.regex.Pattern
 
+/**
+ * Клиент для переписывания технических описаний в человекочитаемый формат через LLM (speaker/talker этап).
+ */
 @Component
 class OllamaTalkerClient(
     @param:Qualifier("talkerChatClient")

@@ -5,6 +5,9 @@ import org.springframework.ai.chat.client.ChatClient
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 
+/**
+ * Клиент для генерации технических объяснений кода через LLM (coder этап).
+ */
 @Component
 class OllamaCoderClient(
     @param:Qualifier("coderChatClient")

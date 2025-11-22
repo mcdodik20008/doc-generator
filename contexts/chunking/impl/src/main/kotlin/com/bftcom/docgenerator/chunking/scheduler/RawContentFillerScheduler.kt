@@ -13,6 +13,9 @@ import org.springframework.transaction.support.TransactionTemplate
 import java.security.MessageDigest
 import java.time.OffsetDateTime
 
+/**
+ * Планировщик для заполнения content_raw через LLM (coder этап).
+ */
 @Service
 class RawContentFillerScheduler(
     txManager: PlatformTransactionManager,
