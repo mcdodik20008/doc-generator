@@ -13,6 +13,9 @@ import java.io.File
 import java.nio.file.Path
 import java.time.OffsetDateTime
 
+/**
+ * Сервис для выкачивания исходников из Git-репозитория.
+ */
 @Service
 class GitLabCheckoutService(
     private val gitProps: GitLabProps,
