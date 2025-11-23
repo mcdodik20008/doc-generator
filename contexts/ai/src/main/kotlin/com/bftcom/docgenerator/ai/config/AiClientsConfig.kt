@@ -4,8 +4,8 @@ import com.bftcom.docgenerator.ai.props.AiClientsProperties
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor
 import org.springframework.ai.chat.memory.ChatMemory
+import org.springframework.ai.chat.memory.ChatMemoryRepository
 import org.springframework.ai.chat.memory.MessageWindowChatMemory
-import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepository
 import org.springframework.ai.chat.model.ChatModel
 import org.springframework.ai.embedding.EmbeddingModel
 import org.springframework.ai.openai.OpenAiChatModel
@@ -15,7 +15,7 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
-import org.springframework.jdbc.core.JdbcTemplate
+
 @Configuration
 class AiClientsConfig {
     /** ChatModel для coder с собственными дефолтными опциями */
@@ -79,15 +79,10 @@ class AiClientsConfig {
     ): EmbeddingModel = delegate
 
     @Bean
-    fun jdbcChatMemoryRepository(jdbcTemplate: JdbcTemplate): JdbcChatMemoryRepository {
-        return JdbcChatMemoryRepository.builder().jdbcTemplate(jdbcTemplate).build()
-    }
-
-    @Bean
     fun chatMemory(
-        jdbcChatMemoryRepository: JdbcChatMemoryRepository
+        chatMemoryRepository: ChatMemoryRepository
     ): ChatMemory {
-        return MessageWindowChatMemory.builder().chatMemoryRepository(jdbcChatMemoryRepository).build()
+        return MessageWindowChatMemory.builder().chatMemoryRepository(chatMemoryRepository).build()
     }
 
     @Bean
