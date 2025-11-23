@@ -1,15 +1,7 @@
 --liquibase formatted sql
 
 --changeset arch:001_init context:prod
---comment: Doc Generator — schema, extensions, functions, enums, tables, indexes, triggers
-
--- ===== Schema & Extensions =====
-CREATE SCHEMA IF NOT EXISTS doc_generator;
-
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS unaccent;
-
+--comment: Doc Generator —  functions, enums, tables, indexes, triggers
 -- ===== FTS helpers (RU+EN) =====
 CREATE OR REPLACE FUNCTION doc_generator.make_ru_en_tsv(txt TEXT)
     RETURNS tsvector
@@ -402,7 +394,7 @@ CREATE TABLE IF NOT EXISTS doc_generator.chunk
     used_by_md      TEXT,                                      -- человекочит. где нас используют (Markdown)
 
     -- вектор и модель
-    emb             vector(1024),                              -- эмбеддинг
+    embedding       vector(1024),                              -- эмбеддинг
     embed_model     TEXT,                                      -- напр. 'mxbai-embed-large'
     embed_ts        TIMESTAMPTZ,                               -- когда посчитан эмбеддинг
 
@@ -450,7 +442,7 @@ CREATE INDEX IF NOT EXISTS idx_chunk_used_by_tsv ON doc_generator.chunk USING GI
 CREATE INDEX IF NOT EXISTS idx_chunk_relations_gin ON doc_generator.chunk USING GIN (relations);
 CREATE INDEX IF NOT EXISTS idx_chunk_used_objects_gin ON doc_generator.chunk USING GIN (used_objects);
 CREATE INDEX IF NOT EXISTS idx_chunk_section_path_gin ON doc_generator.chunk USING GIN (section_path);
-CREATE INDEX IF NOT EXISTS idx_chunk_emb_ivfflat ON doc_generator.chunk USING ivfflat (emb vector_cosine_ops) WITH (lists=100);
+CREATE INDEX IF NOT EXISTS idx_chunk_emb_ivfflat ON doc_generator.chunk USING ivfflat (embedding vector_cosine_ops) WITH (lists=100);
 CREATE INDEX IF NOT EXISTS idx_chunk_created_brin ON doc_generator.chunk USING BRIN (created_at);
 CREATE INDEX IF NOT EXISTS idx_chunk_freshness_brin ON doc_generator.chunk USING BRIN (freshness_at);
 

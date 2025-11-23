@@ -71,6 +71,7 @@ dependencies {
     implementation("org.liquibase:liquibase-core")
 
     // ===== Spring AI =====
+    implementation("org.springframework.ai:spring-ai-core")
     implementation("org.springframework.ai:spring-ai-starter-model-ollama")
     implementation("org.springframework.ai:spring-ai-starter-vector-store-pgvector")
     implementation("org.springframework.ai:spring-ai-starter-model-chat-memory-repository-jdbc")

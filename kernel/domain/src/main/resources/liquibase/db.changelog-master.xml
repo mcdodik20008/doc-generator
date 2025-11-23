@@ -6,6 +6,15 @@
         http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.23.xsd">
 
+    <changeSet id="0-init-schema" author="kaspshitskii" runInTransaction="false">
+        <sqlFile
+                path="migration/0_init_schema.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
+
     <changeSet id="00-init-db" author="kaspshitskii">
         <sqlFile
                 path="migration/00_init.sql"
@@ -45,6 +54,15 @@
     <changeSet id="04-add-inherits-to-edge" author="kaspshitskii">
         <sqlFile
                 path="migration/04_add_inherits_to_edge.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
+
+    <changeSet id="05-add-pgvector" author="kaspshitskii">
+        <sqlFile
+                path="migration/05_add_pgvector.sql"
                 relativeToChangelogFile="true"
                 endDelimiter=";"
                 splitStatements="true"
