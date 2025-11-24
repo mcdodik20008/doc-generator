@@ -5,6 +5,7 @@ import com.bftcom.docgenerator.chunking.factory.ExplainRequestFactory.toTalkerRe
 import com.bftcom.docgenerator.db.ChunkRepository
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
@@ -25,7 +26,7 @@ class ContentFillerScheduler(
     @Value("\${docgen.fill.batch-size:10}")
     private var batchSize: Int = 10
 
-    // @Scheduled(fixedDelayString = "\${docgen.fill.poll-ms:4000}")
+    @Scheduled(fixedDelayString = "\${docgen.fill.poll-ms:4000}")
     fun pollAndFill() {
         val batch = tx.execute { chunkRepo.lockNextBatchContentForFill(batchSize) } ?: return
         if (batch.isEmpty()) {

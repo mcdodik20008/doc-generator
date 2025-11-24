@@ -6,14 +6,41 @@ import com.bftcom.docgenerator.domain.chunk.Chunk
 import com.bftcom.docgenerator.domain.node.Node
 
 object ExplainRequestFactory {
+    // Максимальный размер кода для отправки в LLM (примерно 500-600 строк)
+    // Уменьшено для предотвращения таймаутов при обработке больших контекстов
+    private const val MAX_CODE_EXCERPT_LENGTH = 10_000
+    // Максимальный размер hints для предотвращения переполнения контекста
+    private const val MAX_HINTS_LENGTH = 2_000
+
     fun Chunk.toCoderExplainRequest(): CoderExplainRequest {
         val node = this.node
         val lang = langDetected ?: node.lang.name.lowercase()
 
         // если уже вырезанный метод — используем его напрямую
-        val codeExcerpt = node.sourceCode!!.trim()
+        val rawCode = node.sourceCode!!.trim()
+        
+        // Обрезаем код, если он слишком большой для LLM
+        val codeExcerpt = if (rawCode.length > MAX_CODE_EXCERPT_LENGTH) {
+            // Берем начало кода (обычно там важные объявления)
+            val truncated = rawCode.take(MAX_CODE_EXCERPT_LENGTH)
+            // Пытаемся обрезать по границе строки
+            val lastNewline = truncated.lastIndexOf('\n')
+            if (lastNewline > MAX_CODE_EXCERPT_LENGTH * 0.9) {
+                truncated.substring(0, lastNewline) + "\n\n... [код обрезан, размер оригинала: ${rawCode.length} символов]"
+            } else {
+                truncated + "\n\n... [код обрезан, размер оригинала: ${rawCode.length} символов]"
+            }
+        } else {
+            rawCode
+        }
 
-        val hints = buildRichHints(this, node).ifBlank { null }
+        // Обрезаем hints, если они слишком большие
+        val rawHints = buildRichHints(this, node)
+        val hints = if (rawHints.length > MAX_HINTS_LENGTH) {
+            rawHints.take(MAX_HINTS_LENGTH) + "\n\n... [подсказки обрезаны, размер оригинала: ${rawHints.length} символов]"
+        } else {
+            rawHints
+        }.ifBlank { null }
 
         return CoderExplainRequest(
             nodeFqn = this.title?.takeIf { it.isNotBlank() } ?: node.fqn,

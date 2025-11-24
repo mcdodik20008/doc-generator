@@ -41,12 +41,13 @@ class RestClientConfig {
             RequestConfig
                 .custom()
                 // Таймаут на ПОДКЛЮЧЕНИЕ к Ollama
-                .setConnectTimeout(Timeout.ofSeconds(5))
+                .setConnectTimeout(Timeout.ofSeconds(10))
                 // Таймаут на получение соединения ИЗ ПУЛА
-                .setConnectionRequestTimeout(Timeout.ofSeconds(5))
+                .setConnectionRequestTimeout(Timeout.ofSeconds(10))
                 // !!! ГЛАВНЫЙ ФИКС !!!
                 // Таймаут на ОЖИДАНИЕ ОТВЕТА (ReadTimeout)
-                .setResponseTimeout(Timeout.ofMinutes(15)) // <-- Ставим 5 минут. Можешь ставить 10.
+                // Увеличено до 60 минут для обработки больших контекстов и медленных LLM
+                .setResponseTimeout(Timeout.ofMinutes(60))
                 .build()
 
         // 3. Собираем HTTP-клиент

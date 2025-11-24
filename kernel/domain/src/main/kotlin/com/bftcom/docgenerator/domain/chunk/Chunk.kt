@@ -97,6 +97,10 @@ class Chunk(
     var freshnessAt: OffsetDateTime? = null,
     @Column(name = "rank_boost", nullable = false)
     var rankBoost: Float = 1.0f,
+    // --- метаданные для Spring AI PgVectorStore ---
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metadata", columnDefinition = "jsonb", nullable = false)
+    var metadata: Map<String, Any> = emptyMap(),
     // --- служебное ---
     @Column(name = "created_at", nullable = false)
     var createdAt: OffsetDateTime = OffsetDateTime.now(),

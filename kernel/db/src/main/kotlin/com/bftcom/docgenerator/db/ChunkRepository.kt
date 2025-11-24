@@ -13,7 +13,7 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
         value = """
             SELECT *
             FROM doc_generator.chunk
-            WHERE content_raw IS NULL and title like '%Step%' or title like '%calc%'
+            WHERE content_raw IS NULL -- and title like '%Step%' or title like '%calc%'
             ORDER BY created_at
             LIMIT :limit
             FOR UPDATE SKIP LOCKED
@@ -45,7 +45,7 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
         value = """
             SELECT *
             FROM doc_generator.chunk c
-            WHERE c.content IS NOT NULL
+            WHERE c.content <> 'null'
               AND (
                    c.content_hash IS NULL
                 OR c.token_count IS NULL
@@ -53,7 +53,7 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
                 OR c.uses_md IS NULL
                 OR c.used_by_md IS NULL
                 OR c.explain_md IS NULL
-                OR (c.emb IS NULL AND :withEmb = true)
+                OR (c.embedding IS NULL AND :withEmb = true)
               )
             ORDER BY c.created_at
             LIMIT :limit
@@ -101,7 +101,7 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
     @Query(
         value = """
             UPDATE doc_generator.chunk
-            SET emb = CAST(:embLiteral AS vector),
+            SET embedding = CAST(:embLiteral AS vector),
                 updated_at = NOW()
             WHERE id = :id
         """,

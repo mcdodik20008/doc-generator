@@ -68,4 +68,13 @@
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
+
+    <changeSet id="06-add-metadata-to-chunk" author="kaspshitskii">
+        <sqlFile
+                path="migration/06_add_metadata_to_chunk.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
 </databaseChangeLog>
