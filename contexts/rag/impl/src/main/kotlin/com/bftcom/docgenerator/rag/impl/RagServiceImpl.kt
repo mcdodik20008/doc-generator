@@ -1,6 +1,8 @@
 package com.bftcom.docgenerator.rag.impl
 
 import com.bftcom.docgenerator.embedding.api.EmbeddingSearchService
+import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
+import com.bftcom.docgenerator.rag.api.RagQueryMetadata
 import com.bftcom.docgenerator.rag.api.RagResponse
 import com.bftcom.docgenerator.rag.api.RagService
 import com.bftcom.docgenerator.rag.api.RagSource
@@ -14,10 +16,20 @@ class RagServiceImpl(
     private val embeddingSearchService: EmbeddingSearchService,
     @Qualifier("ragChatClient")
     private val chatClient: ChatClient,
+    private val queryProcessingChain: QueryProcessingChain,
 ) : RagService {
 
     override fun ask(query: String, sessionId: String): RagResponse {
-        val searchResults = embeddingSearchService.searchByText(query, topK = 5)
+        // Обрабатываем запрос через цепочку advisors
+        val processingContext = queryProcessingChain.process(query, sessionId)
+        
+        // Используем обработанный запрос для поиска
+        val processedQuery = processingContext.currentQuery
+        val searchResults = embeddingSearchService.searchByText(processedQuery, topK = 5)
+
+        // Если есть расширенные запросы, можно использовать их для дополнительного поиска
+        val expandedQueries = processingContext.getMetadata<List<*>>(QueryMetadataKeys.EXPANDED_QUERIES)
+            ?: emptyList<Any>()
 
         val context =
             searchResults.joinToString("\n\n") { "Source [${it.id}]:\n${it.content}" }
@@ -34,7 +46,7 @@ class RagServiceImpl(
             $context
             
             Вопрос:
-            $query
+            ${processingContext.originalQuery}
             """.trimIndent()
 
         val response =
@@ -51,12 +63,22 @@ class RagServiceImpl(
                 .content()
                 ?: "Не удалось получить ответ."
 
+        // Формируем метаданные
+        val metadata = RagQueryMetadata(
+            originalQuery = processingContext.originalQuery,
+            rewrittenQuery = processingContext.getMetadata<String>(QueryMetadataKeys.REWRITTEN_QUERY),
+            expandedQueries = expandedQueries.mapNotNull { it as? String },
+            processingSteps = processingContext.processingSteps.toList(),
+            additionalData = processingContext.metadata.toMap(),
+        )
+
         return RagResponse(
             answer = response,
             sources =
                 searchResults.map {
                     RagSource(it.id, it.content, it.metadata, it.similarity)
                 },
+            metadata = metadata,
         )
     }
 }
