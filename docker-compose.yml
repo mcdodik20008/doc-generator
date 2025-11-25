@@ -18,6 +18,13 @@ services:
       - db-data:/var/lib/postgresql/data
       - ./infra/db/init:/docker-entrypoint-initdb.d:ro
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: docgen-ollama
+    ports: [ "11434:11434" ]
+    volumes:
+      - ollama_data:/root/.ollama
+
   # опционально: Qdrant (если планируешь гибридный поиск/векторы вне pgvector)
 #  qdrant:
 #    image: qdrant/qdrant:v1.11.0
@@ -72,3 +79,4 @@ volumes:
   qdrant-data:
   app-cache:
   github-deploy-key:
+  ollama_data:

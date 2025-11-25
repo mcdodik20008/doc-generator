@@ -30,13 +30,14 @@ spring:
       hibernate.type.preferred_json_mapper: jackson
   ai:
     openai:
-      base-url: http://${OLLAMA_HOSTNAME:localhost}:11434
+      # OLLAMA_HOSTNAME_LOCAL
+      base-url: http://${OLLAMA_HOSTNAME_LOCAL:localhost}:11434
       api-key: dummy
       chat:
         options:
           model: qwen2.5:0.5b
     ollama:
-      base-url: http://${OLLAMA_HOSTNAME:localhost}:11434
+      base-url: http://${OLLAMA_HOSTNAME_LOCAL:localhost}:11434
       embedding:
         model: ${OLLAMA_EMBEDDING_MODEL:mxbai-embed-large}
         dim: 1024
@@ -48,7 +49,7 @@ spring:
 
     clients:
       coder:
-        model: qwen2.5-coder:14b
+        model: qwen2.5:0.5b # qwen2.5-coder:14b
         temperature: 0.1
         top-p: 0.9
         seed: 42
@@ -59,7 +60,7 @@ spring:
           Запрещены предположения, если не следует из кода. Короткие формулировки.
 
       talker:
-        model: qwen2.5:14b-instruct
+        model: qwen2.5:0.5b # qwen2.5:14b-instruct
         temperature: 0.3
         top-p: 0.9
         seed: 42

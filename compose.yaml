@@ -7,3 +7,13 @@ services:
       POSTGRES_USER: docgen
       POSTGRES_PASSWORD: docgen
     ports: ["5434:5432"]
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: docgen-ollama
+    ports: [ "11434:11434" ]
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  ollama_data:
