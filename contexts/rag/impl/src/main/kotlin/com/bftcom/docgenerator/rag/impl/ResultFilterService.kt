@@ -74,9 +74,23 @@ class ResultFilterService {
         finalClassName?.let { keywords.add(it) }
         finalMethodName?.let { keywords.add(it) }
 
-        // Фильтруем результаты
-        val filtered = results.filter { result ->
-            containsKeywords(result.content, keywords, finalClassName, finalMethodName)
+        // Фильтруем результаты в два этапа:
+        // 1. Сначала ищем ТОЧНЫЕ совпадения
+        // 2. Если точных совпадений нет, используем нечеткое совпадение
+        val exactMatches = results.filter { result ->
+            containsKeywordsExact(result.content, keywords, finalClassName, finalMethodName)
+        }
+
+        val filtered = if (exactMatches.isNotEmpty()) {
+            // Если есть точные совпадения, используем ТОЛЬКО их
+            log.info("Найдено {} точных совпадений, используем только их", exactMatches.size)
+            exactMatches
+        } else {
+            // Если точных совпадений нет, используем нечеткое совпадение
+            log.info("Точных совпадений не найдено, используем нечеткое совпадение")
+            results.filter { result ->
+                containsKeywordsFuzzy(result.content, keywords, finalClassName, finalMethodName)
+            }
         }
 
         val removed = results.size - filtered.size
@@ -88,10 +102,35 @@ class ResultFilterService {
     }
 
     /**
-     * Проверяет, содержит ли документ нужные ключевые слова.
-     * Использует гибкий поиск с учетом регистра и частичных совпадений.
+     * Проверяет, содержит ли документ нужные ключевые слова с ТОЧНЫМ совпадением.
+     * Используется для строгой фильтрации, когда нужно исключить похожие классы.
      */
-    private fun containsKeywords(
+    private fun containsKeywordsExact(
+        content: String,
+        keywords: List<String>,
+        className: String?,
+        methodName: String?,
+    ): Boolean {
+        // Если есть и класс, и метод - проверяем наличие хотя бы одного с точным совпадением
+        if (className != null && methodName != null) {
+            val hasClass = containsKeywordExact(content, className)
+            val hasMethod = containsKeywordExact(content, methodName)
+            
+            // Документ должен содержать хотя бы один из них с точным совпадением
+            return hasClass || hasMethod
+        }
+        
+        // Если только класс или только метод - проверяем точное совпадение
+        return keywords.any { keyword ->
+            containsKeywordExact(content, keyword)
+        }
+    }
+
+    /**
+     * Проверяет, содержит ли документ нужные ключевые слова с НЕЧЕТКИМ совпадением.
+     * Используется как fallback, когда точных совпадений нет.
+     */
+    private fun containsKeywordsFuzzy(
         content: String,
         keywords: List<String>,
         className: String?,
@@ -101,31 +140,68 @@ class ResultFilterService {
         
         // Если есть и класс, и метод - проверяем наличие хотя бы одного
         if (className != null && methodName != null) {
-            val hasClass = containsKeyword(lowerContent, className)
-            val hasMethod = containsKeyword(lowerContent, methodName)
+            val hasClass = containsKeywordFuzzy(lowerContent, className)
+            val hasMethod = containsKeywordFuzzy(lowerContent, methodName)
             
             // Документ должен содержать хотя бы один из них
-            // Это позволяет находить документы, где упоминается класс или метод отдельно
             return hasClass || hasMethod
         }
         
         // Если только класс или только метод - проверяем наличие
         return keywords.any { keyword ->
-            containsKeyword(lowerContent, keyword)
+            containsKeywordFuzzy(lowerContent, keyword)
         }
     }
 
     /**
-     * Проверяет наличие ключевого слова в тексте с учетом различных вариантов написания.
+     * Проверяет наличие ключевого слова с ТОЧНЫМ совпадением.
+     * Использует границы слов, чтобы исключить похожие классы.
+     * 
+     * Например:
+     * - "Step15Processor" совпадает с "Step15Processor"
+     * - "Step15Processor" НЕ совпадает с "Step16Processor"
+     * - "Step15Processor" НЕ совпадает с "Step15ProcessorHelper"
      */
-    private fun containsKeyword(content: String, keyword: String): Boolean {
+    private fun containsKeywordExact(content: String, keyword: String): Boolean {
         if (keyword.isBlank()) {
             return false
         }
         
         val lowerKeyword = keyword.lowercase().trim()
         
-        // Прямое вхождение (case-insensitive)
+        // Для коротких ключевых слов (1-2 символа) пропускаем фильтрацию
+        if (lowerKeyword.length <= 2) {
+            return true
+        }
+        
+        // Экранируем специальные символы для regex
+        val escapedKeyword = Regex.escape(lowerKeyword)
+        
+        // ТОЧНОЕ совпадение с границами слов (\b)
+        // Это гарантирует, что "Step15Processor" не совпадет с "Step16Processor"
+        val exactPattern = "\\b$escapedKeyword\\b"
+        
+        return Regex(exactPattern, RegexOption.IGNORE_CASE).containsMatchIn(content)
+    }
+
+    /**
+     * Проверяет наличие ключевого слова с НЕЧЕТКИМ совпадением.
+     * Используется как fallback, когда точных совпадений нет.
+     * Разрешает частичные совпадения и совпадения частей составных слов.
+     */
+    private fun containsKeywordFuzzy(content: String, keyword: String): Boolean {
+        if (keyword.isBlank()) {
+            return false
+        }
+        
+        val lowerKeyword = keyword.lowercase().trim()
+        
+        // Для коротких ключевых слов (1-2 символа) пропускаем фильтрацию
+        if (lowerKeyword.length <= 2) {
+            return true
+        }
+        
+        // Простое вхождение (case-insensitive)
         if (content.contains(lowerKeyword, ignoreCase = true)) {
             return true
         }
@@ -134,7 +210,6 @@ class ResultFilterService {
         val wordParts = splitCamelCase(keyword)
         if (wordParts.size > 1) {
             // Если ключевое слово составное, проверяем наличие хотя бы одной значимой части
-            // (чтобы не отфильтровывать документы с частичными совпадениями)
             val significantParts = wordParts.filter { it.length > 2 }
             if (significantParts.isNotEmpty()) {
                 // Документ должен содержать хотя бы одну значимую часть
@@ -142,12 +217,6 @@ class ResultFilterService {
                     content.contains(part.lowercase(), ignoreCase = true)
                 }
             }
-        }
-        
-        // Если ключевое слово короткое (1-2 символа), пропускаем фильтрацию по нему
-        // чтобы не отфильтровывать документы из-за слишком общих слов
-        if (lowerKeyword.length <= 2) {
-            return true
         }
         
         return false

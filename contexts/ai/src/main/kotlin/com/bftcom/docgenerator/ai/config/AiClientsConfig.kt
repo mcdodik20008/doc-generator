@@ -1,5 +1,6 @@
 package com.bftcom.docgenerator.ai.config
 
+import com.bftcom.docgenerator.ai.advisor.ChatClientLoggingAdvisor
 import com.bftcom.docgenerator.ai.props.AiClientsProperties
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor
@@ -54,23 +55,31 @@ class AiClientsConfig {
         return OpenAiChatModel.builder().openAiApi(ollamaApi).defaultOptions(options).build()
     }
 
-    /** Удобные ChatClient’ы с дефолтным system для каждой роли */
+    /** Удобные ChatClient'ы с дефолтным system для каждой роли */
     @Bean
     @Primary
     @Qualifier("coderChatClient")
     fun coderChatClient(
             @Qualifier("coderChatModel") coderChatModel: ChatModel,
             props: AiClientsProperties,
+            loggingAdvisor: ChatClientLoggingAdvisor,
     ): ChatClient =
-            ChatClient.builder(coderChatModel).defaultSystem(props.coder.system.trim()).build()
+            ChatClient.builder(coderChatModel)
+                    .defaultSystem(props.coder.system.trim())
+                    .defaultAdvisors(loggingAdvisor)
+                    .build()
 
     @Bean
     @Qualifier("talkerChatClient")
     fun talkerChatClient(
             @Qualifier("talkerChatModel") talkerChatModel: ChatModel,
             props: AiClientsProperties,
+            loggingAdvisor: ChatClientLoggingAdvisor,
     ): ChatClient =
-            ChatClient.builder(talkerChatModel).defaultSystem(props.talker.system.trim()).build()
+            ChatClient.builder(talkerChatModel)
+                    .defaultSystem(props.talker.system.trim())
+                    .defaultAdvisors(loggingAdvisor)
+                    .build()
 
     @Bean
     @Primary
@@ -90,10 +99,40 @@ class AiClientsConfig {
     fun ragChatClient(
             @Qualifier("coderChatModel") coderChatModel: ChatModel,
             chatMemory: ChatMemory,
+            loggingAdvisor: ChatClientLoggingAdvisor,
     ): ChatClient =
             ChatClient.builder(coderChatModel)
                     .defaultAdvisors(
+                        loggingAdvisor,
                         MessageChatMemoryAdvisor.builder(chatMemory).build()
                     )
                     .build()
+
+    /**
+     * Быстрый ChatClient для простых запросов (извлечение класса/метода).
+     * Использует более быструю модель (qwen2.5:0.5b) вместо большой модели.
+     */
+    @Bean
+    @Qualifier("fastExtractionChatClient")
+    fun fastExtractionChatClient(
+            ollamaApi: OpenAiApi,
+            loggingAdvisor: ChatClientLoggingAdvisor,
+    ): ChatClient {
+        // Используем быструю модель для извлечения (qwen2.5:0.5b)
+        // Эта модель намного быстрее, чем qwen2.5-coder:14b
+        val fastModel = OpenAiChatModel.builder()
+            .openAiApi(ollamaApi)
+            .defaultOptions(
+                OpenAiChatOptions.builder()
+                    .model("qwen2.5:0.5b") // Быстрая модель вместо 14b
+                    .temperature(0.0) // Детерминированность для извлечения
+                    .topP(0.9)
+                    .build()
+            )
+            .build()
+        
+        return ChatClient.builder(fastModel)
+                .defaultAdvisors(loggingAdvisor)
+                .build()
+    }
 }

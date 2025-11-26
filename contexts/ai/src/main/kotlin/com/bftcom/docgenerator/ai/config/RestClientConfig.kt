@@ -9,6 +9,7 @@ import org.apache.hc.core5.util.Timeout
 import org.springframework.boot.web.client.RestClientCustomizer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Primary
 import org.springframework.http.client.ClientHttpRequestFactory
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory
 
@@ -20,6 +21,7 @@ class RestClientConfig {
      * Здесь вся магия пулинга и таймаутов.
      */
     @Bean
+    @Primary
     fun httpComponentsClientHttpRequestFactory(): ClientHttpRequestFactory {
         // 1. Настраиваем пул соединений
         val connectionManager =
@@ -61,6 +63,46 @@ class RestClientConfig {
                 .build()
 
         // 4. Оборачиваем его в фабрику, понятную Spring
+        return HttpComponentsClientHttpRequestFactory(httpClient)
+    }
+
+    /**
+     * Фабрика для быстрых запросов (извлечение класса/метода).
+     * Использует меньший таймаут для простых запросов.
+     */
+    @Bean(name = ["fastHttpRequestFactory"])
+    fun fastHttpRequestFactory(): ClientHttpRequestFactory {
+        val connectionManager =
+            PoolingHttpClientConnectionManagerBuilder
+                .create()
+                .setDefaultSocketConfig(
+                    SocketConfig
+                        .custom()
+                        .setSoKeepAlive(true)
+                        .build(),
+                )
+                .setMaxConnTotal(50)
+                .setMaxConnPerRoute(10)
+                .setConnectionTimeToLive(TimeValue.ofMinutes(5))
+                .build()
+
+        val requestConfig =
+            RequestConfig
+                .custom()
+                .setConnectTimeout(Timeout.ofSeconds(5))
+                .setConnectionRequestTimeout(Timeout.ofSeconds(5))
+                // Короткий таймаут для быстрых запросов (30 секунд)
+                .setResponseTimeout(Timeout.ofSeconds(30))
+                .build()
+
+        val httpClient =
+            HttpClients
+                .custom()
+                .setConnectionManager(connectionManager)
+                .setDefaultRequestConfig(requestConfig)
+                .evictIdleConnections(TimeValue.ofSeconds(30))
+                .build()
+
         return HttpComponentsClientHttpRequestFactory(httpClient)
     }
 

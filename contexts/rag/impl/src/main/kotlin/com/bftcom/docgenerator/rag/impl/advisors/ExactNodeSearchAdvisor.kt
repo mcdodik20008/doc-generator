@@ -24,7 +24,7 @@ import java.util.concurrent.TimeoutException
  */
 @Component
 class ExactNodeSearchAdvisor(
-    @Qualifier("ragChatClient")
+    @param:Qualifier("fastExtractionChatClient")
     private val chatClient: ChatClient,
     private val nodeRepository: NodeRepository,
     private val applicationRepository: ApplicationRepository,
@@ -134,7 +134,7 @@ class ExactNodeSearchAdvisor(
                 JSON ответ:
             """.trimIndent()
 
-            log.info(prompt.length.toString())
+            val startTime = System.currentTimeMillis()
             val response = chatClient
                 .prompt()
                 .user(prompt)
@@ -142,6 +142,15 @@ class ExactNodeSearchAdvisor(
                 .content()
                 ?.trim()
                 ?: return trySimpleParsing(query)
+            
+            val duration = System.currentTimeMillis() - startTime
+            log.info("LLM ответил за {} мс (промпт: {} символов, модель: qwen2.5:0.5b)", duration, prompt.length)
+            
+            if (duration > 10000) {
+                log.warn("Медленный ответ LLM: {} мс для простого запроса извлечения (промпт: {} символов). Рекомендуется проверить производительность Ollama.", duration, prompt.length)
+            } else if (duration > 5000) {
+                log.debug("Умеренно медленный ответ LLM: {} мс", duration)
+            }
 
             return try {
                 // Пытаемся распарсить JSON ответ

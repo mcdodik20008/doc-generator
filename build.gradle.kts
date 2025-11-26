@@ -1,3 +1,5 @@
+// curl http://192.168.0.15:11434/api/ps
+
 plugins {
     kotlin("jvm") version "2.0.21"
     kotlin("plugin.spring") version "2.0.21"
