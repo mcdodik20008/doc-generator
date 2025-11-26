@@ -1,5 +1,3 @@
-// curl http://192.168.0.15:11434/api/ps
-
 plugins {
     kotlin("jvm") version "2.0.21"
     kotlin("plugin.spring") version "2.0.21"
@@ -8,6 +6,8 @@ plugins {
     id("io.spring.dependency-management") version "1.1.7"
 }
 val springAiVersion by extra("1.0.3")
+
+// curl http://192.168.0.15:11434/api/ps
 
 group = "com.bftcom"
 version = "0.0.1-SNAPSHOT"

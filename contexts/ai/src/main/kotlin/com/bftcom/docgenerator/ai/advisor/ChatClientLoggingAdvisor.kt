@@ -39,7 +39,7 @@ class ChatClientLoggingAdvisor : BaseAdvisor {
         val prompt = chatClientRequest.prompt()
         val promptText = try {
             // Prompt.getContents()
-            prompt?.contents ?: ""
+            prompt.contents ?: ""
         } catch (ex: Exception) {
             log.warn("Failed to extract prompt contents for LLM logging: {}", ex.message)
             ""
@@ -48,7 +48,7 @@ class ChatClientLoggingAdvisor : BaseAdvisor {
         val modelFromOptions = try {
             // Prompt.getOptions().getModel()
             prompt.options.model
-        } catch (ex: Exception) {
+        } catch (_: Exception) {
             null
         }
 
@@ -90,7 +90,7 @@ class ChatClientLoggingAdvisor : BaseAdvisor {
 
         val modelFromMetadata = try {
             metadata?.model
-        } catch (ex: Exception) {
+        } catch (_: Exception) {
             null
         }
         val model = modelFromMetadata ?: "<unknown>"
@@ -111,7 +111,7 @@ class ChatClientLoggingAdvisor : BaseAdvisor {
 
         val usage = try {
             metadata?.usage
-        } catch (ex: Exception) {
+        } catch (_: Exception) {
             null
         }
 

@@ -35,7 +35,7 @@ class ExactNodeSearchAdvisor(
 
     override fun getName(): String = "ExactNodeSearch"
 
-    override fun getOrder(): Int = 5 // Выполняется раньше других advisors
+    override fun getOrder(): Int = 5
 
     override fun process(context: QueryProcessingContext): Boolean {
         val query = context.currentQuery
@@ -52,21 +52,17 @@ class ExactNodeSearchAdvisor(
             val extractionResult = extractClassAndMethod(query)
 
             if (extractionResult == null) {
-                // Оставляем debug, чтобы не спамить в info на каждый общий запрос
                 log.debug("Не удалось извлечь класс/метод из запроса: {}", query)
                 return true
             }
 
-            // [LOG INFO] Зафиксировали намерение поиска
             log.info("Начат точный поиск. Извлечено из запроса: класс='{}', метод='{}'",
                 extractionResult.className, extractionResult.methodName)
 
-            // Ищем узлы
             val foundNodes = findNodes(extractionResult.className, extractionResult.methodName)
 
             if (foundNodes.isNotEmpty()) {
                 context.setMetadata(QueryMetadataKeys.EXACT_NODES, foundNodes)
-                // Сохраняем как Map для удобного доступа в других местах
                 context.setMetadata(
                     QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
                     mapOf(
@@ -83,14 +79,11 @@ class ExactNodeSearchAdvisor(
                     ),
                 )
 
-                // [LOG INFO] Успешный поиск
                 log.info("Успешно найдено {} узлов для класса '{}' и метода '{}'", foundNodes.size, extractionResult.className, extractionResult.methodName)
             } else {
-                // [LOG INFO] Поиск не дал результатов (важно знать, что мы пытались, но не нашли)
                 log.info("Точный поиск завершен: узлы не найдены для класса '{}' и метода '{}'", extractionResult.className, extractionResult.methodName)
             }
         } catch (e: ResourceAccessException) {
-            // Специфичная обработка сетевых ошибок и таймаутов
             val cause = e.cause
             when {
                 cause is SocketTimeoutException || cause is TimeoutException -> {
@@ -112,7 +105,6 @@ class ExactNodeSearchAdvisor(
      * При ошибках LLM пытается использовать простой парсинг как fallback
      */
     private fun extractClassAndMethod(query: String): ExtractionResult? {
-        // Сначала пытаемся использовать LLM
         try {
             val prompt = """
                 Проанализируй следующий запрос и извлеки информацию о классе и методе, если они упомянуты.
@@ -153,14 +145,11 @@ class ExactNodeSearchAdvisor(
             }
 
             return try {
-                // Пытаемся распарсить JSON ответ
                 val json = cleanJsonResponse(response)
                 val map = objectMapper.readValue(json, Map::class.java) as Map<*, *>
 
                 val className = map["className"] as? String
                 val methodName = map["methodName"] as? String
-
-                // Если оба поля null, значит ничего не найдено
                 if (className == null && methodName == null) {
                     trySimpleParsing(query)
                 } else {
@@ -170,16 +159,13 @@ class ExactNodeSearchAdvisor(
                     )
                 }
             } catch (e: Exception) {
-                // [LOG INFO] Fallback - проблема с парсингом JSON
                 log.info("Не удалось распарсить ответ LLM, переключаемся на простой парсинг. Ошибка: {}", e.message)
                 trySimpleParsing(query)
             }
         } catch (e: ResourceAccessException) {
-            // [LOG INFO] Fallback - проблема сети
             log.info("Ошибка доступа к LLM ({}), переключаемся на простой парсинг (Regex).", e.message)
             return trySimpleParsing(query)
         } catch (e: Exception) {
-            // [LOG INFO] Fallback - общая ошибка
             log.info("Неожиданная ошибка при извлечении через LLM ({}), переключаемся на простой парсинг.", e.message)
             return trySimpleParsing(query)
         }
@@ -189,9 +175,6 @@ class ExactNodeSearchAdvisor(
      * Простой парсинг запроса без использования LLM (fallback)
      */
     private fun trySimpleParsing(query: String): ExtractionResult? {
-        val lowerQuery = query.lowercase()
-
-        // Паттерны для поиска класса и метода
         val classPatterns = listOf(
             Regex("класс\\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOption.IGNORE_CASE),
             Regex("class\\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOption.IGNORE_CASE),
@@ -207,7 +190,6 @@ class ExactNodeSearchAdvisor(
         var className: String? = null
         var methodName: String? = null
 
-        // Ищем класс
         for (pattern in classPatterns) {
             val match = pattern.find(query)
             if (match != null) {
@@ -216,7 +198,6 @@ class ExactNodeSearchAdvisor(
             }
         }
 
-        // Ищем метод
         for (pattern in methodPatterns) {
             val match = pattern.find(query)
             if (match != null) {
@@ -224,13 +205,9 @@ class ExactNodeSearchAdvisor(
                 break
             }
         }
-
-        // Если ничего не найдено, возвращаем null
         if (className == null && methodName == null) {
             return null
         }
-
-        // [LOG INFO] Если Regex сработал - логируем это, так как это fallback механизм
         log.info("Простой парсинг (Regex) извлек: класс='{}', метод='{}'", className, methodName)
 
         return ExtractionResult(className, methodName)
@@ -254,12 +231,10 @@ class ExactNodeSearchAdvisor(
     private fun findNodes(className: String?, methodName: String?): List<Node> {
         val foundNodes = mutableListOf<Node>()
 
-        // Получаем applicationId из контекста или ищем по всем приложениям
         val applicationId = getApplicationIdFromContext()
         val applications = if (applicationId != null) {
             applicationRepository.findById(applicationId).map { listOf(it) }.orElse(emptyList())
         } else {
-            // Если applicationId не указан, ищем по всем приложениям
             applicationRepository.findAll()
         }
 
@@ -268,7 +243,6 @@ class ExactNodeSearchAdvisor(
             return foundNodes
         }
 
-        // Если указан и класс, и метод - ищем метод в классе
         if (className != null && methodName != null) {
             for (app in applications) {
                 val appId = app.id ?: continue
@@ -281,7 +255,6 @@ class ExactNodeSearchAdvisor(
                 foundNodes.addAll(nodes)
             }
         } else if (className != null) {
-            // Ищем только класс
             for (app in applications) {
                 val appId = app.id ?: continue
                 val nodes = nodeRepository.findByApplicationIdAndClassName(
@@ -292,7 +265,6 @@ class ExactNodeSearchAdvisor(
                 foundNodes.addAll(nodes)
             }
         } else if (methodName != null) {
-            // Ищем только метод
             for (app in applications) {
                 val appId = app.id ?: continue
                 val nodes = nodeRepository.findByApplicationIdAndMethodName(
