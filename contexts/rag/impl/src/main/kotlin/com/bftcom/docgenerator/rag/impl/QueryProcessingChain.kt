@@ -3,7 +3,9 @@ package com.bftcom.docgenerator.rag.impl
 import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
 import com.bftcom.docgenerator.rag.api.QueryProcessingAdvisor
 import com.bftcom.docgenerator.rag.api.QueryProcessingContext
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import kotlin.math.log
 
 /**
  * Цепочка обработки запроса перед RAG.
@@ -13,6 +15,8 @@ import org.springframework.stereotype.Component
 class QueryProcessingChain(
         private val advisors: List<QueryProcessingAdvisor>,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
         /**
          * Обрабатывает запрос через цепочку advisors
          */
@@ -26,6 +30,7 @@ class QueryProcessingChain(
                 // Выполняем advisors в порядке приоритета
                 advisors.sortedBy { it.getOrder() }.forEach { advisor ->
                         try {
+                            log.info("process next advisor: {}", advisor.getName())
                                 val shouldContinue = advisor.process(context)
                                 if (!shouldContinue) {
                                         // Advisor решил прервать цепочку

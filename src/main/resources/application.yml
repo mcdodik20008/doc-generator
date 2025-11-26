@@ -31,13 +31,13 @@ spring:
   ai:
     openai:
       # OLLAMA_HOSTNAME_LOCAL
-      base-url: http://${OLLAMA_HOSTNAME_LOCAL:localhost}:11434
+      base-url: http://${OLLAMA_HOSTNAME:localhost}:11434
       api-key: dummy
       chat:
         options:
           model: qwen2.5:0.5b
     ollama:
-      base-url: http://${OLLAMA_HOSTNAME_LOCAL:localhost}:11434
+      base-url: http://${OLLAMA_HOSTNAME:localhost}:11434
       embedding:
         model: ${OLLAMA_EMBEDDING_MODEL:mxbai-embed-large}
         dim: 1024
@@ -49,7 +49,7 @@ spring:
 
     clients:
       coder:
-        model: qwen2.5:0.5b # qwen2.5-coder:14b
+        model: qwen2.5-coder:14b # qwen2.5-coder:14b
         temperature: 0.1
         top-p: 0.9
         seed: 42
@@ -60,7 +60,7 @@ spring:
           Запрещены предположения, если не следует из кода. Короткие формулировки.
 
       talker:
-        model: qwen2.5:0.5b # qwen2.5:14b-instruct
+        model: qwen2.5:14b-instruct # qwen2.5:14b-instruct
         temperature: 0.3
         top-p: 0.9
         seed: 42
@@ -89,7 +89,13 @@ management:
 logging:
   level:
     root: INFO
-    mcdodik: DEBUG
+    com.bftcom: DEBUG
+    com.bftcom.docgenerator: DEBUG
+#  pattern:
+#    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${PID:- } --- [%15.15t] %-40.40logger{39} : %m%n"
+#    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${PID:- } --- [%15.15t] %-40.40logger{39} : %m%n"
+  file:
+    name: logs/doc-generator.log
     #        org.flywaydb: DEBUG
 #    org.hibernate.SQL: DEBUG
 #    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

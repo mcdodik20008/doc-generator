@@ -17,11 +17,14 @@ repositories {
 
 dependencies {
     implementation(projects.kernel.domain)
+    implementation(projects.kernel.db)
     implementation(projects.contexts.rag.contextsRagApi)
     implementation(projects.contexts.embedding.contextsEmbeddingApi)
     implementation(projects.contexts.ai)
 
     implementation("org.springframework.boot:spring-boot-starter")
+    // Явная зависимость на логирование для гарантии работы логов
+    implementation("org.springframework.boot:spring-boot-starter-logging")
     implementation("org.springframework.ai:spring-ai-starter-model-ollama")
     implementation("org.springframework.ai:spring-ai-starter-vector-store-pgvector")
     implementation("org.springframework.ai:spring-ai-starter-model-chat-memory-repository-jdbc")

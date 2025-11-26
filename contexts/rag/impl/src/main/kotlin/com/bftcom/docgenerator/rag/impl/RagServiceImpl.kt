@@ -19,6 +19,7 @@ class RagServiceImpl(
     @Qualifier("ragChatClient")
     private val chatClient: ChatClient,
     private val queryProcessingChain: QueryProcessingChain,
+    private val resultFilterService: ResultFilterService,
 ) : RagService {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -29,10 +30,10 @@ class RagServiceImpl(
         // ВАЖНО: Используем оригинальный запрос для основного поиска,
         // чтобы не потерять точные названия классов/методов
         val originalQuery = processingContext.originalQuery
-        log.debug("RAG search: original query = '{}'", originalQuery)
+        log.info("RAG search: original query = '{}'", originalQuery)
         
         val mainResults = embeddingSearchService.searchByText(originalQuery, topK = 5)
-        log.debug("RAG search: main results count = {}", mainResults.size)
+        log.info("RAG search: main results count = {}", mainResults.size)
 
         // Собираем все варианты запросов для дополнительного поиска
         val allQueries = mutableListOf<String>()
@@ -59,16 +60,23 @@ class RagServiceImpl(
         val additionalResults = allQueries.flatMap { q ->
             embeddingSearchService.searchByText(q, topK = 3)
         }
-        log.debug("RAG search: additional results count = {}", additionalResults.size)
+        log.info("RAG search: additional results count = {}", additionalResults.size)
 
         // Объединяем результаты, убираем дубликаты по ID, сортируем по similarity
         val allResults = (mainResults + additionalResults)
             .distinctBy { it.id }
             .sortedByDescending { it.similarity }
-            .take(5)
+            .take(10) // Берем больше результатов для фильтрации
 
-        val searchResults = allResults
-        log.debug("RAG search: final results count = {}", searchResults.size)
+        // Фильтруем результаты по ключевым словам (класс/метод)
+        val filteredResults = resultFilterService.filterResults(allResults, processingContext)
+        
+        // Сортируем по similarity и берем топ-5
+        val searchResults = filteredResults
+            .sortedByDescending { it.similarity }
+            .take(5)
+        
+        log.info("RAG search: после фильтрации осталось {} результатов из {}", searchResults.size, allResults.size)
 
         // Добавляем найденные узлы из точного поиска в начало контекста
         val exactNodes = processingContext.getMetadata<List<*>>(QueryMetadataKeys.EXACT_NODES)
@@ -76,25 +84,21 @@ class RagServiceImpl(
             val nodes = exactNodes.filterIsInstance<Node>()
             if (nodes.isNotEmpty()) {
                 log.debug("Добавляем {} найденных узлов в контекст", nodes.size)
-                nodes.joinToString("\n\n") { node ->
-                    buildString {
-                        append("Node [${node.id}]:\n")
-                        append("FQN: ${node.fqn}\n")
-                        append("Kind: ${node.kind}\n")
-                        if (node.name != null) {
-                            append("Name: ${node.name}\n")
-                        }
-                        if (node.signature != null) {
-                            append("Signature: ${node.signature}\n")
-                        }
-                        if (node.sourceCode != null) {
-                            append("Source Code:\n${node.sourceCode}\n")
-                        }
-                        if (node.docComment != null) {
-                            append("Documentation:\n${node.docComment}\n")
-                        }
-                    }
-                }
+                formatNodes(nodes)
+            } else {
+                ""
+            }
+        } else {
+            ""
+        }
+
+        // Добавляем соседние узлы из расширения окрестности
+        val neighborNodes = processingContext.getMetadata<List<*>>(QueryMetadataKeys.NEIGHBOR_NODES)
+        val neighborNodesContext = if (neighborNodes != null && neighborNodes.isNotEmpty()) {
+            val nodes = neighborNodes.filterIsInstance<Node>()
+            if (nodes.isNotEmpty()) {
+                log.debug("Добавляем {} соседних узлов в контекст", nodes.size)
+                formatNodes(nodes)
             } else {
                 ""
             }
@@ -106,7 +110,15 @@ class RagServiceImpl(
             if (exactNodesContext.isNotEmpty()) {
                 append("=== ТОЧНО НАЙДЕННЫЕ УЗЛЫ ===\n")
                 append(exactNodesContext)
-                append("\n\n=== РЕЗУЛЬТАТЫ ПОИСКА ===\n")
+                append("\n\n")
+            }
+            if (neighborNodesContext.isNotEmpty()) {
+                append("=== СОСЕДНИЕ УЗЛЫ (связанные через граф) ===\n")
+                append(neighborNodesContext)
+                append("\n\n")
+            }
+            if (exactNodesContext.isNotEmpty() || neighborNodesContext.isNotEmpty()) {
+                append("=== РЕЗУЛЬТАТЫ ВЕКТОРНОГО ПОИСКА ===\n")
             }
             append(searchResults.joinToString("\n\n") { "Source [${it.id}]:\n${it.content}" })
         }
@@ -126,6 +138,7 @@ class RagServiceImpl(
             ${processingContext.originalQuery}
             """.trimIndent()
 
+        log.info(prompt)
         val response =
             chatClient
                 .prompt()
@@ -157,5 +170,30 @@ class RagServiceImpl(
                 },
             metadata = metadata,
         )
+    }
+
+    /**
+     * Форматирует список узлов для включения в контекст RAG
+     */
+    private fun formatNodes(nodes: List<Node>): String {
+        return nodes.joinToString("\n\n") { node ->
+            buildString {
+                append("Node [${node.id}]:\n")
+                append("FQN: ${node.fqn}\n")
+                append("Kind: ${node.kind}\n")
+                if (node.name != null) {
+                    append("Name: ${node.name}\n")
+                }
+                if (node.signature != null) {
+                    append("Signature: ${node.signature}\n")
+                }
+                if (node.sourceCode != null) {
+                    append("Source Code:\n${node.sourceCode}\n")
+                }
+                if (node.docComment != null) {
+                    append("Documentation:\n${node.docComment}\n")
+                }
+            }
+        }
     }
 }

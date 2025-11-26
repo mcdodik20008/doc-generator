@@ -16,6 +16,7 @@ class RagController(
 
     @PostMapping("/ask")
     fun ask(@RequestBody request: RagRequest): RagResponse {
+        // todo: log request
         return ragService.ask(request.query, request.sessionId)
     }
 }
