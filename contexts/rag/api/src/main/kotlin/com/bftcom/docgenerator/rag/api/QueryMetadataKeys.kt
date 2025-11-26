@@ -33,5 +33,13 @@ enum class QueryMetadataKeys(val key: String) {
 
         // Ошибки обработки (динамические, формат: error_<advisorName>)
         ERROR_PREFIX("error_"),
+
+        // Точный поиск узлов
+        EXACT_NODES("exactNodes"),
+        EXACT_NODE_SEARCH_RESULT("exactNodeSearchResult"),
+
+        // Расширение окрестности (соседние узлы)
+        NEIGHBOR_NODES("neighborNodes"),
+        NEIGHBOR_EXPANSION_RADIUS("neighborExpansionRadius"),
 }
 

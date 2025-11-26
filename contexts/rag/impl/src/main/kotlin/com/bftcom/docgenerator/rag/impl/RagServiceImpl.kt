@@ -1,5 +1,6 @@
 package com.bftcom.docgenerator.rag.impl
 
+import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.embedding.api.EmbeddingSearchService
 import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
 import com.bftcom.docgenerator.rag.api.RagQueryMetadata
@@ -69,8 +70,46 @@ class RagServiceImpl(
         val searchResults = allResults
         log.debug("RAG search: final results count = {}", searchResults.size)
 
-        val context =
-            searchResults.joinToString("\n\n") { "Source [${it.id}]:\n${it.content}" }
+        // Добавляем найденные узлы из точного поиска в начало контекста
+        val exactNodes = processingContext.getMetadata<List<*>>(QueryMetadataKeys.EXACT_NODES)
+        val exactNodesContext = if (exactNodes != null && exactNodes.isNotEmpty()) {
+            val nodes = exactNodes.filterIsInstance<Node>()
+            if (nodes.isNotEmpty()) {
+                log.debug("Добавляем {} найденных узлов в контекст", nodes.size)
+                nodes.joinToString("\n\n") { node ->
+                    buildString {
+                        append("Node [${node.id}]:\n")
+                        append("FQN: ${node.fqn}\n")
+                        append("Kind: ${node.kind}\n")
+                        if (node.name != null) {
+                            append("Name: ${node.name}\n")
+                        }
+                        if (node.signature != null) {
+                            append("Signature: ${node.signature}\n")
+                        }
+                        if (node.sourceCode != null) {
+                            append("Source Code:\n${node.sourceCode}\n")
+                        }
+                        if (node.docComment != null) {
+                            append("Documentation:\n${node.docComment}\n")
+                        }
+                    }
+                }
+            } else {
+                ""
+            }
+        } else {
+            ""
+        }
+
+        val context = buildString {
+            if (exactNodesContext.isNotEmpty()) {
+                append("=== ТОЧНО НАЙДЕННЫЕ УЗЛЫ ===\n")
+                append(exactNodesContext)
+                append("\n\n=== РЕЗУЛЬТАТЫ ПОИСКА ===\n")
+            }
+            append(searchResults.joinToString("\n\n") { "Source [${it.id}]:\n${it.content}" })
+        }
 
         val prompt =
             """

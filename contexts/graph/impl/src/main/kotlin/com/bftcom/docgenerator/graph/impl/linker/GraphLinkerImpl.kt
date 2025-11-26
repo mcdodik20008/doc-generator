@@ -11,6 +11,8 @@ import com.bftcom.docgenerator.graph.api.library.LibraryNodeIndex
 import com.bftcom.docgenerator.graph.api.linker.GraphLinker
 import com.bftcom.docgenerator.graph.api.linker.indexing.NodeIndex
 import com.bftcom.docgenerator.graph.api.linker.sink.GraphSink
+import com.bftcom.docgenerator.graph.api.linker.sink.LibraryNodeGraphSink
+import com.bftcom.docgenerator.graph.api.linker.sink.LibraryNodeEdgeProposal
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointService
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
@@ -26,6 +28,7 @@ class GraphLinkerImpl(
     private val nodeRepo: NodeRepository,
     private val nodeIndexFactory: NodeIndexFactory,
     private val sink: GraphSink,
+    private val libraryNodeSink: LibraryNodeGraphSink,
     private val objectMapper: ObjectMapper,
     private val libraryNodeIndex: LibraryNodeIndex,
     private val integrationPointService: IntegrationPointService,
@@ -52,6 +55,7 @@ class GraphLinkerImpl(
         fun metaOf(n: Node): NodeMeta = objectMapper.convertValue(n.meta, NodeMeta::class.java)
 
         val edges = mutableListOf<Triple<Node, Node, EdgeKind>>()
+        val libraryNodeEdges = mutableListOf<LibraryNodeEdgeProposal>()
         val newlyCreatedNodes = mutableListOf<Node>()
 
         // === STRUCTURE ===
@@ -71,9 +75,10 @@ class GraphLinkerImpl(
                     edges += linkCalls(node, meta, index)
                     // Создаем интеграционные Edge на основе LibraryNode
                     // Собираем новые узлы для обновления индекса
-                    val (integrationEdges, newNodes) = linkIntegrationEdgesWithNodes(node, meta, index, application)
+                    val (integrationEdges, newNodes, libEdges) = linkIntegrationEdgesWithNodes(node, meta, index, application)
                     edges += integrationEdges
                     newlyCreatedNodes += newNodes
+                    libraryNodeEdges += libEdges
                 } catch (e: Exception) {
                     callsErrors++
                     log.error("CALLS linking failed for ${node.fqn}: ${e.message}", e)
@@ -97,7 +102,13 @@ class GraphLinkerImpl(
             },
         )
 
-        log.info("Finished linking. CALLS errors: $callsErrors, new integration nodes: ${newlyCreatedNodes.size}")
+        // Сохраняем прямые связи с LibraryNode
+        if (libraryNodeEdges.isNotEmpty()) {
+            log.info("Saving ${libraryNodeEdges.size} direct links to library nodes")
+            libraryNodeSink.upsertLibraryNodeEdges(libraryNodeEdges.asSequence())
+        }
+
+        log.info("Finished linking. CALLS errors: $callsErrors, new integration nodes: ${newlyCreatedNodes.size}, library node edges: ${libraryNodeEdges.size}")
     }
 
     // ================= helpers =================
@@ -299,22 +310,24 @@ class GraphLinkerImpl(
 
     /**
      * Создает интеграционные Edge (CALLS_HTTP, PRODUCES, CONSUMES) на основе LibraryNode.
-     * Возвращает пару: (список Edge, список новых созданных узлов).
+     * Возвращает тройку: (список Edge между Node, список новых созданных узлов, список Edge между Node и LibraryNode).
      */
     private fun linkIntegrationEdgesWithNodes(
         fn: Node,
         meta: NodeMeta,
         index: NodeIndex,
         application: Application,
-    ): Pair<List<Triple<Node, Node, EdgeKind>>, List<Node>> {
+    ): Triple<List<Triple<Node, Node, EdgeKind>>, List<Node>, List<LibraryNodeEdgeProposal>> {
         val edges = mutableListOf<Triple<Node, Node, EdgeKind>>()
         val newNodes = mutableListOf<Node>()
+        val libraryNodeEdges = mutableListOf<LibraryNodeEdgeProposal>()
 
         val result = linkIntegrationEdgesInternal(fn, meta, index, application)
         edges += result.first
         newNodes += result.second
+        libraryNodeEdges += result.third
 
-        return Pair(edges, newNodes)
+        return Triple(edges, newNodes, libraryNodeEdges)
     }
 
     /**
@@ -324,6 +337,7 @@ class GraphLinkerImpl(
      * 1. Анализирует rawUsages метода приложения
      * 2. Для каждого вызова метода библиотеки проверяет, есть ли интеграционные точки
      * 3. Создает соответствующие Edge и виртуальные узлы (ENDPOINT, TOPIC)
+     * 4. Создает прямые связи с LibraryNode
      */
     private fun linkIntegrationEdges(
         fn: Node,
@@ -336,10 +350,11 @@ class GraphLinkerImpl(
         meta: NodeMeta,
         index: NodeIndex,
         application: Application,
-    ): Pair<List<Triple<Node, Node, EdgeKind>>, List<Node>> {
+    ): Triple<List<Triple<Node, Node, EdgeKind>>, List<Node>, List<LibraryNodeEdgeProposal>> {
         val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
         val newNodes = mutableListOf<Node>()
-        val usages = meta.rawUsages ?: return Pair(emptyList(), emptyList())
+        val libraryNodeEdges = mutableListOf<LibraryNodeEdgeProposal>()
+        val usages = meta.rawUsages ?: return Triple(emptyList(), emptyList(), emptyList())
         val imports = meta.imports ?: emptyList()
         val owner = meta.ownerFqn?.let { index.findByFqn(it) }
         val pkg = fn.packageName.orEmpty()
@@ -371,13 +386,31 @@ class GraphLinkerImpl(
             if (libraryMethodFqn != null) {
                 val libraryNode = libraryNodeIndex.findByMethodFqn(libraryMethodFqn)
                 if (libraryNode != null) {
+                    // Создаем прямую связь с LibraryNode
+                    libraryNodeEdges.add(
+                        LibraryNodeEdgeProposal(
+                            kind = EdgeKind.CALLS_CODE,
+                            node = fn,
+                            libraryNode = libraryNode,
+                        ),
+                    )
+
                     // Нашли метод в библиотеке - извлекаем интеграционные точки
                     val integrationPoints = integrationPointService.extractIntegrationPoints(libraryNode)
 
                     for (point in integrationPoints) {
                         when (point) {
                             is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.HttpEndpoint -> {
-                                // Создаем или находим узел ENDPOINT
+                                // Создаем прямую связь с LibraryNode для HTTP
+                                libraryNodeEdges.add(
+                                    LibraryNodeEdgeProposal(
+                                        kind = EdgeKind.CALLS_HTTP,
+                                        node = fn,
+                                        libraryNode = libraryNode,
+                                    ),
+                                )
+
+                                // Создаем или находим узел ENDPOINT (для обратной совместимости)
                                 val (endpointNode, isNew) =
                                     getOrCreateEndpointNode(
                                         url = point.url ?: "unknown",
@@ -394,17 +427,47 @@ class GraphLinkerImpl(
                                     // Создаем дополнительные Edge для retry/timeout/circuit breaker
                                     if (point.hasRetry) {
                                         res += Triple(fn, endpointNode, EdgeKind.RETRIES_TO)
+                                        libraryNodeEdges.add(
+                                            LibraryNodeEdgeProposal(
+                                                kind = EdgeKind.RETRIES_TO,
+                                                node = fn,
+                                                libraryNode = libraryNode,
+                                            ),
+                                        )
                                     }
                                     if (point.hasTimeout) {
                                         res += Triple(fn, endpointNode, EdgeKind.TIMEOUTS_TO)
+                                        libraryNodeEdges.add(
+                                            LibraryNodeEdgeProposal(
+                                                kind = EdgeKind.TIMEOUTS_TO,
+                                                node = fn,
+                                                libraryNode = libraryNode,
+                                            ),
+                                        )
                                     }
                                     if (point.hasCircuitBreaker) {
                                         res += Triple(fn, endpointNode, EdgeKind.CIRCUIT_BREAKER_TO)
+                                        libraryNodeEdges.add(
+                                            LibraryNodeEdgeProposal(
+                                                kind = EdgeKind.CIRCUIT_BREAKER_TO,
+                                                node = fn,
+                                                libraryNode = libraryNode,
+                                            ),
+                                        )
                                     }
                                 }
                             }
                             is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.KafkaTopic -> {
-                                // Создаем или находим узел TOPIC
+                                // Создаем прямую связь с LibraryNode для Kafka
+                                libraryNodeEdges.add(
+                                    LibraryNodeEdgeProposal(
+                                        kind = if (point.operation == "PRODUCE") EdgeKind.PRODUCES else EdgeKind.CONSUMES,
+                                        node = fn,
+                                        libraryNode = libraryNode,
+                                    ),
+                                )
+
+                                // Создаем или находим узел TOPIC (для обратной совместимости)
                                 val (topicNode, isNew) =
                                     getOrCreateTopicNode(
                                         topic = point.topic ?: "unknown",
@@ -422,7 +485,18 @@ class GraphLinkerImpl(
                                 }
                             }
                             is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.CamelRoute -> {
-                                // Для Camel создаем ENDPOINT узел
+                                // Создаем прямую связь с LibraryNode для Camel
+                                if (point.endpointType == "http" || point.uri?.startsWith("http") == true) {
+                                    libraryNodeEdges.add(
+                                        LibraryNodeEdgeProposal(
+                                            kind = EdgeKind.CALLS_HTTP,
+                                            node = fn,
+                                            libraryNode = libraryNode,
+                                        ),
+                                    )
+                                }
+
+                                // Для Camel создаем ENDPOINT узел (для обратной совместимости)
                                 val (endpointNode, isNew) =
                                     getOrCreateEndpointNode(
                                         url = point.uri ?: "unknown",
@@ -447,7 +521,7 @@ class GraphLinkerImpl(
             }
         }
 
-        return Pair(res, newNodes)
+        return Triple(res, newNodes, libraryNodeEdges)
     }
 
     /**

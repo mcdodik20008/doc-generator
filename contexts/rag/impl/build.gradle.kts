@@ -16,6 +16,7 @@ repositories {
 }
 
 dependencies {
+    implementation(projects.kernel.domain)
     implementation(projects.contexts.rag.contextsRagApi)
     implementation(projects.contexts.embedding.contextsEmbeddingApi)
     implementation(projects.contexts.ai)
