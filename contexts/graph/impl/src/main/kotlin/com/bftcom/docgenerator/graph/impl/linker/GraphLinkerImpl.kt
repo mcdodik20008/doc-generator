@@ -6,14 +6,19 @@ import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
-import com.bftcom.docgenerator.domain.node.RawUsage
 import com.bftcom.docgenerator.graph.api.library.LibraryNodeIndex
 import com.bftcom.docgenerator.graph.api.linker.GraphLinker
 import com.bftcom.docgenerator.graph.api.linker.indexing.NodeIndex
 import com.bftcom.docgenerator.graph.api.linker.sink.GraphSink
 import com.bftcom.docgenerator.graph.api.linker.sink.LibraryNodeGraphSink
 import com.bftcom.docgenerator.graph.api.linker.sink.LibraryNodeEdgeProposal
-import com.bftcom.docgenerator.library.api.integration.IntegrationPointService
+import com.bftcom.docgenerator.graph.impl.linker.edge.AnnotationEdgeLinker
+import com.bftcom.docgenerator.graph.impl.linker.edge.CallEdgeLinker
+import com.bftcom.docgenerator.graph.impl.linker.edge.InheritanceEdgeLinker
+import com.bftcom.docgenerator.graph.impl.linker.edge.IntegrationEdgeLinker
+import com.bftcom.docgenerator.graph.impl.linker.edge.SignatureDependencyLinker
+import com.bftcom.docgenerator.graph.impl.linker.edge.StructuralEdgeLinker
+import com.bftcom.docgenerator.graph.impl.linker.edge.ThrowEdgeLinker
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Pageable
@@ -22,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional
 
 /**
  * Сервис для линковки узлов графа - создания рёбер между узлами.
+ * Оркестрирует работу различных линкеров через Strategy Pattern.
  */
 @Service
 class GraphLinkerImpl(
@@ -30,12 +36,17 @@ class GraphLinkerImpl(
     private val sink: GraphSink,
     private val libraryNodeSink: LibraryNodeGraphSink,
     private val objectMapper: ObjectMapper,
-    private val libraryNodeIndex: LibraryNodeIndex,
-    private val integrationPointService: IntegrationPointService,
+    // Линкеры для различных типов связей
+    private val structuralEdgeLinker: StructuralEdgeLinker,
+    private val inheritanceEdgeLinker: InheritanceEdgeLinker,
+    private val annotationEdgeLinker: AnnotationEdgeLinker,
+    private val signatureDependencyLinker: SignatureDependencyLinker,
+    private val callEdgeLinker: CallEdgeLinker,
+    private val throwEdgeLinker: ThrowEdgeLinker,
+    private val integrationEdgeLinker: IntegrationEdgeLinker,
 ) : GraphLinker {
     companion object {
         private val log = LoggerFactory.getLogger(GraphLinker::class.java)
-        private val TYPE_TOKEN = Regex("""\:\s*([A-Za-z_][A-Za-z0-9_\.]*)""")
     }
 
     @Transactional
@@ -59,7 +70,7 @@ class GraphLinkerImpl(
         val newlyCreatedNodes = mutableListOf<Node>()
 
         // === STRUCTURE ===
-        edges += linkContains(all, index, ::metaOf)
+        edges += structuralEdgeLinker.linkContains(all, index, ::metaOf)
 
         var callsErrors = 0
         all.forEachIndexed { i, node ->
@@ -67,15 +78,18 @@ class GraphLinkerImpl(
             log.info("[${i + 1}/${all.size}, $p%] Linking: ${node.kind} ${node.fqn}")
 
             val meta = metaOf(node)
-            if (node.isTypeNode()) edges += linkInheritsImplements(node, meta, index)
-            edges += linkAnnotations(node, meta, index)
+            if (node.isTypeNode()) {
+                edges += inheritanceEdgeLinker.link(node, meta, index)
+            }
+            edges += annotationEdgeLinker.link(node, meta, index)
             if (node.isFunctionNode()) {
-                edges += linkSignatureDepends(node, meta, index)
+                edges += signatureDependencyLinker.link(node, meta, index)
                 try {
-                    edges += linkCalls(node, meta, index)
+                    edges += callEdgeLinker.link(node, meta, index)
                     // Создаем интеграционные Edge на основе LibraryNode
                     // Собираем новые узлы для обновления индекса
-                    val (integrationEdges, newNodes, libEdges) = linkIntegrationEdgesWithNodes(node, meta, index, application)
+                    val (integrationEdges, newNodes, libEdges) =
+                        integrationEdgeLinker.linkIntegrationEdgesWithNodes(node, meta, index, application)
                     edges += integrationEdges
                     newlyCreatedNodes += newNodes
                     libraryNodeEdges += libEdges
@@ -83,7 +97,7 @@ class GraphLinkerImpl(
                     callsErrors++
                     log.error("CALLS linking failed for ${node.fqn}: ${e.message}", e)
                 }
-                edges += linkThrows(node, meta, index)
+                edges += throwEdgeLinker.link(node, meta, index)
             }
         }
 
@@ -113,187 +127,6 @@ class GraphLinkerImpl(
 
     // ================= helpers =================
 
-    private fun linkContains(
-        all: List<Node>,
-        index: NodeIndex,
-        metaOf: (Node) -> NodeMeta,
-    ): List<Triple<Node, Node, EdgeKind>> {
-        val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
-
-        all
-            .filter {
-                it.kind in
-                    setOf(
-                        NodeKind.INTERFACE,
-                        NodeKind.SERVICE,
-                        NodeKind.RECORD,
-                        NodeKind.MAPPER,
-                        NodeKind.ENDPOINT,
-                        NodeKind.CLASS,
-                        NodeKind.ENUM,
-                        NodeKind.CONFIG,
-                    )
-            }.forEach { type ->
-                val pkg = index.findByFqn(type.packageName ?: return@forEach) ?: return@forEach
-                res += Triple(pkg, type, EdgeKind.CONTAINS)
-            }
-
-        all
-            .filter {
-                it.kind in
-                    setOf(
-                        NodeKind.METHOD,
-                        NodeKind.FIELD,
-                        NodeKind.ENDPOINT,
-                        NodeKind.JOB,
-                        NodeKind.TOPIC,
-                    )
-            }.forEach { member ->
-                val ownerFqn = metaOf(member).ownerFqn ?: return@forEach
-                val owner = index.findByFqn(ownerFqn) ?: return@forEach
-                res += Triple(owner, member, EdgeKind.CONTAINS)
-            }
-
-        return res
-    }
-
-    private fun linkInheritsImplements(
-        node: Node,
-        meta: NodeMeta,
-        index: NodeIndex,
-    ): List<Triple<Node, Node, EdgeKind>> {
-        val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
-        val imports = meta.imports ?: emptyList()
-        val pkg = node.packageName.orEmpty()
-        val candidates = (meta.supertypesResolved ?: emptyList()) + (meta.supertypesSimple ?: emptyList())
-
-        for (raw in candidates) {
-            val target = index.resolveType(raw, imports, pkg) ?: continue
-            when (target.kind) {
-                NodeKind.INTERFACE -> {
-                    res += Triple(node, target, EdgeKind.IMPLEMENTS)
-                    res += Triple(node, target, EdgeKind.DEPENDS_ON)
-                }
-                else -> {
-                    res += Triple(node, target, EdgeKind.INHERITS)
-                    res += Triple(node, target, EdgeKind.DEPENDS_ON)
-                }
-            }
-        }
-        return res
-    }
-
-    private fun linkAnnotations(
-        node: Node,
-        meta: NodeMeta,
-        index: NodeIndex,
-    ): List<Triple<Node, Node, EdgeKind>> {
-        val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
-        val annotations = meta.annotations ?: return emptyList()
-        val imports = meta.imports ?: emptyList()
-        val pkg = node.packageName.orEmpty()
-
-        for (a in annotations) {
-            val t = index.resolveType(a, imports, pkg) ?: continue
-            res += Triple(node, t, EdgeKind.ANNOTATED_WITH)
-            res += Triple(node, t, EdgeKind.DEPENDS_ON)
-        }
-        return res
-    }
-
-    private fun linkSignatureDepends(
-        fn: Node,
-        meta: NodeMeta,
-        index: NodeIndex,
-    ): List<Triple<Node, Node, EdgeKind>> {
-        val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
-        val imports = meta.imports ?: emptyList()
-        val pkg = fn.packageName.orEmpty()
-
-        val tokens: Set<String> =
-            when {
-                !meta.paramTypes.isNullOrEmpty() || !meta.returnType.isNullOrBlank() ->
-                    (meta.paramTypes.orEmpty() + listOfNotNull(meta.returnType)).toSet()
-                !fn.signature.isNullOrBlank() ->
-                    TYPE_TOKEN
-                        .findAll(fn.signature!!)
-                        .map { it.groupValues[1].substringBefore('<').substringBefore('?') }
-                        .toSet()
-                else -> emptySet()
-            }
-
-        val ownerFqn = meta.ownerFqn
-        val src = ownerFqn?.let { index.findByFqn(it) } ?: fn
-
-        for (t in tokens) {
-            val typeNode = index.resolveType(t, imports, pkg) ?: continue
-            if (typeNode.id != src.id) res += Triple(src, typeNode, EdgeKind.DEPENDS_ON)
-        }
-        return res
-    }
-
-    private fun linkCalls(
-        fn: Node,
-        meta: NodeMeta,
-        index: NodeIndex,
-    ): List<Triple<Node, Node, EdgeKind>> {
-        val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
-        val usages = meta.rawUsages ?: return emptyList()
-        val imports = meta.imports ?: emptyList()
-        val owner = meta.ownerFqn?.let { index.findByFqn(it) }
-        val pkg = fn.packageName.orEmpty()
-
-        usages.forEach { u ->
-            when (u) {
-                is RawUsage.Simple -> {
-                    if (owner != null) {
-                        index.findByFqn("${owner.fqn}.${u.name}")?.let {
-                            res += Triple(fn, it, EdgeKind.CALLS)
-                            return@forEach
-                        }
-                    }
-                    if (u.isCall) {
-                        index.resolveType(u.name, imports, pkg)?.let {
-                            res += Triple(fn, it, EdgeKind.CALLS)
-                        }
-                    }
-                }
-                is RawUsage.Dot -> {
-                    val recvType =
-                        if (u.receiver.firstOrNull()?.isUpperCase() == true) {
-                            index.resolveType(u.receiver, imports, pkg)
-                        } else {
-                            owner
-                        }
-                    recvType?.let { r ->
-                        index.findByFqn("${r.fqn}.${u.member}")?.let {
-                            res += Triple(fn, it, EdgeKind.CALLS)
-                        }
-                    }
-                }
-            }
-        }
-        return res
-    }
-
-    private fun linkThrows(
-        fn: Node,
-        meta: NodeMeta,
-        index: NodeIndex,
-    ): List<Triple<Node, Node, EdgeKind>> {
-        val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
-        val throwsTypes = meta.throwsTypes ?: return emptyList()
-        val imports = meta.imports ?: emptyList()
-        val pkg = fn.packageName.orEmpty()
-
-        throwsTypes.forEach { throwType ->
-            index.resolveType(throwType, imports, pkg)?.let {
-                res += Triple(fn, it, EdgeKind.THROWS)
-            }
-        }
-        return res
-    }
-
     private fun Node.isTypeNode(): Boolean =
         kind in
             setOf(
@@ -307,330 +140,4 @@ class GraphLinkerImpl(
             )
 
     private fun Node.isFunctionNode(): Boolean = kind in setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB, NodeKind.TOPIC)
-
-    /**
-     * Создает интеграционные Edge (CALLS_HTTP, PRODUCES, CONSUMES) на основе LibraryNode.
-     * Возвращает тройку: (список Edge между Node, список новых созданных узлов, список Edge между Node и LibraryNode).
-     */
-    private fun linkIntegrationEdgesWithNodes(
-        fn: Node,
-        meta: NodeMeta,
-        index: NodeIndex,
-        application: Application,
-    ): Triple<List<Triple<Node, Node, EdgeKind>>, List<Node>, List<LibraryNodeEdgeProposal>> {
-        val edges = mutableListOf<Triple<Node, Node, EdgeKind>>()
-        val newNodes = mutableListOf<Node>()
-        val libraryNodeEdges = mutableListOf<LibraryNodeEdgeProposal>()
-
-        val result = linkIntegrationEdgesInternal(fn, meta, index, application)
-        edges += result.first
-        newNodes += result.second
-        libraryNodeEdges += result.third
-
-        return Triple(edges, newNodes, libraryNodeEdges)
-    }
-
-    /**
-     * Создает интеграционные Edge (CALLS_HTTP, PRODUCES, CONSUMES) на основе LibraryNode.
-     *
-     * Алгоритм:
-     * 1. Анализирует rawUsages метода приложения
-     * 2. Для каждого вызова метода библиотеки проверяет, есть ли интеграционные точки
-     * 3. Создает соответствующие Edge и виртуальные узлы (ENDPOINT, TOPIC)
-     * 4. Создает прямые связи с LibraryNode
-     */
-    private fun linkIntegrationEdges(
-        fn: Node,
-        meta: NodeMeta,
-        index: NodeIndex,
-    ): List<Triple<Node, Node, EdgeKind>> = linkIntegrationEdgesInternal(fn, meta, index, fn.application).first
-
-    private fun linkIntegrationEdgesInternal(
-        fn: Node,
-        meta: NodeMeta,
-        index: NodeIndex,
-        application: Application,
-    ): Triple<List<Triple<Node, Node, EdgeKind>>, List<Node>, List<LibraryNodeEdgeProposal>> {
-        val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
-        val newNodes = mutableListOf<Node>()
-        val libraryNodeEdges = mutableListOf<LibraryNodeEdgeProposal>()
-        val usages = meta.rawUsages ?: return Triple(emptyList(), emptyList(), emptyList())
-        val imports = meta.imports ?: emptyList()
-        val owner = meta.ownerFqn?.let { index.findByFqn(it) }
-        val pkg = fn.packageName.orEmpty()
-
-        usages.forEach { u ->
-            // Пытаемся найти метод в библиотеках
-            val libraryMethodFqn =
-                when (u) {
-                    is RawUsage.Simple -> {
-                        if (owner != null) {
-                            "${owner.fqn}.${u.name}"
-                        } else {
-                            // Пытаемся разрешить через imports
-                            imports.firstOrNull { it.endsWith(".${u.name}") }?.let { "$it.${u.name}" }
-                                ?: if (u.name.contains('.')) u.name else null
-                        }
-                    }
-                    is RawUsage.Dot -> {
-                        val recvType =
-                            if (u.receiver.firstOrNull()?.isUpperCase() == true) {
-                                index.resolveType(u.receiver, imports, pkg)?.fqn
-                            } else {
-                                owner?.fqn
-                            }
-                        recvType?.let { "$it.${u.member}" }
-                    }
-                }
-
-            if (libraryMethodFqn != null) {
-                val libraryNode = libraryNodeIndex.findByMethodFqn(libraryMethodFqn)
-                if (libraryNode != null) {
-                    // Создаем прямую связь с LibraryNode
-                    libraryNodeEdges.add(
-                        LibraryNodeEdgeProposal(
-                            kind = EdgeKind.CALLS_CODE,
-                            node = fn,
-                            libraryNode = libraryNode,
-                        ),
-                    )
-
-                    // Нашли метод в библиотеке - извлекаем интеграционные точки
-                    val integrationPoints = integrationPointService.extractIntegrationPoints(libraryNode)
-
-                    for (point in integrationPoints) {
-                        when (point) {
-                            is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.HttpEndpoint -> {
-                                // Создаем прямую связь с LibraryNode для HTTP
-                                libraryNodeEdges.add(
-                                    LibraryNodeEdgeProposal(
-                                        kind = EdgeKind.CALLS_HTTP,
-                                        node = fn,
-                                        libraryNode = libraryNode,
-                                    ),
-                                )
-
-                                // Создаем или находим узел ENDPOINT (для обратной совместимости)
-                                val (endpointNode, isNew) =
-                                    getOrCreateEndpointNode(
-                                        url = point.url ?: "unknown",
-                                        httpMethod = point.httpMethod,
-                                        index = index,
-                                        application = application,
-                                    )
-                                if (endpointNode != null) {
-                                    if (isNew) {
-                                        newNodes.add(endpointNode)
-                                    }
-                                    res += Triple(fn, endpointNode, EdgeKind.CALLS_HTTP)
-
-                                    // Создаем дополнительные Edge для retry/timeout/circuit breaker
-                                    if (point.hasRetry) {
-                                        res += Triple(fn, endpointNode, EdgeKind.RETRIES_TO)
-                                        libraryNodeEdges.add(
-                                            LibraryNodeEdgeProposal(
-                                                kind = EdgeKind.RETRIES_TO,
-                                                node = fn,
-                                                libraryNode = libraryNode,
-                                            ),
-                                        )
-                                    }
-                                    if (point.hasTimeout) {
-                                        res += Triple(fn, endpointNode, EdgeKind.TIMEOUTS_TO)
-                                        libraryNodeEdges.add(
-                                            LibraryNodeEdgeProposal(
-                                                kind = EdgeKind.TIMEOUTS_TO,
-                                                node = fn,
-                                                libraryNode = libraryNode,
-                                            ),
-                                        )
-                                    }
-                                    if (point.hasCircuitBreaker) {
-                                        res += Triple(fn, endpointNode, EdgeKind.CIRCUIT_BREAKER_TO)
-                                        libraryNodeEdges.add(
-                                            LibraryNodeEdgeProposal(
-                                                kind = EdgeKind.CIRCUIT_BREAKER_TO,
-                                                node = fn,
-                                                libraryNode = libraryNode,
-                                            ),
-                                        )
-                                    }
-                                }
-                            }
-                            is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.KafkaTopic -> {
-                                // Создаем прямую связь с LibraryNode для Kafka
-                                libraryNodeEdges.add(
-                                    LibraryNodeEdgeProposal(
-                                        kind = if (point.operation == "PRODUCE") EdgeKind.PRODUCES else EdgeKind.CONSUMES,
-                                        node = fn,
-                                        libraryNode = libraryNode,
-                                    ),
-                                )
-
-                                // Создаем или находим узел TOPIC (для обратной совместимости)
-                                val (topicNode, isNew) =
-                                    getOrCreateTopicNode(
-                                        topic = point.topic ?: "unknown",
-                                        index = index,
-                                        application = application,
-                                    )
-                                if (topicNode != null) {
-                                    if (isNew) {
-                                        newNodes.add(topicNode)
-                                    }
-                                    when (point.operation) {
-                                        "PRODUCE" -> res += Triple(fn, topicNode, EdgeKind.PRODUCES)
-                                        "CONSUME" -> res += Triple(fn, topicNode, EdgeKind.CONSUMES)
-                                    }
-                                }
-                            }
-                            is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.CamelRoute -> {
-                                // Создаем прямую связь с LibraryNode для Camel
-                                if (point.endpointType == "http" || point.uri?.startsWith("http") == true) {
-                                    libraryNodeEdges.add(
-                                        LibraryNodeEdgeProposal(
-                                            kind = EdgeKind.CALLS_HTTP,
-                                            node = fn,
-                                            libraryNode = libraryNode,
-                                        ),
-                                    )
-                                }
-
-                                // Для Camel создаем ENDPOINT узел (для обратной совместимости)
-                                val (endpointNode, isNew) =
-                                    getOrCreateEndpointNode(
-                                        url = point.uri ?: "unknown",
-                                        httpMethod = null,
-                                        index = index,
-                                        application = application,
-                                    )
-                                if (endpointNode != null) {
-                                    if (isNew) {
-                                        newNodes.add(endpointNode)
-                                    }
-                                    // Camel может быть как HTTP, так и другими протоколами
-                                    if (point.endpointType == "http" || point.uri?.startsWith("http") == true) {
-                                        res += Triple(fn, endpointNode, EdgeKind.CALLS_HTTP)
-                                    }
-                                    // TODO: можно добавить другие типы Camel endpoints
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return Triple(res, newNodes, libraryNodeEdges)
-    }
-
-    /**
-     * Создает или находит узел ENDPOINT для указанного URL.
-     * Возвращает пару: (узел, был ли создан новый узел).
-     */
-    private fun getOrCreateEndpointNode(
-        url: String,
-        httpMethod: String?,
-        index: NodeIndex,
-        application: com.bftcom.docgenerator.domain.application.Application,
-    ): Pair<Node?, Boolean> {
-        // Создаем FQN для endpoint: "endpoint://{httpMethod} {url}"
-        val endpointFqn =
-            if (httpMethod != null) {
-                "endpoint://$httpMethod $url"
-            } else {
-                "endpoint://$url"
-            }
-
-        // Пытаемся найти существующий узел
-        val existing = index.findByFqn(endpointFqn)
-        if (existing != null) {
-            return Pair(existing, false)
-        }
-
-        // Создаем новый узел ENDPOINT
-        try {
-            val endpointName = url.substringAfterLast('/').takeIf { it.isNotBlank() } ?: url
-            val endpointNode =
-                nodeRepo.save(
-                    Node(
-                        application = application,
-                        fqn = endpointFqn,
-                        name = endpointName,
-                        packageName = null,
-                        kind = NodeKind.ENDPOINT,
-                        lang = com.bftcom.docgenerator.domain.enums.Lang.java, // виртуальный узел
-                        parent = null,
-                        filePath = null,
-                        lineStart = null,
-                        lineEnd = null,
-                        sourceCode = null,
-                        docComment = null,
-                        signature = null,
-                        codeHash = null,
-                        meta =
-                            mapOf(
-                                "url" to url,
-                                "httpMethod" to (httpMethod ?: "UNKNOWN"),
-                                "source" to "library_analysis",
-                            ),
-                    ),
-                )
-            log.debug("Created ENDPOINT node: {}", endpointFqn)
-            return Pair(endpointNode, true)
-        } catch (e: Exception) {
-            log.warn("Failed to create ENDPOINT node {}: {}", endpointFqn, e.message)
-            return Pair(null, false)
-        }
-    }
-
-    /**
-     * Создает или находит узел TOPIC для указанного Kafka topic.
-     * Возвращает пару: (узел, был ли создан новый узел).
-     */
-    private fun getOrCreateTopicNode(
-        topic: String,
-        index: NodeIndex,
-        application: com.bftcom.docgenerator.domain.application.Application,
-    ): Pair<Node?, Boolean> {
-        val topicFqn = "topic://$topic"
-
-        val existing = index.findByFqn(topicFqn)
-        if (existing != null) {
-            return Pair(existing, false)
-        }
-
-        // Создаем новый узел TOPIC
-        try {
-            val topicNode =
-                nodeRepo.save(
-                    Node(
-                        application = application,
-                        fqn = topicFqn,
-                        name = topic,
-                        packageName = null,
-                        kind = NodeKind.TOPIC,
-                        lang = com.bftcom.docgenerator.domain.enums.Lang.java, // виртуальный узел
-                        parent = null,
-                        filePath = null,
-                        lineStart = null,
-                        lineEnd = null,
-                        sourceCode = null,
-                        docComment = null,
-                        signature = null,
-                        codeHash = null,
-                        meta =
-                            mapOf(
-                                "topic" to topic,
-                                "source" to "library_analysis",
-                            ),
-                    ),
-                )
-            log.debug("Created TOPIC node: {}", topicFqn)
-            return Pair(topicNode, true)
-        } catch (e: Exception) {
-            log.warn("Failed to create TOPIC node {}: {}", topicFqn, e.message)
-            return Pair(null, false)
-        }
-    }
 }

@@ -16,7 +16,6 @@ class NodeIndexFactory {
     ) : NodeIndex {
         private val byFqn = all.associateBy { it.fqn }
         private val bySimple = all.groupBy { it.name }
-        private val packages = all.filter { it.kind == NodeKind.PACKAGE }.associateBy { it.fqn }
 
         override fun findByFqn(fqn: String): Node? = byFqn[fqn]
 
