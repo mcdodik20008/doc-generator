@@ -6,27 +6,37 @@ import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.node.NodeMeta
+import com.bftcom.docgenerator.graph.api.node.CodeHasher
+import com.bftcom.docgenerator.graph.api.node.CodeNormalizer
+import com.bftcom.docgenerator.graph.api.node.NodeUpdateData
+import com.bftcom.docgenerator.graph.api.node.NodeUpdateStrategy
+import com.bftcom.docgenerator.graph.api.node.NodeValidator
+import com.bftcom.docgenerator.graph.impl.node.builder.cache.NodeCache
+import com.bftcom.docgenerator.graph.impl.node.builder.stats.NodeBuilderStats
+import com.bftcom.docgenerator.graph.impl.node.builder.stats.NodeBuilderStatsManager
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
-import java.security.MessageDigest
 
 /**
  * Строитель нод - отвечает за создание и обновление Node сущностей.
+ * Оркестрирует работу различных компонентов через композицию.
  */
 class NodeBuilder(
     private val application: Application,
     private val nodeRepo: NodeRepository,
     private val objectMapper: ObjectMapper,
+    private val validator: NodeValidator,
+    private val codeNormalizer: CodeNormalizer,
+    private val codeHasher: CodeHasher,
+    private val updateStrategy: NodeUpdateStrategy,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    // Счетчики для статистики
-    private var createdCount = 0
-    private var updatedCount = 0
-    private var skippedCount = 0
+    // Менеджер статистики
+    private val statsManager = NodeBuilderStatsManager()
 
     // Кэш существующих нод для избежания N+1 запросов
-    private val existingNodesCache = mutableMapOf<String, Node?>()
+    private val nodeCache = NodeCache()
 
     // Максимальный размер sourceCode (10MB)
     private val maxSourceCodeSize = 10 * 1024 * 1024
@@ -45,97 +55,118 @@ class NodeBuilder(
         docComment: String?,
         meta: NodeMeta,
     ): Node {
+        val applicationId = requireNotNull(application.id) { "Application must have an ID" }
+
         // Валидация входных данных
-        validateNodeData(fqn, span, parent, sourceCode)
+        validator.validate(fqn, span, parent, sourceCode, applicationId)
 
         // Кэшируем запросы к БД для избежания N+1 проблемы
         val existing =
-            existingNodesCache.getOrPut(fqn) {
-                nodeRepo.findByApplicationIdAndFqn(
-                    requireNotNull(application.id) { "Application must have an ID" },
-                    fqn,
-                )
+            nodeCache.getOrCompute(fqn) {
+                nodeRepo.findByApplicationIdAndFqn(applicationId, fqn)
             }
+
         val metaMap = toMetaMap(meta)
 
-        // Ограничиваем размер sourceCode для защиты от переполнения
-        val normalizedSourceCode =
-            sourceCode?.let {
-                if (it.length > maxSourceCodeSize) {
-                    log.warn(
-                        "Source code truncated: fqn={}, originalSize={}, maxSize={}",
-                        fqn,
-                        it.length,
-                        maxSourceCodeSize,
-                    )
-                    it.take(maxSourceCodeSize) + "\n... [truncated]"
-                } else {
-                    it
-                }
-            }
+        // Нормализуем исходный код
+        val normalizedSourceCode = codeNormalizer.normalize(sourceCode, maxSourceCodeSize)
 
+        // Вычисляем lineEnd на основе нормализованного кода
         val lineStart: Int? = span?.first
         var lineEnd: Int? = span?.last
         if (normalizedSourceCode?.isNotEmpty() == true && lineStart != null) {
-            lineEnd = lineStart + countLinesNormalized(normalizedSourceCode) - 1
+            lineEnd = lineStart + codeNormalizer.countLines(normalizedSourceCode) - 1
         }
 
         // Вычисляем хеш исходного кода (используем оригинальный, не обрезанный)
-        val codeHash = computeCodeHash(sourceCode)
+        val codeHash = codeHasher.computeHash(sourceCode)
 
         return if (existing == null) {
             // Создание новой ноды
-            log.debug("Creating new node: kind={}, fqn={}, file={}", kind, fqn, filePath)
-            try {
-                val newNode =
-                    nodeRepo.save(
-                        Node(
-                            id = null,
-                            application = application,
-                            fqn = fqn,
-                            name = name,
-                            packageName = packageName,
-                            kind = kind,
-                            lang = lang,
-                            parent = parent,
-                            filePath = filePath,
-                            lineStart = lineStart,
-                            lineEnd = lineEnd,
-                            sourceCode = normalizedSourceCode,
-                            docComment = docComment,
-                            signature = signature,
-                            codeHash = codeHash,
-                            meta = metaMap,
-                        ),
-                    )
-                // Обновляем кэш
-                existingNodesCache[fqn] = newNode
-                createdCount++
-                log.trace("Node created: id={}, fqn={}, hash={}", newNode.id, fqn, codeHash?.take(8))
-                newNode
-            } catch (e: Exception) {
-                log.error("Failed to save new node: kind={}, fqn={}, error={}", kind, fqn, e.message, e)
-                throw e
-            }
+            createNewNode(
+                fqn = fqn,
+                kind = kind,
+                name = name,
+                packageName = packageName,
+                parent = parent,
+                lang = lang,
+                filePath = filePath,
+                lineStart = lineStart,
+                lineEnd = lineEnd,
+                normalizedSourceCode = normalizedSourceCode,
+                docComment = docComment,
+                signature = signature,
+                codeHash = codeHash,
+                metaMap = metaMap,
+            )
         } else {
             // Обновление существующей ноды
-            log.debug("Updating existing node: id={}, kind={}, fqn={}", existing.id, kind, fqn)
             updateExistingNode(
-                existing,
-                name,
-                packageName,
-                kind,
-                lang,
-                parent,
-                filePath,
-                lineStart,
-                lineEnd,
-                normalizedSourceCode,
-                docComment,
-                signature,
-                codeHash,
-                metaMap,
+                existing = existing,
+                name = name,
+                packageName = packageName,
+                kind = kind,
+                lang = lang,
+                parent = parent,
+                filePath = filePath,
+                lineStart = lineStart,
+                lineEnd = lineEnd,
+                normalizedSourceCode = normalizedSourceCode,
+                docComment = docComment,
+                signature = signature,
+                codeHash = codeHash,
+                metaMap = metaMap,
             )
+        }
+    }
+
+    private fun createNewNode(
+        fqn: String,
+        kind: NodeKind,
+        name: String?,
+        packageName: String?,
+        parent: Node?,
+        lang: Lang,
+        filePath: String?,
+        lineStart: Int?,
+        lineEnd: Int?,
+        normalizedSourceCode: String?,
+        docComment: String?,
+        signature: String?,
+        codeHash: String?,
+        metaMap: Map<String, Any>,
+    ): Node {
+        log.debug("Creating new node: kind={}, fqn={}, file={}", kind, fqn, filePath)
+        try {
+            val newNode =
+                nodeRepo.save(
+                    Node(
+                        id = null,
+                        application = application,
+                        fqn = fqn,
+                        name = name,
+                        packageName = packageName,
+                        kind = kind,
+                        lang = lang,
+                        parent = parent,
+                        filePath = filePath,
+                        lineStart = lineStart,
+                        lineEnd = lineEnd,
+                        sourceCode = normalizedSourceCode,
+                        docComment = docComment,
+                        signature = signature,
+                        codeHash = codeHash,
+                        meta = metaMap,
+                    ),
+                )
+            // Обновляем кэш
+            nodeCache.put(fqn, newNode)
+            statsManager.incrementCreated()
+            log.trace("Node created: id={}, fqn={}, hash={}", newNode.id, fqn, codeHash?.take(8))
+            return newNode
+        } catch (e: Exception) {
+            log.error("Failed to save new node: kind={}, fqn={}, error={}", kind, fqn, e.message, e)
+            throw e
         }
     }
 
@@ -149,166 +180,52 @@ class NodeBuilder(
         filePath: String?,
         lineStart: Int?,
         lineEnd: Int?,
-        sourceCode: String?,
+        normalizedSourceCode: String?,
         docComment: String?,
         signature: String?,
         codeHash: String?,
         metaMap: Map<String, Any>,
     ): Node {
-        var changed = false
+        log.debug("Updating existing node: id={}, kind={}, fqn={}", existing.id, kind, existing.fqn)
 
-        fun <T> setIfChanged(
-            curr: T,
-            new: T,
-            apply: (T) -> Unit,
-        ) {
-            if (curr != new) {
-                apply(new)
-                changed = true
-            }
-        }
+        val updateData =
+            NodeUpdateData(
+                name = name,
+                packageName = packageName,
+                kind = kind,
+                lang = lang,
+                parent = parent,
+                filePath = filePath,
+                lineStart = lineStart,
+                lineEnd = lineEnd,
+                sourceCode = normalizedSourceCode,
+                docComment = docComment,
+                signature = signature,
+                codeHash = codeHash,
+                meta = metaMap,
+            )
 
-        // Оптимизация: если codeHash не изменился, код не изменился
-        // Можно пропустить обновление sourceCode и связанных полей
-        val codeHashChanged = existing.codeHash != codeHash
+        // Проверяем наличие изменений ДО обновления
+        val hasChanges = updateStrategy.hasChanges(existing, updateData)
 
-        setIfChanged(existing.name, name) { existing.name = it }
-        setIfChanged(existing.packageName, packageName) { existing.packageName = it }
-        setIfChanged(existing.kind, kind) { existing.kind = it }
-        setIfChanged(existing.lang, lang) { existing.lang = it }
-        setIfChanged(existing.parent?.id, parent?.id) { existing.parent = parent }
-        setIfChanged(existing.filePath, filePath) { existing.filePath = it }
-
-        // Обновляем lineStart/lineEnd только если код изменился или они явно указаны
-        if (codeHashChanged || lineStart != existing.lineStart || lineEnd != existing.lineEnd) {
-            setIfChanged(existing.lineStart, lineStart) { existing.lineStart = it }
-            setIfChanged(existing.lineEnd, lineEnd) { existing.lineEnd = it }
-        }
-
-        // Обновляем sourceCode только если codeHash изменился
-        if (codeHashChanged) {
-            setIfChanged(existing.sourceCode, sourceCode) { existing.sourceCode = it }
-        }
-
-        setIfChanged(existing.docComment, docComment) { existing.docComment = it }
-        setIfChanged(existing.signature, signature) { existing.signature = it }
-        setIfChanged(existing.codeHash, codeHash) { existing.codeHash = it }
-
-        @Suppress("UNCHECKED_CAST")
-        val currentMeta: Map<String, Any?> = (existing.meta as? Map<String, Any?>) ?: emptyMap()
-        val merged =
-            (currentMeta + metaMap).filterValues {
-                it != null &&
-                    when (it) {
-                        is Collection<*> -> it.isNotEmpty()
-                        is Map<*, *> -> it.isNotEmpty()
-                        else -> true
-                    }
-            }
-        setIfChanged(existing.meta, merged) { existing.meta = it as Map<String, Any> }
-
-        return if (changed) {
-            log.debug("Node updated: id={}, fqn={}, changes detected", existing.id, existing.fqn)
-            try {
-                val updated = nodeRepo.save(existing)
-                // Обновляем кэш
-                existingNodesCache[existing.fqn] = updated
-                updatedCount++
-                updated
-            } catch (e: Exception) {
-                log.error("Failed to update node: id={}, fqn={}, error={}", existing.id, existing.fqn, e.message, e)
-                throw e
-            }
-        } else {
+        if (!hasChanges) {
             log.trace("Node unchanged: id={}, fqn={}, skipping save", existing.id, existing.fqn)
-            skippedCount++
-            existing
+            statsManager.incrementSkipped()
+            return existing
         }
-    }
 
-    /**
-     * Оптимизированный подсчет строк с нормализацией окончаний строк.
-     */
-    private fun countLinesNormalized(src: String): Int {
-        if (src.isEmpty()) return 0
-        return src.replace("\r\n", "\n").count { it == '\n' } + 1
-    }
+        // Обновляем узел
+        val updated = updateStrategy.update(existing, updateData)
 
-    /**
-     * Вычисляет SHA-256 хеш исходного кода для отслеживания изменений.
-     */
-    private fun computeCodeHash(sourceCode: String?): String? {
-        if (sourceCode.isNullOrBlank()) return null
-
-        return try {
-            val digest = MessageDigest.getInstance("SHA-256")
-            val hashBytes = digest.digest(sourceCode.toByteArray(Charsets.UTF_8))
-            val hash = hashBytes.joinToString("") { "%02x".format(it) }
-            log.trace("Computed code hash: length={}, hash={}", sourceCode.length, hash.take(16))
-            hash
-        } catch (e: Exception) {
-            log.warn("Failed to compute code hash: {}", e.message, e)
-            null
-        }
-    }
-
-    /**
-     * Валидация данных ноды перед сохранением.
-     */
-    private fun validateNodeData(
-        fqn: String,
-        span: IntRange?,
-        parent: Node?,
-        sourceCode: String?,
-    ) {
+        log.debug("Node updated: id={}, fqn={}, changes detected", existing.id, existing.fqn)
         try {
-            // Валидация FQN
-            require(fqn.isNotBlank()) { "FQN cannot be blank" }
-            require(fqn.length <= 1000) { "FQN is too long: ${fqn.length} characters (max 1000)" }
-
-            // Валидация формата FQN (базовая проверка)
-            require(fqn.matches(Regex("^[a-zA-Z_][a-zA-Z0-9_.]*$"))) {
-                "FQN has invalid format: $fqn (must start with letter/underscore, contain only alphanumeric, dots, underscores)"
-            }
-
-            // Валидация диапазона строк
-            span?.let {
-                require(it.first >= 0) { "lineStart must be non-negative, got ${it.first}" }
-                require(it.first <= it.last) {
-                    "lineStart (${it.first}) must be <= lineEnd (${it.last})"
-                }
-            }
-
-            // Валидация parent
-            parent?.let {
-                require(it.application.id == application.id) {
-                    "Parent node (${it.fqn}) must belong to the same application (${application.id})"
-                }
-
-                // Проверка на циклические зависимости (базовая)
-                require(it.id != null) {
-                    "Parent node must be persisted before being used as parent"
-                }
-
-                // Проверка, что parent не является самим узлом (защита от самоссылки)
-                require(it.fqn != fqn) {
-                    "Node cannot be its own parent: fqn=$fqn"
-                }
-            }
-
-            // Валидация размера sourceCode
-            sourceCode?.let {
-                if (it.length > maxSourceCodeSize) {
-                    log.warn(
-                        "Source code too large: fqn={}, size={} bytes (max {}), truncating",
-                        fqn,
-                        it.length,
-                        maxSourceCodeSize,
-                    )
-                }
-            }
-        } catch (e: IllegalArgumentException) {
-            log.error("Validation failed for node: fqn={}, error={}", fqn, e.message)
+            val saved = nodeRepo.save(updated)
+            // Обновляем кэш
+            nodeCache.put(existing.fqn, saved)
+            statsManager.incrementUpdated()
+            return saved
+        } catch (e: Exception) {
+            log.error("Failed to update node: id={}, fqn={}, error={}", existing.id, existing.fqn, e.message, e)
             throw e
         }
     }
@@ -316,16 +233,14 @@ class NodeBuilder(
     /**
      * Получить статистику операций (для логирования на уровне выше).
      */
-    fun getStats(): NodeBuilderStats = NodeBuilderStats(createdCount, updatedCount, skippedCount)
+    fun getStats(): NodeBuilderStats = statsManager.getStats()
 
     /**
      * Сбросить счетчики статистики и кэш.
      */
     fun resetStats() {
-        createdCount = 0
-        updatedCount = 0
-        skippedCount = 0
-        existingNodesCache.clear()
+        statsManager.reset()
+        nodeCache.clear()
         log.debug("NodeBuilder stats and cache reset")
     }
 
@@ -333,21 +248,9 @@ class NodeBuilder(
      * Очистить кэш существующих нод (можно вызывать периодически для освобождения памяти).
      */
     fun clearCache() {
-        val size = existingNodesCache.size
-        existingNodesCache.clear()
-        log.debug("Cleared node cache: removed {} entries", size)
+        nodeCache.clear()
     }
 
-    private fun toMetaMap(meta: NodeMeta): Map<String, Any> = objectMapper.convertValue(meta, Map::class.java) as Map<String, Any>
-
-    /**
-     * Статистика операций NodeBuilder.
-     */
-    data class NodeBuilderStats(
-        val created: Int,
-        val updated: Int,
-        val skipped: Int,
-    ) {
-        val total: Int get() = created + updated + skipped
-    }
+    private fun toMetaMap(meta: NodeMeta): Map<String, Any> =
+        objectMapper.convertValue(meta, Map::class.java) as Map<String, Any>
 }
