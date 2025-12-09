@@ -25,22 +25,23 @@ services:
     volumes:
       - ollama_data:/root/.ollama
 
-  # опционально: Qdrant (если планируешь гибридный поиск/векторы вне pgvector)
-#  qdrant:
-#    image: qdrant/qdrant:v1.11.0
-#    container_name: docgen-qdrant
-#    restart: unless-stopped
-#    volumes:
-#      - qdrant-data:/qdrant/storage
-#    ports:
-#      - "${QDRANT_PORT:-6333}:6333"
+  evaluator:
+    build:
+      context: ./doc-evaluator
+      dockerfile: Dockerfile
+    container_name: docgen-evaluator
+    env_file:
+      - .env
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
 
   app:
-    # Вариант 1: у тебя есть Dockerfile в корне проекта
+    # Вариант 1: есть Dockerfile в корне проекта
     build:
       context: .
       dockerfile: Dockerfile
-    # Вариант 2 (закомментируй build): готовый образ, если собираешь Jib'ом в CI
+    # Вариант 2 готовый образ, если собираем Jib'ом в CI
     # image: registry.local/doc-generator:latest
     container_name: docgen-app
     restart: unless-stopped
@@ -55,8 +56,6 @@ services:
       SPRING_DATASOURCE_USERNAME: ${PG_USER}
       SPRING_DATASOURCE_PASSWORD: ${PG_PASSWORD}
       TZ: Europe/Riga
-
-      # ---- Git-интеграция (заполни по своему приложению) ----
       DOCGEN_GIT_REMOTE: ${DOCGEN_GIT_REMOTE}            # ssh url: git@github.com:org/repo.git
       DOCGEN_GIT_BRANCH: ${DOCGEN_GIT_BRANCH:-main}
       DOCGEN_GIT_DEPTH: ${DOCGEN_GIT_DEPTH:-1}           # shallow clone
@@ -76,7 +75,6 @@ services:
 
 volumes:
   db-data:
-  qdrant-data:
   app-cache:
   github-deploy-key:
   ollama_data:

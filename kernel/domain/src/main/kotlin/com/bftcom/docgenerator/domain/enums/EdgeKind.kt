@@ -17,7 +17,7 @@ enum class EdgeKind {
     CALLS, // DEPRECATED
     CALLS_CODE, // METHOD→METHOD
     THROWS, // METHOD→EXCEPTION
-    LOCKS, // METHOD→RESOURCE (если моделируете ресурс как CLASS/FIELD)
+    LOCKS, // METHOD→RESOURCE
 
     // Сетевые и интеграционные взаимодействия
     CALLS_HTTP, // CLIENT/SERVICE → ENDPOINT (HTTP/GraphQL/WS)
