@@ -7,16 +7,23 @@ from app.services.local_metrics import LocalMetricsService
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup: Предзагрузка тяжелых моделей
     LocalMetricsService.get_instance()
     yield
+    # Shutdown: тут можно очистить ресурсы
 
 app = FastAPI(
     title=get_settings().PROJECT_NAME,
     lifespan=lifespan
 )
 
+# Простой Dependency Injection
 def get_orchestrator():
     return EvaluationOrchestrator()
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
 
 @app.post("/evaluate", response_model=EvaluateResponse)
 async def evaluate_endpoint(request: EvaluateRequest):

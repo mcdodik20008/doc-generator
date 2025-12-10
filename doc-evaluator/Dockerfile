@@ -7,7 +7,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
+
 # Ставим CPU торч
+# Увеличиваем таймаут для скачивания моделей (было 10 сек по умолчанию)
+ENV HF_HUB_DOWNLOAD_TIMEOUT=100
+
 RUN pip install --no-cache-dir torch>=2.2.0 --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 

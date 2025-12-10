@@ -1,12 +1,3 @@
-from app.core.config import get_settings
-
-settings = get_settings()
-
-class EvaluationOrchestrator:
-    def __init__(self):
-        # Инициализируем локальные метрики (загрузятся при первом вызове, если еще не загружены)
-        self.local = LocalMetricsService.get_instance()
-        # Инициализируем судей
 import asyncio
 from app.schemas.evaluation import EvaluateRequest, EvaluateResponse, LlmScores
 from app.services.local_metrics import LocalMetricsService
@@ -52,15 +43,21 @@ class EvaluationOrchestrator:
         judge_names_flat = [t[0] for t in all_tasks]
         coroutines = [t[1] for t in all_tasks]
         
-        results_flat = await asyncio.gather(*coroutines)
+        # return_exceptions=True гарантирует, что если одна корутина упадет, остальные доработают
+        results_flat = await asyncio.gather(*coroutines, return_exceptions=True)
 
         # Собираем результаты по судьям
         # scores_by_judge = {"gigachat": [8, 9, 8], ...}
         scores_by_judge = {name: [] for name, _ in self.judges}
         
-        for name, score in zip(judge_names_flat, results_flat):
-            if score is not None:
-                scores_by_judge[name].append(score)
+        for name, result in zip(judge_names_flat, results_flat):
+            # Если вернулось исключение (return_exceptions=True) или None, пропускаем
+            if isinstance(result, Exception):
+                print(f"Error in judge {name}: {result}")
+                continue
+                
+            if result is not None:
+                scores_by_judge[name].append(result)
 
         # Считаем среднее для каждого судьи
         final_llm_scores_map = {}

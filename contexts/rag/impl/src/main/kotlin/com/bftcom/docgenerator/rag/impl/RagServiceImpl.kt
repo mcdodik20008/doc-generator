@@ -27,7 +27,7 @@ class RagServiceImpl(
         // Обрабатываем запрос через цепочку advisors
         val processingContext = queryProcessingChain.process(query, sessionId)
         
-        // ВАЖНО: Используем оригинальный запрос для основного поиска,
+        // Используем оригинальный запрос для основного поиска,
         // чтобы не потерять точные названия классов/методов
         val originalQuery = processingContext.originalQuery
         log.info("RAG search: original query = '{}'", originalQuery)
