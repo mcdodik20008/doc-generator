@@ -13,7 +13,7 @@ def client():
 def mock_local_metrics(monkeypatch):
     mock_service = MagicMock(spec=LocalMetricsService)
     # Настраиваем дефолтное поведение
-    mock_service.calculate_semantic_similarity.return_value = 8.0
+    mock_service.calculate_semantic_similarity.return_value = 0.8
     mock_service.calculate_coverage.return_value = 9.0
     mock_service.calculate_readability.return_value = 7.5
     

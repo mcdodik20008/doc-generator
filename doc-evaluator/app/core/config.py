@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     # --- LLM Settings ---
     # Значения по умолчанию стоят для локальной разработки
-    OLLAMA_HOST: str = "http://ollama:11434/v1"
+    OLLAMA_HOST: str = "http://localhost:11434/v1"
     OLLAMA_MODEL: str = "qwen2.5:7b"
 
     # --- Credentials (Optional) ---
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     WEIGHT_LLM: float = 0.6
     
     # --- Advanced Settings ---
-    SELF_CONSISTENCY_ROUNDS: int = 3
+    SELF_CONSISTENCY_ROUNDS: int = 1
 
     # ВАЖНЫЙ МОМЕНТ:
     # 1. Pydantic сначала читает системные переменные (Environment Variables).

@@ -41,6 +41,6 @@ async def test_evaluate_fallback(mock_local_metrics, mock_llm_judges):
     response = await orchestrator.evaluate(request)
     
     # Должен быть фоллбек на локальные метрики
-    # (sem + cov) / 2 = (8.0 + 9.0) / 2 = 8.5
-    assert response.final_score == 8.5
+    # (sem + cov) / 2 = (0.8 + 9.0) / 2 = 4.9
+    assert response.final_score == 4.9
     assert response.llm_scores.gigachat is None

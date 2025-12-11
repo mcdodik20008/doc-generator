@@ -3,9 +3,10 @@ import asyncio
 from abc import ABC, abstractmethod
 from gigachat import GigaChat
 import google.generativeai as genai
-from openai import AsyncOpenAI
-
+import aiohttp
 from app.core.config import get_settings
+import dashscope
+from http import HTTPStatus
 
 settings = get_settings()
 
@@ -51,8 +52,7 @@ class GeminiJudge(BaseJudge):
         if not settings.GEMINI_API_KEY: return None
         try:
             genai.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            # Gemini sync lib wrapper in thread
+            model = genai.GenerativeModel('gemini-pro')
             response = await asyncio.to_thread(
                 model.generate_content,
                 JUDGE_PROMPT.format(code=code, doc=doc),
@@ -65,14 +65,56 @@ class GeminiJudge(BaseJudge):
 
 class OllamaJudge(BaseJudge):
     async def evaluate(self, code: str, doc: str, temperature: float = 0.1) -> float | None:
+        url = "http://127.0.0.1:11434/api/chat"
+
+        payload = {
+            "model": settings.OLLAMA_MODEL, # 'qwen2.5:0.5b'
+            "messages": [
+                {"role": "user", "content": JUDGE_PROMPT.format(code=code, doc=doc)}
+            ],
+            "stream": False,
+            "options": {
+                "temperature": temperature
+            }
+        }
+
         try:
-            client = AsyncOpenAI(base_url=settings.OLLAMA_HOST, api_key="ollama")
-            response = await client.chat.completions.create(
-                model=settings.OLLAMA_MODEL,
-                messages=[{"role": "user", "content": JUDGE_PROMPT.format(code=code, doc=doc)}],
-                temperature=temperature
-            )
-            return self._extract_score(response.choices[0].message.content)
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=payload) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        print(f"Ollama Error {response.status}: {error_text}")
+                        return None
+
+                    result = await response.json()
+                    content = result.get("message", {}).get("content", "")
+
+                    return self._extract_score(content)
+
         except Exception as e:
-            print(f"Ollama Error: {e}")
+            print(f"Connection Error: {e}")
+            return None
+
+class QwenJudge(BaseJudge):
+    async def evaluate(self, code: str, doc: str) -> float | None:
+        if not settings.QWEN_API_KEY: return None
+        dashscope.api_key = settings.QWEN_API_KEY
+        try:
+            response = dashscope.Generation.call(
+                model=settings.QWEN_MODEL, # Или 'qwen-plus' (поумнее)
+                messages=[
+                    {'role': 'user', 'content': JUDGE_PROMPT.format(code=code, doc=doc)}
+                ],
+                result_format='message',
+            )
+
+            if response.status_code == HTTPStatus.OK:
+                content = response.output.choices[0]['message']['content']
+                return self._extract_score(content)
+            else:
+                print(f"Qwen Error: {response.code} - {response.message}")
+                return None
+
+        except Exception as e:
+            print(f"Connection Error: {e}")
             return None

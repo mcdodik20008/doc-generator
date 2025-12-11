@@ -1,3 +1,4 @@
+protobuf
 fastapi==0.109.0
 uvicorn==0.27.0
 # torch ставим в Dockerfile, тут можно опустить или оставить >=2.2.0
@@ -12,6 +13,7 @@ google-generativeai
 openai  # Используется и для ChatGPT, и для локальной Ollama
 aiohttp # Для асинхронных запросов
 pydantic-settings==2.1.0
+dashscope
 
 # Test dependencies
 pytest

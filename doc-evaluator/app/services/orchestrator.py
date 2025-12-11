@@ -1,4 +1,5 @@
 import asyncio
+import statistics
 from app.schemas.evaluation import EvaluateRequest, EvaluateResponse, LlmScores
 from app.services.local_metrics import LocalMetricsService
 from app.services.llm_judges import GigaChatJudge, GeminiJudge, OllamaJudge
@@ -72,7 +73,7 @@ class EvaluationOrchestrator:
                 final_llm_scores_map[name] = None
 
         # Считаем общую дисперсию всех оценок LLM
-        import statistics
+
         if len(all_valid_scores) > 1:
             variance = statistics.variance(all_valid_scores)
         else:
@@ -97,6 +98,7 @@ class EvaluationOrchestrator:
                     (avg_llm_score * settings.WEIGHT_LLM)
             )
 
+        final = round(final, 2)
         return EvaluateResponse(
             semantic_score=round(sem_score, 2),
             keyword_coverage=round(coverage_score, 2),
