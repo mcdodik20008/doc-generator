@@ -12,8 +12,8 @@ class LlmScores(BaseModel):
 class EvaluateResponse(BaseModel):
     # Локальные метрики
     # ge = greater or equal (>=), le = less or equal (<=)
-    semantic_score: float = Field(..., ge=0, le=1, description="Сходство векторов (CodeBERT)")
-    keyword_coverage: float = Field(..., ge=0, le=100, description="Процент покрытия (0-100%)")
+    semantic_score: float = Field(..., ge=0, le=10, description="Сходство векторов (0-10)")
+    keyword_coverage: float = Field(..., ge=0, le=10, description="Оценка покрытия ключевыми словами (0-10)")
     readability_score: float = Field(..., description="Читаемость текста")
 
     # LLM метрики

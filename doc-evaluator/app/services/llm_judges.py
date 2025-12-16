@@ -40,11 +40,13 @@ class GigaChatJudge(BaseJudge):
     async def evaluate(self, code: str, doc: str, temperature: float = 0.1) -> float | None:
         if not settings.GIGACHAT_CREDENTIALS: return None
         try:
-            async with GigaChat(credentials=settings.GIGACHAT_CREDENTIALS, verify_ssl_certs=False, temperature=temperature) as giga:
-                response = await giga.achat(JUDGE_PROMPT.format(code=code, doc=doc))
+            async with GigaChat(credentials=settings.GIGACHAT_CREDENTIALS, verify_ssl_certs=False) as giga:
+                response = await giga.achat(JUDGE_PROMPT.format(code=code, doc=doc), temperature=temperature)
                 return self._extract_score(response.choices[0].message.content)
         except Exception as e:
-            print(f"GigaChat Error: {e}")
+            print(f"GigaChat Error ({type(e).__name__}): {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
 class GeminiJudge(BaseJudge):
@@ -52,7 +54,7 @@ class GeminiJudge(BaseJudge):
         if not settings.GEMINI_API_KEY: return None
         try:
             genai.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai.GenerativeModel('gemini-pro')
+            model = genai.GenerativeModel('gemini-1.5-flash')
             response = await asyncio.to_thread(
                 model.generate_content,
                 JUDGE_PROMPT.format(code=code, doc=doc),
@@ -60,7 +62,9 @@ class GeminiJudge(BaseJudge):
             )
             return self._extract_score(response.text)
         except Exception as e:
-            print(f"Gemini Error: {e}")
+            print(f"Gemini Error ({type(e).__name__}): {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
 class OllamaJudge(BaseJudge):
@@ -92,7 +96,9 @@ class OllamaJudge(BaseJudge):
                     return self._extract_score(content)
 
         except Exception as e:
-            print(f"Connection Error: {e}")
+            print(f"Ollama Error ({type(e).__name__}): {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
 class QwenJudge(BaseJudge):

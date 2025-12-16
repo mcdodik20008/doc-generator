@@ -98,7 +98,6 @@ class EvaluationOrchestrator:
                     (avg_llm_score * settings.WEIGHT_LLM)
             )
 
-        final = round(final, 2)
         return EvaluateResponse(
             semantic_score=round(sem_score, 2),
             keyword_coverage=round(coverage_score, 2),
