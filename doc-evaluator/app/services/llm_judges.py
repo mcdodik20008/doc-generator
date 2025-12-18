@@ -40,8 +40,19 @@ class GigaChatJudge(BaseJudge):
     async def evaluate(self, code: str, doc: str, temperature: float = 0.1) -> float | None:
         if not settings.GIGACHAT_CREDENTIALS: return None
         try:
+            from gigachat.models import Chat, Messages, MessagesRole
+            
             async with GigaChat(credentials=settings.GIGACHAT_CREDENTIALS, verify_ssl_certs=False) as giga:
-                response = await giga.achat(JUDGE_PROMPT.format(code=code, doc=doc), temperature=temperature)
+                payload = Chat(
+                    messages=[
+                        Messages(
+                            role=MessagesRole.USER,
+                            content=JUDGE_PROMPT.format(code=code, doc=doc)
+                        )
+                    ],
+                    temperature=temperature
+                )
+                response = await giga.achat(payload)
                 return self._extract_score(response.choices[0].message.content)
         except Exception as e:
             print(f"GigaChat Error ({type(e).__name__}): {e}")
@@ -69,7 +80,9 @@ class GeminiJudge(BaseJudge):
 
 class OllamaJudge(BaseJudge):
     async def evaluate(self, code: str, doc: str, temperature: float = 0.1) -> float | None:
-        url = "http://127.0.0.1:11434/api/chat"
+        # Убираем /v1 из OLLAMA_HOST если есть, и строим правильный URL
+        base_url = settings.OLLAMA_HOST.rstrip('/').replace('/v1', '')
+        url = f"{base_url}/api/chat"
 
         payload = {
             "model": settings.OLLAMA_MODEL, # 'qwen2.5:0.5b'
