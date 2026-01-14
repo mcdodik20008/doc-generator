@@ -1,6 +1,7 @@
 package com.bftcom.docgenerator.rag.impl
 
 import com.bftcom.docgenerator.domain.node.Node
+import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.embedding.api.SearchResult
 import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
 import com.bftcom.docgenerator.rag.api.QueryProcessingContext
@@ -23,48 +24,42 @@ class ResultFilterService {
         results: List<SearchResult>,
         processingContext: QueryProcessingContext,
     ): List<SearchResult> {
-        // Получаем извлеченные класс и метод из контекста
+        // Получаем извлеченные класс и метод из контекста (если advisor заполнил)
         val extractionResult = processingContext.getMetadata<Map<*, *>>(QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT)
-        
-        if (extractionResult == null) {
-            log.debug("Нет информации об извлеченных классе/методе, пропускаем фильтрацию")
-            return results
+
+        val extractedClassName = (extractionResult?.get("className") as? String)?.takeIf { it.isNotBlank() }
+        val extractedMethodName = (extractionResult?.get("methodName") as? String)?.takeIf { it.isNotBlank() }
+
+        // Если advisor не извлек или извлек частично — дополняем из точных узлов
+        var finalClassName = extractedClassName
+        var finalMethodName = extractedMethodName
+
+        val exactNodes = processingContext.getMetadata<List<*>>(QueryMetadataKeys.EXACT_NODES)
+        val nodes = exactNodes?.filterIsInstance<Node>().orEmpty()
+
+        if (nodes.isNotEmpty()) {
+            val firstMethodNode = nodes.firstOrNull { it.kind == NodeKind.METHOD }
+            val firstClassNode = nodes.firstOrNull { it.kind == NodeKind.CLASS }
+
+            if (finalMethodName.isNullOrBlank()) {
+                finalMethodName = firstMethodNode?.name?.takeIf { it.isNotBlank() }
+            }
+
+            if (finalClassName.isNullOrBlank()) {
+                // 1) если есть класс-узел — берем его имя/последний сегмент FQN
+                finalClassName = firstClassNode?.name?.takeIf { it.isNotBlank() }
+                    ?: firstClassNode?.fqn?.substringAfterLast('.')?.takeIf { it.isNotBlank() }
+            }
+
+            if (!finalClassName.isNullOrBlank() || !finalMethodName.isNullOrBlank()) {
+                log.debug("Используем/дополняем имена из точных узлов: класс='{}', метод='{}'", finalClassName, finalMethodName)
+            }
         }
 
-        val className = (extractionResult["className"] as? String)?.takeIf { it.isNotBlank() }
-        val methodName = (extractionResult["methodName"] as? String)?.takeIf { it.isNotBlank() }
-
-        // Если класс/метод не извлечены, пытаемся использовать имена из точных узлов
-        var finalClassName = className
-        var finalMethodName = methodName
-        
+        // Если не удалось определить вообще ничего — пропускаем фильтрацию
         if (finalClassName.isNullOrBlank() && finalMethodName.isNullOrBlank()) {
-            val exactNodes = processingContext.getMetadata<List<*>>(QueryMetadataKeys.EXACT_NODES)
-            val nodes = exactNodes?.filterIsInstance<Node>() ?: emptyList()
-            
-            if (nodes.isNotEmpty()) {
-                // Берем имена из первого найденного узла
-                val firstNode = nodes.first()
-                if (finalClassName == null) {
-                    // Пытаемся извлечь имя класса из FQN
-                    val fqn = firstNode.fqn
-                    val lastDot = fqn.lastIndexOf('.')
-                    if (lastDot > 0) {
-                        val parentFqn = fqn.substring(0, lastDot)
-                        finalClassName = parentFqn.substringAfterLast('.')
-                    } else {
-                        finalClassName = fqn
-                    }
-                }
-                if (finalMethodName == null && firstNode.kind.name == "METHOD") {
-                    finalMethodName = firstNode.name
-                }
-                
-                log.debug("Используем имена из точных узлов: класс='{}', метод='{}'", finalClassName, finalMethodName)
-            } else {
-                log.debug("Класс и метод не извлечены и нет точных узлов, пропускаем фильтрацию")
-                return results
-            }
+            log.debug("Нет информации об извлеченных классе/методе и нет применимых точных узлов, пропускаем фильтрацию")
+            return results
         }
 
         log.debug("Фильтруем результаты по классу: '{}', методу: '{}'", finalClassName, finalMethodName)
@@ -111,13 +106,13 @@ class ResultFilterService {
         className: String?,
         methodName: String?,
     ): Boolean {
-        // Если есть и класс, и метод - проверяем наличие хотя бы одного с точным совпадением
+        // Если есть и класс, и метод - требуем наличие ОБОИХ (строгая фильтрация)
         if (className != null && methodName != null) {
             val hasClass = containsKeywordExact(content, className)
             val hasMethod = containsKeywordExact(content, methodName)
             
-            // Документ должен содержать хотя бы один из них с точным совпадением
-            return hasClass || hasMethod
+            // Документ должен содержать оба с точным совпадением
+            return hasClass && hasMethod
         }
         
         // Если только класс или только метод - проверяем точное совпадение
@@ -138,13 +133,13 @@ class ResultFilterService {
     ): Boolean {
         val lowerContent = content.lowercase()
         
-        // Если есть и класс, и метод - проверяем наличие хотя бы одного
+        // Если есть и класс, и метод - требуем наличие ОБОИХ (но совпадение может быть нечетким)
         if (className != null && methodName != null) {
             val hasClass = containsKeywordFuzzy(lowerContent, className)
             val hasMethod = containsKeywordFuzzy(lowerContent, methodName)
             
-            // Документ должен содержать хотя бы один из них
-            return hasClass || hasMethod
+            // Документ должен содержать оба
+            return hasClass && hasMethod
         }
         
         // Если только класс или только метод - проверяем наличие
@@ -210,12 +205,18 @@ class ResultFilterService {
         val wordParts = splitCamelCase(keyword)
         if (wordParts.size > 1) {
             // Если ключевое слово составное, проверяем наличие хотя бы одной значимой части
-            val significantParts = wordParts.filter { it.length > 2 }
+            val significantParts = wordParts.filter { it.length > 2 }.distinct()
             if (significantParts.isNotEmpty()) {
-                // Документ должен содержать хотя бы одну значимую часть
-                return significantParts.any { part ->
-                    content.contains(part.lowercase(), ignoreCase = true)
+                // Чтобы не матчить по одному общему суффиксу вроде "Service",
+                // для составных слов требуем наличие ВСЕХ значимых частей.
+                if (significantParts.size > 1) {
+                    return significantParts.all { part ->
+                        content.contains(part, ignoreCase = true)
+                    }
                 }
+
+                // Если значимая часть одна — достаточно ее наличия
+                return content.contains(significantParts.first(), ignoreCase = true)
             }
         }
         
