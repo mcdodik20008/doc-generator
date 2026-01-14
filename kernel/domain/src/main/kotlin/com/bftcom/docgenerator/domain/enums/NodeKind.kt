@@ -30,4 +30,5 @@ enum class NodeKind {
     SCHEMA, // контракт данных (Avro/JSON Schema/OpenAPI schema)
     CONFIG, // параметр конфигурации/фича-флаг/таймаут
     MIGRATION, // Liquibase/Flyway миграция
+    ANNOTATION, // Статические аннотации
 }
