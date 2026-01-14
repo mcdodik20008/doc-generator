@@ -162,6 +162,12 @@ class NodeBuilder(
             // Обновляем кэш
             nodeCache.put(fqn, newNode)
             statsManager.incrementCreated()
+            
+            // Проверяем, что id установлен после сохранения
+            if (newNode.id == null) {
+                log.warn("Node saved but id is still null: kind={}, fqn={}. This may cause issues with child nodes.", kind, fqn)
+            }
+            
             log.trace("Node created: id={}, fqn={}, hash={}", newNode.id, fqn, codeHash?.take(8))
             return newNode
         } catch (e: Exception) {

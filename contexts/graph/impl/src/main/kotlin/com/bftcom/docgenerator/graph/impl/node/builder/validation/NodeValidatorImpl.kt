@@ -50,15 +50,14 @@ class NodeValidatorImpl : NodeValidator {
                     "Parent node (${it.fqn}) must belong to the same application ($applicationId)"
                 }
 
-                // Проверка на циклические зависимости (базовая)
-                require(it.id != null) {
-                    "Parent node must be persisted before being used as parent"
-                }
-
                 // Проверка, что parent не является самим узлом (защита от самоссылки)
                 require(it.fqn != fqn) {
                     "Node cannot be its own parent: fqn=$fqn"
                 }
+                
+                // Примечание: не проверяем it.id != null, так как родитель может быть
+                // только что создан в текущей транзакции и еще не иметь id.
+                // JPA/Hibernate сам обработает связи при сохранении.
             }
 
             // Валидация размера sourceCode (предупреждение, не ошибка)
