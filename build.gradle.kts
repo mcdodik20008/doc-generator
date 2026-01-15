@@ -6,6 +6,12 @@ plugins {
     id("org.springframework.boot") version "3.5.6"
     id("io.spring.dependency-management") version "1.1.7"
 }
+subprojects {
+    repositories {
+        mavenCentral()
+    }
+    apply(plugin = "org.jetbrains.kotlinx.kover")
+}
 val springAiVersion by extra("1.0.3")
 
 // curl http://192.168.0.15:11434/api/ps
@@ -50,6 +56,23 @@ dependencies {
     implementation(projects.kernel.db)
     implementation(projects.contexts.rag.contextsRagApi)
     implementation(projects.contexts.rag.contextsRagImpl)
+
+    kover(projects.contexts.graph.contextsGraphApi)
+    kover(projects.contexts.graph.contextsGraphImpl)
+    kover(projects.contexts.chunking.contextsChunkingApi)
+    kover(projects.contexts.chunking.contextsChunkingImpl)
+    kover(projects.contexts.ai)
+    kover(projects.contexts.git.contextsGitApi)
+    kover(projects.contexts.git.contextsGitImpl)
+    kover(projects.contexts.library.contextsLibraryApi)
+    kover(projects.contexts.library.contextsLibraryImpl)
+    kover(projects.contexts.postprocess)
+    kover(projects.contexts.embedding.contextsEmbeddingApi)
+    kover(projects.contexts.embedding.contextsEmbeddingImpl)
+    kover(projects.kernel.domain)
+    kover(projects.kernel.db)
+    kover(projects.contexts.rag.contextsRagApi)
+    kover(projects.contexts.rag.contextsRagImpl)
 
     // ===== Core / Kotlin / JSON =====
     implementation("org.jetbrains.kotlin:kotlin-reflect")
@@ -96,6 +119,20 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.13")
     testImplementation("org.mockito:mockito-core:5.12.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.3.1")
+}
+
+kover {
+    reports {
+        // Конфигурация общего отчета
+        total {
+            log {
+                onCheck = true
+                // Этот заголовок поможет найти общую цифру в логах
+                header = "========== TOTAL PROJECT COVERAGE =========="
+                format = "Final Coverage: {percentage}%"
+            }
+        }
+    }
 }
 
 dependencyManagement {

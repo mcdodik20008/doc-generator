@@ -20,6 +20,9 @@ dependencies {
     implementation(projects.contexts.ai)
 
     testImplementation(kotlin("test"))
+    testImplementation("io.mockk:mockk:1.13.13")
+    // Нужен для загрузки ChatClient в unit-тестах (Ollama*Client использует Spring AI)
+    testImplementation("org.springframework.ai:spring-ai-starter-model-ollama:1.0.3")
 }
 
 tasks.test {

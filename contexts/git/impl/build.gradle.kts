@@ -24,6 +24,11 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter:3.5.6")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:3.5.6")
+
+    testImplementation(kotlin("test"))
+    testImplementation("io.mockk:mockk:1.13.13")
+    testImplementation("org.assertj:assertj-core:3.26.3")
+    testImplementation("org.springframework.boot:spring-boot-starter-test:3.5.6")
 }
 
 tasks.test {
