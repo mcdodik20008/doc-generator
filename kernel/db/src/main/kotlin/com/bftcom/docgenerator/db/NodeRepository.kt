@@ -111,4 +111,82 @@ interface NodeRepository : JpaRepository<Node, Long> {
         @Param("className") className: String,
         @Param("classKinds") classKinds: Set<NodeKind>,
     ): List<Node>
+
+    fun findAllByParentId(parentId: Long): List<Node>
+
+    @Query(
+        value = """
+            SELECT n.*
+            FROM doc_generator.node n
+            LEFT JOIN doc_generator.node_doc d
+              ON d.node_id = n.id AND d.locale = :locale
+            WHERE n.kind = 'METHOD'
+              AND d.node_id IS NULL
+            ORDER BY n.id
+            LIMIT :limit
+            FOR UPDATE SKIP LOCKED
+        """,
+        nativeQuery = true,
+    )
+    fun lockNextMethodsWithoutDoc(
+        @Param("locale") locale: String,
+        @Param("limit") limit: Int,
+    ): List<Node>
+
+    @Query(
+        value = """
+            SELECT n.*
+            FROM doc_generator.node n
+            LEFT JOIN doc_generator.node_doc d
+              ON d.node_id = n.id AND d.locale = :locale
+            WHERE n.kind IN ('CLASS','INTERFACE','ENUM','RECORD')
+              AND d.node_id IS NULL
+            ORDER BY n.id
+            LIMIT :limit
+            FOR UPDATE SKIP LOCKED
+        """,
+        nativeQuery = true,
+    )
+    fun lockNextTypesWithoutDoc(
+        @Param("locale") locale: String,
+        @Param("limit") limit: Int,
+    ): List<Node>
+
+    @Query(
+        value = """
+            SELECT n.*
+            FROM doc_generator.node n
+            LEFT JOIN doc_generator.node_doc d
+              ON d.node_id = n.id AND d.locale = :locale
+            WHERE n.kind = 'PACKAGE'
+              AND d.node_id IS NULL
+            ORDER BY n.id
+            LIMIT :limit
+            FOR UPDATE SKIP LOCKED
+        """,
+        nativeQuery = true,
+    )
+    fun lockNextPackagesWithoutDoc(
+        @Param("locale") locale: String,
+        @Param("limit") limit: Int,
+    ): List<Node>
+
+    @Query(
+        value = """
+            SELECT n.*
+            FROM doc_generator.node n
+            LEFT JOIN doc_generator.node_doc d
+              ON d.node_id = n.id AND d.locale = :locale
+            WHERE n.kind IN ('MODULE','REPO')
+              AND d.node_id IS NULL
+            ORDER BY n.id
+            LIMIT :limit
+            FOR UPDATE SKIP LOCKED
+        """,
+        nativeQuery = true,
+    )
+    fun lockNextModulesAndReposWithoutDoc(
+        @Param("locale") locale: String,
+        @Param("limit") limit: Int,
+    ): List<Node>
 }

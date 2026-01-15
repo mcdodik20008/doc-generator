@@ -9,11 +9,6 @@ object MutationMerger {
         mapOf(
             FieldKey.CONTENT_HASH to MergePolicy.KEEP_EXISTING,
             FieldKey.TOKEN_COUNT to MergePolicy.KEEP_EXISTING,
-            FieldKey.SPAN_CHARS to MergePolicy.KEEP_EXISTING,
-            FieldKey.USES_MD to MergePolicy.KEEP_EXISTING,
-            FieldKey.USED_BY_MD to MergePolicy.KEEP_EXISTING,
-            FieldKey.EXPLAIN_MD to MergePolicy.PREFER_LONGER,
-            FieldKey.EXPLAIN_QUALITY_JSON to MergePolicy.GRADE_BETTER,
             FieldKey.EMB to MergePolicy.OVERWRITE,
             FieldKey.EMBED_MODEL to MergePolicy.OVERWRITE,
             FieldKey.EMBED_TS to MergePolicy.OVERWRITE,
@@ -41,20 +36,17 @@ object MutationMerger {
         return acc
     }
 
-    private fun pickLonger(
-        a: Any?,
-        b: Any?,
-    ): Any? {
+    private fun pickLonger(a: Any?, b: Any?): Any? {
         val sa = a?.toString() ?: return b
         val sb = b?.toString() ?: return a
         return if (sb.length > sa.length) b else a
     }
 
-    /** Ожидаем JSON вида {"grade":"A|B|C", ...}. Чем ближе к "A", тем лучше. */
-    private fun pickBetterGrade(
-        a: Any?,
-        b: Any?,
-    ): Any? {
+    /**
+     * На текущем slim-`chunk` не используется, но оставлено для обратной совместимости MergePolicy.
+     * Ожидаем JSON вида {"grade":"A|B|C", ...}. Чем ближе к "A", тем лучше.
+     */
+    private fun pickBetterGrade(a: Any?, b: Any?): Any? {
         fun score(x: Any?): Int {
             val s = x?.toString() ?: return -1
             val grade = Regex(""""grade"\s*:\s*"(.*?)"""").find(s)?.groupValues?.get(1)

@@ -8,53 +8,15 @@ import org.springframework.data.repository.query.Param
 import java.time.OffsetDateTime
 
 interface ChunkRepository : JpaRepository<Chunk, Long> {
-    // ToDo: ременно только кальк
-    @Query(
-        value = """
-            SELECT *
-            FROM doc_generator.chunk
-            WHERE content_raw IS NULL -- and title like '%Step%' or title like '%calc%'
-            ORDER BY created_at
-            LIMIT :limit
-            FOR UPDATE SKIP LOCKED
-        """,
-        nativeQuery = true,
-    )
-    fun lockNextBatchForRawFill(
-        @Param("limit") limit: Int,
-    ): List<Chunk>
-
-    @Query(
-        value = """
-            SELECT *
-            FROM doc_generator.chunk
-            WHERE content_raw IS NOT NULL and content = 'null'
-            ORDER BY created_at
-            LIMIT :limit
-            FOR UPDATE SKIP LOCKED
-        """,
-        nativeQuery = true,
-    )
-    fun lockNextBatchContentForFill(
-        @Param("limit") limit: Int,
-    ): List<Chunk>
-
     fun findTopByNodeIdOrderByCreatedAtDesc(nodeId: Long): Chunk?
 
     @Query(
         value = """
             SELECT *
             FROM doc_generator.chunk c
-            WHERE c.content <> 'null'
-              AND (
-                   c.content_hash IS NULL
-                OR c.token_count IS NULL
-                OR c.span_chars IS NULL
-                OR c.uses_md IS NULL
-                OR c.used_by_md IS NULL
-                OR c.explain_md IS NULL
-                OR (c.embedding IS NULL AND :withEmb = true)
-              )
+            WHERE c.content_hash IS NULL
+               OR c.token_count IS NULL
+               OR (c.embedding IS NULL AND :withEmb = true)
             ORDER BY c.created_at
             LIMIT :limit
             FOR UPDATE SKIP LOCKED
@@ -72,29 +34,19 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
             UPDATE doc_generator.chunk
             SET content_hash    = :contentHash,
                 token_count     = :tokenCount,
-                span_chars      = CAST(:spanChars AS int8range),
-                uses_md         = :usesMd,
-                used_by_md      = :usedByMd,
                 embed_model     = :embedModel,
                 embed_ts        = :embedTs,
-                explain_md      = :explainMd,
-                explain_quality = CAST(:explainQuality AS jsonb),
                 updated_at      = NOW()
             WHERE id = :id
         """,
         nativeQuery = true,
     )
-    fun updatePostMeta(
+    fun updateMeta(
         @Param("id") id: Long,
         @Param("contentHash") contentHash: String,
         @Param("tokenCount") tokenCount: Int,
-        @Param("spanChars") spanChars: String,
-        @Param("usesMd") usesMd: String?, // "md" или NULL
-        @Param("usedByMd") usedByMd: String?, // "md" или NULL
         @Param("embedModel") embedModel: String?, // может быть NULL, если emb выключен
         @Param("embedTs") embedTs: OffsetDateTime?, // может быть NULL
-        @Param("explainMd") explainMd: String,
-        @Param("explainQuality") explainQualityJson: String,
     ): Int
 
     @Modifying
@@ -114,24 +66,26 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
 
     fun findByNodeId(nodeId: Long): MutableList<Chunk>
 
-    /**
-     * Идемпотентная запись raw-контента: апдейт только если контент пустой.
-     * Возвращает число обновлённых строк (0 — кто-то уже успел).
-     */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying
     @Query(
-        """
-        update doc_generator.chunk
-        set content_raw = :content,
-            updated_at = :updatedAt
-        where id = :id
-          and (content_raw is null or content_raw = '')
+        value = """
+            insert into doc_generator.chunk
+              (application_id, node_id, source, kind, lang_detected, content, metadata, created_at, updated_at)
+            values
+              (:applicationId, :nodeId, 'doc', :kind, :locale, :content, cast(:metadataJson as jsonb), now(), now())
+            on conflict (application_id, node_id, source, kind, lang_detected) do update
+            set content = excluded.content,
+                metadata = excluded.metadata,
+                updated_at = excluded.updated_at
         """,
         nativeQuery = true,
     )
-    fun trySetRawContent(
-        @Param("id") id: Long,
+    fun upsertDocChunk(
+        @Param("applicationId") applicationId: Long,
+        @Param("nodeId") nodeId: Long,
+        @Param("locale") locale: String,
+        @Param("kind") kind: String, // public|tech
         @Param("content") content: String,
-        @Param("updatedAt") updatedAt: OffsetDateTime,
+        @Param("metadataJson") metadataJson: String,
     ): Int
 }

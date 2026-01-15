@@ -17,15 +17,16 @@ class ChunkDetailsService(
     private val edgeRepo: EdgeRepository,
 ) {
     fun getDetails(id: String): ChunkDetailsResponse {
+        // historically API used nodeId; keep behaviour for now
         val chunk = chunkRepo.findByNodeId(id.toLong()).first()
 
         val nodeId =
             chunk.node.id ?: return ChunkDetailsResponse(
                 id = chunk.id.toString(),
-                title = chunk.title,
+                title = "${chunk.source}:${chunk.kind ?: "unknown"}",
                 node = null,
                 content = chunk.content,
-                metadata = chunk.pipeline,
+                metadata = chunk.metadata,
                 embeddingSize = chunk.emb?.size,
                 relations = ChunkRelations(emptyList(), emptyList()),
             )
@@ -44,7 +45,7 @@ class ChunkDetailsService(
 
         return ChunkDetailsResponse(
             id = chunk.id.toString(),
-            title = chunk.title,
+            title = node?.fqn ?: "${chunk.source}:${chunk.kind ?: "unknown"}",
             node =
                 node?.let {
                     NodeBrief(
@@ -55,7 +56,7 @@ class ChunkDetailsService(
                     )
                 },
             content = chunk.content,
-            metadata = chunk.pipeline,
+            metadata = chunk.metadata,
             embeddingSize = chunk.emb?.size,
             relations = ChunkRelations(incoming = incoming, outgoing = outgoing),
         )

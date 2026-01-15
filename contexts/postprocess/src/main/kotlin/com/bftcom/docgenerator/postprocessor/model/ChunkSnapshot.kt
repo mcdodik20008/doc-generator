@@ -8,12 +8,7 @@ data class ChunkSnapshot(
     val content: String,
     val contentHash: String?,
     val tokenCount: Int?,
-    val spanChars: String?, // int8range "[a,b)"
-    val usesMd: String?,
-    val usedByMd: String?,
-    val explainMd: String?,
-    val explainQualityJson: String?,
-    val embPresent: Boolean,
+    val embeddingPresent: Boolean,
     val embedModel: String?,
     val embedTs: OffsetDateTime?,
 ) {
@@ -24,12 +19,7 @@ data class ChunkSnapshot(
                 content = ch.content,
                 contentHash = ch.contentHash,
                 tokenCount = ch.tokenCount,
-                spanChars = ch.spanChars,
-                usesMd = ch.usesMd,
-                usedByMd = ch.usedByMd,
-                explainMd = ch.explainMd,
-                explainQualityJson = if (ch.explainQuality.isEmpty()) null else ch.explainQuality.toString(),
-                embPresent = (ch.emb != null),
+                embeddingPresent = (ch.embedTs != null),
                 embedModel = ch.embedModel,
                 embedTs = ch.embedTs,
             )

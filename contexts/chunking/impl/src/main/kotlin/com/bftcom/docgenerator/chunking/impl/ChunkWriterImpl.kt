@@ -6,7 +6,6 @@ import com.bftcom.docgenerator.db.ChunkRepository
 import com.bftcom.docgenerator.domain.chunk.Chunk
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import java.time.OffsetDateTime
 
 @Service
 class ChunkWriterImpl(
@@ -23,6 +22,11 @@ class ChunkWriterImpl(
             val nodeId = plan.nodeId
             val existing = chunkRepo.findTopByNodeIdOrderByCreatedAtDesc(nodeId)
 
+            val content =
+                (plan.node.sourceCode ?: plan.node.docComment ?: "")
+                    .trim()
+                    .ifBlank { "(empty)" }
+
             val chunk =
                 Chunk(
                     id = existing?.id,
@@ -30,36 +34,13 @@ class ChunkWriterImpl(
                     node = plan.node,
                     source = plan.source,
                     kind = plan.kind,
-                    langDetected = plan.lang,
-                    contentRaw = null, // контент появится позже
-                    content = "null",
-                    contentTsv = null,
+                    langDetected = plan.lang ?: "ru",
+                    content = content,
                     contentHash = null,
                     tokenCount = null,
-                    chunkIndex = 0,
-                    spanLines = plan.spanLines?.let { "[${it.first},${it.last}]" },
-                    spanChars = null,
-                    title = plan.title,
-                    sectionPath = plan.sectionPath,
-                    usesMd = null,
-                    usedByMd = null,
                     emb = null,
                     embedModel = null,
                     embedTs = null,
-                    explainMd = null,
-                    explainQuality = emptyMap(),
-                    relations = plan.relations.map { mapOf("kind" to it.kind, "dst_node_id" to it.dstNodeId) },
-                    usedObjects = emptyList(),
-                    pipeline =
-                        mapOf(
-                            "stages" to plan.pipeline.stages,
-                            "params" to plan.pipeline.params,
-                            "service" to plan.pipeline.service,
-                        ),
-                    freshnessAt = OffsetDateTime.now(),
-                    rankBoost = 1.0f,
-                    createdAt = OffsetDateTime.now(),
-                    updatedAt = OffsetDateTime.now(),
                 )
 
             try {

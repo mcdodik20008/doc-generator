@@ -11,7 +11,6 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
-import org.hibernate.annotations.ColumnTransformer
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import java.time.OffsetDateTime
@@ -35,10 +34,8 @@ class Chunk(
     @Column
     var kind: String? = null, // 'summary'|'explanation'|...
     @Column(name = "lang_detected")
-    var langDetected: String? = null, // 'ru'|'en'|...
+    var langDetected: String = "ru", // 'ru'|'en'|...
     // --- контент и дедуп ---
-    @Column(name = "content_raw", columnDefinition = "text")
-    var contentRaw: String? = null,
     @Column(columnDefinition = "text", nullable = false)
     var content: String,
     // tsvector STORED (генерация на стороне БД)
@@ -48,27 +45,6 @@ class Chunk(
     var contentHash: String? = null, // hex(SHA-256)
     @Column(name = "token_count")
     var tokenCount: Int? = null,
-    // --- позиция/границы ---
-    @Column(name = "chunk_index")
-    var chunkIndex: Int? = null,
-    @JdbcTypeCode(SqlTypes.VARCHAR)
-    @Column(name = "span_lines", columnDefinition = "int4range")
-    @ColumnTransformer(write = "?::int4range")
-    var spanLines: String? = null,
-    @JdbcTypeCode(SqlTypes.VARCHAR)
-    @Column(name = "span_chars", columnDefinition = "int8range")
-    @ColumnTransformer(write = "?::int8range")
-    var spanChars: String? = null,
-    // --- контекст ---
-    @Column(name = "title")
-    var title: String? = null,
-    @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "section_path", columnDefinition = "text[]", nullable = false)
-    var sectionPath: List<String> = emptyList(),
-    @Column(name = "uses_md", columnDefinition = "text")
-    var usesMd: String? = null,
-    @Column(name = "used_by_md", columnDefinition = "text")
-    var usedByMd: String? = null,
     // --- вектор и модель ---
     @jakarta.persistence.Transient
     var emb: FloatArray? = null,
@@ -76,27 +52,6 @@ class Chunk(
     var embedModel: String? = null,
     @Column(name = "embed_ts")
     var embedTs: OffsetDateTime? = null,
-    // --- трактовка и качество ---
-    @Column(name = "explain_md", columnDefinition = "text")
-    var explainMd: String? = null,
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "explain_quality", columnDefinition = "jsonb", nullable = false)
-    var explainQuality: Map<String, Any> = emptyMap(),
-    // --- связи (машиночитаемо) ---
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "relations", columnDefinition = "jsonb", nullable = false)
-    var relations: List<Map<String, Any>> = emptyList(),
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "used_objects", columnDefinition = "jsonb", nullable = false)
-    var usedObjects: List<Map<String, Any>> = emptyList(),
-    // --- происхождение пайплайна ---
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "pipeline", columnDefinition = "jsonb", nullable = false)
-    var pipeline: Map<String, Any> = emptyMap(),
-    @Column(name = "freshness_at")
-    var freshnessAt: OffsetDateTime? = null,
-    @Column(name = "rank_boost", nullable = false)
-    var rankBoost: Float = 1.0f,
     // --- метаданные для Spring AI PgVectorStore ---
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "jsonb", nullable = false)

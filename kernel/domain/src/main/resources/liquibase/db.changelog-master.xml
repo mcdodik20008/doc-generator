@@ -78,4 +78,22 @@
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
+
+    <changeSet id="08-redesign-node-doc" author="kaspshitskii">
+        <sqlFile
+                path="migration/08_redesign_node_doc.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
+
+    <changeSet id="09-slim-chunk-for-rag" author="kaspshitskii">
+        <sqlFile
+                path="migration/09_slim_chunk_for_rag.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
 </databaseChangeLog>

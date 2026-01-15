@@ -22,7 +22,7 @@ class HandlerChainOrchestrator(
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun processOne(chunk: Chunk) {
-        log.debug("Processing chunk: id={}, nodeId={}, source={}", chunk.id, chunk.node?.id, chunk.source)
+        log.debug("Processing chunk: id={}, nodeId={}, source={}", chunk.id, chunk.node.id, chunk.source)
         val snap = ChunkSnapshot.from(chunk)
 
         // собираем partial-mutations
@@ -49,13 +49,6 @@ class HandlerChainOrchestrator(
             PartialMutation().apply {
                 chunk.contentHash?.let { set(FieldKey.CONTENT_HASH, it) }
                 chunk.tokenCount?.let { set(FieldKey.TOKEN_COUNT, it) }
-                chunk.spanChars?.let { set(FieldKey.SPAN_CHARS, it) }
-                chunk.usesMd?.let { set(FieldKey.USES_MD, it) }
-                chunk.usedByMd?.let { set(FieldKey.USED_BY_MD, it) }
-                chunk.explainMd?.let { set(FieldKey.EXPLAIN_MD, it) }
-                if (chunk.explainQuality.isNotEmpty()) {
-                    set(FieldKey.EXPLAIN_QUALITY_JSON, chunk.explainQuality.toString())
-                }
                 chunk.embedModel?.let { set(FieldKey.EMBED_MODEL, it) }
                 chunk.embedTs?.let { set(FieldKey.EMBED_TS, it) }
                 if (chunk.emb != null) set(FieldKey.EMB, chunk.emb!!)
@@ -70,29 +63,15 @@ class HandlerChainOrchestrator(
         val tokenCount =
             (merged.provided[FieldKey.TOKEN_COUNT] as? Int)
                 ?: snap.tokenCount ?: Regex("""\S+""").findAll(snap.content).count()
-        val spanChars =
-            (merged.provided[FieldKey.SPAN_CHARS] as? String)
-                ?: snap.spanChars ?: "[0,${snap.content.length})"
-        val usesMd = merged.provided[FieldKey.USES_MD] as? String ?: snap.usesMd
-        val usedByMd = merged.provided[FieldKey.USED_BY_MD] as? String ?: snap.usedByMd
-        val explainMd = merged.provided[FieldKey.EXPLAIN_MD] as? String ?: snap.explainMd ?: ""
-        val explainQualityJson =
-            (merged.provided[FieldKey.EXPLAIN_QUALITY_JSON] as? String)
-                ?: snap.explainQualityJson ?: """{}"""
 
-        // 1) пишем всё, кроме emb
+        // 1) пишем базовую мету (без emb)
         try {
-            repo.updatePostMeta(
+            repo.updateMeta(
                 id = snap.id,
                 contentHash = contentHash,
                 tokenCount = tokenCount,
-                spanChars = spanChars,
-                usesMd = usesMd,
-                usedByMd = usedByMd,
                 embedModel = null,
                 embedTs = null,
-                explainMd = explainMd,
-                explainQualityJson = explainQualityJson,
             )
             log.trace("Updated post metadata for chunk: id={}", snap.id)
         } catch (e: Exception) {
@@ -100,7 +79,7 @@ class HandlerChainOrchestrator(
             throw e
         }
 
-        // 2) emb — отдельно
+        // 2) emb — отдельно (vector + embed_model/embed_ts)
         (merged.provided[FieldKey.EMB] as? FloatArray)?.let { vec ->
             val literal = "[" + vec.joinToString(",") { it.toString() } + "]"
             try {
@@ -114,17 +93,12 @@ class HandlerChainOrchestrator(
             val model = merged.provided[FieldKey.EMBED_MODEL] as? String
             val ts = (merged.provided[FieldKey.EMBED_TS] as? OffsetDateTime) ?: OffsetDateTime.now()
 
-            repo.updatePostMeta(
+            repo.updateMeta(
                 id = snap.id,
                 contentHash = contentHash,
                 tokenCount = tokenCount,
-                spanChars = spanChars,
-                usesMd = usesMd,
-                usedByMd = usedByMd,
                 embedModel = model,
                 embedTs = ts,
-                explainMd = explainMd,
-                explainQualityJson = explainQualityJson,
             )
         }
     }

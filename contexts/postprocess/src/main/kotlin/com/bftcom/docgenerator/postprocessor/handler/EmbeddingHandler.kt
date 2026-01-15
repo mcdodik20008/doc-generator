@@ -14,7 +14,7 @@ class EmbeddingHandler(
     @param:Value("\${docgen.embed.enabled:true}")
     private val enabled: Boolean,
 ) : PostprocessHandler {
-    override fun supports(s: ChunkSnapshot) = enabled && client != null && !s.embPresent
+    override fun supports(s: ChunkSnapshot) = enabled && client != null && !s.embeddingPresent
 
     override fun produce(s: ChunkSnapshot): PartialMutation {
         val vec = client!!.embed(s.content)

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component
 import java.security.MessageDigest
 
 @Component
-class HashTokensSpanHandler : PostprocessHandler {
+class HashTokensHandler : PostprocessHandler {
     override fun supports(s: ChunkSnapshot) = true
 
     override fun produce(s: ChunkSnapshot): PartialMutation {
@@ -17,10 +17,9 @@ class HashTokensSpanHandler : PostprocessHandler {
                 .digest(s.content.toByteArray())
                 .joinToString("") { "%02x".format(it) }
         val tokens = Regex("""\S+""").findAll(s.content).count()
-        val span = "[0,${s.content.length})"
         return PartialMutation()
             .set(FieldKey.CONTENT_HASH, hash)
             .set(FieldKey.TOKEN_COUNT, tokens)
-            .set(FieldKey.SPAN_CHARS, span)
     }
 }
+
