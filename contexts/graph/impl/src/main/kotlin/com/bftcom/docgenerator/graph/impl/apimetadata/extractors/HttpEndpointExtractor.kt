@@ -6,101 +6,100 @@ import com.bftcom.docgenerator.graph.api.apimetadata.ApiMetadataExtractor
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
-import com.bftcom.docgenerator.graph.impl.util.NkxUtil
 import org.springframework.stereotype.Component
 
-/**
- * Извлекает метаданные HTTP endpoint'ов из Spring аннотаций.
- * Поддерживает: @GetMapping, @PostMapping, @PutMapping, @DeleteMapping, @PatchMapping, @RequestMapping
- */
 @Component
 class HttpEndpointExtractor : ApiMetadataExtractor {
     override fun id() = "http-endpoint"
-
     override fun supports(lang: Lang) = (lang == Lang.kotlin)
+
+    private val mappingToMethod = mapOf(
+        "GetMapping" to "GET",
+        "PostMapping" to "POST",
+        "PutMapping" to "PUT",
+        "DeleteMapping" to "DELETE",
+        "PatchMapping" to "PATCH",
+        "RequestMapping" to "GET"
+    )
+
+    /**
+     * Regex 1: Извлекает имя аннотации (группа 1) и содержимое скобок (группа 2).
+     * Поддерживает: @org.sfw.GetMapping("/path"), @GetMapping, RequestMapping(value="/")
+     */
+    private val annPattern = """@?(?:[\w.]+\.)?(\w+)(?:\s*\((.*)\))?""".toRegex()
+
+    /**
+     * Regex 2: Ищет строку в кавычках внутри содержимого скобок.
+     */
+    private val pathPattern = """"([^"]+)"""".toRegex()
 
     override fun extractFunctionMetadata(
         function: RawFunction,
         ownerType: RawType?,
         ctx: NodeKindContext,
     ): ApiMetadata? {
-        // Нужен доступ к PSI для парсинга аннотаций, но в RawFunction только строки
-        // Пока работаем с аннотациями как со строками и парсим текстово
-        return extractFromAnnotations(function.annotationsRepr, ownerType?.annotationsRepr.orEmpty())
-    }
+        val annotations = function.annotationsRepr
 
-    override fun extractTypeMetadata(
-        type: RawType,
-        ctx: NodeKindContext,
-    ): ApiMetadata? {
-        // @RequestMapping на классе - это basePath
-        val basePath = extractBasePath(type.annotationsRepr)
-        return basePath?.let {
-            // Возвращаем базовый путь, но это будет использовано для методов
-            ApiMetadata.HttpEndpoint(
-                method = "*", // все методы
-                path = it,
-                basePath = it,
-            )
-        }
-    }
+        // 1. Ищем подходящую аннотацию
+        for (ann in annotations) {
+            val match = annPattern.matchEntire(ann) ?: continue
+            val annName = match.groupValues[1]
+            val method = mappingToMethod[annName] ?: continue
 
-    private fun extractFromAnnotations(
-        methodAnnotations: Set<String>,
-        classAnnotations: List<String>,
-    ): ApiMetadata.HttpEndpoint? {
-        val anns = NkxUtil.anns(methodAnnotations.toList() + classAnnotations)
-
-        // Определяем HTTP метод
-        val method =
-            when {
-                NkxUtil.hasAnyAnn(anns, "GetMapping") -> "GET"
-                NkxUtil.hasAnyAnn(anns, "PostMapping") -> "POST"
-                NkxUtil.hasAnyAnn(anns, "PutMapping") -> "PUT"
-                NkxUtil.hasAnyAnn(anns, "DeleteMapping") -> "DELETE"
-                NkxUtil.hasAnyAnn(anns, "PatchMapping") -> "PATCH"
-                NkxUtil.hasAnyAnn(anns, "RequestMapping") -> extractMethodFromRequestMapping(methodAnnotations)
-                else -> return null
+            // 2. Извлекаем путь (если есть скобки и кавычки)
+            val parenthesesContent = match.groupValues.getOrNull(2)
+            val extractedPath = parenthesesContent?.let {
+                pathPattern.find(it)?.groupValues?.get(1)
             }
 
-        // Извлекаем путь - нужно парсить текст аннотации
-        // TODO: пока упрощенная версия, потом добавим полный парсинг PSI
-        val path = extractPathFromAnnotations(methodAnnotations, classAnnotations) ?: "/"
-        val basePath = extractBasePath(classAnnotations)
+            // 3. Обработка RequestMethod (для RequestMapping)
+            val finalMethod = if (annName == "RequestMapping") {
+                extractMethodFromRequestMapping(ann)
+            } else method
 
+            val basePath = ownerType?.let { extractPathFromRaw(it.annotationsRepr) }
+
+            return ApiMetadata.HttpEndpoint(
+                method = finalMethod,
+                path = normalizePath(extractedPath ?: "/"),
+                basePath = basePath
+            )
+        }
+        return null
+    }
+
+    override fun extractTypeMetadata(type: RawType, ctx: NodeKindContext): ApiMetadata? {
+        val path = extractPathFromRaw(type.annotationsRepr) ?: return null
         return ApiMetadata.HttpEndpoint(
-            method = method,
+            method = "*",
             path = path,
-            basePath = basePath,
+            basePath = path
         )
     }
 
-    private fun extractMethodFromRequestMapping(annotations: Set<String>): String {
-        // @RequestMapping(method = [RequestMethod.GET]) -> "GET"
-        // TODO: парсить метод из аннотации
-        return "GET" // fallback
-    }
-
-    private fun extractPathFromAnnotations(
-        methodAnnotations: Set<String>,
-        classAnnotations: List<String>,
-    ): String? {
-        // Ищем path в аннотациях - пока упрощенная версия
-        // TODO: полный парсинг из PSI
-        for (ann in methodAnnotations) {
-            // Простой поиск строки в скобках: @GetMapping("/api/users")
-            val match = """"([^"]+)"""".toRegex().find(ann)
-            if (match != null) return match.groupValues[1]
+    private fun extractPathFromRaw(annotations: Collection<String>): String? {
+        for (ann in annotations) {
+            val match = annPattern.matchEntire(ann) ?: continue
+            val annName = match.groupValues[1]
+            if (annName == "RequestMapping" || annName.endsWith("Mapping")) {
+                val content = match.groupValues.getOrNull(2) ?: continue
+                val path = pathPattern.find(content)?.groupValues?.get(1)
+                if (path != null) return normalizePath(path)
+            }
         }
         return null
     }
 
-    private fun extractBasePath(classAnnotations: List<String>): String? {
-        // @RequestMapping("/api/v1") на классе
-        for (ann in classAnnotations) {
-            val match = """"([^"]+)"""".toRegex().find(ann)
-            if (match != null) return match.groupValues[1]
+    private fun extractMethodFromRequestMapping(ann: String): String {
+        if (ann.contains("RequestMethod.")) {
+            return """RequestMethod\.(\w+)""".toRegex().find(ann)?.groupValues?.get(1) ?: "GET"
         }
-        return null
+        return "GET"
+    }
+
+    private fun normalizePath(path: String): String {
+        val trimmed = path.trim()
+        if (trimmed.isEmpty()) return "/"
+        return if (trimmed.startsWith("/")) trimmed else "/$trimmed"
     }
 }

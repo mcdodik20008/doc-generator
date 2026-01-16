@@ -6,8 +6,6 @@ plugins {
 
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(21))
 
-val springAiVersion by extra("1.0.3")
-
 group = "com.bftcom"
 version = "0.0.1-SNAPSHOT"
 
@@ -31,7 +29,6 @@ dependencies {
 dependencyManagement {
     imports {
         mavenBom("org.springframework.boot:spring-boot-dependencies:3.5.6")
-        mavenBom("org.springframework.ai:spring-ai-bom:$springAiVersion")
     }
 }
 

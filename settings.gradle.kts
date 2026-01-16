@@ -2,6 +2,13 @@ rootProject.name = "doc-generator"
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        maven { url = uri("https://repo.spring.io/milestone") }
+    }
+}
+
 include(":contexts:chunking:api")
 project(":contexts:chunking:api").projectDir = file("contexts/chunking/api")
 project(":contexts:chunking:api").name = "contexts-chunking-api"

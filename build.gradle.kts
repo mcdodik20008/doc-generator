@@ -12,7 +12,6 @@ subprojects {
     }
     apply(plugin = "org.jetbrains.kotlinx.kover")
 }
-val springAiVersion by extra("1.0.3")
 
 // curl http://192.168.0.15:11434/api/ps
 
@@ -123,20 +122,78 @@ dependencies {
 
 kover {
     reports {
-        // Конфигурация общего отчета
+        // Настройки исключений применяются ко всем отчетам
+        filters {
+            excludes {
+                // 1. Исключение по именам классов (Wildcard по FQCN)
+                // Kover сопоставляет это с полным именем класса.
+                // Использование "*ClassName" безопасно, если вы уверены в суффиксах.
+                classes(
+                    "*Dto",
+                    "*DTO",
+                    "*Request",
+                    "*Response",
+                    "*Result",
+                    "*ApplicationKt" // В Kotlin main-класс часто компилируется в NameKt
+                )
+
+                // 2. Исключение пакетов
+                // Важно: паттерн "com.example.dto.*" исключит классы в этом пакете,
+                // но для вложенных пакетов может потребоваться "**" в зависимости от версии.
+                // В Kover 0.7.x+ паттерн "com.pkg.*" обычно рекурсивен.
+                packages(
+                    "*.dto",
+                    "*.config",
+                    "*.configprops",
+                    "*.domain.dto",
+                    "*.domain.nodedoc",
+                    "*.domain.chunk",
+                    "*.chunking.model",
+                    "*.chunking.model.chunk",
+                    "*.chunking.model.plan",
+                    // Исключаем API DTO пакеты из корневого модуля (явные паттерны для надежности)
+                    "com.bftcom.docgenerator.api.rag.dto",
+                    "com.bftcom.docgenerator.api.embedding.dto",
+                    "com.bftcom.docgenerator.api.ingest.dto"
+                )
+
+                // 3. Аннотации (Самый надежный инженерный подход)
+                // Вместо того чтобы гадать с именами пакетов, можно исключить всё,
+                // что помечено определенной аннотацией (например, собственной @Generated).
+                annotatedBy("org.springframework.boot.context.properties.ConfigurationProperties")
+            }
+        }
+
         total {
             log {
                 onCheck = true
-                // Этот заголовок поможет найти общую цифру в логах
                 header = "========== TOTAL PROJECT COVERAGE =========="
                 format = "Final Coverage: {percentage}%"
             }
         }
     }
-}
 
-dependencyManagement {
-    imports { mavenBom("org.springframework.ai:spring-ai-bom:$springAiVersion") }
+    // Quality Gates: Запрещаем падение покрытия ниже текущего уровня
+    // TODO: Настроить правильный синтаксис verify для версии 0.9.4
+    // В версии 0.9.4 API может отличаться, нужно проверить документацию
+    // verify {
+    //     rule {
+    //         name = "Minimum Line Coverage"
+    //         bound {
+    //             minValue = 50.0 // Текущий уровень покрытия (52.9%)
+    //             coverageUnit = kotlinx.kover.api.CoverageUnit.LINE
+    //             aggregation = kotlinx.kover.api.AggregationType.COVERED_PERCENTAGE
+    //         }
+    //     }
+    //     rule {
+    //         name = "Minimum Branch Coverage"
+    //         bound {
+    //             minValue = 40.0 // Минимальный порог для Branch Coverage
+    //             coverageUnit = kotlinx.kover.api.CoverageUnit.BRANCH
+    //             aggregation = kotlinx.kover.api.AggregationType.COVERED_PERCENTAGE
+    //         }
+    //     }
+    // }
 }
 
 kotlin {

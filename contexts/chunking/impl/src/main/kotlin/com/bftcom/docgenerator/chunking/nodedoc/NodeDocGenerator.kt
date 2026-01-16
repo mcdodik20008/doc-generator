@@ -4,10 +4,12 @@ import com.bftcom.docgenerator.ai.chatclients.NodeDocDigestClient
 import com.bftcom.docgenerator.ai.chatclients.OllamaCoderClient
 import com.bftcom.docgenerator.ai.chatclients.OllamaTalkerClient
 import com.bftcom.docgenerator.ai.model.TalkerRewriteRequest
+import com.bftcom.docgenerator.ai.prompts.NodeDocContextProfile
+import com.bftcom.docgenerator.ai.prompts.NodeDocPromptRegistry
 import com.bftcom.docgenerator.db.NodeDocRepository
+import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import com.fasterxml.jackson.databind.ObjectMapper
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.security.MessageDigest
 
@@ -19,8 +21,7 @@ class NodeDocGenerator(
     private val digestClient: NodeDocDigestClient,
     private val talker: OllamaTalkerClient,
     private val objectMapper: ObjectMapper,
-    @param:Value("\${docgen.nodedoc.prompt-id:node-doc-v1}")
-    private val promptId: String,
+    private val promptRegistry: NodeDocPromptRegistry,
 ) {
     data class GeneratedDoc(
         val docTech: String,
@@ -29,9 +30,26 @@ class NodeDocGenerator(
         val modelMeta: Map<String, Any>,
     )
 
-    fun generate(node: Node, locale: String): GeneratedDoc {
+    fun generate(
+        node: Node,
+        locale: String,
+        allowMissingDeps: Boolean = false,
+    ): GeneratedDoc? {
         val built = contextBuilder.build(node, locale)
-        val docTech = coder.generate(built.context)
+        if (!allowMissingDeps && shouldSkipForMissingDeps(node, built)) {
+            return null
+        }
+        val prompt =
+            promptRegistry.resolve(
+                NodeDocContextProfile(
+                    kind = node.kind,
+                    hasKdoc = built.hasKdoc,
+                    hasCode = built.hasCode,
+                    depsCount = built.depsCount,
+                    childrenCount = built.childrenCount,
+                ),
+            )
+        val docTech = coder.generate(built.context, prompt.systemPrompt)
         val docPublic =
             talker.rewrite(
                 TalkerRewriteRequest(
@@ -45,7 +63,7 @@ class NodeDocGenerator(
 
         val modelMeta =
             linkedMapOf(
-                "prompt_id" to promptId,
+                "prompt_id" to prompt.id,
                 "deps_missing" to built.depsMissing,
                 "included" to built.included,
                 "source_hashes" to
@@ -78,6 +96,22 @@ class NodeDocGenerator(
         val md = MessageDigest.getInstance("SHA-256")
         val digest = md.digest(s.toByteArray(Charsets.UTF_8))
         return digest.joinToString("") { "%02x".format(it) }
+    }
+
+    private fun shouldSkipForMissingDeps(node: Node, built: NodeDocContextBuilder.BuildResult): Boolean {
+        if (!built.depsMissing) return false
+        return when (node.kind) {
+            NodeKind.METHOD -> built.missingDepKinds.contains(NodeKind.METHOD)
+            NodeKind.CLASS,
+            NodeKind.INTERFACE,
+            NodeKind.ENUM,
+            NodeKind.RECORD,
+            NodeKind.PACKAGE,
+            NodeKind.MODULE,
+            NodeKind.REPO,
+            -> true
+            else -> false
+        }
     }
 }
 

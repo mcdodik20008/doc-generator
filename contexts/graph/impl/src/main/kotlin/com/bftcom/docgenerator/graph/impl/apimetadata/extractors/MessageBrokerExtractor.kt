@@ -6,98 +6,71 @@ import com.bftcom.docgenerator.graph.api.apimetadata.ApiMetadataExtractor
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
-import com.bftcom.docgenerator.graph.impl.util.NkxUtil
 import org.springframework.stereotype.Component
 
-/**
- * Извлекает метаданные message broker endpoint'ов (Kafka, RabbitMQ, NATS).
- * Поддерживает: @KafkaListener, @RabbitListener, @NatsListener
- */
 @Component
 class MessageBrokerExtractor : ApiMetadataExtractor {
     override fun id() = "message-broker"
-
     override fun supports(lang: Lang) = (lang == Lang.kotlin)
+
+    private val annPattern = """@?(?:[\w.]+\.)?(\w+Listener)(?:\s*\((.*)\))?""".toRegex()
 
     override fun extractFunctionMetadata(
         function: RawFunction,
         ownerType: RawType?,
         ctx: NodeKindContext,
     ): ApiMetadata.MessageBrokerEndpoint? {
-        val anns = NkxUtil.anns(function.annotationsRepr.toList())
-        val imps = NkxUtil.imps(ctx.imports)
+        val annotations = function.annotationsRepr
 
-        // Kafka
-        if (NkxUtil.hasAnyAnn(anns, "KafkaListener")) {
-            val topic = extractTopicFromAnnotation(function.annotationsRepr, "topic", "topics")
-            val groupId = extractTopicFromAnnotation(function.annotationsRepr, "groupId", "group")
+        // 1. Пытаемся определить по аннотациям
+        for (ann in annotations) {
+            val match = annPattern.matchEntire(ann) ?: continue
+            val annName = match.groupValues[1]
+            val content = match.groupValues.getOrNull(2) ?: ""
 
-            return ApiMetadata.MessageBrokerEndpoint(
-                broker = ApiMetadata.BrokerType.KAFKA,
-                topic = topic,
-                consumerGroup = groupId,
-            )
+            when (annName) {
+                "KafkaListener" -> return ApiMetadata.MessageBrokerEndpoint(
+                    broker = ApiMetadata.BrokerType.KAFKA,
+                    topic = extractParam(content, "topic", "topics", "value"),
+                    consumerGroup = extractParam(content, "groupId", "group")
+                )
+                "RabbitListener" -> return ApiMetadata.MessageBrokerEndpoint(
+                    broker = ApiMetadata.BrokerType.RABBITMQ,
+                    queue = extractParam(content, "queues", "queue", "value"),
+                    exchange = extractParam(content, "exchange"),
+                    routingKey = extractParam(content, "key", "routingKey")
+                )
+                "NatsListener" -> return ApiMetadata.MessageBrokerEndpoint(
+                    broker = ApiMetadata.BrokerType.NATS,
+                    topic = extractParam(content, "subject", "value")
+                )
+            }
         }
 
-        // RabbitMQ
-        if (NkxUtil.hasAnyAnn(anns, "RabbitListener")) {
-            val queue = extractTopicFromAnnotation(function.annotationsRepr, "queue", "queues")
-            val exchange = extractTopicFromAnnotation(function.annotationsRepr, "exchange")
-            val routingKey = extractTopicFromAnnotation(function.annotationsRepr, "routingKey", "key")
-
-            return ApiMetadata.MessageBrokerEndpoint(
-                broker = ApiMetadata.BrokerType.RABBITMQ,
-                queue = queue,
-                exchange = exchange,
-                routingKey = routingKey,
-            )
-        }
-
-        // NATS
-        if (NkxUtil.hasAnyAnn(anns, "NatsListener") ||
-            NkxUtil.importsContain(imps, "io.nats")
-        ) {
-            val subject = extractTopicFromAnnotation(function.annotationsRepr, "subject")
-
+        // 2. Если аннотаций нет, проверяем импорты (Implicit NATS)
+        val imports = ctx.imports ?: emptyList()
+        if (imports.any { it.contains("io.nats") }) {
             return ApiMetadata.MessageBrokerEndpoint(
                 broker = ApiMetadata.BrokerType.NATS,
-                topic = subject, // NATS использует subject как топик
+                topic = null // В данном случае топик не определен без аннотации
             )
         }
 
         return null
     }
 
-    override fun extractTypeMetadata(
-        type: RawType,
-        ctx: NodeKindContext,
-    ): ApiMetadata? = null
+    override fun extractTypeMetadata(type: RawType, ctx: NodeKindContext): ApiMetadata? = null
 
-    /**
-     * Простой парсинг параметра аннотации из текста.
-     * TODO: улучшить парсинг когда добавим поддержку полных аннотаций в RawFunction
-     */
-    private fun extractTopicFromAnnotation(
-        annotations: Set<String>,
-        vararg paramNames: String,
-    ): String? {
-        for (ann in annotations) {
-            // Ищем параметр в тексте аннотации: @KafkaListener(topics = ["topic1"])
-            for (paramName in paramNames) {
-                // Простой regex поиск: topics = ["topic1"] или topic = "topic1"
-                val patterns =
-                    listOf(
-                        """$paramName\s*=\s*\["([^"]+)"""".toRegex(), // массивы
-                        """$paramName\s*=\s*"([^"]+)"""".toRegex(), // строки
-                        """$paramName\s*=\s*'([^']+)'""".toRegex(), // одинарные кавычки
-                    )
-
-                for (pattern in patterns) {
-                    val match = pattern.find(ann)
-                    if (match != null) return match.groupValues[1]
-                }
-            }
+    private fun extractParam(content: String, vararg paramNames: String): String? {
+        if (content.isBlank()) return null
+        for (name in paramNames) {
+            val namedPattern = """$name\s*=\s*(?:\[\s*)?["']([^"']+)["']""".toRegex()
+            val match = namedPattern.find(content)
+            if (match != null) return match.groupValues[1]
         }
+        val simpleValuePattern = """^\s*["']([^"']+)["']\s*$""".toRegex()
+        val simpleMatch = simpleValuePattern.find(content)
+        if (simpleMatch != null) return simpleMatch.groupValues[1]
         return null
     }
 }

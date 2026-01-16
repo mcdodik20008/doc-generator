@@ -114,6 +114,8 @@ interface NodeRepository : JpaRepository<Node, Long> {
 
     fun findAllByParentId(parentId: Long): List<Node>
 
+    fun countByApplicationId(applicationId: Long): Long
+
     @Query(
         value = """
             SELECT n.*
@@ -133,6 +135,27 @@ interface NodeRepository : JpaRepository<Node, Long> {
     fun lockNextMethodsWithoutDoc(
         @Param("locale") locale: String,
         @Param("limit") limit: Int
+    ): List<Node>
+
+    @Query(
+        value = """
+            SELECT n.*
+            FROM doc_generator.node n
+            WHERE n.kind = 'METHOD'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM doc_generator.node_doc d
+                  WHERE d.node_id = n.id AND d.locale = :locale
+              )
+            ORDER BY random()
+            LIMIT :limit
+            FOR UPDATE of n SKIP LOCKED
+        """,
+        nativeQuery = true,
+    )
+    fun lockNextMethodsWithoutDocRandom(
+        @Param("locale") locale: String,
+        @Param("limit") limit: Int,
     ): List<Node>
 
     @Query(
