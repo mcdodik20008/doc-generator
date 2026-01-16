@@ -88,4 +88,23 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
         @Param("content") content: String,
         @Param("metadataJson") metadataJson: String,
     ): Int
+
+    /**
+     * Очистить все поля постпроцесса у всех чанков.
+     * Используется при смене модели эмбеддинга или для полной переобработки.
+     */
+    @Modifying
+    @Query(
+        value = """
+            UPDATE doc_generator.chunk
+            SET embedding = NULL,
+                embed_model = NULL,
+                embed_ts = NULL,
+                content_hash = NULL,
+                token_count = NULL,
+                updated_at = NOW()
+        """,
+        nativeQuery = true,
+    )
+    fun clearAllPostprocessData(): Int
 }

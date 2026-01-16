@@ -39,7 +39,7 @@ spring:
     ollama:
       base-url: http://${OLLAMA_HOSTNAME:localhost}:11434
       embedding:
-        model: ${OLLAMA_EMBEDDING_MODEL:mxbai-embed-large}
+        model: ${OLLAMA_EMBEDDING_MODEL:bge-m3} # mxbai-embed-large
         dim: 1024
         options:
           num-ctx: 8192
