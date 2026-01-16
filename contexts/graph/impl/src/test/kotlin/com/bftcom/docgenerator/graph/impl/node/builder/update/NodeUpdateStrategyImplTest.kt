@@ -70,6 +70,174 @@ class NodeUpdateStrategyImplTest {
         assertThat(updated.meta).doesNotContainKeys("emptyList", "emptyMap", "nullVal")
     }
 
+    @Test
+    fun `update - обновляет все поля когда они изменились`() {
+        val existing = node(
+            fqn = "com.example.Foo",
+            codeHash = "oldHash",
+            sourceCode = "old code",
+            lineStart = 1,
+            lineEnd = 10,
+        )
+        val newData = updateData(
+            codeHash = "newHash",
+            sourceCode = "new code",
+            lineStart = 5,
+            lineEnd = 15,
+        )
+
+        val updated = strategy.update(existing, newData)
+
+        assertThat(updated.codeHash).isEqualTo("newHash")
+        assertThat(updated.sourceCode).isEqualTo("new code")
+        assertThat(updated.lineStart).isEqualTo(5)
+        assertThat(updated.lineEnd).isEqualTo(15)
+    }
+
+    @Test
+    fun `update - не обновляет sourceCode когда codeHash не изменился`() {
+        val existing = node(
+            fqn = "com.example.Foo",
+            codeHash = "sameHash",
+            sourceCode = "original code",
+        )
+        val newData = updateData(
+            codeHash = "sameHash",
+            sourceCode = "different code",
+        )
+
+        val updated = strategy.update(existing, newData)
+
+        assertThat(updated.sourceCode).isEqualTo("original code")
+    }
+
+    @Test
+    fun `update - обновляет lineStart и lineEnd когда codeHash изменился`() {
+        val existing = node(
+            fqn = "com.example.Foo",
+            codeHash = "oldHash",
+            lineStart = 1,
+            lineEnd = 10,
+        )
+        val newData = updateData(
+            codeHash = "newHash",
+            lineStart = 5,
+            lineEnd = 15,
+        )
+
+        val updated = strategy.update(existing, newData)
+
+        assertThat(updated.lineStart).isEqualTo(5)
+        assertThat(updated.lineEnd).isEqualTo(15)
+    }
+
+    @Test
+    fun `update - обновляет lineStart и lineEnd когда они явно указаны даже при том же codeHash`() {
+        val existing = node(
+            fqn = "com.example.Foo",
+            codeHash = "sameHash",
+            lineStart = 1,
+            lineEnd = 10,
+        )
+        val newData = updateData(
+            codeHash = "sameHash",
+            lineStart = 5,
+            lineEnd = 15,
+        )
+
+        val updated = strategy.update(existing, newData)
+
+        assertThat(updated.lineStart).isEqualTo(5)
+        assertThat(updated.lineEnd).isEqualTo(15)
+    }
+
+    @Test
+    fun `update - не обновляет lineStart и lineEnd когда codeHash не изменился и они не указаны`() {
+        val existing = node(
+            fqn = "com.example.Foo",
+            codeHash = "sameHash",
+            lineStart = 1,
+            lineEnd = 10,
+        )
+        val newData = updateData(
+            codeHash = "sameHash",
+            lineStart = null,
+            lineEnd = null,
+        )
+
+        val updated = strategy.update(existing, newData)
+
+        assertThat(updated.lineStart).isEqualTo(1)
+        assertThat(updated.lineEnd).isEqualTo(10)
+    }
+
+    @Test
+    fun `update - сохраняет непустые коллекции в meta`() {
+        val existing = node(fqn = "com.example.Foo", meta = emptyMap())
+        val newData = updateData(
+            meta = mapOf(
+                "list" to listOf("a", "b"),
+                "map" to mapOf("key" to "value"),
+            ),
+        )
+
+        val updated = strategy.update(existing, newData)
+
+        assertThat(updated.meta).containsEntry("list", listOf("a", "b"))
+        assertThat(updated.meta).containsEntry("map", mapOf("key" to "value"))
+    }
+
+    @Test
+    fun `hasChanges - codeHash изменился - true`() {
+        val existing = node(fqn = "com.example.Foo", codeHash = "oldHash")
+        val newData = updateData(codeHash = "newHash")
+
+        assertThat(strategy.hasChanges(existing, newData)).isTrue()
+    }
+
+    @Test
+    fun `hasChanges - name изменился - true`() {
+        val existing = node(fqn = "com.example.Foo", name = "OldName")
+        val newData = updateData(name = "NewName")
+
+        assertThat(strategy.hasChanges(existing, newData)).isTrue()
+    }
+
+    @Test
+    fun `hasChanges - packageName изменился - true`() {
+        val existing = node(fqn = "com.example.Foo", packageName = "com.old")
+        val newData = updateData(packageName = "com.new")
+
+        assertThat(strategy.hasChanges(existing, newData)).isTrue()
+    }
+
+    @Test
+    fun `hasChanges - kind изменился - true`() {
+        val existing = node(fqn = "com.example.Foo", kind = NodeKind.CLASS)
+        val newData = updateData(kind = NodeKind.INTERFACE)
+
+        assertThat(strategy.hasChanges(existing, newData)).isTrue()
+    }
+
+    @Test
+    fun `hasChanges - все поля одинаковые - false`() {
+        val existing = node(
+            fqn = "com.example.Foo",
+            codeHash = "hash",
+            name = "Foo",
+            packageName = "com.example",
+            kind = NodeKind.CLASS,
+        )
+        val newData = updateData(
+            codeHash = "hash",
+            name = "Foo",
+            packageName = "com.example",
+            kind = NodeKind.CLASS,
+        )
+
+        assertThat(strategy.hasChanges(existing, newData)).isFalse()
+    }
+
     private fun node(
         fqn: String,
         codeHash: String? = null,
@@ -77,14 +245,17 @@ class NodeUpdateStrategyImplTest {
         lineStart: Int? = null,
         lineEnd: Int? = null,
         meta: Map<String, Any> = emptyMap(),
+        name: String? = null,
+        packageName: String? = null,
+        kind: NodeKind = NodeKind.CLASS,
     ): Node =
         Node(
             id = 1L,
             application = app,
             fqn = fqn,
-            name = fqn.substringAfterLast('.'),
-            packageName = fqn.substringBeforeLast('.', missingDelimiterValue = ""),
-            kind = NodeKind.CLASS,
+            name = name ?: fqn.substringAfterLast('.'),
+            packageName = packageName ?: fqn.substringBeforeLast('.', missingDelimiterValue = ""),
+            kind = kind,
             lang = Lang.kotlin,
             sourceCode = sourceCode,
             codeHash = codeHash,
@@ -99,14 +270,17 @@ class NodeUpdateStrategyImplTest {
         lineStart: Int? = null,
         lineEnd: Int? = null,
         meta: Map<String, Any?> = emptyMap(),
+        name: String = "Foo",
+        packageName: String = "com.example",
+        kind: NodeKind = NodeKind.CLASS,
     ): NodeUpdateData {
         @Suppress("UNCHECKED_CAST")
         val unsafeMeta = meta as Map<String, Any>
 
         return NodeUpdateData(
-            name = "Foo",
-            packageName = "com.example",
-            kind = NodeKind.CLASS,
+            name = name,
+            packageName = packageName,
+            kind = kind,
             lang = Lang.kotlin,
             parent = null,
             filePath = null,

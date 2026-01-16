@@ -105,6 +105,167 @@ class NodeValidatorImplTest {
         }.isInstanceOf(IllegalArgumentException::class.java)
     }
 
+    @Test
+    fun `validate - FQN слишком длинный`() {
+        val longFqn = "a".repeat(1001)
+        assertThatThrownBy {
+            validator.validate(
+                fqn = longFqn,
+                span = null,
+                parent = null,
+                sourceCode = null,
+                applicationId = 1L,
+            )
+        }.isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("too long")
+    }
+
+    @Test
+    fun `validate - FQN максимальной длины проходит`() {
+        val maxFqn = "a".repeat(1000)
+        assertThatCode {
+            validator.validate(
+                fqn = maxFqn,
+                span = null,
+                parent = null,
+                sourceCode = null,
+                applicationId = 1L,
+            )
+        }.doesNotThrowAnyException()
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = [
+        "com.example.ValidClass",
+        "com.example.Valid_Class",
+        "com.example.Valid123",
+        "_private.Class",
+        "a.b.c",
+        "ValidClass"
+    ])
+    fun `validate - валидные форматы FQN`(fqn: String) {
+        assertThatCode {
+            validator.validate(
+                fqn = fqn,
+                span = null,
+                parent = null,
+                sourceCode = null,
+                applicationId = 1L,
+            )
+        }.doesNotThrowAnyException()
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = [
+        "1invalid.fqn",
+        "invalid-fqn",
+        "invalid.fqn.with-dash",
+        "invalid.fqn.with space",
+        "invalid.fqn.with@symbol",
+        "",
+        "   "
+    ])
+    fun `validate - невалидные форматы FQN`(fqn: String) {
+        assertThatThrownBy {
+            validator.validate(
+                fqn = fqn,
+                span = null,
+                parent = null,
+                sourceCode = null,
+                applicationId = 1L,
+            )
+        }.isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
+    fun `validate - null span проходит`() {
+        assertThatCode {
+            validator.validate(
+                fqn = "com.example.Foo",
+                span = null,
+                parent = null,
+                sourceCode = null,
+                applicationId = 1L,
+            )
+        }.doesNotThrowAnyException()
+    }
+
+    @Test
+    fun `validate - валидный span проходит`() {
+        assertThatCode {
+            validator.validate(
+                fqn = "com.example.Foo",
+                span = 0..10,
+                parent = null,
+                sourceCode = null,
+                applicationId = 1L,
+            )
+        }.doesNotThrowAnyException()
+
+        assertThatCode {
+            validator.validate(
+                fqn = "com.example.Foo",
+                span = 5..5,
+                parent = null,
+                sourceCode = null,
+                applicationId = 1L,
+            )
+        }.doesNotThrowAnyException()
+    }
+
+    @Test
+    fun `validate - null parent проходит`() {
+        assertThatCode {
+            validator.validate(
+                fqn = "com.example.Foo",
+                span = null,
+                parent = null,
+                sourceCode = null,
+                applicationId = 1L,
+            )
+        }.doesNotThrowAnyException()
+    }
+
+    @Test
+    fun `validate - валидный parent проходит`() {
+        val parent = node(app, "com.example.Parent")
+        assertThatCode {
+            validator.validate(
+                fqn = "com.example.Child",
+                span = null,
+                parent = parent,
+                sourceCode = null,
+                applicationId = 1L,
+            )
+        }.doesNotThrowAnyException()
+    }
+
+    @Test
+    fun `validate - null sourceCode проходит`() {
+        assertThatCode {
+            validator.validate(
+                fqn = "com.example.Foo",
+                span = null,
+                parent = null,
+                sourceCode = null,
+                applicationId = 1L,
+            )
+        }.doesNotThrowAnyException()
+    }
+
+    @Test
+    fun `validate - непустой sourceCode проходит`() {
+        assertThatCode {
+            validator.validate(
+                fqn = "com.example.Foo",
+                span = null,
+                parent = null,
+                sourceCode = "class Foo {}",
+                applicationId = 1L,
+            )
+        }.doesNotThrowAnyException()
+    }
+
     private fun node(application: Application, fqn: String): Node =
         Node(
             id = null,

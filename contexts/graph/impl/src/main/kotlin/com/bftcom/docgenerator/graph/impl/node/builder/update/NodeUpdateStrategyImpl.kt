@@ -6,121 +6,105 @@ import com.bftcom.docgenerator.graph.api.node.NodeUpdateStrategy
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
-/**
- * Реализация стратегии обновления узла.
- * Оптимизирует обновление, пропуская поля, которые не изменились.
- */
 @Component
 class NodeUpdateStrategyImpl : NodeUpdateStrategy {
     private val log = LoggerFactory.getLogger(javaClass)
 
     override fun update(existing: Node, newData: NodeUpdateData): Node {
-        var changed = false
-
-        fun <T> setIfChanged(
-            curr: T,
-            new: T,
-            apply: (T) -> Unit,
-        ) {
-            if (curr != new) {
-                apply(new)
-                changed = true
-            }
-        }
-
-        // Оптимизация: если codeHash не изменился, код не изменился
-        // Можно пропустить обновление sourceCode и связанных полей
-        val codeHashChanged = existing.codeHash != newData.codeHash
-
-        setIfChanged(existing.name, newData.name) { existing.name = it }
-        setIfChanged(existing.packageName, newData.packageName) { existing.packageName = it }
-        setIfChanged(existing.kind, newData.kind) { existing.kind = it }
-        setIfChanged(existing.lang, newData.lang) { existing.lang = it }
-        setIfChanged(existing.parent?.id, newData.parent?.id) { existing.parent = newData.parent }
-
-        setIfChanged(existing.filePath, newData.filePath) { existing.filePath = it }
-
-        // Обновляем lineStart/lineEnd только если код изменился или они явно указаны
-        if (codeHashChanged || newData.lineStart != existing.lineStart || newData.lineEnd != existing.lineEnd) {
-            setIfChanged(existing.lineStart, newData.lineStart) { existing.lineStart = it }
-            setIfChanged(existing.lineEnd, newData.lineEnd) { existing.lineEnd = it }
-        }
-
-        // Обновляем sourceCode только если codeHash изменился
-        if (codeHashChanged) {
-            setIfChanged(existing.sourceCode, newData.sourceCode) { existing.sourceCode = it }
-        }
-
-        setIfChanged(existing.docComment, newData.docComment) { existing.docComment = it }
-        setIfChanged(existing.signature, newData.signature) { existing.signature = it }
-        setIfChanged(existing.codeHash, newData.codeHash) { existing.codeHash = it }
-
-        // Объединяем метаданные
-        @Suppress("UNCHECKED_CAST")
-        val currentMeta: Map<String, Any?> = (existing.meta as? Map<String, Any?>) ?: emptyMap()
-        val merged =
-            (currentMeta + newData.meta).filterValues {
-                it != null &&
-                    when (it) {
-                        is Collection<*> -> it.isNotEmpty()
-                        is Map<*, *> -> it.isNotEmpty()
-                        else -> true
-                    }
-            }
-        setIfChanged(existing.meta, merged) { existing.meta = it as Map<String, Any> }
+        val changed = applyChanges(existing, newData, execute = true)
 
         if (changed) {
             log.debug("Node update detected changes: id={}, fqn={}", existing.id, existing.fqn)
-        } else {
-            log.trace("Node unchanged: id={}, fqn={}", existing.id, existing.fqn)
         }
-
         return existing
     }
 
     override fun hasChanges(existing: Node, newData: NodeUpdateData): Boolean {
+        return applyChanges(existing, newData, execute = false)
+    }
+
+    /**
+     * Централизованная логика обработки изменений.
+     * @param execute если true — применяет изменения к объекту existing, если false — только проверяет наличие.
+     */
+    private fun applyChanges(existing: Node, newData: NodeUpdateData, execute: Boolean): Boolean {
+        var anyChanged = false
         val codeHashChanged = existing.codeHash != newData.codeHash
 
-        // Проверяем базовые поля
-        if (existing.name != newData.name ||
-            existing.packageName != newData.packageName ||
-            existing.kind != newData.kind ||
-            existing.lang != newData.lang ||
-            existing.parent?.id != newData.parent?.id ||
-            existing.filePath != newData.filePath ||
-            existing.docComment != newData.docComment ||
-            existing.signature != newData.signature ||
-            existing.codeHash != newData.codeHash
-        ) {
-            return true
-        }
-
-        // Проверяем lineStart/lineEnd только если код изменился или они явно указаны
-        if (codeHashChanged || newData.lineStart != existing.lineStart || newData.lineEnd != existing.lineEnd) {
-            if (newData.lineStart != existing.lineStart || newData.lineEnd != existing.lineEnd) {
-                return true
+        // Вспомогательная функция для обновления полей
+        fun <T> updateField(current: T, new: T, applier: (T) -> Unit) {
+            if (current != new) {
+                anyChanged = true
+                if (execute) applier(new)
             }
         }
 
-        // Проверяем sourceCode только если codeHash изменился
-        if (codeHashChanged && existing.sourceCode != newData.sourceCode) {
-            return true
-        }
-
-        // Проверяем метаданные - проверяем, есть ли новые ключи или изменились значения
-        @Suppress("UNCHECKED_CAST")
-        val currentMeta: Map<String, Any?> = (existing.meta as? Map<String, Any?>) ?: emptyMap()
-        // Простая проверка: если есть новые ключи или значения изменились
-        if (newData.meta.keys != currentMeta.keys) {
-            return true
-        }
-        for ((key, newValue) in newData.meta) {
-            if (currentMeta[key] != newValue) {
-                return true
+        // Вспомогательная функция для "мягкого" обновления (null в newData игнорируется)
+        fun <T> updateFieldIfPresent(current: T, new: T?, applier: (T) -> Unit) {
+            if (new != null && current != new) {
+                anyChanged = true
+                if (execute) applier(new)
             }
         }
 
-        return false
+        // 1. Базовые поля
+        updateField(existing.name, newData.name) { existing.name = it }
+        updateField(existing.packageName, newData.packageName) { existing.packageName = it }
+        updateField(existing.kind, newData.kind) { existing.kind = it }
+        updateField(existing.lang, newData.lang) { existing.lang = it }
+        updateField(existing.filePath, newData.filePath) { existing.filePath = it }
+        updateField(existing.docComment, newData.docComment) { existing.docComment = it }
+        updateField(existing.signature, newData.signature) { existing.signature = it }
+        updateField(existing.codeHash, newData.codeHash) { existing.codeHash = it }
+
+        // Обновление родителя
+        if (existing.parent?.id != newData.parent?.id) {
+            anyChanged = true
+            if (execute) existing.parent = newData.parent
+        }
+
+        // 2. Координаты (lineStart/lineEnd)
+        // Обновляем, если изменился код ИЛИ если пришли новые не-null значения
+        if (codeHashChanged) {
+            updateField(existing.lineStart, newData.lineStart) { existing.lineStart = it }
+            updateField(existing.lineEnd, newData.lineEnd) { existing.lineEnd = it }
+        } else {
+            updateFieldIfPresent(existing.lineStart, newData.lineStart) { existing.lineStart = it }
+            updateFieldIfPresent(existing.lineEnd, newData.lineEnd) { existing.lineEnd = it }
+        }
+
+        // 3. Исходный код (только при смене хэша)
+        if (codeHashChanged) {
+            updateField(existing.sourceCode, newData.sourceCode) { existing.sourceCode = it }
+        }
+
+        // 4. Метаданные (Merge)
+        val mergedMeta = mergeMetadata(existing.meta, newData.meta)
+        if (existing.meta != mergedMeta) {
+            anyChanged = true
+            if (execute) existing.meta = mergedMeta
+        }
+
+        return anyChanged
+    }
+
+    private fun mergeMetadata(existingMeta: Map<String, Any>, newMeta: Map<String, Any?>): Map<String, Any> {
+        if (newMeta.isEmpty()) return existingMeta
+
+        val merged = existingMeta.toMutableMap()
+        newMeta.forEach { (key, value) ->
+            if (value == null) {
+                merged.remove(key)
+            } else if (isValidValue(value)) {
+                merged[key] = value
+            }
+        }
+        return merged
+    }
+
+    private fun isValidValue(value: Any): Boolean = when (value) {
+        is Collection<*> -> value.isNotEmpty()
+        is Map<*, *> -> value.isNotEmpty()
+        else -> true
     }
 }
-
