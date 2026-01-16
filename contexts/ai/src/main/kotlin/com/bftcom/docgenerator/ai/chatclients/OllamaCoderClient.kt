@@ -13,72 +13,35 @@ class OllamaCoderClient(
     @param:Qualifier("coderChatClient")
     private val chat: ChatClient,
 ) {
-    private val SYSTEM_PROMPT =
-        """
-        Ты — опытный Senior Developer и IT-архитектор.
-        Объясняй код строго по фактам из запроса. Пиши на РУССКОМ.
+    private val systemPrompt = """
+        Ты — строгий инженер-документатор. Твоя задача: на основе контекста кода сгенерировать техническое описание.
+        Пиши ТОЛЬКО на русском языке.
 
-        ПРАВИЛА:
-        - Не придумывай отсутствующие детали/зависимости/поля.
-        - Если данных мало — прямо скажи, чего не хватает.
-        - Соблюдай формат Markdown и заголовки строго как ниже.
-        - Не повторяй одно и то же в разных разделах.
-        - Если фрагмент пуст или неинформативен — дай краткое описание ограничений.
+        КРИТИЧЕСКИЕ ПРАВИЛА:
+        1. ЗАПРЕЩЕНО использовать заголовки первого уровня (#).
+        2. ЗАПРЕЩЕНО любое вступление или приветствие.
+        3. Начинай СРАЗУ с содержания, используя заголовки второго уровня (##).
+        4. Если данных недостаточно — не выдумывай, укажи на это прямо.
+        5. Используй только факты, извлеченные из предоставленного кода.
 
-        СТРУКТУРА ОТВЕТА:
-        ### 1. Краткое описание
-        ### 2. Основная логика
-        ### 3. Контекст и связи
+        Формат ответа: Markdown, без лишних вступлений.
+        Структура (если применимо):
+        ## Назначение
+        ## Контракт (входы/выходы)
+        ## Поведение (ключевые шаги)
+        ## Побочные эффекты (I/O, БД, сеть)
+        ## Исключения/ошибки
+        ## Зависимости (как используются)
+        ## Нюансы/ограничения
+    """.trimIndent()
 
-        ФОРМАТИРОВАНИЕ:
-        - Кодовые примеры — только в бэктиках ```kotlin.
-        - Не вставляй импортов в примеры, если это не критично для понимания.
-        - Списки держи компактными (≤7 пунктов).
-        """.trimIndent()
-
-    fun explain(req: CoderExplainRequest): String {
-        val userMessage = buildUserMessage(req)
-
-        val result =
-            chat
-                .prompt()
-                .system(SYSTEM_PROMPT)
-                .user(userMessage)
-                .call()
-                .content()
-        return result.orEmpty().trim()
-    }
-
-    fun buildUserMessage(req: CoderExplainRequest): String {
-        val hintsBlock =
-            if (!req.hints.isNullOrBlank()) {
-                buildString {
-                    appendLine("* **Подсказки:**")
-                    appendLine(req.hints.trim())
-                }
-            } else {
-                ""
-            }
-
-        val excerptSafe = req.codeExcerpt.trim().replace("```", "``\\`")
-        val span =
-            when {
-                req.lineStart != null && req.lineEnd != null -> " (${req.lineStart}..${req.lineEnd})"
-                else -> ""
-            }
-
-        return buildString {
-            appendLine("## Данные для анализа")
-            appendLine("* **Язык:** ${req.language}")
-            appendLine("* **Расположение (FQN):** ${req.nodeFqn}$span")
-            if (hintsBlock.isNotBlank()) appendLine(hintsBlock)
-            appendLine("* **Фрагмент кода:**")
-            appendLine("```kotlin")
-            appendLine(excerptSafe)
-            appendLine("```")
-            appendLine()
-            appendLine("## Требование к ответу")
-            appendLine("Дай ответ строго в трёх разделах, без дополнительных заголовков.")
-        }
-    }
+    fun generate(context: String): String =
+        chat
+            .prompt()
+            .system(systemPrompt)
+            .user(context)
+            .call()
+            .content()
+            .orEmpty()
+            .trim()
 }

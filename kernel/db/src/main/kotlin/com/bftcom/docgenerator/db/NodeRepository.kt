@@ -118,19 +118,21 @@ interface NodeRepository : JpaRepository<Node, Long> {
         value = """
             SELECT n.*
             FROM doc_generator.node n
-            LEFT JOIN doc_generator.node_doc d
-              ON d.node_id = n.id AND d.locale = :locale
             WHERE n.kind = 'METHOD'
-              AND d.node_id IS NULL
+              AND NOT EXISTS (
+                  SELECT 1 
+                  FROM doc_generator.node_doc d 
+                  WHERE d.node_id = n.id AND d.locale = :locale
+              )
             ORDER BY n.id
             LIMIT :limit
-            FOR UPDATE SKIP LOCKED
+            FOR UPDATE of n SKIP LOCKED
         """,
-        nativeQuery = true,
+        nativeQuery = true
     )
     fun lockNextMethodsWithoutDoc(
         @Param("locale") locale: String,
-        @Param("limit") limit: Int,
+        @Param("limit") limit: Int
     ): List<Node>
 
     @Query(
@@ -143,7 +145,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
               AND d.node_id IS NULL
             ORDER BY n.id
             LIMIT :limit
-            FOR UPDATE SKIP LOCKED
+            FOR UPDATE of n SKIP LOCKED
         """,
         nativeQuery = true,
     )
@@ -162,7 +164,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
               AND d.node_id IS NULL
             ORDER BY n.id
             LIMIT :limit
-            FOR UPDATE SKIP LOCKED
+            FOR UPDATE of n SKIP LOCKED        
         """,
         nativeQuery = true,
     )
@@ -181,7 +183,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
               AND d.node_id IS NULL
             ORDER BY n.id
             LIMIT :limit
-            FOR UPDATE SKIP LOCKED
+            FOR UPDATE of n SKIP LOCKED
         """,
         nativeQuery = true,
     )

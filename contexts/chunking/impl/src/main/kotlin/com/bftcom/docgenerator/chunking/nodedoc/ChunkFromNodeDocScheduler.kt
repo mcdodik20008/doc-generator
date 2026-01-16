@@ -2,6 +2,7 @@ package com.bftcom.docgenerator.chunking.nodedoc
 
 import com.bftcom.docgenerator.db.ChunkRepository
 import com.bftcom.docgenerator.db.NodeDocRepository
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
@@ -14,6 +15,7 @@ class ChunkFromNodeDocScheduler(
     txManager: PlatformTransactionManager,
     private val nodeDocRepo: NodeDocRepository,
     private val chunkRepo: ChunkRepository,
+    private val objectMapper: ObjectMapper,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val tx = TransactionTemplate(txManager)
@@ -46,7 +48,7 @@ class ChunkFromNodeDocScheduler(
                         locale = locale,
                         kind = "public",
                         content = content,
-                        metadataJson = JsonLite.stringify(meta),
+                        metadataJson = objectMapper.writeValueAsString(meta),
                     )
                 }
                 written++
@@ -60,7 +62,7 @@ class ChunkFromNodeDocScheduler(
                         locale = locale,
                         kind = "tech",
                         content = content,
-                        metadataJson = JsonLite.stringify(meta),
+                        metadataJson = objectMapper.writeValueAsString(meta),
                     )
                 }
                 written++

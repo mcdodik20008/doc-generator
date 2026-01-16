@@ -1,6 +1,7 @@
 package com.bftcom.docgenerator.chunking.nodedoc
 
 import com.bftcom.docgenerator.db.NodeRepository
+import com.bftcom.docgenerator.domain.node.Node
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
@@ -32,15 +33,19 @@ class NodeDocFillerScheduler(
         processBatch("MODULE/REPO") { nodeRepo.lockNextModulesAndReposWithoutDoc(locale, batchSize) }
     }
 
-    private fun processBatch(label: String, loader: () -> List<com.bftcom.docgenerator.domain.node.Node>) {
+    private fun processBatch(label: String, loader: () -> List<Node>) {
         val batch = tx.execute { loader() } ?: return
         if (batch.isEmpty()) return
         log.info("nodedoc: generating {} items for {}", batch.size, label)
         for (n in batch) {
+            val nodeId = n.id ?: continue
             try {
-                generator.generateAndStore(n, locale)
+                val generated = generator.generate(n, locale)
+                tx.execute {
+                    generator.store(nodeId, locale, generated)
+                }
             } catch (t: Throwable) {
-                log.warn("nodedoc: failed for nodeId={} fqn={}: {}", n.id, n.fqn, t.message, t)
+                log.warn("nodedoc: failed for nodeId={} fqn={}: {}", nodeId, n.fqn, t.message, t)
             }
         }
     }

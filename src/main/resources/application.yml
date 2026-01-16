@@ -49,7 +49,7 @@ spring:
 
     clients:
       coder:
-        model: qwen2.5-coder:14b # qwen2.5-coder:14b
+        model: qwen2.5-coder:14b # qwen2.5-coder:32b - 48gb
         temperature: 0.1
         top-p: 0.9
         seed: 42
@@ -60,7 +60,7 @@ spring:
           Запрещены предположения, если не следует из кода. Короткие формулировки.
 
       talker:
-        model: qwen2.5:14b-instruct # qwen2.5:14b-instruct
+        model: qwen2.5:14b-instruct # qwen2.5:14b-instruct-fp16
         temperature: 0.3
         top-p: 0.9
         seed: 42

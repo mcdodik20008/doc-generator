@@ -1,11 +1,12 @@
 package com.bftcom.docgenerator.chunking.nodedoc
 
 import com.bftcom.docgenerator.ai.chatclients.NodeDocDigestClient
-import com.bftcom.docgenerator.ai.chatclients.NodeDocTechClient
+import com.bftcom.docgenerator.ai.chatclients.OllamaCoderClient
 import com.bftcom.docgenerator.ai.chatclients.OllamaTalkerClient
 import com.bftcom.docgenerator.ai.model.TalkerRewriteRequest
 import com.bftcom.docgenerator.db.NodeDocRepository
 import com.bftcom.docgenerator.domain.node.Node
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.security.MessageDigest
@@ -14,15 +15,23 @@ import java.security.MessageDigest
 class NodeDocGenerator(
     private val contextBuilder: NodeDocContextBuilder,
     private val nodeDocRepo: NodeDocRepository,
-    private val techClient: NodeDocTechClient,
+    private val coder: OllamaCoderClient,
     private val digestClient: NodeDocDigestClient,
     private val talker: OllamaTalkerClient,
+    private val objectMapper: ObjectMapper,
     @param:Value("\${docgen.nodedoc.prompt-id:node-doc-v1}")
     private val promptId: String,
 ) {
-    fun generateAndStore(node: Node, locale: String) {
+    data class GeneratedDoc(
+        val docTech: String,
+        val docPublic: String,
+        val docDigest: String,
+        val modelMeta: Map<String, Any>,
+    )
+
+    fun generate(node: Node, locale: String): GeneratedDoc {
         val built = contextBuilder.build(node, locale)
-        val docTech = techClient.generate(built.context)
+        val docTech = coder.generate(built.context)
         val docPublic =
             talker.rewrite(
                 TalkerRewriteRequest(
@@ -35,7 +44,7 @@ class NodeDocGenerator(
         val digest = digestClient.generate(node.kind.name, node.fqn, docTech, built.depsForDigest)
 
         val modelMeta =
-            linkedMapOf<String, Any>(
+            linkedMapOf(
                 "prompt_id" to promptId,
                 "deps_missing" to built.depsMissing,
                 "included" to built.included,
@@ -46,13 +55,22 @@ class NodeDocGenerator(
                     ),
             )
 
+        return GeneratedDoc(
+            docTech = docTech,
+            docPublic = docPublic,
+            docDigest = digest,
+            modelMeta = modelMeta,
+        )
+    }
+
+    fun store(nodeId: Long, locale: String, generated: GeneratedDoc) {
         nodeDocRepo.upsert(
-            nodeId = node.id ?: error("node.id is null"),
+            nodeId = nodeId,
             locale = locale,
-            docPublic = docPublic.ifBlank { null },
-            docTech = docTech.ifBlank { null },
-            docDigest = digest.ifBlank { null },
-            modelMetaJson = JsonLite.stringify(modelMeta),
+            docPublic = generated.docPublic.ifBlank { null },
+            docTech = generated.docTech.ifBlank { null },
+            docDigest = generated.docDigest.ifBlank { null },
+            modelMetaJson = objectMapper.writeValueAsString(generated.modelMeta),
         )
     }
 
