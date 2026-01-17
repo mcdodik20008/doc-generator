@@ -81,19 +81,117 @@ class MutationMergerTest {
     }
 
     @Test
-    fun `merge - PREFER_LONGER выбирает более длинную строку`() {
-        val initial = PartialMutation()
+    fun `merge - PREFER_LONGER выбирает более длинную строку через рефлексию`() {
+        // Тестируем приватный метод pickLonger через рефлексию
+        val pickLongerMethod = MutationMerger::class.java.getDeclaredMethod(
+            "pickLonger",
+            Any::class.java,
+            Any::class.java
+        )
+        pickLongerMethod.isAccessible = true
         
-        val patch1 = PartialMutation()
-            .set(FieldKey.CONTENT_HASH, "short")
+        // Когда b длиннее a
+        val result1 = pickLongerMethod.invoke(MutationMerger, "short", "very long string")
+        assertThat(result1).isEqualTo("very long string")
         
-        // Создаем patch с полем, которое использует PREFER_LONGER
-        // Но CONTENT_HASH использует KEEP_EXISTING, поэтому нужно использовать неизвестное поле
-        // Или протестировать через прямое использование через рефлексию
+        // Когда a длиннее b
+        val result2 = pickLongerMethod.invoke(MutationMerger, "very long string", "short")
+        assertThat(result2).isEqualTo("very long string")
         
-        // Для теста PREFER_LONGER нужно поле, которое его использует
-        // Но по умолчанию все известные поля имеют свои политики
-        // Протестируем напрямую логику pickLonger через merge с несколькими патчами
+        // Когда равны - возвращает a
+        val result3 = pickLongerMethod.invoke(MutationMerger, "equal", "equal")
+        assertThat(result3).isEqualTo("equal")
+        
+        // Когда a null - возвращает b
+        val result4 = pickLongerMethod.invoke(MutationMerger, null, "value")
+        assertThat(result4).isEqualTo("value")
+        
+        // Когда b null - возвращает a
+        val result5 = pickLongerMethod.invoke(MutationMerger, "value", null)
+        assertThat(result5).isEqualTo("value")
+        
+        // Когда оба null - возвращает null
+        val result6 = pickLongerMethod.invoke(MutationMerger, null, null)
+        assertThat(result6).isNull()
+    }
+    
+    @Test
+    fun `merge - GRADE_BETTER выбирает лучший grade через рефлексию`() {
+        // Тестируем приватный метод pickBetterGrade через рефлексию
+        val pickBetterGradeMethod = MutationMerger::class.java.getDeclaredMethod(
+            "pickBetterGrade",
+            Any::class.java,
+            Any::class.java
+        )
+        pickBetterGradeMethod.isAccessible = true
+        
+        // A лучше B
+        val result1 = pickBetterGradeMethod.invoke(
+            MutationMerger,
+            """{"grade":"B","tokens":100}""",
+            """{"grade":"A","tokens":200}"""
+        )
+        assertThat(result1.toString()).contains("\"grade\":\"A\"")
+        
+        // B лучше C
+        val result2 = pickBetterGradeMethod.invoke(
+            MutationMerger,
+            """{"grade":"C","tokens":50}""",
+            """{"grade":"B","tokens":100}"""
+        )
+        assertThat(result2.toString()).contains("\"grade\":\"B\"")
+        
+        // A лучше C
+        val result3 = pickBetterGradeMethod.invoke(
+            MutationMerger,
+            """{"grade":"C","tokens":50}""",
+            """{"grade":"A","tokens":300}"""
+        )
+        assertThat(result3.toString()).contains("\"grade\":\"A\"")
+        
+        // Равные grade - возвращает b
+        val result4 = pickBetterGradeMethod.invoke(
+            MutationMerger,
+            """{"grade":"B","tokens":100}""",
+            """{"grade":"B","tokens":150}"""
+        )
+        assertThat(result4.toString()).contains("\"grade\":\"B\"")
+        
+        // Когда a null - возвращает b
+        val result5 = pickBetterGradeMethod.invoke(
+            MutationMerger,
+            null,
+            """{"grade":"A","tokens":300}"""
+        )
+        assertThat(result5.toString()).contains("\"grade\":\"A\"")
+        
+        // Когда b null - возвращает a
+        val result6 = pickBetterGradeMethod.invoke(
+            MutationMerger,
+            """{"grade":"B","tokens":100}""",
+            null
+        )
+        assertThat(result6.toString()).contains("\"grade\":\"B\"")
+        
+        // Когда оба null - возвращает null
+        val result7 = pickBetterGradeMethod.invoke(MutationMerger, null, null)
+        assertThat(result7).isNull()
+        
+        // Когда нет grade в JSON - score = 0, возвращает b
+        val result8 = pickBetterGradeMethod.invoke(
+            MutationMerger,
+            """{"tokens":100}""",
+            """{"tokens":200}"""
+        )
+        assertThat(result8.toString()).contains("\"tokens\":200")
+        
+        // Когда grade неизвестный - score = 0, возвращает b
+        val result9 = pickBetterGradeMethod.invoke(
+            MutationMerger,
+            """{"grade":"X","tokens":100}""",
+            """{"grade":"Y","tokens":200}"""
+        )
+        assertThat(result9.toString()).contains("\"tokens\":200")
     }
 
     @Test
@@ -232,5 +330,80 @@ class MutationMergerTest {
         assertThat(resultEmb).isEqualTo(floatArrayOf(5.0f, 6.0f))
         assertThat(result.provided[FieldKey.EMBED_MODEL]).isEqualTo("patch1_model")
         assertThat(result.provided[FieldKey.EMBED_TS]).isNotNull()
+    }
+    
+    @Test
+    fun `merge - обрабатывает пустые patches`() {
+        val initial = PartialMutation()
+            .set(FieldKey.CONTENT_HASH, "hash1")
+        
+        val result = MutationMerger.merge(initial, emptyList())
+        
+        assertThat(result.provided[FieldKey.CONTENT_HASH]).isEqualTo("hash1")
+    }
+    
+    @Test
+    fun `merge - обрабатывает patch с пустым provided`() {
+        val initial = PartialMutation()
+            .set(FieldKey.CONTENT_HASH, "hash1")
+        
+        val patch = PartialMutation() // Пустой patch
+        
+        val result = MutationMerger.merge(initial, listOf(patch))
+        
+        assertThat(result.provided[FieldKey.CONTENT_HASH]).isEqualTo("hash1")
+    }
+    
+    @Test
+    fun `merge - обрабатывает несколько patches с одинаковыми полями`() {
+        val initial = PartialMutation()
+        
+        val patch1 = PartialMutation()
+            .set(FieldKey.EMBED_MODEL, "model1")
+        val patch2 = PartialMutation()
+            .set(FieldKey.EMBED_MODEL, "model2")
+        val patch3 = PartialMutation()
+            .set(FieldKey.EMBED_MODEL, "model3")
+        
+        val result = MutationMerger.merge(initial, listOf(patch1, patch2, patch3))
+        
+        // Последний patch должен перезаписать (OVERWRITE)
+        assertThat(result.provided[FieldKey.EMBED_MODEL]).isEqualTo("model3")
+    }
+    
+    @Test
+    fun `merge - обрабатывает KEEP_EXISTING с несколькими попытками перезаписи`() {
+        val initial = PartialMutation()
+            .set(FieldKey.CONTENT_HASH, "original")
+        
+        val patch1 = PartialMutation()
+            .set(FieldKey.CONTENT_HASH, "attempt1")
+        val patch2 = PartialMutation()
+            .set(FieldKey.CONTENT_HASH, "attempt2")
+        val patch3 = PartialMutation()
+            .set(FieldKey.CONTENT_HASH, "attempt3")
+        
+        val result = MutationMerger.merge(initial, listOf(patch1, patch2, patch3))
+        
+        // KEEP_EXISTING - должно остаться оригинальное значение
+        assertThat(result.provided[FieldKey.CONTENT_HASH]).isEqualTo("original")
+    }
+    
+    @Test
+    fun `merge - обрабатывает смешанные типы данных`() {
+        val initial = PartialMutation()
+            .set(FieldKey.TOKEN_COUNT, 100)
+            .set(FieldKey.EMBED_MODEL, "model1")
+        
+        val patch = PartialMutation()
+            .set(FieldKey.TOKEN_COUNT, 200) // KEEP_EXISTING - не перезапишется
+            .set(FieldKey.EMBED_MODEL, "model2") // OVERWRITE - перезапишется
+            .set(FieldKey.EMBED_TS, OffsetDateTime.parse("2024-01-01T00:00:00Z")) // OVERWRITE - добавится
+        
+        val result = MutationMerger.merge(initial, listOf(patch))
+        
+        assertThat(result.provided[FieldKey.TOKEN_COUNT]).isEqualTo(100)
+        assertThat(result.provided[FieldKey.EMBED_MODEL]).isEqualTo("model2")
+        assertThat(result.provided[FieldKey.EMBED_TS]).isEqualTo(OffsetDateTime.parse("2024-01-01T00:00:00Z"))
     }
 }

@@ -586,4 +586,202 @@ class NodeDocContextBuilderTest {
         assertThat(result).isNotNull
         // Edge с null dst должен быть обработан
     }
+    
+    @Test
+    fun `buildMethod - обрабатывает приоритеты edge kinds`() {
+        val app = Application(key = "app1", name = "App1")
+        app.id = 1L
+        val node = Node(application = app, fqn = "com.example.Method1", kind = NodeKind.METHOD, lang = Lang.kotlin)
+        node.id = 100L
+        node.sourceCode = "fun test() {}"
+
+        val dstNode1 = Node(application = app, fqn = "com.example.Dep1", kind = NodeKind.CLASS, lang = Lang.kotlin)
+        dstNode1.id = 200L
+        val dstNode2 = Node(application = app, fqn = "com.example.Dep2", kind = NodeKind.CLASS, lang = Lang.kotlin)
+        dstNode2.id = 201L
+        val dstNode3 = Node(application = app, fqn = "com.example.Dep3", kind = NodeKind.CLASS, lang = Lang.kotlin)
+        dstNode3.id = 202L
+
+        // CALLS_CODE имеет приоритет выше DEPENDS_ON
+        val edge1 = mockk<Edge> {
+            every { kind } returns EdgeKind.DEPENDS_ON
+            every { dst } returns dstNode1
+        }
+        val edge2 = mockk<Edge> {
+            every { kind } returns EdgeKind.CALLS_CODE
+            every { dst } returns dstNode2
+        }
+        val edge3 = mockk<Edge> {
+            every { kind } returns EdgeKind.DEPENDS_ON
+            every { dst } returns dstNode3
+        }
+
+        every { edgeRepo.findAllBySrcId(100L) } returns listOf(edge1, edge2, edge3)
+        every { nodeRepo.findAllByIdIn(setOf(200L, 201L, 202L)) } returns listOf(dstNode1, dstNode2, dstNode3)
+        every { nodeDocRepo.findDigest(any(), any()) } returns "digest"
+
+        val result = builder.build(node, "ru")
+
+        assertThat(result).isNotNull()
+        assertThat(result.depsCount).isEqualTo(3)
+        // CALLS_CODE должен быть первым в списке
+    }
+    
+    @Test
+    fun `buildMethod - ограничивает depsForDigest до 50`() {
+        val app = Application(key = "app1", name = "App1")
+        app.id = 1L
+        val node = Node(application = app, fqn = "com.example.Method1", kind = NodeKind.METHOD, lang = Lang.kotlin)
+        node.id = 100L
+        node.sourceCode = "fun test() {}"
+
+        val edges = (1..60).map { i ->
+            val dstNode = Node(application = app, fqn = "com.example.Dep$i", kind = NodeKind.CLASS, lang = Lang.kotlin)
+            dstNode.id = (200L + i)
+            mockk<Edge> {
+                every { kind } returns EdgeKind.CALLS_CODE
+                every { dst } returns dstNode
+            }
+        }
+
+        every { edgeRepo.findAllBySrcId(100L) } returns edges
+        every { nodeRepo.findAllByIdIn(any()) } returns emptyList()
+        every { nodeDocRepo.findDigest(any(), any()) } returns "digest"
+
+        val result = builder.build(node, "ru")
+
+        assertThat(result).isNotNull()
+        assertThat(result.depsForDigest.size).isLessThanOrEqualTo(50)
+    }
+    
+    @Test
+    fun `buildMethod - обрабатывает длинный sourceCode больше methodMaxCodeChars`() {
+        val app = Application(key = "app1", name = "App1")
+        app.id = 1L
+        val node = Node(application = app, fqn = "com.example.Method1", kind = NodeKind.METHOD, lang = Lang.kotlin)
+        node.id = 100L
+        node.sourceCode = "a".repeat(10000) // Больше чем methodMaxCodeChars (8000)
+
+        every { edgeRepo.findAllBySrcId(100L) } returns emptyList()
+
+        val result = builder.build(node, "ru")
+
+        assertThat(result).isNotNull()
+        assertThat(result.hasCode).isTrue()
+        assertThat(result.context).contains("truncated=true")
+    }
+    
+    @Test
+    fun `buildType - ограничивает childrenTopK`() {
+        val app = Application(key = "app1", name = "App1")
+        app.id = 1L
+        val node = Node(application = app, fqn = "com.example.Class1", kind = NodeKind.CLASS, lang = Lang.kotlin)
+        node.id = 100L
+
+        val children = (1..50).map { i ->
+            val child = Node(application = app, fqn = "com.example.Class1.method$i", kind = NodeKind.METHOD, lang = Lang.kotlin)
+            child.id = (200L + i)
+            child
+        }
+
+        every { nodeRepo.findAllByParentId(100L) } returns children
+        every { nodeDocRepo.findDigest(any(), any()) } returns "digest"
+
+        val result = builder.build(node, "ru")
+
+        assertThat(result).isNotNull()
+        assertThat(result.childrenCount).isEqualTo(40) // childrenTopK = 40
+    }
+    
+    @Test
+    fun `buildContainer - ограничивает childrenTopK для PACKAGE`() {
+        val app = Application(key = "app1", name = "App1")
+        app.id = 1L
+        val node = Node(application = app, fqn = "com.example", kind = NodeKind.PACKAGE, lang = Lang.kotlin)
+        node.id = 100L
+
+        val children = (1..50).map { i ->
+            val child = Node(application = app, fqn = "com.example.Class$i", kind = NodeKind.CLASS, lang = Lang.kotlin)
+            child.id = (200L + i)
+            child
+        }
+
+        every { nodeRepo.findAllByParentId(100L) } returns children
+        every { nodeDocRepo.findDigest(any(), any()) } returns "digest"
+
+        val result = builder.build(node, "ru")
+
+        assertThat(result).isNotNull()
+        assertThat(result.childrenCount).isEqualTo(40) // childrenTopK = 40
+    }
+    
+    @Test
+    fun `buildMethod - обрабатывает signature с пробелами`() {
+        val app = Application(key = "app1", name = "App1")
+        app.id = 1L
+        val node = Node(application = app, fqn = "com.example.Method1", kind = NodeKind.METHOD, lang = Lang.kotlin)
+        node.id = 100L
+        node.sourceCode = "fun test() {}"
+        node.signature = "  fun test(param: String): Int  "
+
+        every { edgeRepo.findAllBySrcId(100L) } returns emptyList()
+
+        val result = builder.build(node, "ru")
+
+        assertThat(result).isNotNull()
+        assertThat(result.context).contains("signature=fun test(param: String): Int")
+        assertThat(result.context).doesNotContain("  ") // Пробелы должны быть обрезаны
+    }
+    
+    @Test
+    fun `buildMethod - обрабатывает kdoc длиннее 4000 символов`() {
+        val app = Application(key = "app1", name = "App1")
+        app.id = 1L
+        val node = Node(application = app, fqn = "com.example.Method1", kind = NodeKind.METHOD, lang = Lang.kotlin)
+        node.id = 100L
+        node.sourceCode = "fun test() {}"
+        node.docComment = "a".repeat(5000)
+
+        every { edgeRepo.findAllBySrcId(100L) } returns emptyList()
+
+        val result = builder.build(node, "ru")
+
+        assertThat(result).isNotNull()
+        assertThat(result.hasKdoc).isTrue()
+        // KDoc должен быть обрезан до 4000 символов
+        val kdocSection = result.context.substringAfter("## KDoc\n").substringBefore("\n\n")
+        assertThat(kdocSection.length).isLessThanOrEqualTo(4000)
+    }
+    
+    @Test
+    fun `buildLeaf - обрабатывает sourceCode длиннее methodMaxCodeChars`() {
+        val app = Application(key = "app1", name = "App1")
+        app.id = 1L
+        val node = Node(application = app, fqn = "com.example.field", kind = NodeKind.FIELD, lang = Lang.kotlin)
+        node.id = 100L
+        node.sourceCode = "a".repeat(10000)
+
+        val result = builder.build(node, "ru")
+
+        assertThat(result).isNotNull()
+        assertThat(result.hasCode).isTrue()
+        // sourceCode должен быть обрезан до methodMaxCodeChars (8000)
+    }
+    
+    @Test
+    fun `buildLeaf - обрабатывает kdoc длиннее 4000 символов`() {
+        val app = Application(key = "app1", name = "App1")
+        app.id = 1L
+        val node = Node(application = app, fqn = "com.example.field", kind = NodeKind.FIELD, lang = Lang.kotlin)
+        node.id = 100L
+        node.docComment = "a".repeat(5000)
+
+        val result = builder.build(node, "ru")
+
+        assertThat(result).isNotNull()
+        assertThat(result.hasKdoc).isTrue()
+        // KDoc должен быть обрезан до 4000 символов
+        val kdocSection = result.context.substringAfter("## Doc comment\n").substringBefore("\n\n")
+        assertThat(kdocSection.length).isLessThanOrEqualTo(4000)
+    }
 }

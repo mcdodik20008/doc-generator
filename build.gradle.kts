@@ -151,6 +151,7 @@ kover {
                     "*.chunking.model",
                     "*.chunking.model.chunk",
                     "*.chunking.model.plan",
+                    "*.linker.model",
                     // Исключаем API DTO пакеты из корневого модуля (явные паттерны для надежности)
                     "com.bftcom.docgenerator.api.rag.dto",
                     "com.bftcom.docgenerator.api.embedding.dto",

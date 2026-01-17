@@ -95,17 +95,16 @@ class ChunkBuildOrchestratorImpl(
                 )
 
                 // Чтобы не ловить N+1 — читаем рёбра батчем для всех узлов страницы:
-                val edgesBySrc: Map<Long, List<Edge>> =
-                    if (req.withEdgesRelations) {
-                        val ids = nodes.mapNotNull { it.id }
-                        if (ids.isEmpty()) {
-                            emptyMap()
-                        } else {
-                            edgeRepo.findAllBySrcIdIn(ids).groupBy { it.src!!.id!! }
-                        }
-                    } else {
-                        emptyMap()
-                    }
+                val edgesBySrc = if (req.withEdgesRelations) {
+                    val ids = nodes.mapNotNull { it.id }
+                    // findAllBySrcIdIn обычно сам отлично обрабатывает пустой список,
+                    // но groupBy на пустом списке тоже выдаст пустую карту.
+                    edgeRepo.findAllBySrcIdIn(ids)
+                        .filter { it.src.id != null } // Защита от кривых данных
+                        .groupBy { it.src.id!! }
+                } else {
+                    emptyMap()
+                }
 
                 // Строим планы и сохраняем пачками (на узел несколько планов ок):
                 val plansBuffer = mutableListOf<ChunkPlan>()
