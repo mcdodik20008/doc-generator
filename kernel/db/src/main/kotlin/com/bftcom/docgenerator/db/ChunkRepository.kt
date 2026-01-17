@@ -28,7 +28,7 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
         @Param("withEmb") withEmb: Boolean,
     ): List<Chunk>
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query(
         value = """
             UPDATE doc_generator.chunk
@@ -66,7 +66,7 @@ interface ChunkRepository : JpaRepository<Chunk, Long> {
 
     fun findByNodeId(nodeId: Long): MutableList<Chunk>
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query(
         value = """
             insert into doc_generator.chunk

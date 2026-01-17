@@ -2,6 +2,7 @@ plugins {
     kotlin("jvm") version "2.0.21"
     kotlin("plugin.spring") version "2.0.21"
     kotlin("plugin.jpa") version "2.0.21"
+    id("io.spring.dependency-management") version "1.1.7"
 }
 
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(21))
@@ -15,6 +16,8 @@ repositories {
 }
 
 dependencies {
+    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.6"))
+
     implementation(projects.contexts.chunking.contextsChunkingApi)
     implementation(projects.kernel.domain)
     implementation(projects.kernel.db)

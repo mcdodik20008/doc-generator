@@ -13,6 +13,8 @@ repositories {
 }
 
 dependencies {
+    api(platform("org.springframework.boot:spring-boot-dependencies:3.5.6"))
+
     api(projects.kernel.domain)
     api(projects.kernel.db)
 

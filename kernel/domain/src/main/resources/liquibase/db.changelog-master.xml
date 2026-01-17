@@ -105,4 +105,13 @@
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
+
+    <changeSet id="11-add-annotation-node-kind" author="kaspshitskii">
+        <sqlFile
+                path="migration/11_add_annotation_node_kind.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
 </databaseChangeLog>
