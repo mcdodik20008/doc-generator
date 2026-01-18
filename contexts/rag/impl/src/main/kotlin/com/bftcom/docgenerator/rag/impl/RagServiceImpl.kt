@@ -1,8 +1,10 @@
 package com.bftcom.docgenerator.rag.impl
 
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.embedding.api.EmbeddingSearchService
+import com.bftcom.docgenerator.embedding.api.SearchResult
+import com.bftcom.docgenerator.rag.api.ProcessingStepType
 import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
+import com.bftcom.docgenerator.rag.api.QueryProcessingContext
 import com.bftcom.docgenerator.rag.api.RagQueryMetadata
 import com.bftcom.docgenerator.rag.api.RagResponse
 import com.bftcom.docgenerator.rag.api.RagService
@@ -15,68 +17,26 @@ import org.springframework.stereotype.Service
 
 @Service
 class RagServiceImpl(
-    private val embeddingSearchService: EmbeddingSearchService,
     @Qualifier("ragChatClient")
     private val chatClient: ChatClient,
-    private val queryProcessingChain: QueryProcessingChain,
-    private val resultFilterService: ResultFilterService,
+    private val graphRequestProcessor: GraphRequestProcessor,
 ) : RagService {
     private val log = LoggerFactory.getLogger(javaClass)
 
     override fun ask(query: String, sessionId: String): RagResponse {
-        // Обрабатываем запрос через цепочку advisors
-        val processingContext = queryProcessingChain.process(query, sessionId)
-        
-        // Используем оригинальный запрос для основного поиска,
-        // чтобы не потерять точные названия классов/методов
-        val originalQuery = processingContext.originalQuery
-        log.info("RAG search: original query = '{}'", originalQuery)
-        
-        val mainResults = embeddingSearchService.searchByText(originalQuery, topK = 5)
-        log.info("RAG search: main results count = {}", mainResults.size)
+        val processingContext = graphRequestProcessor.process(query, sessionId)
+        val processingStatus = processingContext.getMetadata<String>(QueryMetadataKeys.PROCESSING_STATUS)
 
-        // Собираем все варианты запросов для дополнительного поиска
-        val allQueries = mutableListOf<String>()
-        
-        // Добавляем переформулированный запрос, если он есть
-        val rewrittenQuery = processingContext.getMetadata<String>(QueryMetadataKeys.REWRITTEN_QUERY)
-        if (rewrittenQuery != null && rewrittenQuery != originalQuery) {
-            allQueries.add(rewrittenQuery)
-            log.debug("RAG search: added rewritten query = '{}'", rewrittenQuery)
-        }
-        
-        // Добавляем расширенные запросы
-        val expandedQueries = processingContext.getMetadata<List<*>>(QueryMetadataKeys.EXPANDED_QUERIES)
-            ?: emptyList<Any>()
-        expandedQueries.forEach { q ->
-            val queryStr = q as? String
-            if (queryStr != null && queryStr != originalQuery) {
-                allQueries.add(queryStr)
-                log.debug("RAG search: added expanded query = '{}'", queryStr)
-            }
+        if (processingStatus == ProcessingStepType.FAILED.name) {
+            return RagResponse(
+                answer = "Информация не найдена",
+                sources = emptyList(),
+                metadata = buildMetadata(processingContext),
+            )
         }
 
-        // Выполняем дополнительные поиски
-        val additionalResults = allQueries.flatMap { q ->
-            embeddingSearchService.searchByText(q, topK = 3)
-        }
-        log.info("RAG search: additional results count = {}", additionalResults.size)
-
-        // Объединяем результаты, убираем дубликаты по ID, сортируем по similarity
-        val allResults = (mainResults + additionalResults)
-            .distinctBy { it.id }
-            .sortedByDescending { it.similarity }
-            .take(10) // Берем больше результатов для фильтрации
-
-        // Фильтруем результаты по ключевым словам (класс/метод)
-        val filteredResults = resultFilterService.filterResults(allResults, processingContext)
-        
-        // Сортируем по similarity и берем топ-5
-        val searchResults = filteredResults
-            .sortedByDescending { it.similarity }
-            .take(5)
-        
-        log.info("RAG search: после фильтрации осталось {} результатов из {}", searchResults.size, allResults.size)
+        val searchResults = buildSearchResults(processingContext)
+        log.info("RAG search: итоговых результатов = {}", searchResults.size)
 
         // Добавляем найденные узлы из точного поиска в начало контекста
         val exactNodes = processingContext.getMetadata<List<*>>(QueryMetadataKeys.EXACT_NODES)
@@ -106,6 +66,8 @@ class RagServiceImpl(
             ""
         }
 
+        val graphRelationsText = processingContext.getMetadata<String>(QueryMetadataKeys.GRAPH_RELATIONS_TEXT)
+
         val context = buildString {
             if (exactNodesContext.isNotEmpty()) {
                 append("=== ТОЧНО НАЙДЕННЫЕ УЗЛЫ ===\n")
@@ -115,6 +77,11 @@ class RagServiceImpl(
             if (neighborNodesContext.isNotEmpty()) {
                 append("=== СОСЕДНИЕ УЗЛЫ (связанные через граф) ===\n")
                 append(neighborNodesContext)
+                append("\n\n")
+            }
+            if (!graphRelationsText.isNullOrBlank()) {
+                append("=== СВЯЗИ В ГРАФЕ КОДА ===\n")
+                append(graphRelationsText)
                 append("\n\n")
             }
             if (exactNodesContext.isNotEmpty() || neighborNodesContext.isNotEmpty()) {
@@ -154,21 +121,42 @@ class RagServiceImpl(
                 ?: "Не удалось получить ответ."
 
         // Формируем метаданные
-        val metadata = RagQueryMetadata(
-            originalQuery = processingContext.originalQuery,
-            rewrittenQuery = processingContext.getMetadata<String>(QueryMetadataKeys.REWRITTEN_QUERY),
-            expandedQueries = expandedQueries.mapNotNull { it as? String },
-            processingSteps = processingContext.processingSteps.toList(),
-            additionalData = processingContext.metadata.toMap(),
-        )
-
         return RagResponse(
             answer = response,
             sources =
                 searchResults.map {
                     RagSource(it.id, it.content, it.metadata, it.similarity)
                 },
-            metadata = metadata,
+            metadata = buildMetadata(processingContext),
+        )
+    }
+
+    private fun buildSearchResults(context: QueryProcessingContext): List<SearchResult> {
+        val filteredChunks = context.getMetadata<List<*>>(QueryMetadataKeys.FILTERED_CHUNKS)
+            ?.filterIsInstance<SearchResult>()
+            .orEmpty()
+        val rawChunks = context.getMetadata<List<*>>(QueryMetadataKeys.CHUNKS)
+            ?.filterIsInstance<SearchResult>()
+            .orEmpty()
+
+        val selected = if (filteredChunks.isNotEmpty()) filteredChunks else rawChunks
+        return selected
+            .distinctBy { it.id }
+            .sortedByDescending { it.similarity }
+            .take(5)
+    }
+
+    private fun buildMetadata(context: QueryProcessingContext): RagQueryMetadata {
+        val expandedQueries = context.getMetadata<List<*>>(QueryMetadataKeys.EXPANDED_QUERIES)
+            ?.mapNotNull { it as? String }
+            ?: emptyList()
+
+        return RagQueryMetadata(
+            originalQuery = context.originalQuery,
+            rewrittenQuery = context.getMetadata(QueryMetadataKeys.REWRITTEN_QUERY),
+            expandedQueries = expandedQueries,
+            processingSteps = context.processingSteps.toList(),
+            additionalData = context.metadata.toMap(),
         )
     }
 

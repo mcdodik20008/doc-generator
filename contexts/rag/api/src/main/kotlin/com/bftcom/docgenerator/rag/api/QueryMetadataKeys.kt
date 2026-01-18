@@ -41,5 +41,15 @@ enum class QueryMetadataKeys(val key: String) {
         // Расширение окрестности (соседние узлы)
         NEIGHBOR_NODES("neighborNodes"),
         NEIGHBOR_EXPANSION_RADIUS("neighborExpansionRadius"),
+
+        // Результаты поиска по чанкам
+        CHUNKS("chunks"),
+        FILTERED_CHUNKS("filteredChunks"),
+
+        // Текстовые связи графа
+        GRAPH_RELATIONS_TEXT("graphRelationsText"),
+
+        // Статус обработки
+        PROCESSING_STATUS("processingStatus"),
 }
 

@@ -24,13 +24,11 @@ class NeighborhoodExpansionAdvisorTest {
         val nodeRepo = mockk<NodeRepository>(relaxed = true)
         val advisor = NeighborhoodExpansionAdvisor(edgeRepo, nodeRepo)
 
-        val context = QueryProcessingContext(
+        var context = QueryProcessingContext(
             originalQuery = "ignored",
             currentQuery = "q",
             sessionId = "s-1",
-        ).apply {
-            setMetadata(QueryMetadataKeys.NEIGHBOR_NODES, listOf(mockk<Node>()))
-        }
+        ).setMetadata(QueryMetadataKeys.NEIGHBOR_NODES, listOf(mockk<Node>()))
 
         val result = advisor.process(context)
 
@@ -89,13 +87,11 @@ class NeighborhoodExpansionAdvisorTest {
         every { edgeRepo.findAllByDstIdIn(setOf(100L)) } returns emptyList()
         every { nodeRepo.findAllByIdIn(setOf(200L)) } returns listOf(neighbor)
 
-        val context = QueryProcessingContext(
+        var context = QueryProcessingContext(
             originalQuery = "ignored",
             currentQuery = "q",
             sessionId = "s-1",
-        ).apply {
-            setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(seed))
-        }
+        ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(seed))
 
         val result = advisor.process(context)
 
@@ -127,13 +123,11 @@ class NeighborhoodExpansionAdvisorTest {
 
         every { edgeRepo.findAllBySrcIdIn(any<Set<Long>>()) } throws RuntimeException("db down")
 
-        val context = QueryProcessingContext(
+        var context = QueryProcessingContext(
             originalQuery = "ignored",
             currentQuery = "q",
             sessionId = "s-1",
-        ).apply {
-            setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(seed))
-        }
+        ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(seed))
 
         val result = advisor.process(context)
 

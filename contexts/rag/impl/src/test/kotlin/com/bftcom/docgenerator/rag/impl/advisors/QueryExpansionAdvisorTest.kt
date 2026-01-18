@@ -15,13 +15,11 @@ class QueryExpansionAdvisorTest {
     fun `process - пропускает если EXPANDED уже выставлен`() {
         val chatClient = mockk<ChatClient>(relaxed = true)
         val advisor = QueryExpansionAdvisor(chatClient)
-        val context = QueryProcessingContext(
+        var context = QueryProcessingContext(
             originalQuery = "ignored",
             currentQuery = "q",
             sessionId = "s-1",
-        ).apply {
-            setMetadata(QueryMetadataKeys.EXPANDED, true)
-        }
+        ).setMetadata(QueryMetadataKeys.EXPANDED, true)
 
         val result = advisor.process(context)
 

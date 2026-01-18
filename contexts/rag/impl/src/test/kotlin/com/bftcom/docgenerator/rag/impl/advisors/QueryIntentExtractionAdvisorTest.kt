@@ -15,13 +15,11 @@ class QueryIntentExtractionAdvisorTest {
     fun `process - пропускает если INTENT уже есть`() {
         val chatClient = mockk<ChatClient>(relaxed = true)
         val advisor = QueryIntentExtractionAdvisor(chatClient)
-        val context = QueryProcessingContext(
+        var context = QueryProcessingContext(
             originalQuery = "ignored",
             currentQuery = "q",
             sessionId = "s-1",
-        ).apply {
-            setMetadata(QueryMetadataKeys.INTENT, "CODE_SEARCH")
-        }
+        ).setMetadata(QueryMetadataKeys.INTENT, "CODE_SEARCH")
 
         val result = advisor.process(context)
 

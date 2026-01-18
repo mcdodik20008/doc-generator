@@ -53,12 +53,10 @@ class ResultFilterServiceTest {
             originalQuery = "UserService",
             currentQuery = "UserService",
             sessionId = "session-1",
-        ).apply {
-            setMetadata(
-                QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-                mapOf("className" to "UserService"),
-            )
-        }
+        ).setMetadata(
+            QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+            mapOf("className" to "UserService"),
+        )
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -81,12 +79,10 @@ class ResultFilterServiceTest {
             originalQuery = "getUser",
             currentQuery = "getUser",
             sessionId = "session-1",
-        ).apply {
-            setMetadata(
-                QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-                mapOf("methodName" to "getUser"),
-            )
-        }
+        ).setMetadata(
+            QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+            mapOf("methodName" to "getUser"),
+        )
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -109,12 +105,10 @@ class ResultFilterServiceTest {
             originalQuery = "UserService getUser",
             currentQuery = "UserService getUser",
             sessionId = "session-1",
-        ).apply {
-            setMetadata(
-                QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-                mapOf("className" to "UserService", "methodName" to "getUser"),
-            )
-        }
+        ).setMetadata(
+            QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+            mapOf("className" to "UserService", "methodName" to "getUser"),
+        )
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -136,12 +130,10 @@ class ResultFilterServiceTest {
             originalQuery = "UserService",
             currentQuery = "UserService",
             sessionId = "session-1",
-        ).apply {
-            setMetadata(
-                QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-                mapOf("className" to "UserService"),
-            )
-        }
+        ).setMetadata(
+            QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+            mapOf("className" to "UserService"),
+        )
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -172,9 +164,7 @@ class ResultFilterServiceTest {
             originalQuery = "UserService",
             currentQuery = "UserService",
             sessionId = "session-1",
-        ).apply {
-            setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(exactNode))
-        }
+        ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(exactNode))
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -205,9 +195,7 @@ class ResultFilterServiceTest {
             originalQuery = "getUser",
             currentQuery = "getUser",
             sessionId = "session-1",
-        ).apply {
-            setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(exactNode))
-        }
+        ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(exactNode))
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -228,12 +216,10 @@ class ResultFilterServiceTest {
             originalQuery = "A",
             currentQuery = "A",
             sessionId = "session-1",
-        ).apply {
-            setMetadata(
-                QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-                mapOf("className" to "A"),
-            )
-        }
+        ).setMetadata(
+            QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+            mapOf("className" to "A"),
+        )
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -254,12 +240,10 @@ class ResultFilterServiceTest {
             originalQuery = "Step15Processor",
             currentQuery = "Step15Processor",
             sessionId = "session-1",
-        ).apply {
-            setMetadata(
-                QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-                mapOf("className" to "Step15Processor"),
-            )
-        }
+        ).setMetadata(
+            QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+            mapOf("className" to "Step15Processor"),
+        )
 
         // Act
         val filtered = filterService.filterResults(results, context)

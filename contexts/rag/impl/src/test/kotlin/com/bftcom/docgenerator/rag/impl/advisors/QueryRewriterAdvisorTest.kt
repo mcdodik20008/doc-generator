@@ -15,13 +15,11 @@ class QueryRewriterAdvisorTest {
     fun `process - пропускает если уже был REWRITTEN`() {
         val chatClient = mockk<ChatClient>(relaxed = true)
         val advisor = QueryRewriterAdvisor(chatClient)
-        val context = QueryProcessingContext(
+        var context = QueryProcessingContext(
             originalQuery = "ignored",
             currentQuery = "q",
             sessionId = "s-1",
-        ).apply {
-            setMetadata(QueryMetadataKeys.REWRITTEN, true)
-        }
+        ).setMetadata(QueryMetadataKeys.REWRITTEN, true)
 
         val result = advisor.process(context)
 

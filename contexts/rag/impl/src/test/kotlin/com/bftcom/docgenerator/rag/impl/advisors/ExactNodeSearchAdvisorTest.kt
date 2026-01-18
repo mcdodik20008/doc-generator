@@ -26,13 +26,11 @@ class ExactNodeSearchAdvisorTest {
         val objectMapper = mockk<ObjectMapper>(relaxed = true)
         val advisor = ExactNodeSearchAdvisor(chatClient, nodeRepository, applicationRepository, objectMapper)
 
-        val context = QueryProcessingContext(
+        var context = QueryProcessingContext(
             originalQuery = "ignored",
             currentQuery = "класс UserService метод getUser",
             sessionId = "s-1",
-        ).apply {
-            setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(mockk<Node>()))
-        }
+        ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(mockk<Node>()))
 
         val result = advisor.process(context)
 
@@ -84,7 +82,7 @@ class ExactNodeSearchAdvisorTest {
             )
         } returns listOf(methodNode)
 
-        val context = QueryProcessingContext(
+        var context = QueryProcessingContext(
             originalQuery = "ignored",
             currentQuery = "что делает getUser в UserService",
             sessionId = "s-1",

@@ -23,6 +23,9 @@ data class ProcessingStep(
         val input: String,
         val output: String,
         val timestamp: Long = System.currentTimeMillis(),
+        val stepType: ProcessingStepType? = null,
+        val status: ProcessingStepStatus = ProcessingStepStatus.SUCCESS,
+        val durationMs: Long? = null,
 )
 
 data class RagSource(
