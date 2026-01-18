@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.domain.node
+package com.bftcom.docgenerator.shared.node
 
 data class KDocMeta(
     val summary: String? = null,

@@ -17,6 +17,7 @@ dependencies {
     implementation(projects.contexts.library.contextsLibraryApi)
     implementation(projects.kernel.domain)
     implementation(projects.kernel.db)
+    implementation(projects.kernel.shared)
 
     // === ASM для парсинга байткода ===
     implementation("org.ow2.asm:asm:9.7.1")

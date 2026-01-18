@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.graph.api.library
 
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.domain.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.NodeMeta
 
 /**
  * Компонент для обогащения Node приложения информацией из LibraryNode.

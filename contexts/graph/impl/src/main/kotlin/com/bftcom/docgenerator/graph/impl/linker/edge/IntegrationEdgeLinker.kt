@@ -3,8 +3,8 @@ package com.bftcom.docgenerator.graph.impl.linker.edge
 import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.domain.node.NodeMeta
-import com.bftcom.docgenerator.domain.node.RawUsage
+import com.bftcom.docgenerator.shared.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.RawUsage
 import com.bftcom.docgenerator.graph.api.library.LibraryNodeIndex
 import com.bftcom.docgenerator.graph.api.linker.EdgeLinker
 import com.bftcom.docgenerator.graph.api.linker.indexing.NodeIndex

@@ -19,6 +19,7 @@ dependencies {
     implementation(projects.contexts.chunking.contextsChunkingApi)
     implementation(projects.kernel.domain)
     implementation(projects.kernel.db)
+    implementation(projects.kernel.shared)
     implementation(projects.contexts.ai)
 
     // Jackson для сериализации JSON (model_meta, chunk.metadata)

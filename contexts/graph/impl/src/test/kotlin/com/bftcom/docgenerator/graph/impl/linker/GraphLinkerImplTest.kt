@@ -8,7 +8,7 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.library.Library
 import com.bftcom.docgenerator.domain.library.LibraryNode
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.domain.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.linker.detector.EdgeProposal
 import com.bftcom.docgenerator.graph.api.linker.sink.GraphSink
 import com.bftcom.docgenerator.graph.api.linker.sink.LibraryNodeEdgeProposal

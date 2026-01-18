@@ -2,7 +2,7 @@ package com.bftcom.docgenerator.graph.impl.node.handlers
 
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
-import com.bftcom.docgenerator.domain.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.declplanner.UpsertTypeCmd
 import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext

@@ -1,6 +1,6 @@
 package com.bftcom.docgenerator.graph.api.model.rawdecl
 
-import com.bftcom.docgenerator.domain.node.RawUsage
+import com.bftcom.docgenerator.shared.node.RawUsage
 
 /**
  * Функция или метод (член класса или top-level функция).

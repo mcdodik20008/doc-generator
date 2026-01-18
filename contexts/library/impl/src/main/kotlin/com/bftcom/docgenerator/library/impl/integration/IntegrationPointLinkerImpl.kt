@@ -7,8 +7,8 @@ import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
-import com.bftcom.docgenerator.domain.node.NodeMeta
-import com.bftcom.docgenerator.domain.node.RawUsage
+import com.bftcom.docgenerator.shared.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.RawUsage
 import com.bftcom.docgenerator.library.api.integration.IntegrationPoint
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointLinker
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointService
@@ -45,7 +45,7 @@ class IntegrationPointLinkerImpl(
         var camelEdgesCreated = 0
         val errors = mutableListOf<String>()
 
-        val batchSize = 500
+        val batchSize = com.bftcom.docgenerator.shared.config.SharedConstants.DEFAULT_BATCH_SIZE
         // Кэши для минимизации походов в БД внутри батча
         val libraryFqnCache = mutableMapOf<String, List<com.bftcom.docgenerator.domain.library.LibraryNode>>()
         val integrationCache = mutableMapOf<Long, Set<IntegrationPoint>>()
@@ -73,7 +73,7 @@ class IntegrationPointLinkerImpl(
                         .onFailure { log.error("Failed to convert meta for method ${method.fqn}: ${it.message}") }
                         .getOrNull()
 
-                val usages = meta?.rawUsages.orEmpty().filter { it.isCall() }
+                val usages = meta?.rawUsages.orEmpty().filter { it.checkIsCall() }
                 if (usages.isEmpty()) {
                     log.debug("No calls found in meta for method: {}", method.fqn)
                 }
@@ -254,10 +254,4 @@ class IntegrationPointLinkerImpl(
             }
         }
     }
-
-    private fun RawUsage.isCall(): Boolean =
-        when (this) {
-            is RawUsage.Simple -> isCall
-            is RawUsage.Dot -> isCall
-        }
 }

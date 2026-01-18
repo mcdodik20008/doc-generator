@@ -1,8 +1,8 @@
 package com.bftcom.docgenerator.graph.impl.library
 
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.domain.node.NodeMeta
-import com.bftcom.docgenerator.domain.node.RawUsage
+import com.bftcom.docgenerator.shared.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.RawUsage
 import com.bftcom.docgenerator.graph.api.library.LibraryNodeEnricher
 import com.bftcom.docgenerator.graph.api.library.LibraryNodeIndex
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointService

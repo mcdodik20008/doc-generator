@@ -1,6 +1,6 @@
 package com.bftcom.docgenerator.graph.impl.node
 
-import com.bftcom.docgenerator.domain.node.RawUsage
+import com.bftcom.docgenerator.shared.node.RawUsage
 import com.bftcom.docgenerator.graph.api.model.RawAttrKey
 import com.bftcom.docgenerator.graph.api.model.rawdecl.LineSpan
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawField

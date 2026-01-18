@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.domain.node
+package com.bftcom.docgenerator.shared.node
 
 /**
  * Полное описание метаданных, хранящихся в Node.meta (JSONB).

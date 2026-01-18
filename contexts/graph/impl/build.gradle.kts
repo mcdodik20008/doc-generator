@@ -20,16 +20,15 @@ dependencies {
     implementation(projects.contexts.library.contextsLibraryApi)
     implementation(projects.kernel.domain)
     implementation(projects.kernel.db)
+    implementation(projects.kernel.shared)
 
     // === AST/PSI для парсинга Kotlin кода ===
     implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21")
 
-    // ===== JSON для сериализации/десериализации NodeMeta ====
+    // ===== JSON для сериализации/десериализации =====
     implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // kotlin-reflect нужен для ObjectMapper.convertValue() и рефлексии
     implementation(kotlin("reflect"))

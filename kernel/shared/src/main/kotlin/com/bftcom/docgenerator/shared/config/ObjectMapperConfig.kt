@@ -1,6 +1,8 @@
-package com.bftcom.docgenerator.config
+package com.bftcom.docgenerator.shared.config
 
-import com.bftcom.docgenerator.domain.node.RawUsage
+import com.bftcom.docgenerator.shared.node.RawUsage
+import com.bftcom.docgenerator.shared.serialization.RawUsagePolymorphicDeserializer
+import com.bftcom.docgenerator.shared.serialization.RawUsagePolymorphicSerializer
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper

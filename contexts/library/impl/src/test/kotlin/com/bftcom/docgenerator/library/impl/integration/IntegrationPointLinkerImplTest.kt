@@ -9,9 +9,8 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.library.Library
 import com.bftcom.docgenerator.domain.library.LibraryNode
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.domain.node.RawUsage
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.bftcom.docgenerator.shared.node.RawUsage
+import com.bftcom.docgenerator.shared.testing.TestObjectMapperFactory
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -22,26 +21,13 @@ import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 
 class IntegrationPointLinkerImplTest {
-    private val testMapper = ObjectMapper().apply {
-        registerModule(com.fasterxml.jackson.module.kotlin.KotlinModule.Builder().build())
-        registerModule(com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
-
-        // Регистрируем тот самый модуль с твоими десериализаторами
-        val rawUsageModule = com.fasterxml.jackson.databind.module.SimpleModule("RawUsageModule")
-            .addDeserializer(RawUsage::class.java, RawUsagePolymorphicDeserializer())
-            .addSerializer(RawUsage::class.java, RawUsagePolymorphicSerializer())
-
-        registerModule(rawUsageModule)
-
-        disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-    }
+    private val testMapper = TestObjectMapperFactory.create()
 
     @Test
     fun `linkIntegrationPoints - связывает метод приложения с Kafka topic через цепочку библиотеки`() {
         val nodeRepo = mockk<NodeRepository>()
         val libNodeRepo = mockk<LibraryNodeRepository>()
         val edgeRepo = mockk<EdgeRepository>(relaxed = true)
-        val objectMapper = ObjectMapper().registerKotlinModule()
         val integrationService = IntegrationPointServiceImpl(libNodeRepo)
 
         val linker = IntegrationPointLinkerImpl(nodeRepo, libNodeRepo, edgeRepo, integrationService, testMapper)

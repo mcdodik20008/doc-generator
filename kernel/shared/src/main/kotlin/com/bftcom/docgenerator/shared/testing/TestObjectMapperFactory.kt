@@ -1,6 +1,8 @@
-package com.bftcom.docgenerator.library.impl.integration
+package com.bftcom.docgenerator.shared.testing
 
-import com.bftcom.docgenerator.domain.node.RawUsage
+import com.bftcom.docgenerator.shared.node.RawUsage
+import com.bftcom.docgenerator.shared.serialization.RawUsagePolymorphicDeserializer
+import com.bftcom.docgenerator.shared.serialization.RawUsagePolymorphicSerializer
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -9,15 +11,19 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Primary
 
-@Configuration
-class ObjectMapperConfig {
-    @Bean
-    @Primary
-    fun objectMapper(): ObjectMapper {
+/**
+ * Фабрика для создания ObjectMapper для использования в Unit-тестах
+ * без поднятия Spring-контекста.
+ *
+ * Возвращает точно такой же ObjectMapper, как и [ObjectMapperConfig.objectMapper],
+ * что обеспечивает идентичное поведение в рантайме и тестах.
+ */
+object TestObjectMapperFactory {
+    /**
+     * Создает ObjectMapper с той же конфигурацией, что и в Spring-контексте.
+     */
+    fun create(): ObjectMapper {
         val mapper =
             jacksonObjectMapper()
                 .registerModule(KotlinModule.Builder().build())

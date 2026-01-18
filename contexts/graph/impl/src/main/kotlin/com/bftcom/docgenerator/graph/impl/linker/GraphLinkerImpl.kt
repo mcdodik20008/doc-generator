@@ -5,7 +5,7 @@ import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.domain.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.linker.GraphLinker
 import com.bftcom.docgenerator.graph.api.linker.indexing.NodeIndex
 import com.bftcom.docgenerator.graph.api.linker.sink.GraphSink

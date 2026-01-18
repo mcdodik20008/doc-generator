@@ -7,6 +7,7 @@ import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.bftcom.docgenerator.graph.api.node.KDocFetcher
 import com.bftcom.docgenerator.graph.api.node.SourceVisitor
+import com.bftcom.docgenerator.shared.node.RawUsage
 import io.mockk.every
 import io.mockk.mockk
 import org.assertj.core.api.Assertions.assertThat
@@ -123,7 +124,7 @@ class KotlinSourceWalkerTest {
         val abstractFun =
             events.functions.first { it.name == "abstractFun" }
         assertThat(abstractFun.rawUsages)
-            .contains(com.bftcom.docgenerator.domain.node.RawUsage.Simple("abstractFun", isCall = true))
+            .contains(RawUsage.Simple("abstractFun", isCall = true))
     }
 
     @Test

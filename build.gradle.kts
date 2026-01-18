@@ -63,6 +63,7 @@ dependencies {
     implementation(projects.contexts.embedding.contextsEmbeddingImpl)
     implementation(projects.kernel.domain)
     implementation(projects.kernel.db)
+    implementation(projects.kernel.shared)
     implementation(projects.contexts.rag.contextsRagApi)
     implementation(projects.contexts.rag.contextsRagImpl)
 
@@ -80,6 +81,7 @@ dependencies {
     kover(projects.contexts.embedding.contextsEmbeddingImpl)
     kover(projects.kernel.domain)
     kover(projects.kernel.db)
+    kover(projects.kernel.shared)
     kover(projects.contexts.rag.contextsRagApi)
     kover(projects.contexts.rag.contextsRagImpl)
 

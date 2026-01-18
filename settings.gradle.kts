@@ -61,6 +61,10 @@ project(":kernel:domain").projectDir = file("kernel/domain")
 include(":kernel:db")
 project(":kernel:db").projectDir = file("kernel/db")
 
+include(":kernel:shared")
+project(":kernel:shared").projectDir = file("kernel/shared")
+project(":kernel:shared").name = "shared"
+
 include(":contexts:rag:api")
 project(":contexts:rag:api").projectDir = file("contexts/rag/api")
 project(":contexts:rag:api").name = "contexts-rag-api"

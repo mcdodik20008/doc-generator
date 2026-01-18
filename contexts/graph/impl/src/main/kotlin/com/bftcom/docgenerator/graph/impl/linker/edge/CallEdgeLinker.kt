@@ -2,8 +2,8 @@ package com.bftcom.docgenerator.graph.impl.linker.edge
 
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.domain.node.NodeMeta
-import com.bftcom.docgenerator.domain.node.RawUsage
+import com.bftcom.docgenerator.shared.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.RawUsage
 import com.bftcom.docgenerator.graph.api.linker.EdgeLinker
 import com.bftcom.docgenerator.graph.api.linker.indexing.NodeIndex
 import org.springframework.stereotype.Component
@@ -29,7 +29,7 @@ class CallEdgeLinker : EdgeLinker {
                             return@forEach
                         }
                     }
-                    if (u.isCall) {
+                    if (u.checkIsCall()) {
                         index.resolveType(u.name, imports, pkg)?.let {
                             res += Triple(node, it, EdgeKind.CALLS)
                         }

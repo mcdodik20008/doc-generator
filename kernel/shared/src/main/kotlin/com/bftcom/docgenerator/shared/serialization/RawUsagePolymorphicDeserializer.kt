@@ -1,6 +1,6 @@
-package com.bftcom.docgenerator.library.impl.integration
+package com.bftcom.docgenerator.shared.serialization
 
-import com.bftcom.docgenerator.domain.node.RawUsage
+import com.bftcom.docgenerator.shared.node.RawUsage
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer

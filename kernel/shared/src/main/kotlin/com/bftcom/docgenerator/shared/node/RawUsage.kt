@@ -1,4 +1,4 @@
-package com.bftcom.docgenerator.domain.node
+package com.bftcom.docgenerator.shared.node
 
 /**
  * Сырой вызов или упоминание внутри тела функции.
@@ -27,4 +27,12 @@ sealed class RawUsage {
         val name: String,
         val isCall: Boolean,
     ) : RawUsage()
+
+    /**
+     * Утилитный метод для проверки, является ли использование вызовом.
+     */
+    fun checkIsCall(): Boolean = when (this) {
+        is Dot -> isCall
+        is Simple -> isCall
+    }
 }

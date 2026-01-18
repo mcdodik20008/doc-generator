@@ -2,7 +2,7 @@ package com.bftcom.docgenerator.graph.api.linker
 
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.domain.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.linker.indexing.NodeIndex
 
 /**

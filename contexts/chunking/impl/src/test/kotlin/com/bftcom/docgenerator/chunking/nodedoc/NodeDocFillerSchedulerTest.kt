@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionStatus
+import java.util.concurrent.ConcurrentHashMap
 
 class NodeDocFillerSchedulerTest {
     private lateinit var txManager: PlatformTransactionManager
@@ -209,7 +210,7 @@ class NodeDocFillerSchedulerTest {
         // Устанавливаем skip count в максимум
         val skipCountsField = NodeDocFillerScheduler::class.java.getDeclaredField("skipCounts")
         skipCountsField.isAccessible = true
-        val skipCounts = skipCountsField.get(scheduler) as java.util.concurrent.ConcurrentHashMap<Long, Int>
+        val skipCounts = skipCountsField.get(scheduler) as ConcurrentHashMap<Long, Int>
         skipCounts[100L] = 10 // Больше чем maxSkips
 
         val shouldAllowMethod =
