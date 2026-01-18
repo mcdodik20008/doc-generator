@@ -46,12 +46,24 @@ class RerankingStep(
         val hasGraphText = context.getMetadata<String>(QueryMetadataKeys.GRAPH_RELATIONS_TEXT)
             ?.isNotBlank() == true
 
-        if (filteredChunks.isEmpty() && !hasExactNodes && !hasGraphText) {
+        val transitionKey = if (filteredChunks.isEmpty() && !hasExactNodes && !hasGraphText) {
             log.info("RERANKING: пустой контекст, завершаем с FAILED")
-            return StepResult(ProcessingStepType.FAILED, updatedContext)
+            "EMPTY"
+        } else {
+            "SUCCESS"
         }
 
         log.info("RERANKING: chunks={} -> filtered={}", chunks.size, filteredChunks.size)
-        return StepResult(ProcessingStepType.COMPLETED, updatedContext)
+        return StepResult(
+            context = updatedContext,
+            transitionKey = transitionKey,
+        )
+    }
+
+    override fun getTransitions(): Map<String, ProcessingStepType> {
+        return linkedMapOf(
+            "SUCCESS" to ProcessingStepType.COMPLETED,
+            "EMPTY" to ProcessingStepType.FAILED,
+        )
     }
 }

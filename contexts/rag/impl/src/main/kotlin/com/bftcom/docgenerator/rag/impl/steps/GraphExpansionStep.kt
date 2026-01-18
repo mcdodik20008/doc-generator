@@ -37,7 +37,10 @@ class GraphExpansionStep(
                     status = ProcessingStepStatus.SUCCESS,
                 ),
             )
-            return StepResult(ProcessingStepType.VECTOR_SEARCH, updatedContext)
+            return StepResult(
+                context = updatedContext,
+                transitionKey = "NO_NODES",
+            )
         }
 
         val radius = (context.getMetadata<Int>(QueryMetadataKeys.NEIGHBOR_EXPANSION_RADIUS) ?: 1)
@@ -80,7 +83,10 @@ class GraphExpansionStep(
             )
 
         log.info("GRAPH_EXPANSION: edges={}, neighbors={}", collectedEdges.size, neighborNodes.size)
-        return StepResult(ProcessingStepType.RERANKING, updatedContext)
+        return StepResult(
+            context = updatedContext,
+            transitionKey = "SUCCESS",
+        )
     }
 
     private fun findRelevantEdges(nodeIds: Set<Long>): List<Edge> {
@@ -145,6 +151,13 @@ class GraphExpansionStep(
             EdgeKind.WRITES -> "пишет в"
             else -> "связан с"
         }
+    }
+
+    override fun getTransitions(): Map<String, ProcessingStepType> {
+        return linkedMapOf(
+            "SUCCESS" to ProcessingStepType.RERANKING,
+            "NO_NODES" to ProcessingStepType.VECTOR_SEARCH,
+        )
     }
 
     companion object {

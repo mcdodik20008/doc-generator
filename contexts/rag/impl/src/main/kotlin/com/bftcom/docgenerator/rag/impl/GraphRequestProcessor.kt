@@ -27,7 +27,7 @@ class GraphRequestProcessor(
                         sessionId = sessionId,
                 )
 
-                var currentStep = ProcessingStepType.EXTRACTION
+                var currentStep = ProcessingStepType.NORMALIZATION
                 val visitedSteps = mutableSetOf<ProcessingStepType>()
 
                 while (true) {
@@ -61,7 +61,15 @@ class GraphRequestProcessor(
                         }
 
                         context = result.context
-                        currentStep = result.nextStep
+                        
+                        // Используем карту переходов для определения следующего шага
+                        val transitions = step.getTransitions()
+                        val nextStep = transitions[result.transitionKey]
+                        if (nextStep == null) {
+                                log.error("Не найден переход для ключа '{}' в шаге {}", result.transitionKey, currentStep)
+                                return finalizeProcessing(context, ProcessingStepType.FAILED)
+                        }
+                        currentStep = nextStep
                 }
         }
 

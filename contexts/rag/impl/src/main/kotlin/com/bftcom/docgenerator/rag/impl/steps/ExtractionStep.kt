@@ -50,20 +50,24 @@ class ExtractionStep(
                 ProcessingStep(
                     advisorName = "ExtractionStep",
                     input = query,
-                    output = "Не удалось извлечь класс/метод, переходим к VECTOR_SEARCH",
+                    output = "Не удалось извлечь класс/метод, переходим к REWRITING",
                     stepType = type,
                     status = ProcessingStepStatus.SUCCESS,
                 ),
             )
         }
 
-        val nextStep = if (extractionResult?.hasAnyValue() == true) {
-            ProcessingStepType.EXACT_SEARCH
+        val transitionKey = if (extractionResult?.hasAnyValue() == true) {
+            "FOUND"
         } else {
-            ProcessingStepType.VECTOR_SEARCH
+            // Если не удалось извлечь класс/метод, пытаемся переформулировать запрос
+            "NOT_FOUND"
         }
 
-        return StepResult(nextStep = nextStep, context = updatedContext)
+        return StepResult(
+            context = updatedContext,
+            transitionKey = transitionKey,
+        )
     }
 
     private fun extractClassAndMethod(query: String): ExtractionResult? {
@@ -161,6 +165,13 @@ class ExtractionStep(
             .removePrefix("```")
             .removeSuffix("```")
             .trim()
+    }
+
+    override fun getTransitions(): Map<String, ProcessingStepType> {
+        return linkedMapOf(
+            "FOUND" to ProcessingStepType.EXACT_SEARCH,
+            "NOT_FOUND" to ProcessingStepType.REWRITING,
+        )
     }
 
     private data class ExtractionResult(

@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 @Component
-class VectorSearchStep(
+class   VectorSearchStep(
     private val embeddingSearchService: EmbeddingSearchService,
 ) : QueryStep {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -44,6 +44,15 @@ class VectorSearchStep(
             )
 
         log.info("VECTOR_SEARCH: original='{}', rewritten='{}', chunks={}", originalQuery, rewrittenQuery, mergedResults.size)
-        return StepResult(ProcessingStepType.RERANKING, updatedContext)
+        return StepResult(
+            context = updatedContext,
+            transitionKey = "SUCCESS",
+        )
+    }
+
+    override fun getTransitions(): Map<String, ProcessingStepType> {
+        return linkedMapOf(
+            "SUCCESS" to ProcessingStepType.RERANKING,
+        )
     }
 }

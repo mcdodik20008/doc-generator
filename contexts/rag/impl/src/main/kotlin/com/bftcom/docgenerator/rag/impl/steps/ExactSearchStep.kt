@@ -31,12 +31,15 @@ class ExactSearchStep(
                 ProcessingStep(
                     advisorName = "ExactSearchStep",
                     input = context.currentQuery,
-                    output = "Нет извлеченных классов/методов, переходим к VECTOR_SEARCH",
+                    output = "Нет извлеченных классов/методов, переходим к REWRITING",
                     stepType = type,
                     status = ProcessingStepStatus.SUCCESS,
                 ),
             )
-            return StepResult(ProcessingStepType.VECTOR_SEARCH, updatedContext)
+            return StepResult(
+                context = updatedContext,
+                transitionKey = "NO_DATA",
+            )
         }
 
         val foundNodes = findNodes(className, methodName)
@@ -64,14 +67,18 @@ class ExactSearchStep(
             )
         }
 
-        val nextStep = if (foundNodes.isNotEmpty()) {
-            ProcessingStepType.GRAPH_EXPANSION
+        val transitionKey = if (foundNodes.isNotEmpty()) {
+            "HAS_DATA"
         } else {
-            ProcessingStepType.VECTOR_SEARCH
+            // Если не нашли точных совпадений, пытаемся переформулировать запрос
+            "NO_DATA"
         }
 
         log.info("EXACT_SEARCH: class='{}', method='{}', nodes={}", className, methodName, foundNodes.size)
-        return StepResult(nextStep, updatedContext)
+        return StepResult(
+            context = updatedContext,
+            transitionKey = transitionKey,
+        )
     }
 
     private fun findNodes(className: String?, methodName: String?): List<Node> {
@@ -117,5 +124,12 @@ class ExactSearchStep(
         }
 
         return foundNodes.distinctBy { it.id }
+    }
+
+    override fun getTransitions(): Map<String, ProcessingStepType> {
+        return linkedMapOf(
+            "HAS_DATA" to ProcessingStepType.GRAPH_EXPANSION,
+            "NO_DATA" to ProcessingStepType.REWRITING,
+        )
     }
 }

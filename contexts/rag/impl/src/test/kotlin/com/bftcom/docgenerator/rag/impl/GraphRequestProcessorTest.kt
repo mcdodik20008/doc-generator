@@ -14,10 +14,13 @@ class GraphRequestProcessorTest {
     @Test
     fun `process - выполняет шаг и завершает`() {
         val step = mockk<QueryStep>()
-        every { step.type } returns ProcessingStepType.EXTRACTION
+        every { step.type } returns ProcessingStepType.NORMALIZATION
         every { step.execute(any()) } answers {
-            StepResult(ProcessingStepType.COMPLETED, firstArg())
+            StepResult(firstArg(), "SUCCESS")
         }
+        every { step.getTransitions() } returns mapOf(
+            "SUCCESS" to ProcessingStepType.COMPLETED,
+        )
 
         val processor = GraphRequestProcessor(listOf(step))
         val result = processor.process("query", "session")
@@ -31,8 +34,11 @@ class GraphRequestProcessorTest {
         val step = mockk<QueryStep>()
         every { step.type } returns ProcessingStepType.EXTRACTION
         every { step.execute(any()) } answers {
-            StepResult(ProcessingStepType.EXTRACTION, firstArg())
+            StepResult(firstArg(), "FOUND")
         }
+        every { step.getTransitions() } returns mapOf(
+            "FOUND" to ProcessingStepType.EXTRACTION, // Цикл
+        )
 
         val processor = GraphRequestProcessor(listOf(step))
         val result = processor.process("query", "session")
@@ -46,12 +52,31 @@ class GraphRequestProcessorTest {
         val step = mockk<QueryStep>()
         every { step.type } returns ProcessingStepType.EXTRACTION
         every { step.execute(any()) } throws RuntimeException("boom")
+        every { step.getTransitions() } returns emptyMap()
 
         val processor = GraphRequestProcessor(listOf(step))
         val result = processor.process("query", "session")
 
         val errorKey = "${QueryMetadataKeys.ERROR_PREFIX.key}${ProcessingStepType.EXTRACTION.name}"
         assertThat(result.metadata[errorKey]).isEqualTo("boom")
+        assertThat(result.getMetadata<String>(QueryMetadataKeys.PROCESSING_STATUS))
+            .isEqualTo(ProcessingStepType.FAILED.name)
+    }
+
+    @Test
+    fun `process - неизвестный transitionKey завершает FAILED`() {
+        val step = mockk<QueryStep>()
+        every { step.type } returns ProcessingStepType.EXTRACTION
+        every { step.execute(any()) } answers {
+            StepResult(firstArg(), "UNKNOWN_KEY")
+        }
+        every { step.getTransitions() } returns mapOf(
+            "SUCCESS" to ProcessingStepType.COMPLETED,
+        )
+
+        val processor = GraphRequestProcessor(listOf(step))
+        val result = processor.process("query", "session")
+
         assertThat(result.getMetadata<String>(QueryMetadataKeys.PROCESSING_STATUS))
             .isEqualTo(ProcessingStepType.FAILED.name)
     }
