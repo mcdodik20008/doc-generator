@@ -76,6 +76,101 @@ class KotlinSourceWalkerTest {
         assertThat(events.functions.map { it.name }).contains("abstractFun", "block", "expr", "topLevel")
     }
 
+    @Test
+    fun `walk - не обходит build out node_modules git и dependencies`(@TempDir root: Path) {
+        val kdoc = mockk<KDocFetcher>(relaxed = true)
+        val walker = KotlinSourceWalker(kdoc)
+
+        Files.writeString(root.resolve("A.kt"), "package p\nfun f() = 1\n")
+        Files.createDirectories(root.resolve("build")).also {
+            Files.writeString(it.resolve("B.kt"), "package p\nfun g() = 2\n")
+        }
+        Files.createDirectories(root.resolve("out")).also {
+            Files.writeString(it.resolve("C.kt"), "package p\nfun h() = 3\n")
+        }
+        Files.createDirectories(root.resolve("node_modules")).also {
+            Files.writeString(it.resolve("D.kt"), "package p\nfun i() = 4\n")
+        }
+        Files.createDirectories(root.resolve(".git")).also {
+            Files.writeString(it.resolve("E.kt"), "package p\nfun j() = 5\n")
+        }
+        Files.writeString(root.resolve("dependencies.kt"), "package p\nfun k() = 6\n")
+
+        val events = CollectingVisitor()
+        walker.walk(root, visitor = events, classpath = emptyList<File>())
+
+        assertThat(events.files).hasSize(1)
+        assertThat(events.files[0].filePath).endsWith("A.kt")
+    }
+
+    @Test
+    fun `walk - для абстрактной функции использует текстовый парсер`(@TempDir root: Path) {
+        val kdoc = mockk<KDocFetcher>(relaxed = true)
+        val walker = KotlinSourceWalker(kdoc)
+
+        val src =
+            """
+            package com.example
+            interface Api {
+              fun abstractFun(x: Int): String
+            }
+            """.trimIndent()
+        Files.writeString(root.resolve("Api.kt"), src)
+
+        val events = CollectingVisitor()
+        walker.walk(root, visitor = events, classpath = emptyList<File>())
+
+        val abstractFun =
+            events.functions.first { it.name == "abstractFun" }
+        assertThat(abstractFun.rawUsages)
+            .contains(com.bftcom.docgenerator.domain.node.RawUsage.Simple("abstractFun", isCall = true))
+    }
+
+    @Test
+    fun `walk - определяет kindRepr и throws через PSI`(@TempDir root: Path) {
+        val kdoc = mockk<KDocFetcher>(relaxed = true)
+        val walker = KotlinSourceWalker(kdoc)
+
+        val src =
+            """
+            package com.example
+
+            object Singleton
+
+            enum class Color { RED }
+
+            data class Person(val name: String)
+
+            object foo {
+              object bar {
+                class Baz : RuntimeException()
+              }
+            }
+
+            class MyException : RuntimeException()
+
+            class Thrower {
+              fun boom() {
+                throw MyException()
+                throw foo.bar.Baz()
+              }
+            }
+            """.trimIndent()
+
+        Files.writeString(root.resolve("KindsAndThrows.kt"), src)
+
+        val events = CollectingVisitor()
+        walker.walk(root, visitor = events, classpath = emptyList<File>())
+
+        val typesByName = events.types.associateBy { it.simpleName }
+        assertThat(typesByName["Singleton"]?.kindRepr).isEqualTo("object")
+        assertThat(typesByName["Color"]?.kindRepr).isEqualTo("enum")
+        assertThat(typesByName["Person"]?.kindRepr).isEqualTo("record")
+
+        val boom = events.functions.first { it.name == "boom" }
+        assertThat(boom.throwsRepr).contains("MyException", "foo.bar.Baz")
+    }
+
     private class NoopVisitor : SourceVisitor
 
     private class CollectingVisitor : SourceVisitor {

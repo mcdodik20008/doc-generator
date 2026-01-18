@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 
 interface LibraryNodeRepository : JpaRepository<LibraryNode, Long> {
+    fun findAllByFqn(fqn: String): List<LibraryNode>
+
     fun findByLibraryIdAndFqn(
         libraryId: Long,
         fqn: String,

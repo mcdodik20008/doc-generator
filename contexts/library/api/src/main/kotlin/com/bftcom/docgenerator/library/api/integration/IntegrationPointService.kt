@@ -13,6 +13,17 @@ interface IntegrationPointService {
     fun extractIntegrationPoints(libraryNode: LibraryNode): List<IntegrationPoint>
 
     /**
+     * Рекурсивно находит интеграционные точки, достижимые из метода библиотеки.
+     * Использует meta["internalCalls"] как список вызываемых FQN.
+     */
+    fun resolveIntegrationPointsTransitive(
+        libraryNode: LibraryNode,
+        maxDepth: Int = 10,
+        cache: MutableMap<Long, Set<IntegrationPoint>> = mutableMapOf(),
+        visiting: MutableSet<Long> = mutableSetOf(),
+    ): Set<IntegrationPoint>
+
+    /**
      * Находит все методы библиотеки, которые являются родительскими клиентами.
      */
     fun findParentClients(libraryId: Long): List<LibraryNode>

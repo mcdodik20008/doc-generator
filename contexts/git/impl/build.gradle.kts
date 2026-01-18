@@ -15,8 +15,6 @@ repositories {
 }
 
 dependencies {
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.6"))
-
     implementation(projects.contexts.git.contextsGitApi)
     implementation(projects.contexts.graph.contextsGraphApi)
     implementation(projects.contexts.graph.contextsGraphImpl)
@@ -25,13 +23,13 @@ dependencies {
 
     implementation("org.eclipse.jgit:org.eclipse.jgit:6.10.0.202406032230-r")
 
-    implementation("org.springframework.boot:spring-boot-starter:3.5.6")
-    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:3.5.6")
+    implementation("org.springframework.boot:spring-boot-starter")
+    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 
     testImplementation(kotlin("test"))
     testImplementation("io.mockk:mockk:1.13.13")
     testImplementation("org.assertj:assertj-core:3.26.3")
-    testImplementation("org.springframework.boot:spring-boot-starter-test:3.5.6")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 
 tasks.test {

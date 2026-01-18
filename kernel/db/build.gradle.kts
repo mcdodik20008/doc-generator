@@ -45,12 +45,6 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.13")
 }
 
-dependencyManagement {
-    imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:3.5.6")
-    }
-}
-
 tasks.test {
     useJUnitPlatform()
 }

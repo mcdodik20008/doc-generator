@@ -129,5 +129,108 @@ class NodeBuilderTest {
         assertThat(builder.getStats().skipped).isEqualTo(1)
         verify(exactly = 0) { nodeRepo.save(any()) }
     }
+
+    @Test
+    fun `upsertNode - обновляет существующую ноду когда есть изменения`() {
+        val existing =
+            Node(
+                id = 10L,
+                application = app,
+                fqn = "com.example.Foo",
+                name = "Foo",
+                packageName = "com.example",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+                meta = emptyMap(),
+            )
+
+        every { nodeRepo.findByApplicationIdAndFqn(1L, "com.example.Foo") } returns existing
+        every { codeNormalizer.normalize(any(), any()) } answers { firstArg() }
+        every { codeNormalizer.countLines(any()) } returns 1
+        every { codeHasher.computeHash(any()) } returns "hash"
+        every { updateStrategy.hasChanges(existing, any()) } returns true
+        every { updateStrategy.update(existing, any()) } answers { firstArg() }
+        every { nodeRepo.save(any()) } answers { firstArg<Node>() }
+
+        val saved =
+            builder.upsertNode(
+                fqn = "com.example.Foo",
+                kind = NodeKind.CLASS,
+                name = "Foo",
+                packageName = "com.example",
+                parent = null,
+                lang = Lang.kotlin,
+                filePath = "/tmp/Foo.kt",
+                span = 1..1,
+                signature = null,
+                sourceCode = "class Foo",
+                docComment = null,
+                meta = NodeMeta(source = "onType", pkgFqn = "com.example"),
+            )
+
+        assertThat(saved).isSameAs(existing)
+        assertThat(builder.getStats().updated).isEqualTo(1)
+        verify(exactly = 1) { nodeRepo.save(any()) }
+        verify(exactly = 1) { updateStrategy.update(existing, any()) }
+    }
+
+    @Test
+    fun `upsertNode - не пересчитывает lineEnd когда нормализованный код пустой`() {
+        every { nodeRepo.findByApplicationIdAndFqn(1L, "com.example.Empty") } returns null
+        every { codeNormalizer.normalize(any(), any()) } returns ""
+        every { codeHasher.computeHash(any()) } returns "hash"
+        every { nodeRepo.save(any()) } answers {
+            val n = firstArg<Node>()
+            n.id = 5L
+            n
+        }
+
+        val saved =
+            builder.upsertNode(
+                fqn = "com.example.Empty",
+                kind = NodeKind.CLASS,
+                name = "Empty",
+                packageName = "com.example",
+                parent = null,
+                lang = Lang.kotlin,
+                filePath = "/tmp/Empty.kt",
+                span = 5..8,
+                signature = null,
+                sourceCode = "",
+                docComment = null,
+                meta = NodeMeta(source = "onType", pkgFqn = "com.example"),
+            )
+
+        assertThat(saved.lineEnd).isEqualTo(8)
+        verify(exactly = 0) { codeNormalizer.countLines(any()) }
+    }
+
+    @Test
+    fun `upsertNode - создает ноду даже если id не установлен`() {
+        every { nodeRepo.findByApplicationIdAndFqn(1L, "com.example.NoId") } returns null
+        every { codeNormalizer.normalize(any(), any()) } answers { firstArg() }
+        every { codeNormalizer.countLines(any()) } returns 1
+        every { codeHasher.computeHash(any()) } returns "hash"
+        every { nodeRepo.save(any()) } answers { firstArg<Node>() }
+
+        val saved =
+            builder.upsertNode(
+                fqn = "com.example.NoId",
+                kind = NodeKind.CLASS,
+                name = "NoId",
+                packageName = "com.example",
+                parent = null,
+                lang = Lang.kotlin,
+                filePath = "/tmp/NoId.kt",
+                span = 1..1,
+                signature = null,
+                sourceCode = "class NoId",
+                docComment = null,
+                meta = NodeMeta(source = "onType", pkgFqn = "com.example"),
+            )
+
+        assertThat(saved.id).isNull()
+        assertThat(builder.getStats().created).isEqualTo(1)
+    }
 }
 

@@ -16,8 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.6"))
-
     implementation(projects.contexts.chunking.contextsChunkingApi)
     implementation(projects.kernel.domain)
     implementation(projects.kernel.db)

@@ -35,12 +35,6 @@ dependencies {
     testImplementation("org.assertj:assertj-core:3.26.3")
 }
 
-dependencyManagement {
-    imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:3.5.6")
-    }
-}
-
 tasks.test {
     useJUnitPlatform()
 }

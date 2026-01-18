@@ -32,5 +32,57 @@ class BytecodeParserImplTest {
         val nodes = BytecodeParserImpl().parseJar(file)
         assertThat(nodes).isEmpty()
     }
+
+    @Test
+    fun `parseJar - empty jar returns empty`(@TempDir dir: Path) {
+        val jar = TestJarUtils.emptyJar(dir.resolve("empty.jar"))
+        val nodes = BytecodeParserImpl().parseJar(jar)
+        assertThat(nodes).isEmpty()
+    }
+
+    @Test
+    fun `parseJar - извлекает suspend и synthetic признаки`(@TempDir dir: Path) {
+        val jar =
+            TestJarUtils.writeJar(
+                dir.resolve("lib2.jar"),
+                mapOf(
+                    "com/example/SuspendHelpers.class" to TestJarUtils.generateSuspendHelperClassBytes(),
+                    "com/example/Foo\$SuspendLambda.class" to TestJarUtils.generateStateMachineClassBytes(),
+                    "com/example/MyInterface.class" to TestJarUtils.generateInterfaceClassBytes(),
+                    "com/example/MyEnum.class" to TestJarUtils.generateEnumClassBytes(),
+                ),
+            )
+
+        val nodes = BytecodeParserImpl().parseJar(jar)
+
+        val suspendMethod =
+            nodes.first { it.fqn == "com.example.SuspendHelpers.suspendFun" }
+        assertThat(suspendMethod.meta).containsEntry("kotlin_suspend", true)
+
+        val helperMethod =
+            nodes.first { it.fqn == "com.example.SuspendHelpers.helper\$default" }
+        assertThat(helperMethod.meta).containsEntry("synthetic_coroutine_helper", true)
+        assertThat(helperMethod.meta).containsEntry("synthetic", true)
+
+        val bridgeMethod =
+            nodes.first { it.fqn == "com.example.SuspendHelpers.bridgeMethod" }
+        assertThat(bridgeMethod.meta).containsEntry("bridge", true)
+
+        val syntheticField =
+            nodes.first { it.fqn == "com.example.SuspendHelpers.syntheticField" }
+        assertThat(syntheticField.meta).containsEntry("synthetic", true)
+
+        val stateMachine =
+            nodes.first { it.fqn == "com.example.Foo\$SuspendLambda" }
+        assertThat(stateMachine.meta).containsEntry("synthetic_coroutine_class", true)
+
+        val iface =
+            nodes.first { it.fqn == "com.example.MyInterface" }
+        assertThat(iface.kind).isEqualTo(NodeKind.INTERFACE)
+
+        val enumType =
+            nodes.first { it.fqn == "com.example.MyEnum" }
+        assertThat(enumType.kind).isEqualTo(NodeKind.ENUM)
+    }
 }
 

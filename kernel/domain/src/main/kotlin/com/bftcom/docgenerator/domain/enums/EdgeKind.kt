@@ -21,6 +21,7 @@ enum class EdgeKind {
 
     // Сетевые и интеграционные взаимодействия
     CALLS_HTTP, // CLIENT/SERVICE → ENDPOINT (HTTP/GraphQL/WS)
+    CALLS_CAMEL, // CLIENT/SERVICE → ENDPOINT (Apache Camel)
     CALLS_GRPC, // CLIENT/SERVICE → ENDPOINT (gRPC)
     PRODUCES, // METHOD/ENDPOINT → TOPIC
     CONSUMES, // WORKER/JOB/ENDPOINT → TOPIC

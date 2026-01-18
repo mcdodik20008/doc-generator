@@ -114,4 +114,13 @@
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
+
+    <changeSet id="12-add-calls-camel-edge-kind" author="kaspshitskii">
+        <sqlFile
+                path="migration/12_add_calls_camel_to_edge_kind.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
 </databaseChangeLog>

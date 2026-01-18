@@ -6,11 +6,21 @@ plugins {
     id("org.springframework.boot") version "3.5.6"
     id("io.spring.dependency-management") version "1.1.7"
 }
+
+val springBootVersion = "3.5.6"
+
 subprojects {
     repositories {
         mavenCentral()
     }
     apply(plugin = "org.jetbrains.kotlinx.kover")
+    apply(plugin = "io.spring.dependency-management")
+
+    dependencyManagement {
+        imports {
+            mavenBom("org.springframework.boot:spring-boot-dependencies:$springBootVersion")
+        }
+    }
 }
 
 // curl http://192.168.0.15:11434/api/ps

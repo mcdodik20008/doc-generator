@@ -16,8 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.6"))
-
     implementation(projects.contexts.graph.contextsGraphApi)
     implementation(projects.contexts.library.contextsLibraryApi)
     implementation(projects.kernel.domain)

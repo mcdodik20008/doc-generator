@@ -16,128 +16,128 @@ class IntegrationPointServiceImpl(
 ) : IntegrationPointService {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @Suppress("UNCHECKED_CAST")
     override fun extractIntegrationPoints(libraryNode: LibraryNode): List<IntegrationPoint> {
-        val meta = libraryNode.meta
-        val integrationMeta = meta["integrationAnalysis"] as? Map<String, Any> ?: return emptyList()
-
-        val points = mutableListOf<IntegrationPoint>()
+        val integrationMeta = libraryNode.meta["integrationAnalysis"] as? Map<String, Any> ?: return emptyList()
         val methodFqn = libraryNode.fqn
 
-        // HTTP endpoints
-        val urls = integrationMeta["urls"] as? List<String> ?: emptyList()
-        val httpMethods = integrationMeta["httpMethods"] as? List<String> ?: emptyList()
-        val hasRetry = integrationMeta["hasRetry"] as? Boolean ?: false
-        val hasTimeout = integrationMeta["hasTimeout"] as? Boolean ?: false
-        val hasCircuitBreaker = integrationMeta["hasCircuitBreaker"] as? Boolean ?: false
+        // Вспомогательная функция для извлечения списков
+        fun <T> getList(key: String): List<T> = integrationMeta[key] as? List<T> ?: emptyList()
 
-        // Создаем HTTP endpoints (может быть несколько URL для одного метода)
-        for (url in urls) {
-            for (httpMethod in httpMethods.ifEmpty { listOf(null) }) {
-                points.add(
-                    IntegrationPoint.HttpEndpoint(
-                        url = url,
-                        methodId = methodFqn,
-                        httpMethod = httpMethod,
-                        clientType = "Unknown", // можно улучшить, сохраняя clientType в метаданных
-                        hasRetry = hasRetry,
-                        hasTimeout = hasTimeout,
-                        hasCircuitBreaker = hasCircuitBreaker,
-                    ),
-                )
+        val points = mutableListOf<IntegrationPoint>()
+
+        // HTTP
+        val urls = getList<String>("urls")
+        val httpMethods = getList<String>("httpMethods").ifEmpty { listOf(null) }
+
+        urls.forEach { url ->
+            httpMethods.forEach { method ->
+                points.add(IntegrationPoint.HttpEndpoint(
+                    url = url,
+                    methodId = methodFqn,
+                    httpMethod = method,
+                    clientType = integrationMeta["clientType"] as? String ?: "Unknown",
+                    hasRetry = integrationMeta.flag("hasRetry"),
+                    hasTimeout = integrationMeta.flag("hasTimeout"),
+                    hasCircuitBreaker = integrationMeta.flag("hasCircuitBreaker")
+                ))
             }
         }
 
-        // Kafka topics
-        val kafkaTopics = integrationMeta["kafkaTopics"] as? List<String> ?: emptyList()
-        val kafkaCalls = integrationMeta["kafkaCalls"] as? List<Map<String, Any>> ?: emptyList()
-
-        for (topic in kafkaTopics) {
-            val call = kafkaCalls.firstOrNull { it["topic"] == topic }
-            points.add(
-                IntegrationPoint.KafkaTopic(
-                    methodId = methodFqn,
-                    topic = topic,
-                    operation = call?.get("operation") as? String ?: "UNKNOWN",
-                    clientType = call?.get("clientType") as? String ?: "Unknown",
-                ),
-            )
+        // Kafka
+        getList<String>("kafkaTopics").forEach { topic ->
+            val call = getList<Map<String, Any>>("kafkaCalls").find { it["topic"] == topic }
+            points.add(IntegrationPoint.KafkaTopic(
+                methodId = methodFqn,
+                topic = topic,
+                operation = call?.get("operation") as? String ?: "UNKNOWN",
+                clientType = call?.get("clientType") as? String ?: "Unknown"
+            ))
         }
 
-        // Camel routes
-        val camelUris = integrationMeta["camelUris"] as? List<String> ?: emptyList()
-        val camelCalls = integrationMeta["camelCalls"] as? List<Map<String, Any>> ?: emptyList()
-
-        for (uri in camelUris) {
-            val call = camelCalls.firstOrNull { it["uri"] == uri }
-            points.add(
-                IntegrationPoint.CamelRoute(
-                    methodId = methodFqn,
-                    uri = uri,
-                    endpointType = call?.get("endpointType") as? String,
-                    direction = call?.get("direction") as? String ?: "UNKNOWN",
-                ),
-            )
+        // Camel
+        getList<String>("camelUris").forEach { uri ->
+            val call = getList<Map<String, Any>>("camelCalls").find { it["uri"] == uri }
+            points.add(IntegrationPoint.CamelRoute(
+                methodId = methodFqn,
+                uri = uri,
+                endpointType = call?.get("endpointType") as? String,
+                direction = call?.get("direction") as? String ?: "UNKNOWN"
+            ))
         }
 
         return points
     }
 
-    override fun findParentClients(libraryId: Long): List<LibraryNode> = libraryNodeRepo.findParentClientsByLibraryId(libraryId)
-
-    override fun findMethodsByUrl(
-        url: String,
-        libraryId: Long?,
-    ): List<LibraryNode> {
-        // Обертываем URL в JSON строку для поиска в массиве
-        val urlJson = "\"$url\""
-        return libraryNodeRepo.findMethodsByUrl(urlJson, libraryId)
-    }
-
-    override fun findMethodsByKafkaTopic(
-        topic: String,
-        libraryId: Long?,
-    ): List<LibraryNode> {
-        // Обертываем topic в JSON строку для поиска в массиве
-        val topicJson = "\"$topic\""
-        return libraryNodeRepo.findMethodsByKafkaTopic(topicJson, libraryId)
-    }
-
-    override fun findMethodsByCamelUri(
-        uri: String,
-        libraryId: Long?,
-    ): List<LibraryNode> {
-        // Обертываем URI в JSON строку для поиска в массиве
-        val uriJson = "\"$uri\""
-        return libraryNodeRepo.findMethodsByCamelUri(uriJson, libraryId)
-    }
-
-    override fun getMethodIntegrationSummary(
-        methodFqn: String,
-        libraryId: Long,
-    ): IntegrationPointService.IntegrationMethodSummary? {
+    override fun getMethodIntegrationSummary(methodFqn: String, libraryId: Long): IntegrationPointService.IntegrationMethodSummary? {
         val node = libraryNodeRepo.findByLibraryIdAndFqn(libraryId, methodFqn) ?: return null
-
         val points = extractIntegrationPoints(node)
-        val httpEndpoints = points.filterIsInstance<IntegrationPoint.HttpEndpoint>()
-        val kafkaTopics = points.filterIsInstance<IntegrationPoint.KafkaTopic>()
-        val camelRoutes = points.filterIsInstance<IntegrationPoint.CamelRoute>()
-
-        val integrationMeta = (node.meta["integrationAnalysis"] as? Map<String, Any>)
-        val isParentClient = integrationMeta?.get("isParentClient") as? Boolean ?: false
-        val hasRetry = integrationMeta?.get("hasRetry") as? Boolean ?: false
-        val hasTimeout = integrationMeta?.get("hasTimeout") as? Boolean ?: false
-        val hasCircuitBreaker = integrationMeta?.get("hasCircuitBreaker") as? Boolean ?: false
+        val meta = node.meta["integrationAnalysis"] as? Map<String, Any>
 
         return IntegrationPointService.IntegrationMethodSummary(
             methodFqn = methodFqn,
-            isParentClient = isParentClient,
-            httpEndpoints = httpEndpoints,
-            kafkaTopics = kafkaTopics,
-            camelRoutes = camelRoutes,
-            hasRetry = hasRetry,
-            hasTimeout = hasTimeout,
-            hasCircuitBreaker = hasCircuitBreaker,
+            isParentClient = meta.flag("isParentClient"),
+            httpEndpoints = points.filterIsInstance<IntegrationPoint.HttpEndpoint>(),
+            kafkaTopics = points.filterIsInstance<IntegrationPoint.KafkaTopic>(),
+            camelRoutes = points.filterIsInstance<IntegrationPoint.CamelRoute>(),
+            hasRetry = meta.flag("hasRetry"),
+            hasTimeout = meta.flag("hasTimeout"),
+            hasCircuitBreaker = meta.flag("hasCircuitBreaker")
         )
+    }
+
+    // Вспомогательное расширение для чистоты кода
+    private fun Map<String, Any>?.flag(key: String): Boolean = this?.get(key) as? Boolean ?: false
+
+    // Для БД запросов - используем более безопасный способ формирования JSON-литерала
+    private fun String.toJsonString() = "\"$this\""
+
+    override fun findParentClients(libraryId: Long) = libraryNodeRepo.findParentClientsByLibraryId(libraryId)
+    override fun findMethodsByUrl(url: String, libraryId: Long?) = libraryNodeRepo.findMethodsByUrl(url.toJsonString(), libraryId)
+    override fun findMethodsByKafkaTopic(topic: String, libraryId: Long?) = libraryNodeRepo.findMethodsByKafkaTopic(topic.toJsonString(), libraryId)
+    override fun findMethodsByCamelUri(uri: String, libraryId: Long?) = libraryNodeRepo.findMethodsByCamelUri(uri.toJsonString(), libraryId)
+
+    override fun resolveIntegrationPointsTransitive(
+        libraryNode: LibraryNode,
+        maxDepth: Int,
+        cache: MutableMap<Long, Set<IntegrationPoint>>,
+        visiting: MutableSet<Long>,
+    ): Set<IntegrationPoint> {
+        val nodeId = libraryNode.id
+        if (nodeId != null) {
+            cache[nodeId]?.let { return it }
+        }
+
+        if (maxDepth <= 0) {
+            return extractIntegrationPoints(libraryNode).toSet()
+        }
+
+        if (nodeId != null && !visiting.add(nodeId)) {
+            log.warn("Detected library call cycle at {}", libraryNode.fqn)
+            return emptySet()
+        }
+
+        val points = mutableSetOf<IntegrationPoint>()
+        points += extractIntegrationPoints(libraryNode)
+
+        val internalCalls =
+            (libraryNode.meta["internalCalls"] as? List<*>)?.filterIsInstance<String>().orEmpty()
+
+        internalCalls.forEach { calledFqn ->
+            val calledNodes = libraryNodeRepo.findAllByFqn(calledFqn)
+            if (calledNodes.isEmpty()) {
+                log.warn("Library node not found for internal call: {}", calledFqn)
+                return@forEach
+            }
+            calledNodes.forEach { callee ->
+                points += resolveIntegrationPointsTransitive(callee, maxDepth - 1, cache, visiting)
+            }
+        }
+
+        if (nodeId != null) {
+            visiting.remove(nodeId)
+            cache[nodeId] = points
+        }
+
+        return points
     }
 }

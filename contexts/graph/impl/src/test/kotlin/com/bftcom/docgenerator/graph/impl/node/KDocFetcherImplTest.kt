@@ -89,5 +89,56 @@ class KDocFetcherImplTest {
         assertThat(doc).contains("Since:")
         assertThat(doc).contains("@author")
     }
+
+    @Test
+    fun `parseKDoc - парсит теги и формирует метаданные`() {
+        val src =
+            """
+            package com.example
+            /**
+             * Summary
+             *
+             * Description
+             * @param x value of x
+             * @property p prop value
+             * @return result
+             * @throws IllegalStateException when bad
+             * @see other
+             * @since 2.0
+             * @custom custom tag value
+             */
+            fun f(x: Int, p: String): Int = x
+            """.trimIndent()
+        val file = psiFactory.createFile("A.kt", src)
+        val decl = file.declarations.filterIsInstance<KtNamedFunction>().first()
+
+        val parsed = KDocFetcherImpl().parseKDoc(decl)
+        assertThat(parsed).isNotNull
+        assertThat(parsed!!.summary).isEqualTo("Summary")
+        assertThat(parsed.description).isEqualTo("Description")
+        assertThat(parsed.params).containsEntry("x", "value of x")
+        assertThat(parsed.properties).containsEntry("p", "prop value")
+        assertThat(parsed.returns).isEqualTo("result")
+        assertThat(parsed.throws).containsEntry("IllegalStateException", "when bad")
+        assertThat(parsed.seeAlso).contains("other")
+        assertThat(parsed.since).isEqualTo("2.0")
+        assertThat(parsed.otherTags).containsKey("custom")
+    }
+
+    @Test
+    fun `parseKDoc - пустой комментарий возвращает null`() {
+        val src =
+            """
+            package com.example
+            /**
+             */
+            fun f(): Int = 1
+            """.trimIndent()
+        val file = psiFactory.createFile("A.kt", src)
+        val decl = file.declarations.filterIsInstance<KtNamedFunction>().first()
+
+        val parsed = KDocFetcherImpl().parseKDoc(decl)
+        assertThat(parsed).isNull()
+    }
 }
 

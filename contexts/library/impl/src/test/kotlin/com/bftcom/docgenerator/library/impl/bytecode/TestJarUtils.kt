@@ -134,5 +134,100 @@ internal object TestJarUtils {
         cw.visitEnd()
         return cw.toByteArray()
     }
+
+    fun generateSuspendHelperClassBytes(internalName: String = "com/example/SuspendHelpers"): ByteArray {
+        val cw = ClassWriter(ClassWriter.COMPUTE_MAXS or ClassWriter.COMPUTE_FRAMES)
+        cw.visit(Opcodes.V21, Opcodes.ACC_PUBLIC, internalName, null, "java/lang/Object", null)
+
+        // synthetic field
+        cw.visitField(Opcodes.ACC_PRIVATE or Opcodes.ACC_SYNTHETIC, "syntheticField", "Ljava/lang/Object;", null, null).visitEnd()
+
+        // public Object suspendFun(String, Continuation)
+        run {
+            val mv =
+                cw.visitMethod(
+                    Opcodes.ACC_PUBLIC,
+                    "suspendFun",
+                    "(Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;",
+                    null,
+                    null,
+                )
+            mv.visitCode()
+            mv.visitInsn(Opcodes.ACONST_NULL)
+            mv.visitInsn(Opcodes.ARETURN)
+            mv.visitMaxs(0, 0)
+            mv.visitEnd()
+        }
+
+        // synthetic helper method
+        run {
+            val mv =
+                cw.visitMethod(
+                    Opcodes.ACC_PUBLIC or Opcodes.ACC_SYNTHETIC,
+                    "helper\$default",
+                    "()V",
+                    null,
+                    null,
+                )
+            mv.visitCode()
+            mv.visitInsn(Opcodes.RETURN)
+            mv.visitMaxs(0, 0)
+            mv.visitEnd()
+        }
+
+        // bridge method
+        run {
+            val mv =
+                cw.visitMethod(
+                    Opcodes.ACC_PUBLIC or Opcodes.ACC_BRIDGE,
+                    "bridgeMethod",
+                    "()V",
+                    null,
+                    null,
+                )
+            mv.visitCode()
+            mv.visitInsn(Opcodes.RETURN)
+            mv.visitMaxs(0, 0)
+            mv.visitEnd()
+        }
+
+        cw.visitEnd()
+        return cw.toByteArray()
+    }
+
+    fun generateStateMachineClassBytes(internalName: String = "com/example/Foo\$SuspendLambda"): ByteArray {
+        val cw = ClassWriter(ClassWriter.COMPUTE_MAXS or ClassWriter.COMPUTE_FRAMES)
+        cw.visit(Opcodes.V21, Opcodes.ACC_PUBLIC, internalName, null, "java/lang/Object", null)
+        cw.visitEnd()
+        return cw.toByteArray()
+    }
+
+    fun generateInterfaceClassBytes(internalName: String = "com/example/MyInterface"): ByteArray {
+        val cw = ClassWriter(0)
+        cw.visit(
+            Opcodes.V21,
+            Opcodes.ACC_PUBLIC or Opcodes.ACC_INTERFACE or Opcodes.ACC_ABSTRACT,
+            internalName,
+            null,
+            "java/lang/Object",
+            null,
+        )
+        cw.visitEnd()
+        return cw.toByteArray()
+    }
+
+    fun generateEnumClassBytes(internalName: String = "com/example/MyEnum"): ByteArray {
+        val cw = ClassWriter(0)
+        cw.visit(
+            Opcodes.V21,
+            Opcodes.ACC_PUBLIC or Opcodes.ACC_ENUM,
+            internalName,
+            null,
+            "java/lang/Enum",
+            null,
+        )
+        cw.visitEnd()
+        return cw.toByteArray()
+    }
 }
 
