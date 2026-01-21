@@ -47,43 +47,30 @@ repositories {
 
 dependencies {
     // === Modules ===
-    // implementation() - подключаем все модули
-    // Runtime автоматически подтянет все транзитивные зависимости через api() зависимости модулей
-    implementation(projects.contexts.graph.contextsGraphApi)
-    implementation(projects.contexts.graph.contextsGraphImpl)
-    implementation(projects.contexts.chunking.contextsChunkingApi)
-    implementation(projects.contexts.chunking.contextsChunkingImpl)
-    implementation(projects.contexts.ai)
-    implementation(projects.contexts.git.contextsGitApi)
-    implementation(projects.contexts.git.contextsGitImpl)
-    implementation(projects.contexts.library.contextsLibraryApi)
-    implementation(projects.contexts.library.contextsLibraryImpl)
-    implementation(projects.contexts.postprocess)
-    implementation(projects.contexts.embedding.contextsEmbeddingApi)
-    implementation(projects.contexts.embedding.contextsEmbeddingImpl)
-    implementation(projects.kernel.domain)
-    implementation(projects.kernel.db)
-    implementation(projects.kernel.shared)
-    implementation(projects.contexts.rag.contextsRagApi)
-    implementation(projects.contexts.rag.contextsRagImpl)
-
-    kover(projects.contexts.graph.contextsGraphApi)
-    kover(projects.contexts.graph.contextsGraphImpl)
-    kover(projects.contexts.chunking.contextsChunkingApi)
-    kover(projects.contexts.chunking.contextsChunkingImpl)
-    kover(projects.contexts.ai)
-    kover(projects.contexts.git.contextsGitApi)
-    kover(projects.contexts.git.contextsGitImpl)
-    kover(projects.contexts.library.contextsLibraryApi)
-    kover(projects.contexts.library.contextsLibraryImpl)
-    kover(projects.contexts.postprocess)
-    kover(projects.contexts.embedding.contextsEmbeddingApi)
-    kover(projects.contexts.embedding.contextsEmbeddingImpl)
-    kover(projects.kernel.domain)
-    kover(projects.kernel.db)
-    kover(projects.kernel.shared)
-    kover(projects.contexts.rag.contextsRagApi)
-    kover(projects.contexts.rag.contextsRagImpl)
+    // 1. Определяем список всех внутренних модулей, которые должны войти в состав приложения
+    val internalProjects = listOf(
+        projects.contexts.graph.contextsGraphApi,
+        projects.contexts.graph.contextsGraphImpl,
+        projects.contexts.chunking.contextsChunkingApi,
+        projects.contexts.chunking.contextsChunkingImpl,
+        projects.contexts.ai,
+        projects.contexts.git.contextsGitApi,
+        projects.contexts.git.contextsGitImpl,
+        projects.contexts.library.contextsLibraryApi,
+        projects.contexts.library.contextsLibraryImpl,
+        projects.contexts.postprocess,
+        projects.contexts.embedding.contextsEmbeddingApi,
+        projects.contexts.embedding.contextsEmbeddingImpl,
+        projects.kernel.domain,
+        projects.kernel.db,
+        projects.kernel.shared,
+        projects.contexts.rag.contextsRagApi,
+        projects.contexts.rag.contextsRagImpl
+    )
+    internalProjects.forEach {
+        implementation(it)
+        kover(it)
+    }
 
     // ===== Core / Kotlin / JSON =====
     implementation("org.jetbrains.kotlin:kotlin-reflect")
@@ -137,22 +124,17 @@ kover {
         // Настройки исключений применяются ко всем отчетам
         filters {
             excludes {
-                // 1. Исключение по именам классов (Wildcard по FQCN)
-                // Kover сопоставляет это с полным именем класса.
-                // Использование "*ClassName" безопасно, если вы уверены в суффиксах.
+                // 1. Исключение по именам классов
                 classes(
                     "*Dto",
                     "*DTO",
                     "*Request",
                     "*Response",
                     "*Result",
-                    "*ApplicationKt" // В Kotlin main-класс часто компилируется в NameKt
+                    "*ApplicationKt"
                 )
 
                 // 2. Исключение пакетов
-                // Важно: паттерн "com.example.dto.*" исключит классы в этом пакете,
-                // но для вложенных пакетов может потребоваться "**" в зависимости от версии.
-                // В Kover 0.7.x+ паттерн "com.pkg.*" обычно рекурсивен.
                 packages(
                     "*.dto",
                     "*.config",
@@ -164,15 +146,12 @@ kover {
                     "*.chunking.model.chunk",
                     "*.chunking.model.plan",
                     "*.linker.model",
-                    // Исключаем API DTO пакеты из корневого модуля (явные паттерны для надежности)
                     "com.bftcom.docgenerator.api.rag.dto",
                     "com.bftcom.docgenerator.api.embedding.dto",
                     "com.bftcom.docgenerator.api.ingest.dto"
                 )
 
-                // 3. Аннотации (Самый надежный инженерный подход)
-                // Вместо того чтобы гадать с именами пакетов, можно исключить всё,
-                // что помечено определенной аннотацией (например, собственной @Generated).
+                // 3. Аннотации
                 annotatedBy("org.springframework.boot.context.properties.ConfigurationProperties")
             }
         }
@@ -185,28 +164,6 @@ kover {
             }
         }
     }
-
-    // Quality Gates: Запрещаем падение покрытия ниже текущего уровня
-    // TODO: Настроить правильный синтаксис verify для версии 0.9.4
-    // В версии 0.9.4 API может отличаться, нужно проверить документацию
-    // verify {
-    //     rule {
-    //         name = "Minimum Line Coverage"
-    //         bound {
-    //             minValue = 50.0 // Текущий уровень покрытия (52.9%)
-    //             coverageUnit = kotlinx.kover.api.CoverageUnit.LINE
-    //             aggregation = kotlinx.kover.api.AggregationType.COVERED_PERCENTAGE
-    //         }
-    //     }
-    //     rule {
-    //         name = "Minimum Branch Coverage"
-    //         bound {
-    //             minValue = 40.0 // Минимальный порог для Branch Coverage
-    //             coverageUnit = kotlinx.kover.api.CoverageUnit.BRANCH
-    //             aggregation = kotlinx.kover.api.AggregationType.COVERED_PERCENTAGE
-    //         }
-    //     }
-    // }
 }
 
 kotlin {

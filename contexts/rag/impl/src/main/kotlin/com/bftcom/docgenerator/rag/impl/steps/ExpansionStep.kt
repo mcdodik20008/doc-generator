@@ -1,23 +1,35 @@
 package com.bftcom.docgenerator.rag.impl.steps
 
+import com.bftcom.docgenerator.ai.embedding.EmbeddingClient
+import com.bftcom.docgenerator.db.SynonymDictionaryRepository
 import com.bftcom.docgenerator.rag.api.ProcessingStep
 import com.bftcom.docgenerator.rag.api.ProcessingStepStatus
 import com.bftcom.docgenerator.rag.api.ProcessingStepType
 import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
 import com.bftcom.docgenerator.rag.api.QueryProcessingContext
 import org.slf4j.LoggerFactory
-import org.springframework.ai.chat.client.ChatClient
-import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 
 /**
- * Шаг расширения запроса (query expansion).
- * Генерирует дополнительные варианты запроса для более широкого поиска.
+ * Шаг расширения запроса (query expansion) с использованием synonym_dictionary.
+ * 
+ * Процесс:
+ * 1. Генерирует эмбеддинг исходного запроса
+ * 2. Ищет топ-3 кандидата по term_embedding
+ * 3. Валидирует семантическое сходство: сравнивает эмбеддинг запроса с desc_embedding кандидатов
+ * 4. Фильтрует по порогу косинусного сходства >0.7
+ * 5. Формирует расширенный запрос: Original Query + (Контекст: [синонимы])
+ * 6. Всегда переходит к VECTOR_SEARCH
  */
 @Component
 class ExpansionStep(
-    @param:Qualifier("ragChatClient")
-    private val chatClient: ChatClient,
+    private val synonymRepo: SynonymDictionaryRepository,
+    private val embeddingClient: EmbeddingClient,
+    @param:Value("\${docgen.rag.expansion.top-k:3}")
+    private val topK: Int = 3,
+    @param:Value("\${docgen.rag.expansion.similarity-threshold:0.7}")
+    private val similarityThreshold: Double = 0.7,
 ) : QueryStep {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -35,63 +47,109 @@ class ExpansionStep(
             )
         }
 
-        val expansionPrompt = """
-            Сгенерируй 3-5 альтернативных формулировок следующего запроса для поиска в технической документации.
-            Каждая формулировка должна быть на отдельной строке.
-            Сохраняй точные названия классов, методов и технических терминов БЕЗ ИЗМЕНЕНИЙ.
-            Не включай оригинальный запрос в список.
-            Не добавляй нумерацию или маркеры.
-            
-            Оригинальный запрос: $currentQuery
-            
-            Альтернативные формулировки:
-        """.trimIndent()
+        try {
+            // 1. Генерируем эмбеддинг исходного запроса
+            val queryEmbedding = embeddingClient.embed(currentQuery)
+            val queryEmbeddingStr = queryEmbedding.joinToString(",", "[", "]") { it.toString() }
 
-        val expansionResponse = try {
-            chatClient
-                .prompt()
-                .user(expansionPrompt)
-                .call()
-                .content()
-                ?.trim()
+            // 2. Ищем топ-3 кандидата по term_embedding
+            val candidates = synonymRepo.findTopByTermEmbedding(
+                queryEmbedding = queryEmbeddingStr,
+                topK = topK,
+            )
+
+            if (candidates.isEmpty()) {
+                log.debug("ExpansionStep: не найдено кандидатов для запроса '{}'", currentQuery)
+                return StepResult(
+                    context = context.setMetadata(QueryMetadataKeys.EXPANDED, true),
+                    transitionKey = "SUCCESS",
+                )
+            }
+
+            // 3. Валидируем семантическое сходство: фильтруем по desc_embedding с порогом >0.7
+            val validated = synonymRepo.findByDescEmbeddingWithThreshold(
+                queryEmbedding = queryEmbeddingStr,
+                threshold = similarityThreshold,
+            )
+
+            // Берем только те, что есть и в топ-3 по term_embedding, и в отфильтрованных по desc_embedding
+            val candidateIds = candidates.map { it.getId() }.toSet()
+            val validatedSynonyms = validated
+                .filter { it.getId() in candidateIds }
+                .take(topK)
+
+            if (validatedSynonyms.isEmpty()) {
+                log.debug(
+                    "ExpansionStep: не найдено валидных синонимов (порог={}) для запроса '{}'",
+                    similarityThreshold,
+                    currentQuery
+                )
+                return StepResult(
+                    context = context.setMetadata(QueryMetadataKeys.EXPANDED, true),
+                    transitionKey = "SUCCESS",
+                )
+            }
+
+            // 4. Формируем расширенный запрос: Original Query + (Контекст: [синонимы])
+            val synonymContext = validatedSynonyms
+                .map { "${it.getTerm()}: ${it.getDescription()}" }
+                .joinToString("; ")
+
+            val expandedQuery = if (synonymContext.isNotBlank()) {
+                "$currentQuery (Контекст: [$synonymContext])"
+            } else {
+                currentQuery
+            }
+
+            val synonymsInfo = validatedSynonyms.map { mapOf(
+                "term" to it.getTerm(),
+                "description" to it.getDescription(),
+                "nodeId" to it.getSourceNodeId(),
+            ) }
+
+            // 5. Обновляем контекст
+            val updatedContext = context
+                .updateQuery(expandedQuery)
+                .setMetadata(QueryMetadataKeys.EXPANDED, true)
+                .setMetadata(QueryMetadataKeys.EXPANDED_SYNONYMS, synonymsInfo)
+                .addStep(
+                    ProcessingStep(
+                        advisorName = "ExpansionStep",
+                        input = currentQuery,
+                        output = "Найдено ${validatedSynonyms.size} релевантных синонимов. Расширенный запрос: $expandedQuery",
+                        stepType = type,
+                        status = ProcessingStepStatus.SUCCESS,
+                    ),
+                )
+
+            log.debug(
+                "ExpansionStep: расширен запрос '{}' с {} синонимами",
+                currentQuery,
+                validatedSynonyms.size
+            )
+
+            return StepResult(
+                context = updatedContext,
+                transitionKey = "SUCCESS",
+            )
         } catch (e: Exception) {
-            log.warn("Ошибка при расширении запроса: {}", e.message)
-            null
-        }
-
-        val updatedContext = if (expansionResponse != null && expansionResponse.isNotBlank()) {
-            val expandedQueries = expansionResponse
-                .lines()
-                .map { it.trim() }
-                .filter { it.isNotBlank() && it != currentQuery }
-                .distinct()
-                .take(5) // Ограничиваем до 5 вариантов
-
-            if (expandedQueries.isNotEmpty()) {
-                context
+            log.warn("ExpansionStep: ошибка при расширении запроса '{}': {}", currentQuery, e.message, e)
+            // При ошибке продолжаем с оригинальным запросом
+            return StepResult(
+                context = context
                     .setMetadata(QueryMetadataKeys.EXPANDED, true)
-                    .setMetadata(QueryMetadataKeys.EXPANDED_QUERIES, expandedQueries)
                     .addStep(
                         ProcessingStep(
                             advisorName = "ExpansionStep",
                             input = currentQuery,
-                            output = "Сгенерировано ${expandedQueries.size} альтернативных формулировок",
+                            output = "Ошибка расширения: ${e.message}. Используется оригинальный запрос",
                             stepType = type,
                             status = ProcessingStepStatus.SUCCESS,
                         ),
-                    )
-            } else {
-                context
-            }
-        } else {
-            context
+                    ),
+                transitionKey = "SUCCESS",
+            )
         }
-
-        // После расширения переходим к VECTOR_SEARCH
-        return StepResult(
-            context = updatedContext,
-            transitionKey = "SUCCESS",
-        )
     }
 
     override fun getTransitions(): Map<String, ProcessingStepType> {

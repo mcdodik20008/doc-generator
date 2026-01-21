@@ -3,6 +3,8 @@ package com.bftcom.docgenerator.domain.nodedoc
 import com.bftcom.docgenerator.domain.node.Node
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.Id
 import jakarta.persistence.IdClass
@@ -40,6 +42,10 @@ class NodeDoc(
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "model_meta", columnDefinition = "jsonb", nullable = false)
     var modelMeta: Map<String, Any> = emptyMap(),
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "synonym_status", nullable = false)
+    var synonymStatus: SynonymStatus = SynonymStatus.PENDING,
 
     @Column(name = "updated_at", nullable = false)
     var updatedAt: OffsetDateTime = OffsetDateTime.now(),

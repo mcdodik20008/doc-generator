@@ -135,4 +135,57 @@ class AiClientsConfig {
                 .defaultAdvisors(loggingAdvisor)
                 .build()
     }
+
+    /**
+     * Клиент для структурированного извлечения данных (Entity/Relation Extraction).
+     * Использует модель 1.5b, которая обеспечивает баланс между скоростью и
+     * гарантией корректности JSON-структуры.
+     */
+    @Bean
+    @Qualifier("structuredExtractionChatClient")
+    fun structuredExtractionChatClient(
+        ollamaApi: OpenAiApi,
+        loggingAdvisor: ChatClientLoggingAdvisor,
+    ): ChatClient {
+        val model = OpenAiChatModel.builder()
+            .openAiApi(ollamaApi)
+            .defaultOptions(
+                OpenAiChatOptions.builder()
+                    .model("qwen2.5:1.5b") // Оптимально для извлечения пар term-description
+                    .temperature(0.0)      // Строгая детерминированность
+                    .topP(0.1)            // Минимизируем разброс токенов для JSON
+                    .build()
+            )
+            .build()
+
+        return ChatClient.builder(model)
+            .defaultAdvisors(loggingAdvisor)
+            .build()
+    }
+
+    /**
+     * Fast-Check клиент для LLM-Судьи (Quality Gate этап 2).
+     * Использует быструю модель Qwen 1.5B для проверки наличия бизнес-логики.
+     */
+    @Bean
+    @Qualifier("fastCheckChatClient")
+    fun fastCheckChatClient(
+        ollamaApi: OpenAiApi,
+        loggingAdvisor: ChatClientLoggingAdvisor,
+    ): ChatClient {
+        val model = OpenAiChatModel.builder()
+            .openAiApi(ollamaApi)
+            .defaultOptions(
+                OpenAiChatOptions.builder()
+                    .model("qwen2.5:1.5b") // Qwen 1.5B для быстрой проверки
+                    .temperature(0.0)      // Детерминированность для YES/NO ответов
+                    .topP(0.1)
+                    .build()
+            )
+            .build()
+
+        return ChatClient.builder(model)
+            .defaultAdvisors(loggingAdvisor)
+            .build()
+    }
 }

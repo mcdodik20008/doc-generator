@@ -2,6 +2,7 @@ package com.bftcom.docgenerator.db
 
 import com.bftcom.docgenerator.domain.nodedoc.NodeDoc
 import com.bftcom.docgenerator.domain.nodedoc.NodeDocId
+import com.bftcom.docgenerator.domain.nodedoc.SynonymIndexerRow
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
@@ -92,5 +93,47 @@ interface NodeDocRepository : JpaRepository<NodeDoc, NodeDocId> {
         nativeQuery = true,
     )
     fun lockNextBatchForChunkSync(@Param("limit") limit: Int): List<DocChunkSyncRow>
+
+    /**
+     * Выборка батча узлов для обработки в словарь синонимов.
+     * Исправлено: имя параметра :batchSize теперь совпадает с @Param.
+     */
+    @Modifying
+    @Query(
+        value = """
+            UPDATE doc_generator.node_doc
+            SET synonym_status = 'PROCESSING',
+                updated_at = NOW() 
+            WHERE (node_id, locale) IN (
+                SELECT node_id, locale FROM doc_generator.node_doc
+                WHERE synonym_status = 'PENDING'
+                ORDER BY updated_at ASC
+                LIMIT :batchSize
+                FOR UPDATE SKIP LOCKED
+            )
+            RETURNING node_id as nodeId, doc_tech as docTech
+        """, nativeQuery = true
+    )
+    fun lockNextBatchForSynonymIndexing(@Param("batchSize") batchSize: Int): List<SynonymIndexerRow>
+
+    /**
+     * Обновление статуса обработки синонимов для узла.
+     */
+    @Modifying
+    @Query(
+        value = """
+            update doc_generator.node_doc
+            set synonym_status = :status,
+                updated_at = now()
+            where node_id = :nodeId
+              and locale = :locale
+        """,
+        nativeQuery = true,
+    )
+    fun updateSynonymStatus(
+        @Param("nodeId") nodeId: Long,
+        @Param("locale") locale: String,
+        @Param("status") status: String,
+    ): Int
 }
 

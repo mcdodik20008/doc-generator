@@ -13,6 +13,7 @@ enum class QueryMetadataKeys(val key: String) {
         // Расширение запроса
         EXPANDED("expanded"),
         EXPANDED_QUERIES("expandedQueries"),
+        EXPANDED_SYNONYMS("expandedSynonyms"),
 
         // Нормализация
         NORMALIZED("normalized"),

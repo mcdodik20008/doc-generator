@@ -123,4 +123,22 @@
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
+
+    <changeSet id="13-add-synonym-dictionary" author="kaspshitskii">
+        <sqlFile
+                path="migration/13_add_synonym_dictionary.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
+
+    <changeSet id="14-add-synonym-status-to-node-doc" author="kaspshitskii">
+        <sqlFile
+                path="migration/14_add_synonym_status_to_node_doc.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
 </databaseChangeLog>
