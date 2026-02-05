@@ -31,18 +31,61 @@ class ChunkPostprocessScheduler(
 
     @Scheduled(fixedDelayString = "\${docgen.post.poll-ms:5000}")
     fun poll() {
-        val batch = tx.execute { lockBatch() } ?: throw RuntimeException("Не получилось вычитать из бдхи")
-        if (batch.isEmpty()) {
-            return
-        }
-        log.info("Postprocess chain: {} chunks", batch.size)
+        try {
+            val batch = tx.execute { lockBatch() }
+                ?: throw IllegalStateException("Failed to acquire batch lock from database - transaction returned null")
 
-        batch.forEach { ch ->
-            try {
-                orchestrator.processOne(ch)
-            } catch (t: Throwable) {
-                log.warn("Chain failed for chunk id={}", ch.id, t)
+            if (batch.isEmpty()) {
+                return
             }
+
+            log.info("Postprocess chain: processing {} chunks", batch.size)
+
+            var successCount = 0
+            var errorCount = 0
+            val failedChunks = mutableListOf<Pair<Long, String>>() // Сохраняем информацию об ошибках
+
+            // TODO: forEach обрабатывает все чанки последовательно - можно распараллелить
+            batch.forEach { ch ->
+                try {
+                    orchestrator.processOne(ch)
+                    successCount++
+                } catch (e: Exception) {
+                    errorCount++
+                    val errorType = e.javaClass.simpleName
+                    val errorMsg = e.message ?: "Unknown error"
+
+                    // Сохраняем информацию для метрик и потенциального retry
+                    failedChunks.add(ch.id to errorType)
+
+                    // Логируем с полным контекстом для отладки
+                    log.error(
+                        "Postprocess failed: chunkId={}, errorType={}, message={}, applicationId={}, nodeId={}",
+                        ch.id,
+                        errorType,
+                        errorMsg,
+                        ch.application?.id,
+                        ch.node?.id,
+                        e
+                    )
+                }
+            }
+
+            if (failedChunks.isNotEmpty()) {
+                log.warn(
+                    "Postprocess batch completed with errors: success={}, errors={}, total={}, failedChunkIds={}",
+                    successCount,
+                    errorCount,
+                    batch.size,
+                    failedChunks.take(10).map { it.first } // Показываем первые 10 для краткости
+                )
+            } else {
+                log.info("Postprocess batch completed successfully: success={}, total={}", successCount, batch.size)
+            }
+
+        } catch (e: Exception) {
+            log.error("Critical error in postprocess scheduler poll cycle", e)
+            // Не пробрасываем исключение, чтобы scheduler продолжил работу
         }
     }
 }

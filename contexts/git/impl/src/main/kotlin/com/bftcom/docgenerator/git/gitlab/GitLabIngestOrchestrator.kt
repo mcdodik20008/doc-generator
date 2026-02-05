@@ -44,7 +44,9 @@ class GitLabIngestOrchestrator(
         val localPath = summary.localPath
         val headSha = summary.afterHead
 
+        // TODO: Нет обработки ошибок при парсинге URL - если формат невалидный, упадет с exception
         val parsed: RepoInfo = RepoUrlParser.parse(summary.repoUrl)
+        // TODO: Нет валидации что getOrCreateApp вернул валидный объект
         val app: Application =
             getOrCreateApp(
                 appKey = appKey,
@@ -53,12 +55,17 @@ class GitLabIngestOrchestrator(
                 branch = branch,
                 headSha = headSha,
             )
+        // TODO: Нет обработки ошибок при сохранении в БД
         val savedApp = appRepo.save(app)
         log.info("📇 Using application id={} key={}", savedApp.id, savedApp.key)
 
         // --- 4) Выбиваем classpath из gradle-проектов внутри checkout ---
         log.info("Scanning for Gradle projects (gradlew) within [{}]...", localPath)
 
+        // TODO: Files.walk может быть очень медленным для больших репозиториев с множеством файлов
+        // TODO: Нет обработки исключений при обходе директорий (может упасть на broken symlinks)
+        // TODO: Нет ограничения глубины обхода - может зайти в node_modules или другие большие директории
+        // TODO: Рассмотреть использование Files.walk с depth limit или find с maxDepth
         val gradleProjectDirs =
             Files
                 .walk(localPath)
@@ -67,12 +74,16 @@ class GitLabIngestOrchestrator(
                 .distinct()
                 .toList()
 
+        // TODO: Нет обработки ошибок если gradleResolver.resolveClasspath упадет
+        // TODO: flatMap может вернуть пустой список если все проекты failed to resolve
         val classpath: List<File> =
             if (gradleProjectDirs.isEmpty()) {
                 log.warn("No 'gradlew' files found in [{}]. Cannot resolve classpath.", localPath)
                 emptyList()
             } else {
                 log.info("Found ${gradleProjectDirs.size} Gradle project(s): $gradleProjectDirs")
+                // TODO: Последовательная обработка проектов - можно распараллелить для ускорения
+                // TODO: Нет timeout для resolveClasspath - может зависнуть на сломанном проекте
                 gradleProjectDirs
                     .flatMap { projectDir -> gradleResolver.resolveClasspath(projectDir) }
                     .distinct()
@@ -86,6 +97,9 @@ class GitLabIngestOrchestrator(
 
         // --- 5) async library build via event ---
         log.info("Publishing LibraryBuildRequestedEvent for application id={} key={}", savedApp.id, savedApp.key)
+        // TODO: Использование !! оператора небезопасно - savedApp.id может быть null
+        // TODO: Нет обработки ошибок при публикации события
+        // TODO: Нет проверки что event listener зарегистрирован
         eventPublisher.publishEvent(
             LibraryBuildRequestedEvent(
                 applicationId = savedApp.id!!,

@@ -141,4 +141,13 @@
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
+
+    <changeSet id="15-add-trigram-indexes" author="claude">
+        <sqlFile
+                path="migration/15_add_trigram_indexes.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
 </databaseChangeLog>

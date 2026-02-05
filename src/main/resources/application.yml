@@ -2,26 +2,26 @@ server:
   port: 8080
 
 gitlab:
-  url: ${GITLAB_URL}
-  token: ${GITLAB_TOKEN}
-  username: ${GITLAB_USER_NAME}
-  password: ${GITLAB_PASSWORD}
-  base-path: ${GITLAB_STORE_PATH}
+  url: ${GITLAB_URL:}
+  token: ${GITLAB_TOKEN:}
+  username: ${GITLAB_USER_NAME:}
+  password: ${GITLAB_PASSWORD:}
+  base-path: ${GITLAB_STORE_PATH:./data/repos/gitlab}
 
 github:
   url: ${GITHUB_URL:https://github.com}
-  token: ${GITHUB_TOKEN}
-  username: ${GITHUB_USER_NAME}
-  password: ${GITHUB_PASSWORD}
-  base-path: ${GITHUB_STORE_PATH:/tmp/docgen/github}
+  token: ${GITHUB_TOKEN:}
+  username: ${GITHUB_USER_NAME:}
+  password: ${GITHUB_PASSWORD:}
+  base-path: ${GITHUB_STORE_PATH:./data/repos/github}
 
 spring:
   application:
     name: doc-generator
   datasource:
-    url: jdbc:postgresql://localhost:5434/docgen
-    username: docgen
-    password: docgen
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5434}/${DB_NAME:docgen}
+    username: ${DB_USERNAME:docgen}
+    password: ${DB_PASSWORD:docgen}
   liquibase:
     change-log: classpath:/liquibase/db.changelog-master.xml
 
@@ -30,9 +30,9 @@ spring:
       hibernate.type.preferred_json_mapper: jackson
   ai:
     openai:
-      # OLLAMA_HOSTNAME_LOCAL
-      base-url: http://${OLLAMA_HOSTNAME:localhost}:11434
-      api-key: dummy
+      # Используется для Ollama совместимости с OpenAI API
+      base-url: http://${OLLAMA_HOSTNAME:localhost}:${OLLAMA_PORT:11434}
+      api-key: ${OLLAMA_API_KEY:dummy}
       chat:
         options:
           model: qwen2.5:0.5b
@@ -49,10 +49,13 @@ spring:
 
     clients:
       coder:
+        # TODO: Hardcoded модель - рассмотреть конфигурирование через переменные окружения
         model: qwen2.5-coder:14b # qwen2.5-coder:32b - 48gb
         temperature: 0.1
         top-p: 0.9
         seed: 42
+        # TODO: System prompt на русском языке - нужна интернационализация
+        # TODO: Промпт очень длинный - рассмотреть вынос в отдельный файл
         system: |
           Ты — строгий инженер-кодер. Объясняй код без домыслов, пунктами, лаконично.
           Структура: Purpose; Inputs; Outputs; Throws; SideEffects; Preconditions; Postconditions;
@@ -125,9 +128,17 @@ logging:
 
 docgen:
   post:
+    # TODO: batch-size: 50 - нет валидации диапазона (может быть 0 или миллион)
     batch-size: 50
   embed:
+    # TODO: enabled: true - нет объяснения что это включает/выключает
+    # TODO: Если disabled, может вызвать неожиданное поведение в других компонентах
     enabled: true
+  graph:
+    # Максимальное количество узлов для загрузки при линковке графа
+    # Защита от OOM при обработке очень больших графов
+    # Если узлов больше, будут загружены только первые max-nodes
+    max-nodes: 100000
 
 springdoc:
   api-docs.enabled: true

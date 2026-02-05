@@ -43,30 +43,68 @@ class GraphLinkerImpl(
         private val callEdgeLinker: CallEdgeLinker,
         private val throwEdgeLinker: ThrowEdgeLinker,
         private val integrationEdgeLinker: IntegrationEdgeLinker,
+        @org.springframework.beans.factory.annotation.Value("\${docgen.graph.max-nodes:100000}")
+        private val maxNodesToLoad: Int,
 ) : GraphLinker {
     companion object {
         private val log = LoggerFactory.getLogger(GraphLinker::class.java)
     }
 
     @Transactional
+    // TODO: @Transactional на методе который может выполняться очень долго - риск database timeout
+    // TODO: Для больших графов транзакция может держать locks слишком долго
+    // TODO: Рассмотреть разбиение на несколько транзакций или использование batch processing
     override fun link(application: Application) {
         val startTime = System.currentTimeMillis()
         val runtime = Runtime.getRuntime()
+        // TODO: Измерение памяти через Runtime неточное - включает весь heap, а не только этот процесс
+        // TODO: GC может сработать между измерениями и исказить результаты
         val startMem = runtime.totalMemory() - runtime.freeMemory()
 
         log.info("Starting graph linking for app [id=${application.id}]...")
 
         // 1. Загрузка узлов
-        val all = nodeRepo.findAllByApplicationId(application.id!!, Pageable.ofSize(Int.MAX_VALUE))
+        // TODO: Использование !! оператора небезопасно - application.id может быть null
+        // TODO: Рассмотреть батчевую обработку или streaming для больших графов (требует рефакторинга индекса)
+        // TODO: Нет обработки ошибок при загрузке из БД
+        val appId = requireNotNull(application.id) { "Application ID cannot be null" }
+
+        val all = nodeRepo.findAllByApplicationId(appId, Pageable.ofSize(maxNodesToLoad))
+
         if (all.isEmpty()) {
             log.warn("No nodes found; skipping.")
             return
         }
+
+        if (all.size >= maxNodesToLoad) {
+            log.warn(
+                "WARNING: Loaded maximum allowed nodes ($maxNodesToLoad). " +
+                "There may be more nodes in the database. " +
+                "Consider increasing docgen.graph.max-nodes configuration or implementing batch processing."
+            )
+        }
+
         log.info("Fetched ${all.size} total nodes to link.")
 
         // 2. Создание индекса
-        val index = nodeIndexFactory.createMutable(all)
-        fun metaOf(n: Node): NodeMeta = objectMapper.convertValue(n.meta, NodeMeta::class.java)
+        val index = try {
+            nodeIndexFactory.createMutable(all)
+        } catch (e: Exception) {
+            log.error("Failed to create node index for app [id=${application.id}]: ${e.message}", e)
+            throw IllegalStateException("Cannot proceed with graph linking - index creation failed", e)
+        }
+        // TODO: Нет кеширования результатов конверсии - каждый раз создается новый объект
+        fun metaOf(n: Node): NodeMeta {
+            return try {
+                objectMapper.convertValue(n.meta, NodeMeta::class.java)
+            } catch (e: IllegalArgumentException) {
+                log.warn("Failed to convert node metadata: nodeId=${n.id}, fqn=${n.fqn}, error=${e.message}")
+                NodeMeta() // Возвращаем пустой NodeMeta при ошибке конверсии
+            } catch (e: Exception) {
+                log.error("Unexpected error converting node metadata: nodeId=${n.id}, fqn=${n.fqn}", e)
+                NodeMeta()
+            }
+        }
 
         // 3. Структурная линковка (последовательно, так как требует полного обзора)
         val structuralStart = System.currentTimeMillis()
@@ -81,18 +119,29 @@ class GraphLinkerImpl(
         val progressStep = (all.size / 20).coerceAtLeast(1) // Логируем каждые 5%
         val processedCount = java.util.concurrent.atomic.AtomicInteger(0)
 
-        val results =
-                all.parallelStream()
-                        .map { node ->
-                            val currentCount = processedCount.incrementAndGet()
-                            if (currentCount % progressStep == 0) {
-                                val percent = (currentCount * 100.0 / all.size).toInt()
-                                log.info("Linking progress: $percent% ($currentCount/${all.size})")
-                            }
+        // TODO: Нет timeout для обработки - если один узел зависнет, вся операция зависнет
+        // TODO: metaOf вызывается для каждого node в параллельных потоках - возможны проблемы с ObjectMapper thread safety
+        // Используем контролируемый thread pool для предотвращения перегрузки системы
+        val parallelism = Runtime.getRuntime().availableProcessors().coerceAtMost(8)
+        val customPool = java.util.concurrent.ForkJoinPool(parallelism)
 
-                            linkSingleNode(node, metaOf(node), index, application)
+        val results = try {
+            customPool.submit<List<NodeLinkResult>> {
+                all.parallelStream()
+                    .map { node ->
+                        val currentCount = processedCount.incrementAndGet()
+                        if (currentCount % progressStep == 0) {
+                            val percent = (currentCount * 100.0 / all.size).toInt()
+                            log.info("Linking progress: $percent% ($currentCount/${all.size})")
                         }
-                        .toList()
+
+                        linkSingleNode(node, metaOf(node), index, application)
+                    }
+                    .toList()
+            }.get()
+        } finally {
+            customPool.shutdown()
+        }
 
         val parallelDuration = System.currentTimeMillis() - parallelStart
         log.info("Parallel linking completed in ${parallelDuration}ms")
@@ -104,6 +153,9 @@ class GraphLinkerImpl(
         var callsErrors = 0
 
         edges += structuralEdges
+        // TODO: Ошибки только подсчитываются, но не логируются детально (теряется контекст какие узлы failed)
+        // TODO: Нет retry логики для failed узлов
+        // TODO: При большом количестве errors нет механизма для остановки процесса (fail-fast)
         results.forEach { result ->
             edges += result.edges
             newlyCreatedNodes += result.newNodes

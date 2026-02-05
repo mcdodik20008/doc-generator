@@ -123,13 +123,16 @@ class EmbeddingHandler(
                     Thread.sleep(actualDelay)
                 } catch (ie: InterruptedException) {
                     Thread.currentThread().interrupt()
-                    throw RuntimeException("Interrupted during retry delay", ie)
+                    throw IllegalStateException("Interrupted during retry delay for chunk $chunkId", ie)
                 }
             }
         }
 
         // Не должно сюда дойти, но на всякий случай
-        throw RuntimeException("Failed to embed after $maxRetryAttempts attempts", lastException)
+        throw IllegalStateException(
+            "Failed to embed chunk $chunkId after $maxRetryAttempts attempts. Last error: ${lastException?.message}",
+            lastException
+        )
     }
 
     private fun isRetryableError(e: Throwable): Boolean {

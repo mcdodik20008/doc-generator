@@ -23,6 +23,8 @@ class QueryExpansionAdvisor(
     override fun getOrder(): Int = 20
 
     override fun process(context: QueryProcessingContext): Boolean {
+        // TODO: Нет обработки ошибок - если метод упадет, вся цепочка обработки упадет
+        // TODO: Нет валидации currentQuery (может быть пустым или слишком длинным)
         val currentQuery = context.currentQuery
 
         // Пропускаем расширение, если уже было выполнено
@@ -30,24 +32,48 @@ class QueryExpansionAdvisor(
             return true
         }
 
+        // TODO: Prompt hardcoded в коде - должен быть в конфигурации или template файле
+        // TODO: Hardcoded числа "2-3" - должны быть в конфигурации
+        // TODO: Промпт на русском языке - нужна поддержка интернационализации
         val expansionPrompt = """
                         Для следующего запроса сгенерируй 2-3 альтернативные формулировки, которые могут помочь найти релевантную информацию.
                         Каждая формулировка должна быть на отдельной строке.
                         Используй синонимы, связанные термины и альтернативные способы выражения того же вопроса.
-                        
+
                         Оригинальный запрос: $currentQuery
-                        
+
                         Альтернативные формулировки (по одной на строку):
                 """.trimIndent()
 
-        val expansionResult = chatClient
-            .prompt()
-            .user(expansionPrompt)
-            .call()
-            .content()
-            ?.trim()
-            ?: ""
+        // TODO: Нет обработки ошибок - если LLM недоступен, advisor упадет
+        // TODO: Нет retry логики для временных ошибок
+        // TODO: Нет кеширования результатов для одинаковых запросов
+        val expansionResult = try {
+            java.util.concurrent.CompletableFuture.supplyAsync {
+                chatClient
+                    .prompt()
+                    .user(expansionPrompt)
+                    .call()
+                    .content()
+                    ?.trim()
+            }
+                .orTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .exceptionally { ex ->
+                    org.slf4j.LoggerFactory.getLogger(javaClass)
+                        .warn("Query expansion LLM call failed or timed out: ${ex.message}")
+                    null
+                }
+                .get()
+                ?: ""
+        } catch (e: Exception) {
+            org.slf4j.LoggerFactory.getLogger(javaClass)
+                .error("Error during query expansion LLM call: ${e.message}", e)
+            ""
+        }
 
+        // TODO: Парсинг по lines() может не сработать если LLM вернул нумерованный список или bullet points
+        // TODO: Нет валидации что expandedQueries действительно релевантны исходному запросу
+        // TODO: Hardcoded limit take(3) - должен быть в конфигурации
         val expandedQueries = expansionResult
             .lines()
             .map { it.trim() }
@@ -55,6 +81,7 @@ class QueryExpansionAdvisor(
             .take(3)
 
         if (expandedQueries.isNotEmpty()) {
+            // TODO: Нет проверки что setMetadata и addStep выполнились успешно
             context.setMetadata(QueryMetadataKeys.EXPANDED, true)
             context.setMetadata(QueryMetadataKeys.EXPANDED_QUERIES, expandedQueries)
             context.addStep(
@@ -65,6 +92,8 @@ class QueryExpansionAdvisor(
                 ),
             )
         }
+        // TODO: Если expandedQueries пусто (LLM не смог расширить запрос), нет логирования этого случая
+        // TODO: Всегда возвращается true даже если расширение не удалось - может скрыть проблемы
 
         return true
     }

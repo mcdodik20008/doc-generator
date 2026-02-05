@@ -34,9 +34,13 @@ class ChunkBuildOrchestratorImpl(
     private val log = LoggerFactory.getLogger(javaClass)
 
     override fun start(req: ChunkBuildRequest): ChunkRunHandle {
+        // TODO: error() бросает IllegalStateException - использовать специфичное исключение
+        // TODO: Нет валидации req параметров перед использованием
         val strategy = strategies[req.strategy] ?: error("Unknown strategy: ${req.strategy}")
         val run = runStore.create(req.applicationId, req.strategy)
 
+        // TODO: MDC не очищается после завершения - может привести к утечке контекста в других запросах
+        // TODO: Использовать try-finally для очистки MDC
         MDC.put("runId", run.runId)
         MDC.put("appId", req.applicationId.toString())
         MDC.put("strategy", req.strategy)
@@ -46,6 +50,7 @@ class ChunkBuildOrchestratorImpl(
         var written = 0L
         var skipped = 0L
         var pages = 0
+        // TODO: Hardcoded 50 - вынести в константу MIN_BATCH_SIZE
         val pageSize = max(50, req.batchSize)
 
         try {
@@ -75,8 +80,11 @@ class ChunkBuildOrchestratorImpl(
                     ?.takeIf { it.isNotEmpty() }
             var page = 0
 
+            // TODO: while(true) без максимального лимита страниц - может работать очень долго
+            // TODO: Рассмотреть добавление максимального количества страниц для безопасности
             while (true) {
                 val pageReq = PageRequest.of(page, pageSize, Sort.by("id").ascending())
+                // TODO: Нет обработки ошибок при запросе к БД
                 val pageData =
                     if (kindsFilter.isNullOrEmpty()) {
                         nodeRepo.findAllByApplicationId(req.applicationId, pageReq)

@@ -24,10 +24,15 @@ class RagServiceImpl(
     private val log = LoggerFactory.getLogger(javaClass)
 
     override fun ask(query: String, sessionId: String): RagResponse {
+        // TODO: Нет валидации входных параметров (query может быть пустым или слишком длинным)
+        // TODO: Нет обработки ошибок - если graphRequestProcessor.process упадет, метод упадет
+        // TODO: Нет timeout для всей операции RAG - может зависнуть
         val processingContext = graphRequestProcessor.process(query, sessionId)
         val processingStatus = processingContext.getMetadata<String>(QueryMetadataKeys.PROCESSING_STATUS)
 
         if (processingStatus == ProcessingStepType.FAILED.name) {
+            // TODO: Hardcoded сообщение "Информация не найдена" - должно быть в конфигурации/i18n
+            // TODO: Нет информации о причине ошибки в ответе - пользователь не знает что пошло не так
             return RagResponse(
                 answer = "Информация не найдена",
                 sources = emptyList(),
@@ -39,11 +44,14 @@ class RagServiceImpl(
         log.info("RAG search: итоговых результатов = {}", searchResults.size)
 
         // Добавляем найденные узлы из точного поиска в начало контекста
+        // TODO: Нет обработки ошибок при конверсии типов через filterIsInstance
+        // TODO: Если в списке не Node объекты, они просто отфильтруются без предупреждения
         val exactNodes = processingContext.getMetadata<List<*>>(QueryMetadataKeys.EXACT_NODES)
         val exactNodesContext = if (exactNodes != null && exactNodes.isNotEmpty()) {
             val nodes = exactNodes.filterIsInstance<Node>()
             if (nodes.isNotEmpty()) {
                 log.debug("Добавляем {} найденных узлов в контекст", nodes.size)
+                // TODO: Нет обработки ошибок в formatNodes - может упасть если node имеет некорректные данные
                 formatNodes(nodes)
             } else {
                 ""
@@ -90,35 +98,53 @@ class RagServiceImpl(
             append(searchResults.joinToString("\n\n") { "Source [${it.id}]:\n${it.content}" })
         }
 
+        // TODO: Prompt hardcoded в коде - должен быть в конфигурации или template файле
+        // TODO: Промпт на русском языке - нужна поддержка интернационализации
         val prompt =
             """
             Ты — умный ассистент разработчика. Ответь на вопрос, используя только предоставленный контекст.
             Если в контексте нет информации, так и скажи.
-            
+
             ОБЯЗАТЕЛЬНО указывай источники информации в формате [ID], где ID — это идентификатор источника из контекста.
             Пример: "Этот метод используется в классе Foo [123]".
-            
+
             Контекст:
             $context
-            
+
             Вопрос:
             ${processingContext.originalQuery}
             """.trimIndent()
 
-        log.info(prompt)
+        log.debug("RAG prompt generated: query=${processingContext.originalQuery}, context_length=${context.length}")
+        // TODO: Нет обработки ошибок - если chatClient упадет, весь метод упадет
+        // TODO: Нет retry логики для временных ошибок LLM
         val response =
-            chatClient
-                .prompt()
-                .user(prompt)
-                .advisors { spec ->
-                    spec.param(
-                        DEFAULT_CONVERSATION_ID,
-                        sessionId
-                    )
+            try {
+                java.util.concurrent.CompletableFuture.supplyAsync {
+                    chatClient
+                        .prompt()
+                        .user(prompt)
+                        .advisors { spec ->
+                            spec.param(
+                                DEFAULT_CONVERSATION_ID,
+                                sessionId
+                            )
+                        }
+                        .call()
+                        .content()
                 }
-                .call()
-                .content()
-                ?: "Не удалось получить ответ."
+                    .orTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .exceptionally { ex ->
+                        log.error("LLM call failed or timed out: ${ex.message}", ex)
+                        null
+                    }
+                    .get()
+                    // TODO: Hardcoded fallback сообщение - должно быть в конфигурации
+                    ?: "Не удалось получить ответ."
+            } catch (e: Exception) {
+                log.error("Error during LLM call: ${e.message}", e)
+                "Не удалось получить ответ."
+            }
 
         // Формируем метаданные
         return RagResponse(
@@ -132,6 +158,7 @@ class RagServiceImpl(
     }
 
     private fun buildSearchResults(context: QueryProcessingContext): List<SearchResult> {
+        // TODO: Нет обработки ошибок при конверсии типов
         val filteredChunks = context.getMetadata<List<*>>(QueryMetadataKeys.FILTERED_CHUNKS)
             ?.filterIsInstance<SearchResult>()
             .orEmpty()
@@ -140,6 +167,9 @@ class RagServiceImpl(
             .orEmpty()
 
         val selected = if (filteredChunks.isNotEmpty()) filteredChunks else rawChunks
+        // TODO: Hardcoded limit take(5) - должен быть в конфигурации
+        // TODO: distinctBy может удалить релевантные дубликаты с разными similarity scores
+        // TODO: Сортировка и distinctBy выполняются на всем списке - может быть медленно для больших списков
         return selected
             .distinctBy { it.id }
             .sortedByDescending { it.similarity }

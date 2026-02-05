@@ -1,5 +1,6 @@
 import re
 import asyncio
+import logging
 from abc import ABC, abstractmethod
 from gigachat import GigaChat
 import google.generativeai as genai
@@ -9,6 +10,7 @@ import dashscope
 from http import HTTPStatus
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 JUDGE_PROMPT = """
 Ты — Senior Technical Writer. Оцени качество документации.
@@ -32,8 +34,8 @@ class BaseJudge(ABC):
             if match:
                 score = float(match.group())
                 return min(10.0, max(0.0, score))
-        except:
-            pass
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"Failed to extract score from text: {e}")
         return None
 
 class GigaChatJudge(BaseJudge):
@@ -41,8 +43,11 @@ class GigaChatJudge(BaseJudge):
         if not settings.GIGACHAT_CREDENTIALS: return None
         try:
             from gigachat.models import Chat, Messages, MessagesRole
-            
-            async with GigaChat(credentials=settings.GIGACHAT_CREDENTIALS, verify_ssl_certs=False) as giga:
+
+            async with GigaChat(
+                credentials=settings.GIGACHAT_CREDENTIALS,
+                verify_ssl_certs=settings.GIGACHAT_VERIFY_SSL
+            ) as giga:
                 payload = Chat(
                     messages=[
                         Messages(
@@ -55,9 +60,7 @@ class GigaChatJudge(BaseJudge):
                 response = await giga.achat(payload)
                 return self._extract_score(response.choices[0].message.content)
         except Exception as e:
-            print(f"GigaChat Error ({type(e).__name__}): {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"GigaChat Error: {e}", exc_info=True)
             return None
 
 class GeminiJudge(BaseJudge):
@@ -73,19 +76,35 @@ class GeminiJudge(BaseJudge):
             )
             return self._extract_score(response.text)
         except Exception as e:
-            print(f"Gemini Error ({type(e).__name__}): {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Gemini Error: {e}", exc_info=True)
             return None
 
 class OllamaJudge(BaseJudge):
+    # Константы для конфигурации
+    REQUEST_TIMEOUT = 30  # секунд
+
+    def __init__(self):
+        # Создаем ClientSession один раз для переиспользования
+        timeout = aiohttp.ClientTimeout(total=self.REQUEST_TIMEOUT)
+        self._session = aiohttp.ClientSession(timeout=timeout)
+
+    async def close(self):
+        """Закрывает ClientSession. Должен вызываться при завершении работы."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+
     async def evaluate(self, code: str, doc: str, temperature: float = 0.1) -> float | None:
+        # Валидация входных параметров
+        if not code or not doc:
+            logger.warning("Empty code or doc in OllamaJudge.evaluate")
+            return None
+
         # Убираем /v1 из OLLAMA_HOST если есть, и строим правильный URL
         base_url = settings.OLLAMA_HOST.rstrip('/').replace('/v1', '')
         url = f"{base_url}/api/chat"
 
         payload = {
-            "model": settings.OLLAMA_MODEL, # 'qwen2.5:0.5b'
+            "model": settings.OLLAMA_MODEL,
             "messages": [
                 {"role": "user", "content": JUDGE_PROMPT.format(code=code, doc=doc)}
             ],
@@ -96,31 +115,32 @@ class OllamaJudge(BaseJudge):
         }
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload) as response:
-                    if response.status != 200:
-                        error_text = await response.text()
-                        print(f"Ollama Error {response.status}: {error_text}")
-                        return None
+            # Используем переиспользуемую сессию вместо создания новой на каждый запрос
+            async with self._session.post(url, json=payload) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    logger.error(f"Ollama Error {response.status}: {error_text}")
+                    return None
 
-                    result = await response.json()
-                    content = result.get("message", {}).get("content", "")
+                result = await response.json()
+                content = result.get("message", {}).get("content", "")
 
-                    return self._extract_score(content)
+                return self._extract_score(content)
 
         except Exception as e:
-            print(f"Ollama Error ({type(e).__name__}): {e}")
-            import traceback
-            traceback.print_exc()
+            # TODO: Добавить retry логику для временных сетевых ошибок (ConnectionError, Timeout)
+            logger.error(f"Ollama Error: {e}", exc_info=True)
             return None
 
 class QwenJudge(BaseJudge):
-    async def evaluate(self, code: str, doc: str) -> float | None:
+    async def evaluate(self, code: str, doc: str, temperature: float = 0.1) -> float | None:
         if not settings.QWEN_API_KEY: return None
         dashscope.api_key = settings.QWEN_API_KEY
         try:
-            response = dashscope.Generation.call(
-                model=settings.QWEN_MODEL, # Или 'qwen-plus' (поумнее)
+            # Оборачиваем синхронный вызов в asyncio.to_thread для правильной async обработки
+            response = await asyncio.to_thread(
+                dashscope.Generation.call,
+                model=settings.QWEN_MODEL,  # Или 'qwen-plus' (поумнее)
                 messages=[
                     {'role': 'user', 'content': JUDGE_PROMPT.format(code=code, doc=doc)}
                 ],
@@ -131,9 +151,9 @@ class QwenJudge(BaseJudge):
                 content = response.output.choices[0]['message']['content']
                 return self._extract_score(content)
             else:
-                print(f"Qwen Error: {response.code} - {response.message}")
+                logger.error(f"Qwen Error: {response.code} - {response.message}")
                 return None
 
         except Exception as e:
-            print(f"Connection Error: {e}")
+            logger.error(f"Qwen Connection Error: {e}", exc_info=True)
             return None

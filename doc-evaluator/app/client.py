@@ -90,13 +90,15 @@ class DocEvaluatorClient:
     ):
         """
         Инициализирует клиент.
-        
+
         Args:
             base_url: URL сервиса doc-evaluator
             timeout: Таймаут для HTTP запросов в секундах
             log_level: Уровень логирования (logging.DEBUG, logging.INFO, etc.)
         """
+        # TODO: Нет валидации base_url (может быть невалидный URL)
         self.base_url = base_url.rstrip('/')
+        # TODO: Нет настройки отдельных таймаутов (connect, read, write) - только total
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         self._session: Optional[aiohttp.ClientSession] = None
         
@@ -171,22 +173,27 @@ class DocEvaluatorClient:
     ) -> EvaluationResult:
         """
         Оценивает качество документации для заданного кода.
-        
+
         Args:
             code_snippet: Исходный код (минимум 5 символов)
             generated_doc: Сгенерированная документация (минимум 5 символов)
-            
+
         Returns:
             Результат оценки с метриками и итоговым скором
-            
+
         Raises:
             ValidationError: Если входные данные невалидны
             ServiceUnavailableError: Если сервис недоступен
             APIError: При других ошибках API
         """
+        # TODO: Отсутствует retry логика для временных сетевых ошибок
+        # TODO: Отсутствует rate limiting (можно перегрузить сервер запросами)
+        # TODO: Нет кеширования результатов для одинаковых запросов
         await self._ensure_session()
-        
+
         # Валидация входных данных
+        # TODO: Магическое число 5 - вынести в константу MIN_INPUT_LENGTH
+        # TODO: Нет проверки максимальной длины (можно передать гигабайты текста)
         if len(code_snippet) < 5:
             raise ValidationError("Code snippet must be at least 5 characters long")
         if len(generated_doc) < 5:
@@ -229,6 +236,8 @@ class DocEvaluatorClient:
                 
                 else:
                     self.logger.error(f"API error {response.status}: {response_text}")
+                    # TODO: Обрезка response_text до 200 символов может потерять важную информацию об ошибке
+                    # TODO: Добавить полный текст ошибки в логи, а в исключение - сокращенный
                     raise APIError(
                         f"API returned status {response.status}: {response_text[:200]}"
                     )
