@@ -155,6 +155,9 @@ class NodeValidatorImplTest {
         "com.example.Class.method(() -> String)",
         "com.example.Class.method(() -> OffsetDateTime?)",
         "com.bftcom.rr.uds.service.impl.InactiveExecutorService.processBatch(OffsetDateTime?,() -> OffsetDateTime?)",
+        "com.example.Class.method((param: Int) -> String)",
+        "com.example.Class.method(suspend (pageNo: Int, pageSize: Int) -> C)",
+        "com.bftcom.rr.uds.service.impl.SiaServiceImpl.loadAllPageableData(MC,suspend (pageNo: Int, pageSize: Int) -> C)",
     ])
     fun `validate - валидные форматы FQN`(fqn: String) {
         assertThatCode {
