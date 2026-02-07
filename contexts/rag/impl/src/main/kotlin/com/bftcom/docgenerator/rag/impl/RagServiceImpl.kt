@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.chat.memory.ChatMemory.DEFAULT_CONVERSATION_ID
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
@@ -23,6 +24,10 @@ class RagServiceImpl(
     @Qualifier("ragChatClient")
     private val chatClient: ChatClient,
     private val graphRequestProcessor: GraphRequestProcessor,
+    @Value("\${docgen.rag.max-node-code-chars:3000}") private val maxNodeCodeChars: Int = 3000,
+    @Value("\${docgen.rag.max-context-chars:30000}") private val maxContextChars: Int = 30000,
+    @Value("\${docgen.rag.max-exact-nodes:5}") private val maxExactNodes: Int = 5,
+    @Value("\${docgen.rag.max-neighbor-nodes:10}") private val maxNeighborNodes: Int = 10,
 ) : RagService {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -72,9 +77,9 @@ class RagServiceImpl(
         // Добавляем найденные узлы из точного поиска в начало контекста
         val exactNodes = processingContext.getMetadata<List<*>>(QueryMetadataKeys.EXACT_NODES)
         val exactNodesContext = if (exactNodes != null && exactNodes.isNotEmpty()) {
-            val nodes = exactNodes.filterIsInstance<Node>()
+            val nodes = exactNodes.filterIsInstance<Node>().take(maxExactNodes)
             if (nodes.isNotEmpty()) {
-                log.debug("Добавляем {} найденных узлов в контекст", nodes.size)
+                log.debug("Добавляем {} найденных узлов в контекст (лимит {})", nodes.size, maxExactNodes)
                 formatNodes(nodes)
             } else {
                 ""
@@ -86,9 +91,9 @@ class RagServiceImpl(
         // Добавляем соседние узлы из расширения окрестности
         val neighborNodes = processingContext.getMetadata<List<*>>(QueryMetadataKeys.NEIGHBOR_NODES)
         val neighborNodesContext = if (neighborNodes != null && neighborNodes.isNotEmpty()) {
-            val nodes = neighborNodes.filterIsInstance<Node>()
+            val nodes = neighborNodes.filterIsInstance<Node>().take(maxNeighborNodes)
             if (nodes.isNotEmpty()) {
-                log.debug("Добавляем {} соседних узлов в контекст", nodes.size)
+                log.debug("Добавляем {} соседних узлов в контекст (лимит {})", nodes.size, maxNeighborNodes)
                 formatNodes(nodes)
             } else {
                 ""
@@ -121,6 +126,13 @@ class RagServiceImpl(
             append(searchResults.joinToString("\n\n") { "Source [${it.id}]:\n${it.content}" })
         }
 
+        val truncatedContext = if (context.length > maxContextChars) {
+            log.warn("RAG context truncated: {} -> {} chars", context.length, maxContextChars)
+            context.take(maxContextChars) + "\n... [контекст обрезан]"
+        } else {
+            context
+        }
+
         val prompt =
             """
             Ты — умный ассистент разработчика. Ответь на вопрос, используя только предоставленный контекст.
@@ -130,13 +142,13 @@ class RagServiceImpl(
             Пример: "Этот метод используется в классе Foo [123]".
 
             Контекст:
-            $context
+            $truncatedContext
 
             Вопрос:
             ${processingContext.originalQuery}
             """.trimIndent()
 
-        log.debug("RAG prompt generated: query=${processingContext.originalQuery}, context_length=${context.length}")
+        log.info("RAG prompt generated: query='{}', context_length={}, prompt_length={}", processingContext.originalQuery.take(80), truncatedContext.length, prompt.length)
         val response =
             try {
                 CompletableFuture.supplyAsync {
@@ -220,7 +232,15 @@ class RagServiceImpl(
                     append("Signature: ${node.signature}\n")
                 }
                 if (node.sourceCode != null) {
-                    append("Source Code:\n${node.sourceCode}\n")
+                    val code = node.sourceCode
+                    if (code != null) {
+                        val truncatedCode = if (code.length > maxNodeCodeChars) {
+                            code.take(maxNodeCodeChars) + "\n// ... [код обрезан]"
+                        } else {
+                            code
+                        }
+                        append("Source Code:\n$truncatedCode\n")
+                    }
                 }
                 if (node.docComment != null) {
                     append("Documentation:\n${node.docComment}\n")
