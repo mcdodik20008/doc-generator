@@ -502,12 +502,19 @@ async function fetchGraph(appId, kinds, limit, withRelations) {
     params.set('limit', String(limit));
     params.set('withRelations', String(withRelations));
     kinds.forEach(kind => params.append('kinds', kind));
-    const res = await fetch('/api/graph/chunks?' + params.toString());
+    const url = '/api/graph/chunks?' + params.toString();
+    console.log('[graph] GET', url);
+    const res = await fetch(url);
     if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error('Failed to load graph: ' + res.status + ' ' + text.substring(0, 200));
+        throw new Error('HTTP ' + res.status + ': ' + text.substring(0, 300));
     }
-    return res.json();
+    const json = await res.json();
+    console.log('[graph] Response:', json);
+    if (!json || !Array.isArray(json.nodes)) {
+        throw new Error('Unexpected response format: ' + JSON.stringify(json).substring(0, 300));
+    }
+    return json;
 }
 
 async function fetchExpand(nodeId, limit) {
@@ -515,23 +522,37 @@ async function fetchExpand(nodeId, limit) {
     params.set('nodeId', nodeId);
     params.set('limit', String(limit));
     const res = await fetch('/api/graph/chunks/expand?' + params.toString());
-    if (!res.ok) throw new Error('Failed to expand: ' + res.status);
-    return res.json();
+    if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error('HTTP ' + res.status + ': ' + text.substring(0, 300));
+    }
+    const json = await res.json();
+    if (!json || !Array.isArray(json.nodes)) {
+        throw new Error('Unexpected expand response: ' + JSON.stringify(json).substring(0, 300));
+    }
+    return json;
 }
 
 async function fetchDetails(id) {
     const res = await fetch('/api/chunks/' + encodeURIComponent(id));
-    if (!res.ok) throw new Error('Failed to load details: ' + res.status);
-    return res.json();
+    if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error('HTTP ' + res.status + ': ' + text.substring(0, 300));
+    }
+    return await res.json();
 }
 
 // ============================================================
 //  GRAPH OPERATIONS
 // ============================================================
 function toCyElements(graph) {
+    if (!graph) return { nodes: [], edges: [] };
+    const graphNodes = graph.nodes || [];
+    const graphEdges = graph.edges || [];
+
     const nodeSet = new Set();
     const nodes = [];
-    for (const n of graph.nodes) {
+    for (const n of graphNodes) {
         if (nodeSet.has(n.id)) continue;
         nodeSet.add(n.id);
         nodes.push({
@@ -547,7 +568,7 @@ function toCyElements(graph) {
 
     const edgeSet = new Set();
     const edges = [];
-    for (const e of graph.edges) {
+    for (const e of graphEdges) {
         if (edgeSet.has(e.id)) continue;
         // skip edges whose source or target is not in the graph
         if (!nodeSet.has(e.source) || !nodeSet.has(e.target)) continue;
