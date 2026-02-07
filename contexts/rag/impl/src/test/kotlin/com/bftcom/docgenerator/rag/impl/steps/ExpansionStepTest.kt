@@ -1,117 +1,144 @@
 package com.bftcom.docgenerator.rag.impl.steps
 
-import com.bftcom.docgenerator.rag.api.ProcessingStepType
-import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
-import com.bftcom.docgenerator.rag.api.QueryProcessingContext
-import io.mockk.every
-import io.mockk.mockk
+import com.bftcom.docgenerator.ai.embedding.EmbeddingClient
+import com.bftcom.docgenerator.db.SynonymDictionaryRepository
+import com.bftcom.docgenerator.rag.api.*
+import io.mockk.*
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import org.springframework.ai.chat.client.ChatClient
+import org.slf4j.LoggerFactory
 
 class ExpansionStepTest {
-    private val chatClient = mockk<ChatClient>()
-    private val step = ExpansionStep(chatClient)
 
-    @Test
-    fun `execute - генерирует расширенные запросы и переходит к VECTOR_SEARCH`() {
-        val currentQuery = "Как работает авторизация?"
-        val expansionResponse = """
-            Как устроена авторизация пользователей?
-            Проверка прав доступа в системе
-            Механизм аутентификации
-        """.trimIndent()
+    private val synonymRepo = mockk<SynonymDictionaryRepository>()
+    private val embeddingClient = mockk<EmbeddingClient>()
 
-        val callResponse = mockk<ChatClient.CallResponseSpec>()
-        every { callResponse.content() } returns expansionResponse
+    private val topK = 3
+    private val threshold = 0.7
 
-        val promptSpec = mockk<ChatClient.ChatClientRequestSpec>(relaxed = true, relaxUnitFun = true)
-        every { promptSpec.user(any<String>()) } returns promptSpec
-        every { promptSpec.call() } returns callResponse
-        every { chatClient.prompt() } returns promptSpec
+    private val step = ExpansionStep(
+        synonymRepo = synonymRepo,
+        embeddingClient = embeddingClient,
+        topK = topK,
+        similarityThreshold = threshold
+    )
 
-        val context = QueryProcessingContext(
-            originalQuery = currentQuery,
-            currentQuery = currentQuery,
-            sessionId = "s-1",
-        )
+    private val query = "Как настроить авторизацию?"
+    private val mockVector = floatArrayOf(0.1f, 0.2f)
+    private val vectorStr = "[0.1,0.2]"
 
-        val result = step.execute(context)
-
-        assertThat(result.transitionKey).isEqualTo("SUCCESS")
-        val expandedQueries = result.context.getMetadata<List<String>>(QueryMetadataKeys.EXPANDED_QUERIES)
-        assertThat(expandedQueries).isNotNull
-        assertThat(expandedQueries!!).hasSize(3)
-        assertThat(expandedQueries).doesNotContain(currentQuery)
-        assertThat(result.context.processingSteps).hasSize(1)
+    @BeforeEach
+    fun setUp() {
+        every { embeddingClient.embed(any()) } returns mockVector
     }
 
     @Test
-    fun `execute - пропускает если уже расширен`() {
-        val context = QueryProcessingContext(
-            originalQuery = "test",
-            currentQuery = "test",
-            sessionId = "s-1",
-        ).setMetadata(QueryMetadataKeys.EXPANDED, true)
+    @DisplayName("Успешное расширение: синоним прошел обе проверки (term и desc)")
+    fun `execute - success expansion when synonym passes both checks`() {
+        // Arrange
+        val synonym = createMockSynonym(1L, "Auth", "Механизм входа")
 
+        every { synonymRepo.findTopByTermEmbedding(vectorStr, topK) } returns listOf(synonym)
+        every { synonymRepo.findByDescEmbeddingWithThreshold(vectorStr, threshold) } returns listOf(synonym)
+
+        val context = QueryProcessingContext(query, query, "sid-1")
+
+        // Act
         val result = step.execute(context)
 
+        // Assert
         assertThat(result.transitionKey).isEqualTo("SUCCESS")
-        assertThat(result.context.processingSteps).isEmpty()
+        assertThat(result.context.currentQuery).contains("Auth: Механизм входа")
+        assertThat(result.context.hasMetadata(QueryMetadataKeys.EXPANDED)).isTrue()
+
+        val synonymsInfo = result.context.getMetadata<List<Map<String, Any>>>(QueryMetadataKeys.EXPANDED_SYNONYMS)
+        assertThat(synonymsInfo).hasSize(1)
+        assertThat(synonymsInfo!![0]["term"]).isEqualTo("Auth")
     }
 
     @Test
-    fun `execute - обрабатывает пустой ответ LLM`() {
-        val callResponse = mockk<ChatClient.CallResponseSpec>()
-        every { callResponse.content() } returns null
+    @DisplayName("Фильтрация: синоним есть в топ-N по терму, но не прошел порог по описанию")
+    fun `execute - filters out synonym if it fails description threshold`() {
+        // Arrange
+        val synonym = createMockSynonym(1L, "Auth", "Low similarity desc")
 
-        val promptSpec = mockk<ChatClient.ChatClientRequestSpec>(relaxed = true, relaxUnitFun = true)
-        every { promptSpec.user(any<String>()) } returns promptSpec
-        every { promptSpec.call() } returns callResponse
-        every { chatClient.prompt() } returns promptSpec
+        every { synonymRepo.findTopByTermEmbedding(vectorStr, topK) } returns listOf(synonym)
+        // Описание не проходит валидацию (возвращаем пустой список)
+        every { synonymRepo.findByDescEmbeddingWithThreshold(vectorStr, threshold) } returns emptyList()
 
-        val context = QueryProcessingContext(
-            originalQuery = "test",
-            currentQuery = "test",
-            sessionId = "s-1",
-        )
+        val context = QueryProcessingContext(query, query, "sid-1")
 
+        // Act
         val result = step.execute(context)
 
-        assertThat(result.transitionKey).isEqualTo("SUCCESS")
-        assertThat(result.context.hasMetadata(QueryMetadataKeys.EXPANDED_QUERIES)).isFalse
+        // Assert
+        assertThat(result.context.currentQuery).isEqualTo(query) // Запрос не изменился
+        assertThat(result.context.hasMetadata(QueryMetadataKeys.EXPANDED)).isTrue()
     }
 
     @Test
-    fun `execute - фильтрует пустые строки и текущий запрос`() {
-        val currentQuery = "Как работает авторизация?"
-        val expansionResponse = """
-            $currentQuery
-            
-            Как устроена авторизация?
-            
-            Проверка прав доступа
-        """.trimIndent()
+    @DisplayName("Пропуск шага: если в контексте уже стоит флаг EXPANDED")
+    fun `execute - skips if already expanded`() {
+        // Arrange
+        val context = QueryProcessingContext(query, query, "sid-1")
+            .setMetadata(QueryMetadataKeys.EXPANDED, true)
 
-        val callResponse = mockk<ChatClient.CallResponseSpec>()
-        every { callResponse.content() } returns expansionResponse
-
-        val promptSpec = mockk<ChatClient.ChatClientRequestSpec>(relaxed = true, relaxUnitFun = true)
-        every { promptSpec.user(any<String>()) } returns promptSpec
-        every { promptSpec.call() } returns callResponse
-        every { chatClient.prompt() } returns promptSpec
-
-        val context = QueryProcessingContext(
-            originalQuery = currentQuery,
-            currentQuery = currentQuery,
-            sessionId = "s-1",
-        )
-
+        // Act
         val result = step.execute(context)
 
-        val expandedQueries = result.context.getMetadata<List<String>>(QueryMetadataKeys.EXPANDED_QUERIES)
-        assertThat(expandedQueries).isNotNull
-        assertThat(expandedQueries!!).doesNotContain(currentQuery)
-        assertThat(expandedQueries).hasSize(2) // Только "Как устроена авторизация?" и "Проверка прав доступа"
+        // Assert
+        verify { embeddingClient wasNot Called }
+        assertThat(result.transitionKey).isEqualTo("SUCCESS")
+    }
+
+    @Test
+    @DisplayName("Отказоустойчивость: при ошибке БД возвращаем оригинальный запрос")
+    fun `execute - fallback to original query on repository exception`() {
+        // Arrange
+        every { synonymRepo.findTopByTermEmbedding(any(), any()) } throws RuntimeException("DB Down")
+
+        val context = QueryProcessingContext(query, query, "sid-1")
+
+        // Act
+        val result = step.execute(context)
+
+        // Assert
+        assertThat(result.transitionKey).isEqualTo("SUCCESS")
+        assertThat(result.context.currentQuery).isEqualTo(query)
+        val lastStep = result.context.processingSteps.last()
+        assertThat(lastStep.status).isEqualTo(ProcessingStepStatus.SUCCESS)
+        assertThat(lastStep.output).contains("Ошибка расширения")
+    }
+
+    @Test
+    @DisplayName("Количество синонимов: не более top-K даже если валидация вернула больше")
+    fun `execute - limits result to top-K`() {
+        // Arrange
+        val synonyms = (1..5).map { createMockSynonym(it.toLong(), "Term$it", "Desc$it") }
+
+        every { synonymRepo.findTopByTermEmbedding(vectorStr, topK) } returns synonyms.take(3)
+        every { synonymRepo.findByDescEmbeddingWithThreshold(vectorStr, threshold) } returns synonyms
+
+        val context = QueryProcessingContext(query, query, "sid-1")
+
+        // Act
+        val result = step.execute(context)
+
+        // Assert
+        val synonymsInfo = result.context.getMetadata<List<Map<String, Any>>>(QueryMetadataKeys.EXPANDED_SYNONYMS)
+        assertThat(synonymsInfo).hasSize(3)
+    }
+
+    // Вспомогательный метод для генерации мока интерфейса проекции
+    private fun createMockSynonym(id: Long, term: String, desc: String): SynonymDictionaryRepository.SynonymWithSimilarity {
+        return mockk {
+            every { getId() } returns id
+            every { getTerm() } returns term
+            every { getDescription() } returns desc
+            every { getSourceNodeId() } returns 100L
+            every { getModelName() } returns "test-model"
+        }
     }
 }

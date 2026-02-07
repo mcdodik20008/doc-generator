@@ -47,4 +47,6 @@ data class NodeMeta(
     val sourceHash: String? = null,
     /** Метаданные API endpoint'а (HTTP, GraphQL, gRPC, Message Broker и т.д.) */
     val apiMetadata: Map<String, Any>? = null,
+    /** Информация об интеграционных точках (HTTP, Kafka, Camel) из библиотечного анализа */
+    val libraryIntegration: Map<String, Any>? = null,
 )

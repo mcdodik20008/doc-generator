@@ -8,6 +8,9 @@ import com.bftcom.docgenerator.rag.api.QueryProcessingContext
 import com.bftcom.docgenerator.rag.impl.steps.QueryStep
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * Графовый процессор обработки запроса перед RAG.
@@ -23,9 +26,10 @@ class GraphRequestProcessor(
     companion object {
         private const val MAX_ITERATIONS = 20
         private const val SLOW_STEP_THRESHOLD_MS = 10_000L
+        private const val STEP_TIMEOUT_SECONDS = 30L
     }
 
-        fun process(originalQuery: String, sessionId: String): QueryProcessingContext {
+        fun process(originalQuery: String, sessionId: String, applicationId: Long? = null): QueryProcessingContext {
                 // Валидация входных параметров
                 if (originalQuery.isBlank()) {
                     log.warn("Empty query provided to GraphRequestProcessor")
@@ -36,13 +40,17 @@ class GraphRequestProcessor(
                     ).setMetadata(QueryMetadataKeys.PROCESSING_STATUS, ProcessingStepType.FAILED.name)
                 }
 
-                log.debug("Starting query processing: query='$originalQuery', sessionId='$sessionId'")
+                log.debug("Starting query processing: query='$originalQuery', sessionId='$sessionId', applicationId=$applicationId")
 
                 var context = QueryProcessingContext(
                         originalQuery = originalQuery,
                         currentQuery = originalQuery,
                         sessionId = sessionId,
                 )
+
+                if (applicationId != null) {
+                    context.setMetadata(QueryMetadataKeys.APPLICATION_ID, applicationId)
+                }
 
                 var currentStep = ProcessingStepType.NORMALIZATION
                 val visitedSteps = mutableSetOf<ProcessingStepType>()
@@ -54,30 +62,33 @@ class GraphRequestProcessor(
                                 return finalizeProcessing(context, currentStep)
                         }
 
-                        // TODO: Проверка на цикл хорошая, но не логирует полный путь цикла для отладки
                         if (!visitedSteps.add(currentStep)) {
-                                log.warn("Обнаружен цикл в графе обработки запроса: шаг {} уже выполнялся", currentStep)
-                                // TODO: Добавить в metadata информацию о пути выполнения для отладки
-                                return finalizeProcessing(context, ProcessingStepType.FAILED)
+                                log.warn("Обнаружен цикл в графе обработки запроса: шаг {} уже выполнялся. Путь: {}", currentStep, visitedSteps)
+                                val cycleContext = context.setMetadata("processing_path", visitedSteps.map { it.name })
+                                return finalizeProcessing(cycleContext, ProcessingStepType.FAILED)
                         }
 
                         val step = registry[currentStep]
                         if (step == null) {
-                                log.warn("Не найден обработчик шага {}, прекращаем обработку", currentStep)
-                                // TODO: Это конфигурационная ошибка, должна быть обработана при старте приложения, а не в runtime
+                                log.error("Не найден обработчик шага {}. Зарегистрированные шаги: {}. Прекращаем обработку", currentStep, registry.keys)
                                 return finalizeProcessing(context, ProcessingStepType.FAILED)
                         }
 
                         val startTime = System.currentTimeMillis()
                         val result = try {
-                                // TODO: Нет timeout для выполнения шага - шаг может зависнуть навсегда
-                                step.execute(context)
-                        } catch (e: Exception) {
-                                // TODO: Логирование с уровнем warn может быть недостаточно для критических ошибок
-                                // TODO: Stack trace логируется, но не сохраняется в контекст для пользователя
-                                log.warn("Ошибка на шаге {}: {}", currentStep, e.message ?: e.javaClass.simpleName, e)
+                                CompletableFuture.supplyAsync {
+                                    step.execute(context)
+                                }.orTimeout(STEP_TIMEOUT_SECONDS, TimeUnit.SECONDS).get()
+                        } catch (e: TimeoutException) {
+                                log.error("Шаг {} превысил timeout в {} секунд", currentStep, STEP_TIMEOUT_SECONDS)
                                 val errorKey = "${QueryMetadataKeys.ERROR_PREFIX.key}${currentStep.name}"
-                                val failedContext = context.setMetadata(errorKey, e.message ?: "Unknown error")
+                                val failedContext = context.setMetadata(errorKey, "Step timed out after ${STEP_TIMEOUT_SECONDS}s")
+                                return finalizeProcessing(failedContext, ProcessingStepType.FAILED)
+                        } catch (e: Exception) {
+                                val cause = e.cause ?: e
+                                log.error("Ошибка на шаге {}: {}", currentStep, cause.message ?: cause.javaClass.simpleName, cause)
+                                val errorKey = "${QueryMetadataKeys.ERROR_PREFIX.key}${currentStep.name}"
+                                val failedContext = context.setMetadata(errorKey, cause.message ?: "Unknown error")
                                 return finalizeProcessing(failedContext, ProcessingStepType.FAILED)
                         }
                         val duration = System.currentTimeMillis() - startTime
@@ -91,9 +102,7 @@ class GraphRequestProcessor(
                         val transitions = step.getTransitions()
                         val nextStep = transitions[result.transitionKey]
                         if (nextStep == null) {
-                                // TODO: Это конфигурационная ошибка - должна быть выявлена при запуске через валидацию графа
-                                // TODO: Логировать все доступные переходы для отладки
-                                log.error("Не найден переход для ключа '{}' в шаге {}", result.transitionKey, currentStep)
+                                log.error("Не найден переход для ключа '{}' в шаге {}. Доступные переходы: {}", result.transitionKey, currentStep, transitions.keys)
                                 return finalizeProcessing(context, ProcessingStepType.FAILED)
                         }
                         currentStep = nextStep

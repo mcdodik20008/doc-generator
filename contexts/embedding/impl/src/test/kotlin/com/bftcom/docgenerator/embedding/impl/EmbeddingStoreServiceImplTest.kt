@@ -52,11 +52,19 @@ class EmbeddingStoreServiceImplTest {
     }
 
     @Test
-    fun `getDocument и getAllDocuments - пока заглушки`() {
+    fun `getDocument - возвращает null если документ не найден`() {
         val store = mockk<VectorStore>(relaxed = true)
+        every { store.similaritySearch(any<org.springframework.ai.vectorstore.SearchRequest>()) } returns emptyList()
         val service = EmbeddingStoreServiceImpl(store)
 
         assertThat(service.getDocument("id1")).isNull()
+    }
+
+    @Test
+    fun `getAllDocuments - возвращает пустой список`() {
+        val store = mockk<VectorStore>(relaxed = true)
+        val service = EmbeddingStoreServiceImpl(store)
+
         assertThat(service.getAllDocuments()).isEmpty()
     }
 }

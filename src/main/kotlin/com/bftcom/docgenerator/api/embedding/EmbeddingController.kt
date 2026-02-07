@@ -38,8 +38,6 @@ class EmbeddingController(
     fun search(@RequestBody @Valid request: SearchRequest): List<SearchResultResponse> {
         val startTime = System.currentTimeMillis()
         log.info("Embedding search request: query_length=${request.query.length}, topK=${request.topK}")
-
-        // TODO: Синхронный вызов может блокировать поток при большом topK
         try {
             val results = searchService.searchByText(request.query, request.topK)
 
@@ -48,7 +46,6 @@ class EmbeddingController(
                 "Embedding search completed: results_count=${results.size}, topK=${request.topK}, duration_ms=$duration"
             )
 
-            // TODO: Маппинг всего списка в памяти - при большом topK может вызвать проблемы с памятью
             return results.map { result ->
                 SearchResultResponse(
                     id = result.id,
@@ -81,7 +78,6 @@ class EmbeddingController(
     @ResponseStatus(HttpStatus.CREATED)
     @RateLimited(maxRequests = 50, windowSeconds = 60)
     fun addDocument(@RequestBody @Valid request: AddDocumentRequest) {
-        // TODO: Синхронный вызов - вычисление embedding может занять много времени
         try {
             log.info("Adding document: id=${request.id}, content_length=${request.content.length}")
 
@@ -173,7 +169,6 @@ class EmbeddingController(
             "Cleared chunks: $clearedCount, Duration: ${duration}ms"
         org.slf4j.LoggerFactory.getLogger(javaClass).warn(auditMessage)
 
-        // TODO: Операция может занять очень много времени при большом количестве чанков - рассмотреть батчевую обработку
         return mapOf(
             "clearedChunks" to clearedCount,
             "durationMs" to duration,

@@ -37,12 +37,13 @@ class EmbeddingStoreServiceImpl(
         metadata: Map<String, Any>,
     ) {
         try {
-            // Используем переданный embedding
+            val enrichedMetadata = metadata.toMutableMap()
+            enrichedMetadata["embedding"] = embedding.map { it.toDouble() }
+
             val document = AiDocument.builder()
                 .text(content)
-                .metadata(metadata)
+                .metadata(enrichedMetadata)
                 .id(id)
-                .embedding(embedding.map { it.toDouble() })  // Используем переданный embedding
                 .build()
 
             vectorStore.add(listOf(document))
@@ -55,12 +56,7 @@ class EmbeddingStoreServiceImpl(
 
     override fun deleteDocument(id: String) {
         try {
-            val deleted = vectorStore.delete(listOf(id))
-            if (deleted) {
-                log.debug("Document deleted successfully: id={}", id)
-            } else {
-                log.warn("Document not found for deletion: id={}", id)
-            }
+            vectorStore.delete(listOf(id))
         } catch (e: Exception) {
             log.error("Failed to delete document: id={}", id, e)
             throw e
@@ -71,9 +67,11 @@ class EmbeddingStoreServiceImpl(
         return try {
             // VectorStore не поддерживает прямой get по ID, поэтому используем similarity search
             // с очень высоким порогом сходства и фильтром по metadata
-            val searchRequest = SearchRequest.query("")
-                .withTopK(1)
-                .withFilterExpression("id == '$id'")
+            val searchRequest = SearchRequest.builder()
+                .query("")
+                .topK(1)
+                .filterExpression("id == '$id'")
+                .build()
 
             val results = vectorStore.similaritySearch(searchRequest)
 
@@ -81,7 +79,7 @@ class EmbeddingStoreServiceImpl(
                 val aiDoc = results.first()
                 Document(
                     id = aiDoc.id,
-                    content = aiDoc.content,
+                    content = aiDoc.text,
                     metadata = aiDoc.metadata
                 )
             } else {

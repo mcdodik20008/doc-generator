@@ -56,9 +56,10 @@ class LibraryBuildEventListener(
             }
 
             // После завершения анализа библиотек инициируем сборку графа приложения
+            val appId = requireNotNull(app.id) { "Application ID cannot be null" }
             eventPublisher.publishEvent(
                 GraphBuildRequestedEvent(
-                    applicationId = app.id!!,
+                    applicationId = appId,
                     sourceRoot = event.sourceRoot,
                     classpath = event.classpath,
                 ),

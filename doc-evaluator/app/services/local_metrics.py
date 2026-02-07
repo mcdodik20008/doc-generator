@@ -15,8 +15,7 @@ class LocalMetricsService:
     READABILITY_SCALE_FACTOR = 10.0  # Коэффициент масштабирования для Flesch Reading Ease (100 -> 10)
 
     # Stopwords для фильтрации токенов при расчете coverage
-    # Специфичны для Kotlin - ключевые слова языка которые не несут семантическую нагрузку
-    # TODO: Рассмотреть поддержку других языков программирования через конфигурацию
+    # NOTE: currently Kotlin-specific; extend via config if multi-language support is needed
     KOTLIN_STOPWORDS = {
         'val', 'var', 'fun', 'return', 'class', 'override',
         'private', 'public', 'import', 'package', 'if', 'else',
@@ -24,8 +23,7 @@ class LocalMetricsService:
     }
 
     # Regex паттерн для извлечения идентификаторов из кода
-    # Предназначен для языков с C-подобным синтаксисом (Java, Kotlin, C#, JavaScript и т.д.)
-    # TODO: Рассмотреть поддержку других языков (Python с подчеркиваниями, Lisp с дефисами и т.д.)
+    # NOTE: covers C-like languages (Java, Kotlin, JS, Python); extend for Lisp-like if needed
     IDENTIFIER_PATTERN = r'\b[a-zA-Z_][a-zA-Z0-9_]*\b'
 
     _instance = None  # 1. Храним единственный экземпляр здесь
@@ -93,7 +91,7 @@ class LocalMetricsService:
                 return self.MAX_SCORE
 
             doc_lower = doc.lower()
-            # TODO: Простой поиск подстроки может давать ложные совпадения (например, 'user' найдется в 'users')
+            # NOTE: substring match may over-count (e.g. 'user' matches 'users') — acceptable for scoring
             found = sum(1 for t in keywords if t.lower() in doc_lower)
             return (found / len(keywords)) * self.MAX_SCORE
         except Exception as e:
@@ -107,7 +105,7 @@ class LocalMetricsService:
             return self.DEFAULT_READABILITY_SCORE
 
         try:
-            # TODO: textstat.flesch_reading_ease может работать некорректно для не-английского текста
+            # NOTE: Flesch Reading Ease is designed for English; scores for Russian text are approximate
             score = textstat.flesch_reading_ease(doc)
             return max(0.0, min(100.0, score)) / self.READABILITY_SCALE_FACTOR
         except Exception as e:

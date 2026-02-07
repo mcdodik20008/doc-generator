@@ -3,6 +3,7 @@ package com.bftcom.docgenerator.chunking.nodedoc
 import com.bftcom.docgenerator.db.NodeRepository
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
+import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
@@ -48,6 +49,14 @@ class NodeDocFillerScheduler(
     
     @Value("\${docgen.nodedoc.cache.ttl-ms:3600000}")
     private var cacheTtlMs: Long = 3600000 // 1 hour default
+
+    @PostConstruct
+    fun validateConfiguration() {
+        require(batchSize in 1..10000) {
+            "docgen.nodedoc.batch-size must be between 1 and 10000, but was $batchSize"
+        }
+        log.info("NodeDocFillerScheduler initialized with batchSize=$batchSize, locale=$locale")
+    }
 
     @Scheduled(fixedDelayString = "\${docgen.nodedoc.poll-ms:5000}")
     fun poll() {

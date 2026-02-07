@@ -55,7 +55,7 @@ class ChunkBuildOrchestratorImplTest {
     fun `start - выбрасывает исключение для неизвестной стратегии`() {
         val req = ChunkBuildRequest(applicationId = 1L, strategy = "unknown")
         every { strategies["unknown"] } returns null
-        assertThrows<IllegalStateException> { orchestrator.start(req) }
+        assertThrows<IllegalArgumentException> { orchestrator.start(req) }
     }
 
     @Test

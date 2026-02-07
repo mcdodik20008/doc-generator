@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 @RestController
 @RequestMapping("/api/rag")
@@ -37,16 +40,26 @@ class RagController(
         }
     }
 
+    companion object {
+        private const val ASK_TIMEOUT_SECONDS = 60L
+        private const val ASK_WITH_VAL_TIMEOUT_SECONDS = 90L
+    }
+
     @PostMapping("/ask")
     @RateLimited(maxRequests = 30, windowSeconds = 60)
     fun ask(@RequestBody @Valid request: RagRequest): RagResponse {
         log.info("RAG request received: sessionId=${request.sessionId}, query_length=${request.query.length}")
-        // TODO: Нет timeout для операции - может зависнуть на долго
         return try {
-            ragService.ask(request.query, request.sessionId)
+            CompletableFuture.supplyAsync {
+                ragService.ask(request.query, request.sessionId, request.applicationId)
+            }.orTimeout(ASK_TIMEOUT_SECONDS, TimeUnit.SECONDS).get()
+        } catch (e: TimeoutException) {
+            log.error("RAG request timed out for sessionId=${request.sessionId}")
+            throw IllegalStateException("Request timed out after ${ASK_TIMEOUT_SECONDS} seconds")
         } catch (e: Exception) {
-            log.error("RAG request failed for sessionId=${request.sessionId}: ${e.message}", e)
-            throw IllegalStateException(sanitizeErrorMessage(e), e)
+            val cause = e.cause ?: e
+            log.error("RAG request failed for sessionId=${request.sessionId}: ${cause.message}", cause)
+            throw IllegalStateException(sanitizeErrorMessage(cause as? Exception ?: e), e)
         }
     }
 
@@ -55,16 +68,19 @@ class RagController(
     fun askWithValidation(@RequestBody @Valid request: RagRequest): ValidatedRagResponse {
         log.info("RAG validation request received: sessionId=${request.sessionId}, query_length=${request.query.length}")
         // Получаем RAG ответ
-        // TODO: Если ragService.ask упадет, весь метод упадет без валидации
-        val ragResponse = ragService.ask(request.query, request.sessionId)
+        val ragResponse = try {
+            ragService.ask(request.query, request.sessionId, request.applicationId)
+        } catch (e: Exception) {
+            log.error("RAG request failed during validation flow for sessionId=${request.sessionId}: ${e.message}", e)
+            throw IllegalStateException(sanitizeErrorMessage(e), e)
+        }
 
         // Пытаемся провалидировать ответ
         var validation: com.bftcom.docgenerator.api.rag.dto.EvaluationResult? = null
         var validationError: String? = null
 
         try {
-            // Получаем первый source (если есть)
-            // TODO: Валидация только по первому источнику - игнорируются остальные sources
+            // Получаем первый source (если есть) для валидации
             val firstSource = ragResponse.sources.firstOrNull()
 
             if (firstSource != null) {
@@ -72,20 +88,26 @@ class RagController(
                 val nodeId = firstSource.id.toLongOrNull()
 
                 if (nodeId != null) {
-                    // TODO: Синхронный вызов БД блокирует поток - использовать suspend функции
                     val node = nodeRepository.findById(nodeId).orElse(null)
 
                     // Используем safe call и let для безопасной обработки nullable значений
                     val sourceCode = node?.sourceCode
                     if (sourceCode != null && sourceCode.isNotBlank()) {
                         // Валидируем: sourceCode как code_snippet, answer как generated_doc
-                        // TODO: Синхронный HTTP вызов к внешнему сервису блокирует поток
-                        // TODO: Нет timeout для вызова docEvaluatorClient - может зависнуть
-                        validation =
+                        validation = try {
+                            CompletableFuture.supplyAsync {
                                 docEvaluatorClient.evaluate(
-                                        codeSnippet = sourceCode,
-                                        generatedDoc = ragResponse.answer
+                                    codeSnippet = sourceCode,
+                                    generatedDoc = ragResponse.answer
                                 )
+                            }.orTimeout(ASK_WITH_VAL_TIMEOUT_SECONDS, TimeUnit.SECONDS).get()
+                        } catch (e: TimeoutException) {
+                            log.error("Doc evaluator call timed out")
+                            null
+                        } catch (e: Exception) {
+                            log.error("Doc evaluator call failed: ${e.message}", e)
+                            null
+                        }
 
                         if (validation == null) {
                             validationError = "Doc-evaluator service unavailable or returned error"
@@ -100,7 +122,6 @@ class RagController(
                 validationError = "No sources in RAG response"
             }
         } catch (e: Exception) {
-            // TODO: Слишком широкий catch - ловит все исключения, включая критические ошибки
             // Логируем полную ошибку с stack trace для отладки
             log.error("Validation failed for query: ${request.query.take(50)}...", e)
             // Возвращаем клиенту безопасное сообщение без чувствительных данных

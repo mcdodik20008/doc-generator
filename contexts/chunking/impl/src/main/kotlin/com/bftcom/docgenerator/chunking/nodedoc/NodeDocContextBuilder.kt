@@ -72,7 +72,7 @@ class NodeDocContextBuilder(
                 .take(depsTopK)
 
         val dstIds = picked.mapNotNull { it.dst.id }.toSet()
-        val dstNodes = nodeRepo.findAllByIdIn(dstIds).associateBy { it.id!! }
+        val dstNodes = nodeRepo.findAllByIdIn(dstIds).associateBy { requireNotNull(it.id) { "Node must have ID" } }
 
         val included = mutableListOf<Map<String, Any>>()
         val depsMissing = mutableListOf<Long>()

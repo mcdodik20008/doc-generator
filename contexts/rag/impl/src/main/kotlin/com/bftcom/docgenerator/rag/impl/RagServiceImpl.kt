@@ -14,6 +14,9 @@ import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.chat.memory.ChatMemory.DEFAULT_CONVERSATION_ID
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 @Service
 class RagServiceImpl(
@@ -23,16 +26,39 @@ class RagServiceImpl(
 ) : RagService {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    override fun ask(query: String, sessionId: String): RagResponse {
-        // TODO: Нет валидации входных параметров (query может быть пустым или слишком длинным)
-        // TODO: Нет обработки ошибок - если graphRequestProcessor.process упадет, метод упадет
-        // TODO: Нет timeout для всей операции RAG - может зависнуть
-        val processingContext = graphRequestProcessor.process(query, sessionId)
+    companion object {
+        private const val PROCESSING_TIMEOUT_SECONDS = 45L
+    }
+
+    override fun ask(query: String, sessionId: String, applicationId: Long?): RagResponse {
+        // Валидация входных параметров
+        require(query.isNotBlank()) { "Query cannot be blank" }
+        require(query.length <= 10000) { "Query length cannot exceed 10000 characters, got ${query.length}" }
+        require(sessionId.isNotBlank()) { "Session ID cannot be blank" }
+
+        val processingContext = try {
+            CompletableFuture.supplyAsync {
+                graphRequestProcessor.process(query, sessionId, applicationId)
+            }.orTimeout(PROCESSING_TIMEOUT_SECONDS, TimeUnit.SECONDS).get()
+        } catch (e: TimeoutException) {
+            log.error("Query processing timed out after {}s: query='{}'", PROCESSING_TIMEOUT_SECONDS, query.take(50))
+            return RagResponse(
+                answer = "Не удалось обработать запрос — превышено время ожидания.",
+                sources = emptyList(),
+                metadata = RagQueryMetadata(originalQuery = query),
+            )
+        } catch (e: Exception) {
+            val cause = e.cause ?: e
+            log.error("Query processing failed: {}", cause.message, cause)
+            return RagResponse(
+                answer = "Произошла ошибка при обработке запроса.",
+                sources = emptyList(),
+                metadata = RagQueryMetadata(originalQuery = query),
+            )
+        }
         val processingStatus = processingContext.getMetadata<String>(QueryMetadataKeys.PROCESSING_STATUS)
 
         if (processingStatus == ProcessingStepType.FAILED.name) {
-            // TODO: Hardcoded сообщение "Информация не найдена" - должно быть в конфигурации/i18n
-            // TODO: Нет информации о причине ошибки в ответе - пользователь не знает что пошло не так
             return RagResponse(
                 answer = "Информация не найдена",
                 sources = emptyList(),
@@ -44,14 +70,11 @@ class RagServiceImpl(
         log.info("RAG search: итоговых результатов = {}", searchResults.size)
 
         // Добавляем найденные узлы из точного поиска в начало контекста
-        // TODO: Нет обработки ошибок при конверсии типов через filterIsInstance
-        // TODO: Если в списке не Node объекты, они просто отфильтруются без предупреждения
         val exactNodes = processingContext.getMetadata<List<*>>(QueryMetadataKeys.EXACT_NODES)
         val exactNodesContext = if (exactNodes != null && exactNodes.isNotEmpty()) {
             val nodes = exactNodes.filterIsInstance<Node>()
             if (nodes.isNotEmpty()) {
                 log.debug("Добавляем {} найденных узлов в контекст", nodes.size)
-                // TODO: Нет обработки ошибок в formatNodes - может упасть если node имеет некорректные данные
                 formatNodes(nodes)
             } else {
                 ""
@@ -98,8 +121,6 @@ class RagServiceImpl(
             append(searchResults.joinToString("\n\n") { "Source [${it.id}]:\n${it.content}" })
         }
 
-        // TODO: Prompt hardcoded в коде - должен быть в конфигурации или template файле
-        // TODO: Промпт на русском языке - нужна поддержка интернационализации
         val prompt =
             """
             Ты — умный ассистент разработчика. Ответь на вопрос, используя только предоставленный контекст.
@@ -116,11 +137,9 @@ class RagServiceImpl(
             """.trimIndent()
 
         log.debug("RAG prompt generated: query=${processingContext.originalQuery}, context_length=${context.length}")
-        // TODO: Нет обработки ошибок - если chatClient упадет, весь метод упадет
-        // TODO: Нет retry логики для временных ошибок LLM
         val response =
             try {
-                java.util.concurrent.CompletableFuture.supplyAsync {
+                CompletableFuture.supplyAsync {
                     chatClient
                         .prompt()
                         .user(prompt)
@@ -133,13 +152,12 @@ class RagServiceImpl(
                         .call()
                         .content()
                 }
-                    .orTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .orTimeout(30, TimeUnit.SECONDS)
                     .exceptionally { ex ->
                         log.error("LLM call failed or timed out: ${ex.message}", ex)
                         null
                     }
                     .get()
-                    // TODO: Hardcoded fallback сообщение - должно быть в конфигурации
                     ?: "Не удалось получить ответ."
             } catch (e: Exception) {
                 log.error("Error during LLM call: ${e.message}", e)
@@ -158,7 +176,6 @@ class RagServiceImpl(
     }
 
     private fun buildSearchResults(context: QueryProcessingContext): List<SearchResult> {
-        // TODO: Нет обработки ошибок при конверсии типов
         val filteredChunks = context.getMetadata<List<*>>(QueryMetadataKeys.FILTERED_CHUNKS)
             ?.filterIsInstance<SearchResult>()
             .orEmpty()
@@ -167,9 +184,6 @@ class RagServiceImpl(
             .orEmpty()
 
         val selected = if (filteredChunks.isNotEmpty()) filteredChunks else rawChunks
-        // TODO: Hardcoded limit take(5) - должен быть в конфигурации
-        // TODO: distinctBy может удалить релевантные дубликаты с разными similarity scores
-        // TODO: Сортировка и distinctBy выполняются на всем списке - может быть медленно для больших списков
         return selected
             .distinctBy { it.id }
             .sortedByDescending { it.similarity }

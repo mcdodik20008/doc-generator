@@ -69,12 +69,8 @@ class GraphState {
 
     fun rememberFileUnit(unit: RawFileUnit) {
         fileUnitByPath[unit.filePath] = unit
-        if (unit.pkgFqn != null) {
-            filePkg[unit.filePath] = unit.pkgFqn!!
-            fileImports[unit.filePath] = unit.imports
-        } else {
-            filePkg[unit.filePath] = ""
-            fileImports[unit.filePath] = unit.imports
-        }
+        val pkg = unit.pkgFqn
+        filePkg[unit.filePath] = pkg ?: ""
+        fileImports[unit.filePath] = unit.imports
     }
 }

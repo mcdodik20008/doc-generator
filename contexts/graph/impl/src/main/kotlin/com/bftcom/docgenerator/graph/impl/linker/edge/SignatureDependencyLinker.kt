@@ -28,7 +28,7 @@ class SignatureDependencyLinker : EdgeLinker {
 
             // Если есть только сырая сигнатура
             !node.signature.isNullOrBlank() ->
-                extractAllTypesFromSignature(node.signature!!)
+                extractAllTypesFromSignature(node.signature.orEmpty())
 
             else -> emptySet()
         }

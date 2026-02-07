@@ -59,7 +59,7 @@ class ExactNodeSearchAdvisor(
             log.info("Начат точный поиск. Извлечено из запроса: класс='{}', метод='{}'",
                 extractionResult.className, extractionResult.methodName)
 
-            val foundNodes = findNodes(extractionResult.className, extractionResult.methodName)
+            val foundNodes = findNodes(extractionResult.className, extractionResult.methodName, context)
 
             if (foundNodes.isNotEmpty()) {
                 context.setMetadata(QueryMetadataKeys.EXACT_NODES, foundNodes)
@@ -228,10 +228,10 @@ class ExactNodeSearchAdvisor(
     /**
      * Ищет узлы по имени класса и метода
      */
-    private fun findNodes(className: String?, methodName: String?): List<Node> {
+    private fun findNodes(className: String?, methodName: String?, context: QueryProcessingContext): List<Node> {
         val foundNodes = mutableListOf<Node>()
 
-        val applicationId = getApplicationIdFromContext()
+        val applicationId = context.getMetadata<Long>(QueryMetadataKeys.APPLICATION_ID)
         val applications = if (applicationId != null) {
             applicationRepository.findById(applicationId).map { listOf(it) }.orElse(emptyList())
         } else {
@@ -277,15 +277,6 @@ class ExactNodeSearchAdvisor(
         }
 
         return foundNodes.distinctBy { it.id }
-    }
-
-    /**
-     * Получает applicationId из контекста (если есть)
-     */
-    private fun getApplicationIdFromContext(): Long? {
-        // TODO: добавить поддержку applicationId в QueryProcessingContext
-        // Пока что возвращаем null, что означает поиск по всем приложениям
-        return null
     }
 
     /**

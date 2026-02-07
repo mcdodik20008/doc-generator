@@ -40,6 +40,8 @@ class IntegrationPointLinkerImpl(
     override fun linkIntegrationPoints(application: Application): IntegrationPointLinker.IntegrationLinkResult {
         log.info("Linking integration points for application: {}", application.key)
 
+        val appId = requireNotNull(application.id) { "Application ID cannot be null" }
+
         var httpEdgesCreated = 0
         var kafkaEdgesCreated = 0
         var camelEdgesCreated = 0
@@ -55,7 +57,7 @@ class IntegrationPointLinkerImpl(
         while (true) {
             val page =
                 nodeRepo.findPageAllByApplicationIdAndKindIn(
-                    application.id!!,
+                    appId,
                     setOf(NodeKind.METHOD),
                     PageRequest.of(pageIndex, batchSize),
                 )
@@ -88,7 +90,7 @@ class IntegrationPointLinkerImpl(
                     }
 
                     // Проверяем, не является ли это вызовом внутри самого приложения
-                    if (nodeRepo.findByApplicationIdAndFqn(application.id!!, calledFqn) != null) {
+                    if (nodeRepo.findByApplicationIdAndFqn(appId, calledFqn) != null) {
                         return@forEach
                     }
 
@@ -135,9 +137,10 @@ class IntegrationPointLinkerImpl(
 
             // Создаем ребра
             pendingEdges.forEach { (src, dst, kind) ->
+                val srcId = src.id
                 val dstId = dst.id ?: infraNodeCache[dst.fqn]?.id
-                if (src.id != null && dstId != null) {
-                    edgeRepo.upsert(src.id!!, dstId, kind.name)
+                if (srcId != null && dstId != null) {
+                    edgeRepo.upsert(srcId, dstId, kind.name)
                     when (kind) {
                         EdgeKind.CALLS_HTTP -> httpEdgesCreated++
                         EdgeKind.PRODUCES, EdgeKind.CONSUMES -> kafkaEdgesCreated++
@@ -186,7 +189,7 @@ class IntegrationPointLinkerImpl(
 
         cache[fqn]?.let { return it }
 
-        val existing = nodeRepo.findByApplicationIdAndFqn(application.id!!, fqn)
+        val existing = nodeRepo.findByApplicationIdAndFqn(requireNotNull(application.id) { "Application must be persisted" }, fqn)
         if (existing != null) {
             cache[fqn] = existing
             return existing

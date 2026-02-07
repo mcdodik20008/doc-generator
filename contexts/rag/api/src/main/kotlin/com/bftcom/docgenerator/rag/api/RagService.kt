@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.rag.api
 
 interface RagService {
-    fun ask(query: String, sessionId: String): RagResponse
+    fun ask(query: String, sessionId: String, applicationId: Long? = null): RagResponse
 }
 
 data class RagResponse(

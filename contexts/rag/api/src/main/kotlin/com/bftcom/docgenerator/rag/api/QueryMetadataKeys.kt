@@ -50,6 +50,9 @@ enum class QueryMetadataKeys(val key: String) {
         // Текстовые связи графа
         GRAPH_RELATIONS_TEXT("graphRelationsText"),
 
+        // ID приложения для фильтрации
+        APPLICATION_ID("applicationId"),
+
         // Статус обработки
         PROCESSING_STATUS("processingStatus"),
 }

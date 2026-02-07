@@ -28,7 +28,6 @@ open class ChunkGraphRepositoryImpl(
             return emptyList()
         }
 
-        // TODO: runCatching ловит все исключения - может скрыть реальные проблемы
         val trimmedKinds = kinds.mapNotNull { it.trim().takeIf { s -> s.isNotEmpty() } }
         val invalidKinds = mutableListOf<String>()
 
@@ -46,7 +45,6 @@ open class ChunkGraphRepositoryImpl(
             log.warn("Invalid NodeKind values in loadNodes: $invalidKinds. Valid values: ${NodeKind.entries.map { it.name }}")
         }
 
-        // TODO: PageRequest.of(0, limit) всегда берет первую страницу - нет возможности пагинации
         // Используем сортировку по fqn для предсказуемого порядка результатов
         val nodes: List<Node> =
             nodeRepo.findAllByApplicationIdAndKindIn(
@@ -84,8 +82,6 @@ open class ChunkGraphRepositoryImpl(
             "first 5: ${sortedIds.take(5)}, last 5: ${sortedIds.takeLast(5)}"
         }
         log.info("Loading edges for nodeIds=$idsPreview (size=${ids.size}), withRelations=$withRelations")
-        // TODO: Для больших ids наборов IN запросы могут быть очень медленными
-        // TODO: Рассмотреть batch processing или использование JOIN вместо IN
         // Используем объединенный запрос вместо двух отдельных (фикс N+1 проблемы)
         // DISTINCT уже в SQL запросе, поэтому не нужен distinctBy в памяти
         val all = edgeRepo.findAllBySrcIdInOrDstIdIn(ids)
@@ -101,7 +97,6 @@ open class ChunkGraphRepositoryImpl(
 
         log.info("Edges loaded=${all.size}, after filtering=${filtered.size}")
 
-        // TODO: map выполняется на всем списке в памяти - может быть медленно
         return filtered.map { it.toGEdge() }
     }
 
@@ -127,26 +122,14 @@ open class ChunkGraphRepositoryImpl(
         // Используем объединенный запрос вместо двух отдельных (фикс N+1 проблемы)
         val edges = edgeRepo.findAllBySrcIdInOrDstIdIn(setOf(id))
 
-        // TODO: Если id null, лучше пропустить edge с логированием, а не падать
-        // TODO: take выполняется на Set, не на List - порядок недетерминирован
-        // TODO: Логика take().toSet() странная - limit применяется до преобразования в Set
         val neighborIds: Set<Long> =
-            buildSet {
-                edges.forEach { edge ->
-                    // Добавляем соседний узел (не сам id)
-                    if (edge.src.id == id) {
-                        edge.dst.id?.let { add(it) }
-                    } else {
-                        edge.src.id?.let { add(it) }
-                    }
-                }
-            }.take(validatedLimit).toSet()
+            edges.mapNotNull { edge ->
+                if (edge.src.id == id) edge.dst.id else edge.src.id
+            }.distinct().take(validatedLimit).toSet()
 
         if (neighborIds.isEmpty()) return emptyList()
 
-        // TODO: Еще один запрос к БД - итого 2 запроса вместо одного с JOIN
-        // TODO: Нет гарантии порядка результатов
-        val neighbors = nodeRepo.findAllByIdIn(neighborIds)
+        val neighbors = nodeRepo.findAllByIdInBatched(neighborIds)
         return neighbors.map { it.toGNode() }
     }
 

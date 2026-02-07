@@ -113,25 +113,24 @@ class LibraryNodeEnricherImpl(
 
         // Если нашли интеграционные точки, обогащаем метаданные
         if (integrationPoints.isNotEmpty() || httpEndpoints.isNotEmpty() || kafkaTopics.isNotEmpty() || camelUris.isNotEmpty()) {
-            // Создаем обогащенную версию NodeMeta
-            // Используем copy() для создания новой версии с дополнительными полями
-            // Но так как NodeMeta - это data class без поля libraryIntegration,
-            // мы добавим эту информацию позже в Node.meta при сохранении
-
-            // Пока просто возвращаем исходные метаданные
-            // Информация об интеграционных точках будет доступна через Edge
-            // и через запросы к IntegrationPointService
-
-            // TODO: если нужно сохранить эту информацию в Node.meta,
-            // можно добавить поле libraryIntegration в NodeMeta или
-            // сохранить его напрямую в Node.meta при создании Node
-
             log.debug(
                 "Found integration points for method {}: {} HTTP, {} Kafka, {} Camel",
                 node.fqn,
                 httpEndpoints.size,
                 kafkaTopics.size,
                 camelUris.size,
+            )
+
+            return meta.copy(
+                libraryIntegration = mapOf(
+                    "integrationPoints" to integrationPoints,
+                    "httpEndpoints" to httpEndpoints.toList(),
+                    "kafkaTopics" to kafkaTopics.toList(),
+                    "camelUris" to camelUris.toList(),
+                    "hasRetry" to hasRetry,
+                    "hasTimeout" to hasTimeout,
+                    "hasCircuitBreaker" to hasCircuitBreaker,
+                ),
             )
         }
 

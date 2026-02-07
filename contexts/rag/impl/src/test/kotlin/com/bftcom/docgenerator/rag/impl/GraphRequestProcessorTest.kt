@@ -32,12 +32,12 @@ class GraphRequestProcessorTest {
     @Test
     fun `process - обнаруживает цикл и завершает FAILED`() {
         val step = mockk<QueryStep>()
-        every { step.type } returns ProcessingStepType.EXTRACTION
+        every { step.type } returns ProcessingStepType.NORMALIZATION
         every { step.execute(any()) } answers {
             StepResult(firstArg(), "FOUND")
         }
         every { step.getTransitions() } returns mapOf(
-            "FOUND" to ProcessingStepType.EXTRACTION, // Цикл
+            "FOUND" to ProcessingStepType.NORMALIZATION, // Цикл
         )
 
         val processor = GraphRequestProcessor(listOf(step))
@@ -50,14 +50,14 @@ class GraphRequestProcessorTest {
     @Test
     fun `process - ошибка в шаге приводит к FAILED и записи ошибки`() {
         val step = mockk<QueryStep>()
-        every { step.type } returns ProcessingStepType.EXTRACTION
+        every { step.type } returns ProcessingStepType.NORMALIZATION
         every { step.execute(any()) } throws RuntimeException("boom")
         every { step.getTransitions() } returns emptyMap()
 
         val processor = GraphRequestProcessor(listOf(step))
         val result = processor.process("query", "session")
 
-        val errorKey = "${QueryMetadataKeys.ERROR_PREFIX.key}${ProcessingStepType.EXTRACTION.name}"
+        val errorKey = "${QueryMetadataKeys.ERROR_PREFIX.key}${ProcessingStepType.NORMALIZATION.name}"
         assertThat(result.metadata[errorKey]).isEqualTo("boom")
         assertThat(result.getMetadata<String>(QueryMetadataKeys.PROCESSING_STATUS))
             .isEqualTo(ProcessingStepType.FAILED.name)
@@ -66,7 +66,7 @@ class GraphRequestProcessorTest {
     @Test
     fun `process - неизвестный transitionKey завершает FAILED`() {
         val step = mockk<QueryStep>()
-        every { step.type } returns ProcessingStepType.EXTRACTION
+        every { step.type } returns ProcessingStepType.NORMALIZATION
         every { step.execute(any()) } answers {
             StepResult(firstArg(), "UNKNOWN_KEY")
         }

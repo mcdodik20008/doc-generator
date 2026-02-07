@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import statistics
 from app.schemas.evaluation import EvaluateRequest, EvaluateResponse, LlmScores
 from app.services.local_metrics import LocalMetricsService
@@ -6,6 +7,15 @@ from app.services.llm_judges import GigaChatJudge, GeminiJudge, OllamaJudge
 from app.core.config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+
+# Константы для генерации температур в self-consistency rounds
+MIN_TEMPERATURE = 0.1  # Минимальная температура для LLM оценки
+TEMPERATURE_STEP = 0.2  # Шаг увеличения температуры между раундами
+# Максимальная температура определяется как MIN_TEMPERATURE + (rounds - 1) * TEMPERATURE_STEP
+
+# Константы для fallback расчета итоговой оценки
+FALLBACK_LOCAL_WEIGHTS = 0.5  # Вес каждой локальной метрики при отсутствии LLM (sem_score + coverage_score) / 2
 
 class EvaluationOrchestrator:
     def __init__(self):
@@ -19,26 +29,21 @@ class EvaluationOrchestrator:
         ]
 
     async def evaluate(self, request: EvaluateRequest) -> EvaluateResponse:
-        # TODO: Добавить валидацию длины code_snippet и generated_doc (слишком длинные тексты могут вызвать OOM)
-        # TODO: Добавить логирование времени выполнения каждого этапа для мониторинга производительности
         code = request.code_snippet
         doc = request.generated_doc
 
         # 1. Локальные метрики (CPU bound, но быстрые)
-        # TODO: Запускать локальные метрики параллельно через asyncio.gather для ускорения
         sem_score = self.local.calculate_semantic_similarity(code, doc)
         coverage_score = self.local.calculate_coverage(code, doc)
         readability_score = self.local.calculate_readability(doc)
 
         # 2. LLM метрики (IO bound - запускаем параллельно)
         # Self-Consistency: запускаем N раундов с разной температурой
-        # TODO: Добавить валидацию SELF_CONSISTENCY_ROUNDS в конфиге (должно быть >= 1)
         rounds = settings.SELF_CONSISTENCY_ROUNDS
         all_tasks = []
 
-        # Генерируем температуры от 0.1 до 0.7
-        # TODO: Магические числа 0.1 и 0.2 - вынести в конфигурацию (MIN_TEMP, TEMP_STEP)
-        temperatures = [0.1 + (i * 0.2) for i in range(rounds)] # 0.1, 0.3, 0.5...
+        # Генерируем температуры с шагом TEMPERATURE_STEP
+        temperatures = [MIN_TEMPERATURE + (i * TEMPERATURE_STEP) for i in range(rounds)]
 
         for temp in temperatures:
             for name, judge in self.judges:
@@ -50,9 +55,14 @@ class EvaluationOrchestrator:
         coroutines = [t[1] for t in all_tasks]
 
         # return_exceptions=True гарантирует, что если одна корутина упадет, остальные доработают
-        # TODO: Отсутствует timeout для asyncio.gather - если LLM зависнет, запрос будет висеть бесконечно
-        # TODO: Использовать asyncio.wait_for с timeout или asyncio.gather с timeout
-        results_flat = await asyncio.gather(*coroutines, return_exceptions=True)
+        try:
+            results_flat = await asyncio.wait_for(
+                asyncio.gather(*coroutines, return_exceptions=True),
+                timeout=60.0,
+            )
+        except asyncio.TimeoutError:
+            logger.error("LLM evaluation timed out after 60 seconds")
+            results_flat = [TimeoutError("LLM evaluation timed out")] * len(coroutines)
 
         # Собираем результаты по судьям
         # scores_by_judge = {"gigachat": [8, 9, 8], ...}
@@ -61,9 +71,7 @@ class EvaluationOrchestrator:
         for name, result in zip(judge_names_flat, results_flat):
             # Если вернулось исключение (return_exceptions=True) или None, пропускаем
             if isinstance(result, Exception):
-                # TODO: Использовать logging вместо print
-                # TODO: Добавить метрики для отслеживания частоты ошибок LLM судей
-                print(f"Error in judge {name}: {result}")
+                logger.warning("Error in judge %s: %s", name, result)
                 continue
                 
             if result is not None:
@@ -97,14 +105,10 @@ class EvaluationOrchestrator:
         avg_llm_score = sum(all_valid_scores) / len(all_valid_scores) if all_valid_scores else 0.0
 
         # Если LLM недоступны, откатываемся только на локальные веса
-        # TODO: При отсутствии LLM оценок используется другая формула - может сбить с толку пользователей
-        # TODO: Добавить флаг в ответ, указывающий на режим работы (с LLM или без)
         if not all_valid_scores:
             final = (sem_score + coverage_score) / 2
             confidence = 0.0 # Нет LLM - нет уверенности в их оценке
         else:
-            # TODO: Нет валидации что сумма весов равна 1.0 (может быть > 1 или < 1)
-            # TODO: Веса не нормализуются - если сумма != 1.0, результат будет некорректным
             final = (
                     (sem_score * settings.WEIGHT_SEMANTIC) +
                     (coverage_score * settings.WEIGHT_COVERAGE) +

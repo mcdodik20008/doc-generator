@@ -1,9 +1,12 @@
 package com.bftcom.docgenerator.ai.chatclients
 
 import com.bftcom.docgenerator.ai.model.CoderExplainRequest
+import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 /**
  * Клиент для генерации технических объяснений кода через LLM (coder этап).
@@ -13,17 +16,36 @@ class OllamaCoderClient(
     @param:Qualifier("coderChatClient")
     private val chat: ChatClient,
 ) {
-    // TODO: КРИТИЧЕСКАЯ ПРОБЛЕМА - нет timeout для LLM вызова, может зависнуть навсегда
-    // TODO: Нет обработки ошибок - если chat.call() упадет, весь метод упадет
-    // TODO: Нет валидации входных параметров (context и systemPrompt могут быть слишком большими)
-    // TODO: Синхронный вызов блокирует поток - рассмотреть использование suspend функции
-    fun generate(context: String, systemPrompt: String): String =
-        chat
-            .prompt()
-            .system(systemPrompt)
-            .user(context)
-            .call()
-            .content()
-            .orEmpty()
-            .trim()
+    private val log = LoggerFactory.getLogger(javaClass)
+
+    companion object {
+        private const val TIMEOUT_SECONDS = 60L
+    }
+
+    fun generate(context: String, systemPrompt: String): String {
+        require(context.isNotBlank()) { "Context cannot be blank" }
+        require(systemPrompt.isNotBlank()) { "System prompt cannot be blank" }
+
+        return try {
+            CompletableFuture.supplyAsync {
+                chat
+                    .prompt()
+                    .system(systemPrompt)
+                    .user(context)
+                    .call()
+                    .content()
+                    .orEmpty()
+                    .trim()
+            }
+                .orTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .exceptionally { ex ->
+                    log.error("LLM call failed or timed out: ${ex.message}", ex)
+                    ""
+                }
+                .get()
+        } catch (e: Exception) {
+            log.error("Error during LLM generate call: ${e.message}", e)
+            ""
+        }
+    }
 }

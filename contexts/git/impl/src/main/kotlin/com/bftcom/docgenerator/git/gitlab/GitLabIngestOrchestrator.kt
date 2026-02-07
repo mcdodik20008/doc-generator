@@ -34,7 +34,7 @@ class GitLabIngestOrchestrator(
                 appKey = appKey,
             )
         log.info(
-            "✅ Repo checked out at {} (op={}, head={} -> {})",
+            "Repo checked out at {} (op={}, head={} -> {})",
             summary.localPath,
             summary.operation,
             summary.beforeHead,
@@ -44,10 +44,14 @@ class GitLabIngestOrchestrator(
         val localPath = summary.localPath
         val headSha = summary.afterHead
 
-        // TODO: Нет обработки ошибок при парсинге URL - если формат невалидный, упадет с exception
-        val parsed: RepoInfo = RepoUrlParser.parse(summary.repoUrl)
-        // TODO: Нет валидации что getOrCreateApp вернул валидный объект
-        val app: Application =
+        val parsed: RepoInfo = try {
+            RepoUrlParser.parse(summary.repoUrl)
+        } catch (e: Exception) {
+            log.warn("Failed to parse repo URL '{}', using fallback: {}", summary.repoUrl, e.message)
+            RepoInfo(provider = "unknown", owner = null, name = appKey)
+        }
+
+        val app: Application = try {
             getOrCreateApp(
                 appKey = appKey,
                 repoUrl = summary.repoUrl,
@@ -55,37 +59,50 @@ class GitLabIngestOrchestrator(
                 branch = branch,
                 headSha = headSha,
             )
-        // TODO: Нет обработки ошибок при сохранении в БД
-        val savedApp = appRepo.save(app)
-        log.info("📇 Using application id={} key={}", savedApp.id, savedApp.key)
+        } catch (e: Exception) {
+            log.error("Failed to get or create application for appKey={}: {}", appKey, e.message, e)
+            throw e
+        }
+
+        val savedApp = try {
+            appRepo.save(app)
+        } catch (e: Exception) {
+            log.error("Failed to save application appKey={}: {}", appKey, e.message, e)
+            throw e
+        }
+        log.info("Using application id={} key={}", savedApp.id, savedApp.key)
 
         // --- 4) Выбиваем classpath из gradle-проектов внутри checkout ---
         log.info("Scanning for Gradle projects (gradlew) within [{}]...", localPath)
 
-        // TODO: Files.walk может быть очень медленным для больших репозиториев с множеством файлов
-        // TODO: Нет обработки исключений при обходе директорий (может упасть на broken symlinks)
-        // TODO: Нет ограничения глубины обхода - может зайти в node_modules или другие большие директории
-        // TODO: Рассмотреть использование Files.walk с depth limit или find с maxDepth
-        val gradleProjectDirs =
+        val gradleProjectDirs = try {
             Files
-                .walk(localPath)
+                .walk(localPath, 5)
                 .filter { it.fileName.toString() == "gradlew" || it.fileName.toString() == "gradlew.bat" }
                 .map { it.parent }
                 .distinct()
                 .toList()
+        } catch (e: Exception) {
+            log.error("Error walking directory {}: {}", localPath, e.message, e)
+            emptyList()
+        }
 
-        // TODO: Нет обработки ошибок если gradleResolver.resolveClasspath упадет
-        // TODO: flatMap может вернуть пустой список если все проекты failed to resolve
+        // NOTE: Consider parallelizing Gradle classpath resolution for multi-project repos
         val classpath: List<File> =
             if (gradleProjectDirs.isEmpty()) {
                 log.warn("No 'gradlew' files found in [{}]. Cannot resolve classpath.", localPath)
                 emptyList()
             } else {
                 log.info("Found ${gradleProjectDirs.size} Gradle project(s): $gradleProjectDirs")
-                // TODO: Последовательная обработка проектов - можно распараллелить для ускорения
-                // TODO: Нет timeout для resolveClasspath - может зависнуть на сломанном проекте
                 gradleProjectDirs
-                    .flatMap { projectDir -> gradleResolver.resolveClasspath(projectDir) }
+                    .flatMap { projectDir ->
+                        try {
+                            gradleResolver.resolveClasspath(projectDir)
+                        } catch (e: Exception) {
+                            log.error("Failed to resolve classpath for project {}: {}", projectDir, e.message, e)
+                            emptyList()
+                        }
+                    }
                     .distinct()
             }
 
@@ -96,17 +113,20 @@ class GitLabIngestOrchestrator(
         }
 
         // --- 5) async library build via event ---
-        log.info("Publishing LibraryBuildRequestedEvent for application id={} key={}", savedApp.id, savedApp.key)
-        // TODO: Использование !! оператора небезопасно - savedApp.id может быть null
-        // TODO: Нет обработки ошибок при публикации события
-        // TODO: Нет проверки что event listener зарегистрирован
-        eventPublisher.publishEvent(
-            LibraryBuildRequestedEvent(
-                applicationId = savedApp.id!!,
-                sourceRoot = localPath,
-                classpath = classpath,
-            ),
-        )
+        val appId = requireNotNull(savedApp.id) { "Application ID cannot be null after save" }
+        log.info("Publishing LibraryBuildRequestedEvent for application id={} key={}", appId, savedApp.key)
+        try {
+            eventPublisher.publishEvent(
+                LibraryBuildRequestedEvent(
+                    applicationId = appId,
+                    sourceRoot = localPath,
+                    classpath = classpath,
+                ),
+            )
+        } catch (e: Exception) {
+            log.error("Failed to publish LibraryBuildRequestedEvent for appId={}: {}", appId, e.message, e)
+            throw e
+        }
 
         val now = OffsetDateTime.now()
         savedApp.lastIndexStatus = "queued"

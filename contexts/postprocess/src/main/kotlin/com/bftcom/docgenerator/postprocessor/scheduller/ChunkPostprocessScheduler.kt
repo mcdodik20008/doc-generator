@@ -23,6 +23,13 @@ class ChunkPostprocessScheduler(
     private val log = LoggerFactory.getLogger(javaClass)
     private val tx = TransactionTemplate(txManager)
 
+    init {
+        require(batchSize in 1..10000) {
+            "docgen.post.batch-size must be between 1 and 10000, but was $batchSize"
+        }
+        log.info("ChunkPostprocessScheduler initialized with batchSize=$batchSize, embedEnabled=$embedEnabled")
+    }
+
     fun lockBatch(): List<Chunk> =
         repo.lockNextBatchForPostprocess(
             limit = batchSize,
@@ -45,7 +52,6 @@ class ChunkPostprocessScheduler(
             var errorCount = 0
             val failedChunks = mutableListOf<Pair<Long, String>>() // Сохраняем информацию об ошибках
 
-            // TODO: forEach обрабатывает все чанки последовательно - можно распараллелить
             batch.forEach { ch ->
                 try {
                     orchestrator.processOne(ch)
@@ -56,7 +62,9 @@ class ChunkPostprocessScheduler(
                     val errorMsg = e.message ?: "Unknown error"
 
                     // Сохраняем информацию для метрик и потенциального retry
-                    failedChunks.add(ch.id to errorType)
+                    ch.id?.let {
+                        failedChunks.add(it to errorType)
+                    }
 
                     // Логируем с полным контекстом для отладки
                     log.error(

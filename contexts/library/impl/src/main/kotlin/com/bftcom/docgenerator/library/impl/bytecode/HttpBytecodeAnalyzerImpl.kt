@@ -531,13 +531,13 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
             }
 
             // Если нашли HTTP-вызов, сохраняем его
-            if (currentClientType != null) {
+            currentClientType?.let { clientType ->
                 httpCallSites.add(
                     HttpCallSite(
                         methodId = methodId,
                         url = currentUrl,
                         httpMethod = currentHttpMethod,
-                        clientType = currentClientType!!,
+                        clientType = clientType,
                         hasRetry = hasRetry,
                         hasTimeout = hasTimeout,
                         hasCircuitBreaker = hasCircuitBreaker,
@@ -546,25 +546,26 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
             }
 
             // Если нашли Kafka-вызов, сохраняем его
-            if (currentKafkaClientType != null) {
+            currentKafkaClientType?.let { kafkaClientType ->
                 kafkaCallSites.add(
                     KafkaCallSite(
                         methodId = methodId,
                         topic = currentKafkaTopic,
                         operation = currentKafkaOperation ?: "UNKNOWN",
-                        clientType = currentKafkaClientType!!,
+                        clientType = kafkaClientType,
                     ),
                 )
             }
 
             // Если нашли Camel-вызов, сохраняем его
-            if (currentCamelDirection != null && currentCamelUri != null) {
+            val camelDir = currentCamelDirection
+            if (camelDir != null && currentCamelUri != null) {
                 camelCallSites.add(
                     CamelCallSite(
                         methodId = methodId,
                         uri = currentCamelUri,
                         endpointType = currentCamelEndpointType,
-                        direction = currentCamelDirection!!,
+                        direction = camelDir,
                     ),
                 )
             }

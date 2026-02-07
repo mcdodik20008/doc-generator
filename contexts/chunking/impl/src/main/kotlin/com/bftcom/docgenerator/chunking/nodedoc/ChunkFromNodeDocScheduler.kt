@@ -3,6 +3,7 @@ package com.bftcom.docgenerator.chunking.nodedoc
 import com.bftcom.docgenerator.db.ChunkRepository
 import com.bftcom.docgenerator.db.NodeDocRepository
 import com.fasterxml.jackson.databind.ObjectMapper
+import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
@@ -22,6 +23,14 @@ class ChunkFromNodeDocScheduler(
 
     @Value("\${docgen.rag.chunk-sync.batch-size:50}")
     private var batchSize: Int = 50
+
+    @PostConstruct
+    fun validateConfiguration() {
+        require(batchSize in 1..10000) {
+            "docgen.rag.chunk-sync.batch-size must be between 1 and 10000, but was $batchSize"
+        }
+        log.info("ChunkFromNodeDocScheduler initialized with batchSize=$batchSize")
+    }
 
     @Scheduled(fixedDelayString = "\${docgen.rag.chunk-sync.poll-ms:4000}")
     fun poll() {

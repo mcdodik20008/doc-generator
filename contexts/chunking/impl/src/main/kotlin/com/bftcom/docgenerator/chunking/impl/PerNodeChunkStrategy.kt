@@ -16,6 +16,7 @@ class PerNodeChunkStrategy : ChunkStrategy {
         node: Node,
         edges: List<Edge>,
     ): List<ChunkPlan> {
+        val nodeId = requireNotNull(node.id) { "Node must be persisted before chunking" }
         val hasDoc = !node.signature.isNullOrBlank() || !node.docComment.isNullOrBlank()
         val sectionPath =
             buildList {
@@ -35,7 +36,7 @@ class PerNodeChunkStrategy : ChunkStrategy {
                 // 1) DOC-чанк (эксплейнер из сигнатуры/док-коммента)
                 ChunkPlan(
                     id = chunkId(node, source = "doc", kind = "explanation"),
-                    nodeId = node.id!!,
+                    nodeId = nodeId,
                     source = "doc",
                     kind = "explanation",
                     lang = "ru",
@@ -60,7 +61,7 @@ class PerNodeChunkStrategy : ChunkStrategy {
                 // 2) CODE-чанк (когда нет документации)
                 ChunkPlan(
                     id = chunkId(node, source = "code", kind = "snippet"),
-                    nodeId = node.id!!,
+                    nodeId = nodeId,
                     source = "code",
                     kind = "snippet",
                     lang = node.lang.name,

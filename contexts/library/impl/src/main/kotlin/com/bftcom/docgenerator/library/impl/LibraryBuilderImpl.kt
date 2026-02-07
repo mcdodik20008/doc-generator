@@ -234,10 +234,12 @@ class LibraryBuilderImpl(
             relevantMemberNodes.size,
         )
 
+        val libraryId = requireNotNull(library.id) { "Library must be persisted" }
+
         // Сначала классы
         for (raw in relevantClassNodes) {
             val t0 = now()
-            val existing = libraryNodeRepo.findByLibraryIdAndFqn(library.id!!, raw.fqn)
+            val existing = libraryNodeRepo.findByLibraryIdAndFqn(libraryId, raw.fqn)
             tFindExisting += now() - t0
 
             if (existing == null) {
@@ -259,7 +261,7 @@ class LibraryBuilderImpl(
         // Методы и поля
         for (raw in relevantMemberNodes) {
             val t0 = now()
-            val existing = libraryNodeRepo.findByLibraryIdAndFqn(library.id!!, raw.fqn)
+            val existing = libraryNodeRepo.findByLibraryIdAndFqn(libraryId, raw.fqn)
             tFindExisting += now() - t0
 
             if (existing == null) {

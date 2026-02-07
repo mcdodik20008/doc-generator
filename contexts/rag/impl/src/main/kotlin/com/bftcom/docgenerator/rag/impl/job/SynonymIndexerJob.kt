@@ -9,6 +9,7 @@ import com.bftcom.docgenerator.domain.nodedoc.SynonymIndexerRow
 import com.bftcom.docgenerator.domain.nodedoc.SynonymStatus
 import com.bftcom.docgenerator.domain.synonym.SynonymDictionary
 import com.fasterxml.jackson.databind.ObjectMapper
+import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.beans.factory.annotation.Qualifier
@@ -47,6 +48,14 @@ class SynonymIndexerJob(
         "экземпляр", "реализация", "функционал", "возвращает", "создание",
         "инициализация", "сервис", "контроллер", "репозиторий", "бизнес-логика"
     )
+
+    @PostConstruct
+    fun validateConfiguration() {
+        require(batchSize in 1..10000) {
+            "docgen.synonym.indexer.batch-size must be between 1 and 10000, but was $batchSize"
+        }
+        log.info("SynonymIndexerJob initialized with batchSize=$batchSize, locale=$defaultLocale")
+    }
 
     @Scheduled(fixedDelayString = "\${docgen.synonym.indexer.poll-ms:60000}")
     fun poll() {
@@ -131,7 +140,8 @@ class SynonymIndexerJob(
                             modelName = embeddingClient.modelName
                         )
                     )
-                    synonymRepo.updateEmbeddings(entity.id!!, item.termEmbedding, item.descEmbedding)
+                    val entityId = requireNotNull(entity.id) { "SynonymDictionary must have ID after save" }
+                    synonymRepo.updateEmbeddings(entityId, item.termEmbedding, item.descEmbedding)
                 }
             }
             SynonymStatus.INDEXED

@@ -33,7 +33,7 @@ class UpsertFunctionHandler(
 
         val parent =
             when {
-                !r.ownerFqn.isNullOrBlank() -> state.getType(r.ownerFqn!!)
+                !r.ownerFqn.isNullOrBlank() -> state.getType(r.ownerFqn.orEmpty())
                 !pkgFqn.isNullOrBlank() -> state.getPackage(pkgFqn)
                 else -> null
             }
@@ -58,8 +58,8 @@ class UpsertFunctionHandler(
                 function = r,
                 ownerType =
                     ownerType?.let {
-                        // TODO: нужно получить RawType из ownerType, но пока используем только аннотации
-                        null // пока null, потом добавим
+                        // NOTE: requires RawType from GraphState; currently uses annotations only
+                        null
                     },
                 ctx = ctx,
             )
@@ -78,9 +78,7 @@ class UpsertFunctionHandler(
                 apiMetadata = ApiMetadataSerializer.serialize(apiMetadata),
             )
 
-        // Обогащаем метаданные информацией из библиотек
-        // Пока пропускаем обогащение - оно будет происходить позже при линковке
-        // TODO: можно добавить обогащение здесь, если нужно обогащать метаданные Node
+        // NOTE: library enrichment happens later during linking (see LibraryNodeEnricherImpl)
         val enrichedMeta = baseMeta
 
         val node =

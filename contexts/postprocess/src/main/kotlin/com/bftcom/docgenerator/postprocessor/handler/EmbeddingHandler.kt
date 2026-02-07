@@ -32,6 +32,8 @@ class EmbeddingHandler(
     override fun supports(s: ChunkSnapshot) = enabled && client != null && !s.embeddingPresent
 
     override fun produce(s: ChunkSnapshot): PartialMutation {
+        val client = this.client
+            ?: throw IllegalStateException("EmbeddingHandler.produce() called but client is null")
         val content = s.content
         val contentForEmbedding =
             if (content.length > maxContentChars) {
@@ -66,8 +68,8 @@ class EmbeddingHandler(
         )
 
         // Retry логика для сетевых ошибок
-        val vec = embedWithRetry(contentForEmbedding, s.id)
-        require(vec.size == client!!.dim) {
+        val vec = embedWithRetry(client, contentForEmbedding, s.id)
+        require(vec.size == client.dim) {
             "Embedding dim ${vec.size} != expected ${client.dim} for chunkId=${s.id}"
         }
         return PartialMutation()
@@ -76,11 +78,11 @@ class EmbeddingHandler(
             .set(FieldKey.EMBED_TS, OffsetDateTime.now())
     }
 
-    private fun embedWithRetry(content: String, chunkId: Long): FloatArray {
+    private fun embedWithRetry(client: EmbeddingClient, content: String, chunkId: Long): FloatArray {
         var lastException: Throwable? = null
         for (attempt in 1..maxRetryAttempts) {
             try {
-                return client!!.embed(content)
+                return client.embed(content)
             } catch (e: Throwable) {
                 lastException = e
                 val isRetryable = isRetryableError(e)

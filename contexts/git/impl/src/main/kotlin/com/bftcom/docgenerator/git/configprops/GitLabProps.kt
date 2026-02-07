@@ -15,5 +15,5 @@ data class GitLabProps(
     /** Пароль (если не используется токен) */
     var password: String = "",
     /** Путь, куда будет клонироваться проект */
-    var basePath: String = "/tmp/docgen/gitlab",
+    var basePath: String = "./data/repos/gitlab",
 )

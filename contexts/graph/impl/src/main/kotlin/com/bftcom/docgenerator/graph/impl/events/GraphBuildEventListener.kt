@@ -61,8 +61,9 @@ class GraphBuildEventListener(
             )
 
             // После успешной сборки графа инициируем линковку
+            val appId = requireNotNull(app.id) { "Application ID cannot be null" }
             eventPublisher.publishEvent(
-                LinkRequestedEvent(applicationId = app.id!!),
+                LinkRequestedEvent(applicationId = appId),
             )
             log.debug("LinkRequestedEvent published for application key={}", app.key)
         } catch (e: Exception) {

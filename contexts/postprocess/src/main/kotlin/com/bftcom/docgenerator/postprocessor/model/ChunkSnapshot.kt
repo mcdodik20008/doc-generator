@@ -15,7 +15,7 @@ data class ChunkSnapshot(
     companion object {
         fun from(ch: Chunk) =
             ChunkSnapshot(
-                id = ch.id!!,
+                id = requireNotNull(ch.id) { "Chunk must be persisted" },
                 content = ch.content,
                 contentHash = ch.contentHash,
                 tokenCount = ch.tokenCount,

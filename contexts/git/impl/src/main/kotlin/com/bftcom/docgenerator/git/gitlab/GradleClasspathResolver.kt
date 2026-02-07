@@ -100,8 +100,8 @@ class GradleClasspathResolver {
 
             while (reader.readLine().also { line = it } != null) {
                 // Ищем наш маркер!
-                if (line != null && line!!.startsWith("CLASSPATH_ENTRY:")) {
-                    val filePath = line!!.substringAfter("CLASSPATH_ENTRY:")
+                if (line?.startsWith("CLASSPATH_ENTRY:") == true) {
+                    val filePath = line.substringAfter("CLASSPATH_ENTRY:")
                     val file = File(filePath)
                     if (file.exists()) {
                         classpathFiles.add(file)

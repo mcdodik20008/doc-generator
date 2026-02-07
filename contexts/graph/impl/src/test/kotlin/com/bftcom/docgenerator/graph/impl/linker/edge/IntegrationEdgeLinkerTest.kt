@@ -594,7 +594,7 @@ class IntegrationEdgeLinkerTest {
         val result = linker.linkIntegrationEdgesWithNodes(fn, meta, index, app)
 
         // Для Camel без http не создается CALLS_HTTP в edges, но создается endpoint
-        assertThat(result.first).isEmpty() // TODO: можно добавить другие типы Camel endpoints
+        assertThat(result.first).isEmpty()
     }
 
     @Test

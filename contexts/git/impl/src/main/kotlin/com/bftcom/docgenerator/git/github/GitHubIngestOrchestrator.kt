@@ -88,10 +88,11 @@ class GitHubIngestOrchestrator(
         }
 
         // --- 5) async library build via event ---
-        log.info("Publishing LibraryBuildRequestedEvent for application id={} key={}", savedApp.id, savedApp.key)
+        val appId = requireNotNull(savedApp.id) { "Application ID cannot be null after save" }
+        log.info("Publishing LibraryBuildRequestedEvent for application id={} key={}", appId, savedApp.key)
         eventPublisher.publishEvent(
             LibraryBuildRequestedEvent(
-                applicationId = savedApp.id!!,
+                applicationId = appId,
                 sourceRoot = localPath,
                 classpath = classpath,
             ),

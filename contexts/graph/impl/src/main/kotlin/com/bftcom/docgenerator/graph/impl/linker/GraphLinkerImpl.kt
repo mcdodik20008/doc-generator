@@ -23,6 +23,9 @@ import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.beans.factory.annotation.Value
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * Сервис для линковки узлов графа - создания рёбер между узлами. Оркестрирует работу различных
@@ -43,30 +46,24 @@ class GraphLinkerImpl(
         private val callEdgeLinker: CallEdgeLinker,
         private val throwEdgeLinker: ThrowEdgeLinker,
         private val integrationEdgeLinker: IntegrationEdgeLinker,
-        @org.springframework.beans.factory.annotation.Value("\${docgen.graph.max-nodes:100000}")
+        @Value("\${docgen.graph.max-nodes:100000}")
         private val maxNodesToLoad: Int,
 ) : GraphLinker {
     companion object {
         private val log = LoggerFactory.getLogger(GraphLinker::class.java)
+        private const val PARALLEL_LINKING_TIMEOUT_MINUTES = 10L
+        private const val MAX_ERROR_THRESHOLD = 100
     }
 
     @Transactional
-    // TODO: @Transactional на методе который может выполняться очень долго - риск database timeout
-    // TODO: Для больших графов транзакция может держать locks слишком долго
-    // TODO: Рассмотреть разбиение на несколько транзакций или использование batch processing
     override fun link(application: Application) {
         val startTime = System.currentTimeMillis()
         val runtime = Runtime.getRuntime()
-        // TODO: Измерение памяти через Runtime неточное - включает весь heap, а не только этот процесс
-        // TODO: GC может сработать между измерениями и исказить результаты
         val startMem = runtime.totalMemory() - runtime.freeMemory()
 
         log.info("Starting graph linking for app [id=${application.id}]...")
 
         // 1. Загрузка узлов
-        // TODO: Использование !! оператора небезопасно - application.id может быть null
-        // TODO: Рассмотреть батчевую обработку или streaming для больших графов (требует рефакторинга индекса)
-        // TODO: Нет обработки ошибок при загрузке из БД
         val appId = requireNotNull(application.id) { "Application ID cannot be null" }
 
         val all = nodeRepo.findAllByApplicationId(appId, Pageable.ofSize(maxNodesToLoad))
@@ -93,7 +90,6 @@ class GraphLinkerImpl(
             log.error("Failed to create node index for app [id=${application.id}]: ${e.message}", e)
             throw IllegalStateException("Cannot proceed with graph linking - index creation failed", e)
         }
-        // TODO: Нет кеширования результатов конверсии - каждый раз создается новый объект
         fun metaOf(n: Node): NodeMeta {
             return try {
                 objectMapper.convertValue(n.meta, NodeMeta::class.java)
@@ -119,8 +115,6 @@ class GraphLinkerImpl(
         val progressStep = (all.size / 20).coerceAtLeast(1) // Логируем каждые 5%
         val processedCount = java.util.concurrent.atomic.AtomicInteger(0)
 
-        // TODO: Нет timeout для обработки - если один узел зависнет, вся операция зависнет
-        // TODO: metaOf вызывается для каждого node в параллельных потоках - возможны проблемы с ObjectMapper thread safety
         // Используем контролируемый thread pool для предотвращения перегрузки системы
         val parallelism = Runtime.getRuntime().availableProcessors().coerceAtMost(8)
         val customPool = java.util.concurrent.ForkJoinPool(parallelism)
@@ -138,7 +132,10 @@ class GraphLinkerImpl(
                         linkSingleNode(node, metaOf(node), index, application)
                     }
                     .toList()
-            }.get()
+            }.get(PARALLEL_LINKING_TIMEOUT_MINUTES, TimeUnit.MINUTES)
+        } catch (e: TimeoutException) {
+            log.error("Parallel linking timed out after {} minutes for app [id={}]", PARALLEL_LINKING_TIMEOUT_MINUTES, application.id)
+            throw IllegalStateException("Graph linking timed out after ${PARALLEL_LINKING_TIMEOUT_MINUTES} minutes", e)
         } finally {
             customPool.shutdown()
         }
@@ -153,14 +150,21 @@ class GraphLinkerImpl(
         var callsErrors = 0
 
         edges += structuralEdges
-        // TODO: Ошибки только подсчитываются, но не логируются детально (теряется контекст какие узлы failed)
-        // TODO: Нет retry логики для failed узлов
-        // TODO: При большом количестве errors нет механизма для остановки процесса (fail-fast)
         results.forEach { result ->
             edges += result.edges
             newlyCreatedNodes += result.newNodes
             libraryNodeEdges += result.libraryEdges
             if (result.error != null) callsErrors++
+        }
+
+        if (callsErrors > 0) {
+            log.warn("Graph linking completed with {} errors out of {} nodes", callsErrors, all.size)
+        }
+        if (callsErrors >= MAX_ERROR_THRESHOLD) {
+            log.error(
+                "Too many linking errors ({}/{}). This may indicate a systemic problem.",
+                callsErrors, all.size
+            )
         }
 
         // 6. Обновление индекса новыми узлами

@@ -14,8 +14,15 @@ DocEvaluatorClient - клиент для взаимодействия с API с�
 """
 import logging
 from typing import Optional
+from urllib.parse import urlparse
 import aiohttp
 from pydantic import BaseModel, Field, ValidationError as PydanticValidationError
+
+
+# ===== CONSTANTS =====
+
+MIN_INPUT_LENGTH = 5
+MAX_INPUT_LENGTH = 500_000  # 500KB of text should be more than enough
 
 
 # ===== MODELS =====
@@ -33,10 +40,10 @@ class EvaluationResult(BaseModel):
     semantic_score: float = Field(..., ge=0, le=10, description="Семантическое сходство")
     keyword_coverage: float = Field(..., ge=0, le=10, description="Покрытие ключевыми словами")
     readability_score: float = Field(..., description="Читаемость текста")
-    
+
     # LLM метрики
     llm_scores: LlmScores
-    
+
     # Итоговые метрики
     final_score: float = Field(..., ge=0, le=10, description="Итоговая взвешенная оценка")
     score_variance: float = Field(..., ge=0, description="Дисперсия оценок")
@@ -70,18 +77,18 @@ class APIError(DocEvaluatorError):
 class DocEvaluatorClient:
     """
     Асинхронный клиент для сервиса оценки документации.
-    
+
     Attributes:
         base_url: Базовый URL сервиса (по умолчанию http://localhost:8000)
         timeout: Таймаут запросов в секундах (по умолчанию 30)
         log_level: Уровень логирования
-    
+
     Example:
         >>> async with DocEvaluatorClient() as client:
         ...     result = await client.evaluate("code", "doc")
         ...     print(result.final_score)
     """
-    
+
     def __init__(
         self,
         base_url: str = "http://localhost:8000",
@@ -96,12 +103,17 @@ class DocEvaluatorClient:
             timeout: Таймаут для HTTP запросов в секундах
             log_level: Уровень логирования (logging.DEBUG, logging.INFO, etc.)
         """
-        # TODO: Нет валидации base_url (может быть невалидный URL)
+        parsed = urlparse(base_url)
+        if not parsed.scheme or not parsed.netloc:
+            raise ValueError(f"Invalid base_url: '{base_url}'. Must be a valid HTTP/HTTPS URL.")
         self.base_url = base_url.rstrip('/')
-        # TODO: Нет настройки отдельных таймаутов (connect, read, write) - только total
-        self.timeout = aiohttp.ClientTimeout(total=timeout)
+        self.timeout = aiohttp.ClientTimeout(
+            total=timeout,
+            connect=min(10, timeout),
+            sock_read=timeout,
+        )
         self._session: Optional[aiohttp.ClientSession] = None
-        
+
         # Настройка логирования
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.setLevel(log_level)
@@ -111,41 +123,41 @@ class DocEvaluatorClient:
                 logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             )
             self.logger.addHandler(handler)
-    
+
     async def __aenter__(self):
         """Вход в context manager - создаёт сессию."""
         await self._ensure_session()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Выход из context manager - закрывает сессию."""
         await self.close()
-    
+
     async def _ensure_session(self):
         """Создаёт сессию если её ещё нет."""
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(timeout=self.timeout)
             self.logger.debug(f"Created new session for {self.base_url}")
-    
+
     async def close(self):
         """Закрывает HTTP сессию."""
         if self._session and not self._session.closed:
             await self._session.close()
             self.logger.debug("Session closed")
-    
+
     async def health_check(self) -> dict:
         """
         Проверяет доступность сервиса.
-        
+
         Returns:
             Словарь со статусом сервиса
-            
+
         Raises:
             ServiceUnavailableError: Если сервис недоступен
         """
         await self._ensure_session()
         url = f"{self.base_url}/health"
-        
+
         try:
             self.logger.debug(f"Health check: {url}")
             async with self._session.get(url) as response:
@@ -165,7 +177,7 @@ class DocEvaluatorClient:
         except aiohttp.ClientError as e:
             self.logger.error(f"Client error: {e}")
             raise ServiceUnavailableError(str(e)) from e
-    
+
     async def evaluate(
         self,
         code_snippet: str,
@@ -186,32 +198,31 @@ class DocEvaluatorClient:
             ServiceUnavailableError: Если сервис недоступен
             APIError: При других ошибках API
         """
-        # TODO: Отсутствует retry логика для временных сетевых ошибок
-        # TODO: Отсутствует rate limiting (можно перегрузить сервер запросами)
-        # TODO: Нет кеширования результатов для одинаковых запросов
         await self._ensure_session()
 
         # Валидация входных данных
-        # TODO: Магическое число 5 - вынести в константу MIN_INPUT_LENGTH
-        # TODO: Нет проверки максимальной длины (можно передать гигабайты текста)
-        if len(code_snippet) < 5:
-            raise ValidationError("Code snippet must be at least 5 characters long")
-        if len(generated_doc) < 5:
-            raise ValidationError("Generated documentation must be at least 5 characters long")
-        
+        if len(code_snippet) < MIN_INPUT_LENGTH:
+            raise ValidationError(f"Code snippet must be at least {MIN_INPUT_LENGTH} characters long")
+        if len(generated_doc) < MIN_INPUT_LENGTH:
+            raise ValidationError(f"Generated documentation must be at least {MIN_INPUT_LENGTH} characters long")
+        if len(code_snippet) > MAX_INPUT_LENGTH:
+            raise ValidationError(f"Code snippet exceeds maximum length of {MAX_INPUT_LENGTH} characters")
+        if len(generated_doc) > MAX_INPUT_LENGTH:
+            raise ValidationError(f"Generated documentation exceeds maximum length of {MAX_INPUT_LENGTH} characters")
+
         url = f"{self.base_url}/evaluate"
         payload = {
             "code_snippet": code_snippet,
             "generated_doc": generated_doc
         }
-        
+
         try:
             self.logger.debug(f"Sending evaluation request to {url}")
             self.logger.debug(f"Code length: {len(code_snippet)}, Doc length: {len(generated_doc)}")
-            
+
             async with self._session.post(url, json=payload) as response:
                 response_text = await response.text()
-                
+
                 if response.status == 200:
                     try:
                         data = await response.json()
@@ -221,7 +232,7 @@ class DocEvaluatorClient:
                     except PydanticValidationError as e:
                         self.logger.error(f"Response validation error: {e}")
                         raise APIError(f"Invalid response format: {e}") from e
-                
+
                 elif response.status == 422:
                     # Ошибка валидации от FastAPI
                     try:
@@ -230,28 +241,26 @@ class DocEvaluatorClient:
                         raise ValidationError(f"API validation error: {detail}")
                     except Exception:
                         raise ValidationError(f"Validation error: {response_text}")
-                
+
                 elif response.status == 503:
                     raise ServiceUnavailableError("Service is temporarily unavailable")
-                
+
                 else:
                     self.logger.error(f"API error {response.status}: {response_text}")
-                    # TODO: Обрезка response_text до 200 символов может потерять важную информацию об ошибке
-                    # TODO: Добавить полный текст ошибки в логи, а в исключение - сокращенный
                     raise APIError(
                         f"API returned status {response.status}: {response_text[:200]}"
                     )
-        
+
         except aiohttp.ClientConnectionError as e:
             self.logger.error(f"Connection error: {e}")
             raise ServiceUnavailableError(
                 f"Cannot connect to service at {self.base_url}"
             ) from e
-        
+
         except (ValidationError, ServiceUnavailableError, APIError):
             # Пробрасываем наши собственные исключения без изменений
             raise
-        
+
         except Exception as e:
             self.logger.exception("Unexpected error during evaluation")
             raise APIError(f"Unexpected error: {str(e)}") from e
@@ -267,18 +276,18 @@ async def evaluate_doc(
 ) -> EvaluationResult:
     """
     Удобная функция для разовой оценки документации.
-    
+
     Автоматически создаёт и закрывает клиент.
-    
+
     Args:
         code_snippet: Исходный код
         generated_doc: Документация
         base_url: URL сервиса
         timeout: Таймаут в секундах
-        
+
     Returns:
         Результат оценки
-        
+
     Example:
         >>> result = await evaluate_doc("def foo(): pass", "Function foo")
         >>> print(result.final_score)

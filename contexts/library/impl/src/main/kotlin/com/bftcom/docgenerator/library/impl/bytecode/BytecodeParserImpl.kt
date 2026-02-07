@@ -134,9 +134,10 @@ class BytecodeParserImpl : BytecodeParser {
             interfaces: Array<out String>?,
         ) {
             internalName = name
-            classFqn = name.replace('/', '.')
-            simpleName = classFqn!!.substringAfterLast('.')
-            packageName = classFqn!!.substringBeforeLast('.')
+            val fqn = name.replace('/', '.')
+            classFqn = fqn
+            simpleName = fqn.substringAfterLast('.')
+            packageName = fqn.substringBeforeLast('.')
 
             classModifiers = extractModifiers(access)
             classAnnotations = emptyList()

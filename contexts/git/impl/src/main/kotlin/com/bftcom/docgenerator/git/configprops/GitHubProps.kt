@@ -13,6 +13,6 @@ data class GitHubProps(
     /** Пароль (если не используется токен) */
     var password: String = "",
     /** Путь, куда будет клонироваться проект */
-    var basePath: String = "/tmp/docgen/github",
+    var basePath: String = "./data/repos/github",
 )
 

@@ -46,7 +46,7 @@ class RagServiceImplTest {
         val chatResponse = createMockCallResponseSpec("Метод process обрабатывает входящие данные и возвращает результат.")
         val promptSpec = createMockPromptSpec(chatResponse)
 
-        every { graphRequestProcessor.process(query, sessionId) } returns context
+        every { graphRequestProcessor.process(query, sessionId, null) } returns context
         every { chatClient.prompt() } returns promptSpec
 
         val result = ragService.ask(query, sessionId)
@@ -54,7 +54,7 @@ class RagServiceImplTest {
         assertThat(result.answer).isEqualTo("Метод process обрабатывает входящие данные и возвращает результат.")
         assertThat(result.sources).hasSize(2)
         assertThat(result.metadata.originalQuery).isEqualTo(query)
-        verify { graphRequestProcessor.process(query, sessionId) }
+        verify { graphRequestProcessor.process(query, sessionId, null) }
     }
 
     @Test
@@ -68,7 +68,7 @@ class RagServiceImplTest {
             metadata = mutableMapOf(QueryMetadataKeys.PROCESSING_STATUS.key to ProcessingStepType.FAILED.name),
         )
 
-        every { graphRequestProcessor.process(query, sessionId) } returns context
+        every { graphRequestProcessor.process(query, sessionId, null) } returns context
 
         val result = ragService.ask(query, sessionId)
 
@@ -96,7 +96,7 @@ class RagServiceImplTest {
         val chatResponse = createMockCallResponseSpec("Ответ")
         val promptSpec = createMockPromptSpec(chatResponse)
 
-        every { graphRequestProcessor.process(query, sessionId) } returns context
+        every { graphRequestProcessor.process(query, sessionId, null) } returns context
         every { chatClient.prompt() } returns promptSpec
 
         val result = ragService.ask(query, sessionId)
@@ -123,7 +123,7 @@ class RagServiceImplTest {
         val chatResponse = createMockCallResponseSpec("Ответ")
         val promptSpec = createMockPromptSpec(chatResponse)
 
-        every { graphRequestProcessor.process(query, sessionId) } returns context
+        every { graphRequestProcessor.process(query, sessionId, null) } returns context
         every { chatClient.prompt() } returns promptSpec
 
         val result = ragService.ask(query, sessionId)
@@ -149,7 +149,7 @@ class RagServiceImplTest {
         val chatResponse = createMockCallResponseSpec("Ответ")
         val promptSpec = createMockPromptSpec(chatResponse)
 
-        every { graphRequestProcessor.process(query, sessionId) } returns context
+        every { graphRequestProcessor.process(query, sessionId, null) } returns context
         every { chatClient.prompt() } returns promptSpec
 
         val result = ragService.ask(query, sessionId)
@@ -172,7 +172,7 @@ class RagServiceImplTest {
         val chatResponse = createMockCallResponseSpec(null)
         val promptSpec = createMockPromptSpec(chatResponse)
 
-        every { graphRequestProcessor.process(query, sessionId) } returns context
+        every { graphRequestProcessor.process(query, sessionId, null) } returns context
         every { chatClient.prompt() } returns promptSpec
 
         val result = ragService.ask(query, sessionId)

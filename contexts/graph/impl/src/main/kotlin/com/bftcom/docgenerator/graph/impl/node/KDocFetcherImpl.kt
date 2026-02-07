@@ -74,7 +74,7 @@ class KDocFetcherImpl : KDocFetcher {
         k.summary?.let { ln(it) }
         if (!k.description.isNullOrBlank()) {
             if (out.isNotEmpty()) ln()
-            ln(k.description!!)
+            ln(k.description.orEmpty())
         }
 
         appendMap(out, "Properties:", k.properties)

@@ -58,7 +58,12 @@ class LibraryNodeEnricherImplTest {
 
         val result = enricher.enrichNodeMeta(node, meta)
 
-        assertThat(result).isSameAs(meta)
+        assertThat(result).isNotSameAs(meta)
+        assertThat(result.libraryIntegration).isNotNull
+        @Suppress("UNCHECKED_CAST")
+        val httpEndpoints = result.libraryIntegration!!["httpEndpoints"] as List<String>
+        assertThat(httpEndpoints).contains("https://example.test/api")
+        assertThat(result.libraryIntegration!!["hasRetry"]).isEqualTo(true)
         verify(exactly = 1) { index.findByMethodFqn("com.app.Owner.call") }
         verify(exactly = 1) { integrationService.extractIntegrationPoints(libraryNode) }
     }

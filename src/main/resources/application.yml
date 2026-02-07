@@ -49,13 +49,10 @@ spring:
 
     clients:
       coder:
-        # TODO: Hardcoded модель - рассмотреть конфигурирование через переменные окружения
-        model: qwen2.5-coder:14b # qwen2.5-coder:32b - 48gb
+        model: ${CODER_MODEL:qwen2.5-coder:14b}
         temperature: 0.1
         top-p: 0.9
         seed: 42
-        # TODO: System prompt на русском языке - нужна интернационализация
-        # TODO: Промпт очень длинный - рассмотреть вынос в отдельный файл
         system: |
           Ты — строгий инженер-кодер. Объясняй код без домыслов, пунктами, лаконично.
           Структура: Purpose; Inputs; Outputs; Throws; SideEffects; Preconditions; Postconditions;
@@ -63,7 +60,7 @@ spring:
           Запрещены предположения, если не следует из кода. Короткие формулировки.
 
       talker:
-        model: qwen2.5:14b-instruct # qwen2.5:14b-instruct-fp16
+        model: ${TALKER_MODEL:qwen2.5:14b-instruct}
         temperature: 0.3
         top-p: 0.9
         seed: 42
@@ -127,12 +124,11 @@ logging:
 #    org.springframework.web.reactive.function.client.ExchangeFilterFunctions: TRACE
 
 docgen:
+  scheduler:
+    pool-size: ${SCHEDULER_POOL_SIZE:5}
   post:
-    # TODO: batch-size: 50 - нет валидации диапазона (может быть 0 или миллион)
     batch-size: 50
   embed:
-    # TODO: enabled: true - нет объяснения что это включает/выключает
-    # TODO: Если disabled, может вызвать неожиданное поведение в других компонентах
     enabled: true
   graph:
     # Максимальное количество узлов для загрузки при линковке графа

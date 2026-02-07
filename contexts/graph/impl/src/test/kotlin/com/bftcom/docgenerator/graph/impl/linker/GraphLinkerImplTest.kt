@@ -77,6 +77,7 @@ class GraphLinkerImplTest {
                 callEdgeLinker = callEdgeLinker,
                 throwEdgeLinker = throwEdgeLinker,
                 integrationEdgeLinker = integrationEdgeLinker,
+                maxNodesToLoad = 100000,
             )
     }
 

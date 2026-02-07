@@ -51,7 +51,7 @@ class HandlerChainOrchestrator(
                 chunk.tokenCount?.let { set(FieldKey.TOKEN_COUNT, it) }
                 chunk.embedModel?.let { set(FieldKey.EMBED_MODEL, it) }
                 chunk.embedTs?.let { set(FieldKey.EMBED_TS, it) }
-                if (chunk.emb != null) set(FieldKey.EMB, chunk.emb!!)
+                chunk.emb?.let { set(FieldKey.EMB, it) }
             }
 
         val merged = MutationMerger.merge(initial, patches)

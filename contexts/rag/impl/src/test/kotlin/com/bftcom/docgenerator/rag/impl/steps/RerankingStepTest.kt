@@ -37,7 +37,7 @@ class RerankingStepTest {
 
         val result = step.execute(context)
 
-        assertThat(result.nextStep).isEqualTo(ProcessingStepType.COMPLETED)
+        assertThat(result.transitionKey).isEqualTo("SUCCESS")
         val filtered = result.context.getMetadata<List<*>>(QueryMetadataKeys.FILTERED_CHUNKS)
         assertThat(filtered).isNotNull
         assertThat(filtered!!).hasSize(2)

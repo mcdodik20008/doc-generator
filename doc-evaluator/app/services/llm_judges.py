@@ -128,7 +128,6 @@ class OllamaJudge(BaseJudge):
                 return self._extract_score(content)
 
         except Exception as e:
-            # TODO: Добавить retry логику для временных сетевых ошибок (ConnectionError, Timeout)
             logger.error(f"Ollama Error: {e}", exc_info=True)
             return None
 

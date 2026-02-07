@@ -2,6 +2,7 @@ package com.bftcom.docgenerator.rag.impl.steps
 
 import com.bftcom.docgenerator.db.EdgeRepository
 import com.bftcom.docgenerator.db.NodeRepository
+import com.bftcom.docgenerator.db.findAllByIdInBatched
 import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.node.Node
@@ -63,7 +64,7 @@ class GraphExpansionStep(
 
         val neighborIds = (visitedIds - seedIds)
         val neighborNodes = if (neighborIds.isNotEmpty()) {
-            nodeRepository.findAllByIdIn(neighborIds)
+            nodeRepository.findAllByIdInBatched(neighborIds)
         } else {
             emptyList()
         }
@@ -134,7 +135,7 @@ class GraphExpansionStep(
             return fallbackId?.let { "Node#$it" } ?: ""
         }
         return when {
-            !node.name.isNullOrBlank() -> node.name!!
+            !node.name.isNullOrBlank() -> node.name.orEmpty()
             node.fqn.isNotBlank() -> node.fqn
             node.id != null -> "Node#${node.id}"
             fallbackId != null -> "Node#$fallbackId"

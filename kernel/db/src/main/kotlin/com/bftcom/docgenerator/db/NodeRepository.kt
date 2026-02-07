@@ -8,32 +8,23 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 
-// TODO: Нет кеширования часто используемых запросов (например, findByApplicationIdAndFqn)
-// TODO: Рассмотреть использование @Cacheable для read-heavy операций
 interface NodeRepository : JpaRepository<Node, Long> {
-    // TODO: Нужен уникальный индекс на (applicationId, fqn) для быстрого поиска
     fun findByApplicationIdAndFqn(
         applicationId: Long,
         fqn: String,
     ): Node?
 
-    // TODO: Метод всегда возвращает List даже при использовании Pageable - должен возвращать Page
     fun findAllByApplicationId(
         applicationId: Long,
         pageable: Pageable,
     ): List<Node>
 
-    // TODO: Метод всегда возвращает List даже при использовании Pageable - должен возвращать Page
-    // TODO: IN запрос с большим Set<NodeKind> может быть неоптимальным
     fun findAllByApplicationIdAndKindIn(
         applicationId: Long,
         kinds: Set<NodeKind>,
         pageable: Pageable,
     ): List<Node>
 
-    // TODO: Нет ограничения на размер ids - может вызвать проблемы с производительностью при больших Sets
-    // TODO: IN запрос с тысячами ID может быть очень медленным или превысить лимит параметров БД
-    // TODO: Рассмотреть батчевую обработку для больших наборов
     fun findAllByIdIn(ids: Set<Long>): List<Node>
 
     fun findPageAllByApplicationId(
@@ -52,7 +43,6 @@ interface NodeRepository : JpaRepository<Node, Long> {
      * Ищет метод с указанным именем, у которого родительский класс содержит указанное имя класса.
      * Использует триграм индекс (migration 15_add_trigram_indexes.sql) для оптимизации LIKE запросов.
      */
-    // TODO: JOIN с parent через IS NOT NULL может быть неоптимальным
     @Query(
         """
         SELECT n FROM Node n
@@ -93,9 +83,6 @@ interface NodeRepository : JpaRepository<Node, Long> {
     /**
      * Находит узлы по имени метода (без привязки к классу).
      */
-    // TODO: Нет LIMIT - может вернуть тысячи методов с одинаковым именем (например, "toString")
-    // TODO: Нет индекса на (applicationId, kind, name) - запрос может быть медленным
-    // TODO: Рассмотреть добавление составного индекса для оптимизации
     @Query(
         """
         SELECT n FROM Node n
@@ -109,6 +96,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
         @Param("applicationId") applicationId: Long,
         @Param("methodName") methodName: String,
         @Param("methodKind") methodKind: NodeKind,
+        pageable: Pageable = Pageable.ofSize(1000),
     ): List<Node>
 
     /**

@@ -9,7 +9,6 @@ import com.bftcom.docgenerator.chunking.model.ChunkRunHandle
 import com.bftcom.docgenerator.chunking.model.plan.ChunkPlan
 import com.bftcom.docgenerator.db.EdgeRepository
 import com.bftcom.docgenerator.db.NodeRepository
-import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
@@ -33,14 +32,19 @@ class ChunkBuildOrchestratorImpl(
 ) : ChunkBuildOrchestrator {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    companion object {
+        private const val MIN_BATCH_SIZE = 50
+        private const val MAX_PAGES = 10_000
+    }
+
     override fun start(req: ChunkBuildRequest): ChunkRunHandle {
-        // TODO: error() бросает IllegalStateException - использовать специфичное исключение
-        // TODO: Нет валидации req параметров перед использованием
-        val strategy = strategies[req.strategy] ?: error("Unknown strategy: ${req.strategy}")
+        require(req.applicationId > 0) { "applicationId must be positive, got ${req.applicationId}" }
+        require(req.strategy.isNotBlank()) { "strategy must not be blank" }
+
+        val strategy = strategies[req.strategy]
+            ?: throw IllegalArgumentException("Unknown chunk strategy: '${req.strategy}'. Available: ${strategies.keys}")
         val run = runStore.create(req.applicationId, req.strategy)
 
-        // TODO: MDC не очищается после завершения - может привести к утечке контекста в других запросах
-        // TODO: Использовать try-finally для очистки MDC
         MDC.put("runId", run.runId)
         MDC.put("appId", req.applicationId.toString())
         MDC.put("strategy", req.strategy)
@@ -50,8 +54,7 @@ class ChunkBuildOrchestratorImpl(
         var written = 0L
         var skipped = 0L
         var pages = 0
-        // TODO: Hardcoded 50 - вынести в константу MIN_BATCH_SIZE
-        val pageSize = max(50, req.batchSize)
+        val pageSize = max(MIN_BATCH_SIZE, req.batchSize)
 
         try {
             runStore.markRunning(run.runId)
@@ -80,11 +83,8 @@ class ChunkBuildOrchestratorImpl(
                     ?.takeIf { it.isNotEmpty() }
             var page = 0
 
-            // TODO: while(true) без максимального лимита страниц - может работать очень долго
-            // TODO: Рассмотреть добавление максимального количества страниц для безопасности
-            while (true) {
+            while (pages < MAX_PAGES) {
                 val pageReq = PageRequest.of(page, pageSize, Sort.by("id").ascending())
-                // TODO: Нет обработки ошибок при запросе к БД
                 val pageData =
                     if (kindsFilter.isNullOrEmpty()) {
                         nodeRepo.findAllByApplicationId(req.applicationId, pageReq)
@@ -108,8 +108,8 @@ class ChunkBuildOrchestratorImpl(
                     // findAllBySrcIdIn обычно сам отлично обрабатывает пустой список,
                     // но groupBy на пустом списке тоже выдаст пустую карту.
                     edgeRepo.findAllBySrcIdIn(ids)
-                        .filter { it.src.id != null } // Защита от кривых данных
-                        .groupBy { it.src.id!! }
+                        .mapNotNull { e -> e.src.id?.let { id -> id to e } }
+                        .groupBy({ it.first }, { it.second })
                 } else {
                     emptyMap()
                 }
@@ -125,7 +125,8 @@ class ChunkBuildOrchestratorImpl(
                         log.debug("Processing node#{} fqn={} kind={}", processed, n.fqn, n.kind)
                     }
 
-                    val edges = if (req.withEdgesRelations) edgesBySrc[n.id!!].orEmpty() else emptyList()
+                    val nodeId = n.id ?: continue
+                    val edges = if (req.withEdgesRelations) edgesBySrc[nodeId].orEmpty() else emptyList()
                     val plan = strategy.buildChunks(n, edges)
 
                     if (req.dryRun) {
@@ -159,6 +160,10 @@ class ChunkBuildOrchestratorImpl(
                     break
                 }
                 page++
+            }
+
+            if (pages >= MAX_PAGES) {
+                log.warn("Reached maximum page limit ({}). Some nodes may not have been processed.", MAX_PAGES)
             }
 
             val dt = Duration.between(t0, Instant.now())

@@ -6,11 +6,13 @@ class Settings(BaseSettings):
     # --- App Settings ---
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Doc Evaluator Service"
+    APP_HOST: str = "0.0.0.0"
+    APP_PORT: int = 8000
+    DEBUG: bool = False
 
     # --- LLM Settings ---
     # Значения по умолчанию стоят для локальной разработки
     OLLAMA_HOST: str = "http://localhost:11434/v1"
-    # TODO: Модель жестко задана - рассмотреть возможность поддержки нескольких моделей
     OLLAMA_MODEL: str = "qwen2.5:7b"
 
     @field_validator('OLLAMA_HOST')

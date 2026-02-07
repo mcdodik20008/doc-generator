@@ -2,6 +2,7 @@ package com.bftcom.docgenerator.rag.impl.advisors
 
 import com.bftcom.docgenerator.db.EdgeRepository
 import com.bftcom.docgenerator.db.NodeRepository
+import com.bftcom.docgenerator.db.findAllByIdInBatched
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.rag.api.ProcessingStep
@@ -137,7 +138,7 @@ class NeighborhoodExpansionAdvisor(
         }
 
         // Загружаем соседние узлы из базы
-        val neighborNodes = nodeRepository.findAllByIdIn(allNeighborIds)
+        val neighborNodes = nodeRepository.findAllByIdInBatched(allNeighborIds)
         
         log.debug("Найдено {} соседних узлов для {} исходных узлов (радиус={})", 
             neighborNodes.size, seedNodes.size, radius)

@@ -471,8 +471,8 @@ class KotlinSourceWalker(
         val start = f.textRange.startOffset
         val bodyStart =
             when {
-                f.equalsToken != null -> f.equalsToken!!.textRange.startOffset
-                f.bodyExpression != null -> f.bodyExpression!!.textRange.startOffset
+                f.equalsToken != null -> f.equalsToken?.textRange?.startOffset ?: f.textRange.endOffset
+                f.bodyExpression != null -> f.bodyExpression?.textRange?.startOffset ?: f.textRange.endOffset
                 else -> f.textRange.endOffset
             }
         val full = f.containingKtFile.text
