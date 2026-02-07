@@ -5,44 +5,37 @@
     <title>Code Graph Explorer</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+    <link rel="stylesheet" href="/css/common.css"/>
     <style>
+        html, body { height: 100%; overflow: hidden; }
+
+        /* Graph-specific variables */
         :root {
-            --bg: #1e1e2e;
-            --surface: #282840;
-            --surface2: #313150;
-            --border: #3e3e5e;
-            --text: #cdd6f4;
-            --text-muted: #8888aa;
-            --accent: #89b4fa;
-            --accent-dim: #45577d;
-            --green: #a6e3a1;
-            --red: #f38ba8;
-            --yellow: #f9e2af;
-            --peach: #fab387;
-            --pink: #f5c2e7;
-            --teal: #94e2d5;
-            --lavender: #b4befe;
-            --mauve: #cba6f7;
             --panel-w: 440px;
             --panel-collapsed: 0px;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body {
-            height: 100%;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            font-size: 15px;
-            background: var(--bg);
-            color: var(--text);
+        .graph-nav {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 16px;
+            background: var(--surface); border-bottom: 1px solid var(--border);
         }
+        .graph-nav .nav-title {
+            font-size: 15px; font-weight: 600;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .graph-nav .nav-title .logo { font-size: 18px; }
 
         #app {
             display: grid;
+            grid-template-rows: auto 1fr;
             grid-template-columns: 1fr var(--panel-w);
             height: 100%;
             transition: grid-template-columns .3s ease;
         }
         #app.panel-hidden { grid-template-columns: 1fr var(--panel-collapsed); }
+
+        .graph-nav { grid-column: 1 / -1; }
 
         /* ======== Canvas ======== */
         #cy-wrap { position: relative; overflow: hidden; }
@@ -66,7 +59,7 @@
         }
         #toolbar button:hover { background: var(--surface2); }
 
-        /* Panel toggle button — always visible on canvas */
+        /* Panel toggle button */
         #panelToggle {
             position: absolute; top: 12px; right: 12px; z-index: 10;
             background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
@@ -84,7 +77,6 @@
         }
         #app.panel-hidden #panel { opacity: 0; visibility: hidden; pointer-events: none; }
 
-        /* Scrollable panel body */
         #panel-body {
             flex: 1; overflow-y: auto;
         }
@@ -134,13 +126,14 @@
             accent-color: var(--accent); width: 18px; height: 18px;
         }
 
-        .btn {
+        /* Override .btn for panel full-width button */
+        .btn-primary {
             display: inline-flex; align-items: center; justify-content: center; gap: 6px;
             width: 100%; padding: 10px; font-size: 15px; font-weight: 600;
             border: none; border-radius: 6px; cursor: pointer;
             transition: background .15s; margin-top: 6px;
+            background: var(--accent); color: var(--bg);
         }
-        .btn-primary { background: var(--accent); color: var(--bg); }
         .btn-primary:hover { background: #a0c4ff; }
         .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 
@@ -222,25 +215,26 @@
             color: var(--accent); cursor: pointer; text-decoration: underline;
         }
 
-        /* ---- Loading / Toast ---- */
+        /* ---- Loading / Toast (graph-specific overrides) ---- */
         .loading-overlay {
             position: absolute; inset: 0; background: rgba(30,30,46,.8);
             display: flex; align-items: center; justify-content: center;
             z-index: 100; font-size: 16px; color: var(--text-muted);
+            padding: 0;
         }
         .spinner {
-            width: 28px; height: 28px; border: 3px solid var(--border);
-            border-top-color: var(--accent); border-radius: 50%;
-            animation: spin .8s linear infinite; margin-right: 12px;
+            width: 28px; height: 28px;
+            margin-right: 12px;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
 
         .toast {
             position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            right: auto;
             background: var(--red); color: var(--bg); padding: 12px 24px;
             border-radius: 8px; font-size: 14px; z-index: 200;
             max-width: 600px; text-align: center;
             animation: fadeInOut 4s forwards;
+            border: none;
         }
         @keyframes fadeInOut {
             0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
@@ -261,6 +255,21 @@
 </head>
 <body>
 <div id="app">
+    <!-- ===== Nav Bar ===== -->
+    <div class="graph-nav">
+        <div class="nav-title">
+            <span class="logo">&#9670;</span>
+            Code Graph Explorer
+        </div>
+        <nav class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/graph" class="active">Graph</a>
+            <a href="/chat">Chat</a>
+            <a href="/ingest">Ingest</a>
+            <a href="/health">Health</a>
+        </nav>
+    </div>
+
     <!-- ===== Canvas ===== -->
     <div id="cy-wrap">
         <div id="cy"></div>
@@ -996,6 +1005,10 @@ function escapeHtml(s) {
 //  BOOTSTRAP
 // ============================================================
 (function bootstrap() {
+    // Read ?appId= from URL
+    const urlAppId = new URLSearchParams(window.location.search).get('appId');
+    if (urlAppId) document.getElementById('appId').value = urlAppId;
+
     initCy();
     buildChips('nodeKindChips', NODE_KINDS, activeNodeKinds, NODE_COLORS, 'node');
     buildChips('edgeKindChips', EDGE_KINDS, activeEdgeKinds, EDGE_COLORS, 'edge');

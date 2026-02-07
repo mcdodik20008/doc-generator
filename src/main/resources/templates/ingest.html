@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8"/>
+    <title>Doc Generator — Ingest</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="stylesheet" href="/css/common.css"/>
+    <style>
+        /* ======== Section ======== */
+        .section {
+            padding: 24px 32px;
+        }
+        .section-title {
+            font-size: 18px; font-weight: 600; margin-bottom: 16px;
+        }
+
+        /* ======== Table ======== */
+        .table-wrap {
+            overflow-x: auto; border: 1px solid var(--border); border-radius: 10px;
+            background: var(--surface);
+        }
+        table {
+            width: 100%; border-collapse: collapse; font-size: 14px;
+        }
+        thead th {
+            text-align: left; padding: 12px 16px;
+            background: var(--surface2); color: var(--text-muted);
+            font-weight: 600; font-size: 12px; text-transform: uppercase;
+            letter-spacing: 0.5px; white-space: nowrap;
+            border-bottom: 1px solid var(--border);
+        }
+        tbody td {
+            padding: 12px 16px; border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: var(--surface2); }
+
+        .app-key-cell {
+            font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .error-hint { color: var(--red); }
+
+        .sha-cell {
+            font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
+            color: var(--text-muted);
+        }
+        .num-cell { font-weight: 600; text-align: right; }
+
+        /* ======== Form Card ======== */
+        .form-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+            padding: 24px; max-width: 640px;
+        }
+        .form-row {
+            display: flex; gap: 16px; margin-bottom: 16px;
+        }
+        .form-group {
+            display: flex; flex-direction: column; gap: 4px; flex: 1;
+        }
+        .form-group label {
+            font-size: 12px; color: var(--text-muted); text-transform: uppercase;
+            letter-spacing: 0.5px; font-weight: 600;
+        }
+        .form-group input {
+            background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+            padding: 8px 12px; color: var(--text); font-size: 14px;
+            font-family: inherit;
+        }
+        .form-group input:focus {
+            outline: none; border-color: var(--accent);
+        }
+        .form-group input:disabled {
+            opacity: 0.5;
+        }
+        .form-group .hint {
+            font-size: 11px; color: var(--text-muted);
+        }
+        .form-actions {
+            display: flex; align-items: center; gap: 16px; margin-top: 8px;
+        }
+
+        /* ======== Result Card ======== */
+        .result-card {
+            background: var(--surface); border: 1px solid var(--green); border-radius: 10px;
+            padding: 20px 24px; max-width: 640px; margin-top: 16px;
+        }
+        .result-card h3 {
+            font-size: 15px; font-weight: 600; color: var(--green); margin-bottom: 12px;
+        }
+        .result-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px;
+        }
+        .result-item .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+        .result-item .value { font-size: 18px; font-weight: 700; color: var(--text); }
+
+        .result-actions {
+            margin-top: 16px; display: flex; gap: 8px;
+        }
+
+        .elapsed-timer {
+            font-size: 12px; color: var(--text-muted); font-family: 'Consolas', monospace;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .header { padding: 16px 20px; }
+            .section { padding: 16px 20px; }
+            .form-row { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>
+        <span class="logo">&#9670;</span>
+        Ingest / Indexing
+    </h1>
+    <div class="header-right">
+        <nav class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/graph">Graph</a>
+            <a href="/chat">Chat</a>
+            <a href="/ingest" class="active">Ingest</a>
+            <a href="/health">Health</a>
+        </nav>
+        <span id="lastUpdated"></span>
+        <button class="btn" onclick="loadApps()">&#8635; Refresh</button>
+    </div>
+</div>
+
+<!-- ======== Section 1: Applications Status Table ======== -->
+<div class="section">
+    <div class="section-title">Applications Index Status</div>
+
+    <div id="loading" class="loading-overlay">
+        <div class="spinner"></div>
+        <div style="color: var(--text-muted)">Loading applications...</div>
+    </div>
+
+    <div id="emptyState" class="empty-state" style="display:none">
+        No applications found. Use the form below to run your first ingest.
+    </div>
+
+    <div id="tableWrap" class="table-wrap" style="display:none">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Key</th>
+                    <th>Provider</th>
+                    <th>Status</th>
+                    <th>Last Indexed</th>
+                    <th>Commit SHA</th>
+                    <th style="text-align:right">Nodes</th>
+                    <th style="text-align:right">Chunks</th>
+                    <th style="text-align:right">Edges</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="appsBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ======== Section 2: New Ingest Form ======== -->
+<div class="section">
+    <div class="section-title">New Ingest</div>
+
+    <div class="form-card">
+        <form id="ingestForm" onsubmit="submitIngest(event)">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="f-appKey">App Key *</label>
+                    <input id="f-appKey" name="appKey" required placeholder="e.g. doc-generator"/>
+                </div>
+                <div class="form-group">
+                    <label for="f-repoGroup">Repo Group *</label>
+                    <input id="f-repoGroup" name="repoGroup" required placeholder="e.g. bftcom"/>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="f-repoName">Repo Name *</label>
+                    <input id="f-repoName" name="repoName" required placeholder="e.g. records-comparator"/>
+                </div>
+                <div class="form-group">
+                    <label for="f-branch">Branch</label>
+                    <input id="f-branch" name="branch" placeholder="default: develop"/>
+                    <span class="hint">Leave empty for default</span>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" style="max-width:200px">
+                    <label for="f-depth">Depth</label>
+                    <input id="f-depth" name="depth" type="number" min="1" value="1"/>
+                    <span class="hint">Shallow clone depth</span>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-accent" id="submitBtn">
+                    Run Ingest
+                </button>
+                <span id="formSpinner" style="display:none">
+                    <span class="inline-spinner"></span>
+                    <span class="elapsed-timer" id="formElapsed">0s</span>
+                </span>
+            </div>
+        </form>
+    </div>
+
+    <div id="resultCard" style="display:none"></div>
+</div>
+
+<script>
+    let autoRefreshTimer = null;
+    let formTimerInterval = null;
+    let reindexTimers = {};
+    let lastLoadedApps = [];
+
+    // ========== Load Applications Table ==========
+    async function loadApps() {
+        const loading = document.getElementById('loading');
+        const tableWrap = document.getElementById('tableWrap');
+        const emptyState = document.getElementById('emptyState');
+        const appsBody = document.getElementById('appsBody');
+
+        loading.style.display = 'flex';
+        tableWrap.style.display = 'none';
+        emptyState.style.display = 'none';
+
+        try {
+            const res = await fetch('/api/dashboard/stats');
+            if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + res.statusText);
+            const data = await res.json();
+
+            loading.style.display = 'none';
+
+            if (!data.applications || data.applications.length === 0) {
+                emptyState.style.display = 'block';
+                lastLoadedApps = [];
+                return;
+            }
+
+            lastLoadedApps = data.applications;
+            tableWrap.style.display = 'block';
+            appsBody.innerHTML = data.applications.map(renderRow).join('');
+
+            document.getElementById('lastUpdated').textContent =
+                'Updated: ' + new Date().toLocaleTimeString('ru-RU');
+        } catch (e) {
+            loading.style.display = 'none';
+            console.error('Load error:', e);
+            showToast('Failed to load applications: ' + e.message, 'error');
+        }
+    }
+
+    function renderRow(app) {
+        const provider = (app.repoProvider || '').toLowerCase();
+        const providerClass = provider === 'github' ? 'provider-github'
+            : provider === 'gitlab' ? 'provider-gitlab'
+            : 'provider-unknown';
+        const providerLabel = provider || 'local';
+
+        const statusClass = getStatusClass(app.lastIndexStatus);
+        const statusLabel = app.lastIndexStatus || 'not indexed';
+
+        const indexTime = app.lastIndexedAt ? formatDate(app.lastIndexedAt) : '—';
+        const sha = app.lastCommitSha ? app.lastCommitSha.substring(0, 8) : '—';
+
+        const errorHtml = app.lastIndexError
+            ? '<span class="error-hint"> &#9888;<span class="error-tooltip">' + esc(app.lastIndexError) + '</span></span>'
+            : '';
+
+        const btnId = 'reindex-btn-' + app.applicationId;
+        const timerId = 'reindex-timer-' + app.applicationId;
+
+        return '<tr>' +
+            '<td>' + esc(app.applicationName) + '</td>' +
+            '<td class="app-key-cell">' + esc(app.applicationKey) + '</td>' +
+            '<td><span class="provider-badge ' + providerClass + '">' + esc(providerLabel) + '</span></td>' +
+            '<td><span class="status-badge ' + statusClass + '">' + esc(statusLabel) + '</span>' + errorHtml + '</td>' +
+            '<td style="font-size:13px;color:var(--text-muted)">' + indexTime + '</td>' +
+            '<td class="sha-cell">' + sha + '</td>' +
+            '<td class="num-cell">' + fmt(app.nodeCount) + '</td>' +
+            '<td class="num-cell">' + fmt(app.chunkCount) + '</td>' +
+            '<td class="num-cell">' + fmt(app.edgeCount) + '</td>' +
+            '<td>' +
+                '<button class="btn btn-sm btn-danger" id="' + btnId + '" onclick="reindex(' + app.applicationId + ')">' +
+                    'Reindex' +
+                '</button>' +
+                '<span id="' + timerId + '" style="display:none;margin-left:8px">' +
+                    '<span class="inline-spinner"></span> ' +
+                    '<span class="elapsed-timer">0s</span>' +
+                '</span>' +
+            '</td>' +
+        '</tr>';
+    }
+
+    // ========== Reindex ==========
+    async function reindex(appId) {
+        if (!confirm('This will re-index the application. Continue?')) return;
+
+        const btn = document.getElementById('reindex-btn-' + appId);
+        const timer = document.getElementById('reindex-timer-' + appId);
+        btn.disabled = true;
+        btn.textContent = 'Running...';
+        timer.style.display = 'inline';
+
+        const startTime = Date.now();
+        const elapsed = timer.querySelector('.elapsed-timer');
+        reindexTimers[appId] = setInterval(() => {
+            elapsed.textContent = Math.floor((Date.now() - startTime) / 1000) + 's';
+        }, 1000);
+
+        try {
+            const res = await fetch('/api/ingest/reindex/' + appId, { method: 'POST' });
+            if (!res.ok) {
+                const body = await res.text();
+                throw new Error('HTTP ' + res.status + ': ' + body);
+            }
+            const summary = await res.json();
+            showToast('Reindex completed: ' + summary.nodes + ' nodes, ' + summary.edges + ' edges, ' + summary.tookMs + 'ms', 'success');
+            loadApps();
+        } catch (e) {
+            console.error('Reindex error:', e);
+            showToast('Reindex failed: ' + e.message, 'error');
+        } finally {
+            clearInterval(reindexTimers[appId]);
+            delete reindexTimers[appId];
+            btn.disabled = false;
+            btn.textContent = 'Reindex';
+            timer.style.display = 'none';
+        }
+    }
+
+    // ========== New Ingest Form ==========
+    async function submitIngest(e) {
+        e.preventDefault();
+
+        const form = document.getElementById('ingestForm');
+        const btn = document.getElementById('submitBtn');
+        const spinner = document.getElementById('formSpinner');
+        const elapsedEl = document.getElementById('formElapsed');
+        const resultCard = document.getElementById('resultCard');
+
+        const payload = {
+            appKey: form.appKey.value.trim(),
+            repoGroup: form.repoGroup.value.trim(),
+            repoName: form.repoName.value.trim(),
+        };
+        if (form.branch.value.trim()) payload.branch = form.branch.value.trim();
+        if (form.depth.value) payload.depth = parseInt(form.depth.value);
+
+        // Disable form
+        Array.from(form.elements).forEach(el => el.disabled = true);
+        btn.textContent = 'Running...';
+        spinner.style.display = 'inline';
+        resultCard.style.display = 'none';
+
+        const startTime = Date.now();
+        formTimerInterval = setInterval(() => {
+            elapsedEl.textContent = Math.floor((Date.now() - startTime) / 1000) + 's';
+        }, 1000);
+
+        try {
+            const res = await fetch('/internal/ingest/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                const body = await res.text();
+                throw new Error('HTTP ' + res.status + ': ' + body);
+            }
+            const summary = await res.json();
+            showResultCard(summary, payload.appKey);
+            showToast('Ingest completed successfully!', 'success');
+            loadApps();
+        } catch (e) {
+            console.error('Ingest error:', e);
+            showToast('Ingest failed: ' + e.message, 'error');
+        } finally {
+            clearInterval(formTimerInterval);
+            Array.from(form.elements).forEach(el => el.disabled = false);
+            btn.textContent = 'Run Ingest';
+            spinner.style.display = 'none';
+        }
+    }
+
+    function showResultCard(summary, appKey) {
+        // Resolve applicationId from the loaded applications list
+        const matchedApp = lastLoadedApps.find(a => a.applicationKey === appKey);
+        const appId = matchedApp ? matchedApp.applicationId : null;
+
+        const graphLink = appId
+            ? '<a class="btn btn-sm btn-accent" href="/graph?appId=' + appId + '">Open Graph</a>'
+            : '';
+        const chatLink = appId
+            ? '<a class="btn btn-sm" href="/chat?appId=' + appId + '">Chat</a>'
+            : '';
+
+        const card = document.getElementById('resultCard');
+        card.style.display = 'block';
+        card.innerHTML =
+            '<div class="result-card">' +
+                '<h3>&#10003; Ingest Completed</h3>' +
+                '<div class="result-grid">' +
+                    '<div class="result-item"><div class="label">App Key</div><div class="value">' + esc(summary.appKey) + '</div></div>' +
+                    '<div class="result-item"><div class="label">Nodes</div><div class="value">' + fmt(summary.nodes) + '</div></div>' +
+                    '<div class="result-item"><div class="label">Edges</div><div class="value">' + fmt(summary.edges) + '</div></div>' +
+                    '<div class="result-item"><div class="label">Duration</div><div class="value">' + formatDuration(summary.tookMs) + '</div></div>' +
+                    (summary.headSha ? '<div class="result-item"><div class="label">Commit</div><div class="value" style="font-size:14px;font-family:monospace">' + esc(summary.headSha.substring(0, 8)) + '</div></div>' : '') +
+                '</div>' +
+                (graphLink || chatLink
+                    ? '<div class="result-actions">' + graphLink + chatLink + '</div>'
+                    : '') +
+            '</div>';
+    }
+
+    // ========== Utilities ==========
+    function getStatusClass(status) {
+        if (!status) return 'status-unknown';
+        const s = status.toLowerCase();
+        if (s === 'success' || s === 'completed') return 'status-success';
+        if (s === 'failed' || s === 'error') return 'status-failed';
+        if (s === 'running' || s === 'in_progress') return 'status-running';
+        if (s === 'partial') return 'status-partial';
+        return 'status-unknown';
+    }
+
+    function formatDate(iso) {
+        if (!iso) return '';
+        try {
+            const d = new Date(iso);
+            return d.toLocaleDateString('ru-RU') + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        } catch { return iso; }
+    }
+
+    function formatDuration(ms) {
+        if (ms == null) return '—';
+        if (ms < 1000) return ms + 'ms';
+        const s = Math.floor(ms / 1000);
+        if (s < 60) return s + 's';
+        return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+    }
+
+    function fmt(n) {
+        if (n == null) return '0';
+        return Number(n).toLocaleString('ru-RU');
+    }
+
+    function esc(s) {
+        if (!s) return '';
+        const el = document.createElement('span');
+        el.textContent = s;
+        return el.innerHTML;
+    }
+
+    function showToast(msg, type) {
+        const existing = document.querySelector('.toast');
+        if (existing) existing.remove();
+        const t = document.createElement('div');
+        t.className = 'toast ' + (type === 'success' ? 'toast-success' : 'toast-error');
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 6000);
+    }
+
+    // Auto-refresh every 15 seconds
+    function startAutoRefresh() {
+        if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+        autoRefreshTimer = setInterval(loadApps, 15000);
+    }
+
+    // Initial load
+    loadApps();
+    startAutoRefresh();
+</script>
+
+</body>
+</html>

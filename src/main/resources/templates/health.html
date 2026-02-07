@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8"/>
+    <title>Doc Generator — Health</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="stylesheet" href="/css/common.css"/>
+    <style>
+        .health-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+            padding: 24px 32px;
+        }
+
+        .health-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+            padding: 20px 24px;
+        }
+        .health-card-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .health-card-name {
+            font-size: 16px; font-weight: 600; text-transform: capitalize;
+        }
+
+        .health-status {
+            font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 12px;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .health-status::before {
+            content: ''; width: 8px; height: 8px; border-radius: 50%;
+            display: inline-block;
+        }
+        .health-up { background: #1a3a2a; color: var(--green); }
+        .health-up::before { background: var(--green); }
+        .health-down { background: #3a1a2a; color: var(--red); }
+        .health-down::before { background: var(--red); animation: pulse 1.5s infinite; }
+        .health-unknown { background: var(--surface2); color: var(--text-muted); }
+        .health-unknown::before { background: var(--text-muted); }
+
+        .health-details {
+            font-size: 13px; color: var(--text-muted); line-height: 1.6;
+        }
+        .health-details dt {
+            color: var(--text-muted); font-size: 11px; text-transform: uppercase;
+            letter-spacing: 0.5px; margin-top: 8px;
+        }
+        .health-details dd {
+            color: var(--text); font-family: 'Consolas', monospace; font-size: 13px;
+            word-break: break-all;
+        }
+
+        .overall-card {
+            border-color: var(--accent-dim);
+        }
+        .overall-card .health-card-name {
+            font-size: 20px;
+        }
+
+        .last-check {
+            font-size: 12px; color: var(--text-muted);
+            text-align: center; padding: 8px 32px 24px;
+        }
+
+        @media (max-width: 900px) {
+            .header { padding: 16px 20px; }
+            .health-grid { padding: 16px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>
+        <span class="logo">&#9670;</span>
+        System Health
+    </h1>
+    <div class="header-right">
+        <nav class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/graph">Graph</a>
+            <a href="/chat">Chat</a>
+            <a href="/ingest">Ingest</a>
+            <a href="/health" class="active">Health</a>
+        </nav>
+        <span id="lastUpdated"></span>
+        <button class="btn" onclick="loadHealth()">&#8635; Refresh</button>
+    </div>
+</div>
+
+<div id="loading" class="loading-overlay">
+    <div class="spinner"></div>
+    <div style="color: var(--text-muted)">Checking health...</div>
+</div>
+
+<div id="healthGrid" class="health-grid"></div>
+
+<div id="lastCheck" class="last-check"></div>
+
+<script>
+    let autoRefreshTimer = null;
+
+    async function loadHealth() {
+        const loading = document.getElementById('loading');
+        const grid = document.getElementById('healthGrid');
+
+        loading.style.display = 'flex';
+        grid.innerHTML = '';
+
+        try {
+            const res = await fetch('/actuator/health');
+            const data = await res.json();
+
+            loading.style.display = 'none';
+            renderHealth(data);
+
+            document.getElementById('lastUpdated').textContent =
+                'Updated: ' + new Date().toLocaleTimeString('ru-RU');
+            document.getElementById('lastCheck').textContent =
+                'Auto-refresh every 30 seconds';
+        } catch (e) {
+            loading.style.display = 'none';
+            console.error('Health check error:', e);
+            grid.innerHTML =
+                '<div class="health-card overall-card">' +
+                    '<div class="health-card-header">' +
+                        '<span class="health-card-name">System</span>' +
+                        '<span class="health-status health-down">DOWN</span>' +
+                    '</div>' +
+                    '<div class="health-details">' +
+                        '<dt>Error</dt><dd>' + esc(e.message) + '</dd>' +
+                    '</div>' +
+                '</div>';
+        }
+    }
+
+    function renderHealth(data) {
+        const grid = document.getElementById('healthGrid');
+        let html = '';
+
+        // Overall status card
+        const overallStatus = (data.status || 'UNKNOWN').toUpperCase();
+        const overallClass = getHealthClass(overallStatus);
+        html += '<div class="health-card overall-card">' +
+            '<div class="health-card-header">' +
+                '<span class="health-card-name">Overall</span>' +
+                '<span class="health-status ' + overallClass + '">' + overallStatus + '</span>' +
+            '</div>' +
+        '</div>';
+
+        // Component cards
+        const components = data.components || {};
+        for (const [name, comp] of Object.entries(components)) {
+            const status = (comp.status || 'UNKNOWN').toUpperCase();
+            const statusClass = getHealthClass(status);
+            const details = comp.details || {};
+
+            html += '<div class="health-card">' +
+                '<div class="health-card-header">' +
+                    '<span class="health-card-name">' + esc(name) + '</span>' +
+                    '<span class="health-status ' + statusClass + '">' + status + '</span>' +
+                '</div>';
+
+            if (Object.keys(details).length > 0) {
+                html += '<dl class="health-details">';
+                for (const [key, val] of Object.entries(details)) {
+                    html += '<dt>' + esc(key) + '</dt>';
+                    html += '<dd>' + esc(formatValue(val)) + '</dd>';
+                }
+                html += '</dl>';
+            }
+
+            html += '</div>';
+        }
+
+        grid.innerHTML = html;
+    }
+
+    function getHealthClass(status) {
+        if (status === 'UP') return 'health-up';
+        if (status === 'DOWN') return 'health-down';
+        return 'health-unknown';
+    }
+
+    function formatValue(val) {
+        if (val == null) return '—';
+        if (typeof val === 'object') return JSON.stringify(val);
+        return String(val);
+    }
+
+    function esc(s) {
+        if (!s) return '';
+        const el = document.createElement('span');
+        el.textContent = s;
+        return el.innerHTML;
+    }
+
+    // Auto-refresh every 30 seconds
+    function startAutoRefresh() {
+        if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+        autoRefreshTimer = setInterval(loadHealth, 30000);
+    }
+
+    loadHealth();
+    startAutoRefresh();
+</script>
+
+</body>
+</html>

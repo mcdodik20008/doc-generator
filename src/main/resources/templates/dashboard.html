@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8"/>
+    <title>Doc Generator — Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="stylesheet" href="/css/common.css"/>
+    <style>
+        /* ======== Global Stats ======== */
+        .global-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            padding: 24px 32px;
+        }
+        .stat-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+            padding: 20px 24px; text-align: center;
+        }
+        .stat-card .value {
+            font-size: 32px; font-weight: 700; color: var(--accent);
+            line-height: 1.2;
+        }
+        .stat-card .label {
+            font-size: 13px; color: var(--text-muted); margin-top: 4px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        /* ======== Applications Grid ======== */
+        .section-title {
+            padding: 8px 32px 16px;
+            font-size: 18px; font-weight: 600;
+        }
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+            gap: 20px;
+            padding: 0 32px 32px;
+        }
+
+        .app-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 24px; display: flex; flex-direction: column; gap: 14px;
+            transition: border-color .2s, transform .15s;
+        }
+        .app-card:hover {
+            border-color: var(--accent-dim);
+            transform: translateY(-2px);
+        }
+
+        .app-card-header {
+            display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+        }
+        .app-name {
+            font-size: 18px; font-weight: 600; line-height: 1.3;
+        }
+        .app-key {
+            font-size: 12px; color: var(--text-muted);
+            font-family: 'Consolas', 'Courier New', monospace;
+            background: var(--surface2); padding: 2px 8px; border-radius: 4px;
+        }
+
+        .app-desc {
+            font-size: 14px; color: var(--text-muted); line-height: 1.5;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Index Status */
+        .index-row {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        }
+        .index-time {
+            font-size: 12px; color: var(--text-muted);
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: flex; gap: 16px; flex-wrap: wrap;
+        }
+        .mini-stat {
+            font-size: 13px; color: var(--text-muted);
+        }
+        .mini-stat .num {
+            font-weight: 700; color: var(--text);
+        }
+
+        /* Tags */
+        .tags-row {
+            display: flex; gap: 6px; flex-wrap: wrap;
+        }
+        .tag {
+            font-size: 11px; padding: 2px 8px; border-radius: 10px;
+            background: var(--surface2); color: var(--text-muted);
+        }
+        .tag-lang {
+            background: #1a2a3a; color: var(--accent);
+        }
+
+        /* Actions */
+        .actions-row {
+            display: flex; gap: 8px; margin-top: auto;
+        }
+        .actions-row a, .actions-row button {
+            text-decoration: none;
+        }
+
+        .repo-link {
+            font-size: 13px; color: var(--accent); text-decoration: none;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            max-width: 100%;
+        }
+        .repo-link:hover { text-decoration: underline; }
+
+        .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .apps-grid { grid-template-columns: 1fr; }
+            .header { padding: 16px 20px; }
+            .global-stats { padding: 16px 20px; }
+            .apps-grid { padding: 0 20px 20px; }
+            .section-title { padding: 8px 20px 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>
+        <span class="logo">&#9670;</span>
+        Doc Generator Dashboard
+    </h1>
+    <div class="header-right">
+        <nav class="nav-links">
+            <a href="/" class="active">Dashboard</a>
+            <a href="/graph">Graph</a>
+            <a href="/chat">Chat</a>
+            <a href="/ingest">Ingest</a>
+            <a href="/health">Health</a>
+        </nav>
+        <span id="lastUpdated"></span>
+        <button class="btn" onclick="loadDashboard()">&#8635; Refresh</button>
+    </div>
+</div>
+
+<div id="globalStats" class="global-stats"></div>
+
+<div class="section-title" id="appsTitle" style="display:none">Applications</div>
+<div id="appsGrid" class="apps-grid"></div>
+
+<div id="loading" class="loading-overlay">
+    <div class="spinner"></div>
+    <div style="color: var(--text-muted)">Loading dashboard...</div>
+</div>
+
+<div id="emptyState" class="empty-state" style="display:none">
+    <div class="empty-icon">&#128230;</div>
+    <div>No applications found</div>
+    <div style="margin-top:8px; font-size:14px">
+        Add an application via the Ingest API to get started.
+    </div>
+</div>
+
+<script>
+    let autoRefreshTimer = null;
+
+    async function loadDashboard() {
+        const loading = document.getElementById('loading');
+        const globalStats = document.getElementById('globalStats');
+        const appsGrid = document.getElementById('appsGrid');
+        const appsTitle = document.getElementById('appsTitle');
+        const emptyState = document.getElementById('emptyState');
+
+        loading.style.display = 'flex';
+        globalStats.innerHTML = '';
+        appsGrid.innerHTML = '';
+        appsTitle.style.display = 'none';
+        emptyState.style.display = 'none';
+
+        try {
+            const res = await fetch('/api/dashboard/stats');
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+            const data = await res.json();
+
+            if (!data || !data.global || !Array.isArray(data.applications)) {
+                throw new Error('Invalid response format');
+            }
+
+            loading.style.display = 'none';
+            renderGlobalStats(data.global, data.applications);
+
+            if (data.applications.length === 0) {
+                emptyState.style.display = 'block';
+            } else {
+                appsTitle.style.display = 'block';
+                renderApps(data.applications);
+            }
+
+            document.getElementById('lastUpdated').textContent =
+                'Updated: ' + new Date().toLocaleTimeString('ru-RU');
+
+        } catch (e) {
+            loading.style.display = 'none';
+            console.error('Dashboard load error:', e);
+            showToast('Failed to load dashboard: ' + e.message);
+        }
+    }
+
+    function renderGlobalStats(g, apps) {
+        const el = document.getElementById('globalStats');
+        const runningCount = (apps || []).filter(a => {
+            const s = (a.lastIndexStatus || '').toLowerCase();
+            return s === 'running' || s === 'in_progress';
+        }).length;
+
+        const stats = [
+            { label: 'Applications', value: fmt(g.totalApplications), color: 'var(--accent)' },
+            { label: 'Nodes', value: fmt(g.totalNodes), color: 'var(--green)' },
+            { label: 'Chunks', value: fmt(g.totalChunks), color: 'var(--peach)' },
+            { label: 'Edges', value: fmt(g.totalEdges), color: 'var(--lavender)' },
+            { label: 'Running Ingests', value: fmt(runningCount), color: runningCount > 0 ? 'var(--yellow)' : 'var(--text-muted)' },
+        ];
+        el.innerHTML = stats.map(s => `
+            <div class="stat-card">
+                <div class="value" style="color:${s.color}">${s.value}</div>
+                <div class="label">${s.label}</div>
+            </div>
+        `).join('');
+    }
+
+    function renderApps(apps) {
+        const grid = document.getElementById('appsGrid');
+        grid.innerHTML = apps.map(app => {
+            const provider = (app.repoProvider || '').toLowerCase();
+            const providerClass = provider === 'github' ? 'provider-github'
+                : provider === 'gitlab' ? 'provider-gitlab'
+                : 'provider-unknown';
+            const providerLabel = provider || 'local';
+
+            const statusClass = getStatusClass(app.lastIndexStatus);
+            const statusLabel = app.lastIndexStatus || 'not indexed';
+
+            const indexTime = app.lastIndexedAt
+                ? formatDate(app.lastIndexedAt)
+                : '';
+
+            const langs = (app.languages || []).map(l =>
+                `<span class="tag tag-lang">${esc(l)}</span>`
+            ).join('');
+
+            const tags = (app.tags || []).map(t =>
+                `<span class="tag">${esc(t)}</span>`
+            ).join('');
+
+            const descHtml = app.description
+                ? `<div class="app-desc">${esc(app.description)}</div>`
+                : '';
+
+            const repoHtml = app.repoUrl
+                ? `<a class="repo-link" href="${esc(app.repoUrl)}" target="_blank" rel="noopener">${esc(app.repoUrl)}</a>`
+                : '';
+
+            const errorHtml = app.lastIndexError
+                ? `<span class="error-hint">&#9888;
+                     <span class="error-tooltip">${esc(app.lastIndexError)}</span>
+                   </span>`
+                : '';
+
+            return `
+            <div class="app-card">
+                <div class="app-card-header">
+                    <div>
+                        <div class="app-name">${esc(app.applicationName)}</div>
+                        <div class="app-key">${esc(app.applicationKey)}</div>
+                    </div>
+                    <span class="provider-badge ${providerClass}">${esc(providerLabel)}</span>
+                </div>
+
+                ${descHtml}
+
+                <div class="index-row">
+                    <span class="status-badge ${statusClass}">${esc(statusLabel)}</span>
+                    ${errorHtml}
+                    ${indexTime ? `<span class="index-time">${indexTime}</span>` : ''}
+                </div>
+
+                <div class="stats-row">
+                    <span class="mini-stat"><span class="num">${fmt(app.nodeCount)}</span> nodes</span>
+                    <span class="mini-stat"><span class="num">${fmt(app.chunkCount)}</span> chunks</span>
+                    <span class="mini-stat"><span class="num">${fmt(app.edgeCount)}</span> edges</span>
+                    <span class="mini-stat"><span class="num">${fmt(app.synonymCount)}</span> synonyms</span>
+                </div>
+
+                ${(langs || tags) ? `<div class="tags-row">${langs}${tags}</div>` : ''}
+
+                ${repoHtml}
+
+                <div class="actions-row">
+                    <a class="btn btn-sm btn-accent"
+                       href="/graph?appId=${app.applicationId}">Open Graph</a>
+                    <a class="btn btn-sm"
+                       href="/chat?appId=${app.applicationId}">Chat</a>
+                    <a class="btn btn-sm"
+                       href="/ingest">Ingest</a>
+                    <a class="btn btn-sm"
+                       href="/api/dashboard/stats"
+                       target="_blank">API</a>
+                </div>
+            </div>
+            `;
+        }).join('');
+    }
+
+    function getStatusClass(status) {
+        if (!status) return 'status-unknown';
+        const s = status.toLowerCase();
+        if (s === 'success' || s === 'completed') return 'status-success';
+        if (s === 'failed' || s === 'error') return 'status-failed';
+        if (s === 'running' || s === 'in_progress') return 'status-running';
+        if (s === 'partial') return 'status-partial';
+        return 'status-unknown';
+    }
+
+    function formatDate(iso) {
+        if (!iso) return '';
+        try {
+            const d = new Date(iso);
+            return d.toLocaleDateString('ru-RU') + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        } catch {
+            return iso;
+        }
+    }
+
+    function fmt(n) {
+        if (n == null) return '0';
+        return Number(n).toLocaleString('ru-RU');
+    }
+
+    function esc(s) {
+        if (!s) return '';
+        const el = document.createElement('span');
+        el.textContent = s;
+        return el.innerHTML;
+    }
+
+    function showToast(msg) {
+        const existing = document.querySelector('.toast');
+        if (existing) existing.remove();
+        const t = document.createElement('div');
+        t.className = 'toast toast-error';
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 6000);
+    }
+
+    // Auto-refresh every 60 seconds
+    function startAutoRefresh() {
+        if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+        autoRefreshTimer = setInterval(loadDashboard, 60000);
+    }
+
+    // Initial load
+    loadDashboard();
+    startAutoRefresh();
+</script>
+
+</body>
+</html>
