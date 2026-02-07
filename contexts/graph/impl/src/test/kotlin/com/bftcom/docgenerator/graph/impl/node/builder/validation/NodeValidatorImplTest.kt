@@ -152,6 +152,9 @@ class NodeValidatorImplTest {
         "method()",
         "com.example.Class.method(String?,LocalDate?)",
         "com.bftcom.rr.uds.service.api.SiaService.findSiaUsers(Set,String?,Set,Set,Set,Set,Set,Set,Set,Set,Set,Set,Set,Set,LocalDate?,String)",
+        "com.example.Class.method(() -> String)",
+        "com.example.Class.method(() -> OffsetDateTime?)",
+        "com.bftcom.rr.uds.service.impl.InactiveExecutorService.processBatch(OffsetDateTime?,() -> OffsetDateTime?)",
     ])
     fun `validate - валидные форматы FQN`(fqn: String) {
         assertThatCode {
