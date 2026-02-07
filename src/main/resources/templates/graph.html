@@ -23,154 +23,223 @@
             --teal: #94e2d5;
             --lavender: #b4befe;
             --mauve: #cba6f7;
-            --panel-w: 380px;
+            --panel-w: 440px;
+            --panel-collapsed: 0px;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+        html, body {
+            height: 100%;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-size: 15px;
+            background: var(--bg);
+            color: var(--text);
+        }
 
         #app {
             display: grid;
             grid-template-columns: 1fr var(--panel-w);
             height: 100%;
+            transition: grid-template-columns .3s ease;
         }
+        #app.panel-hidden { grid-template-columns: 1fr var(--panel-collapsed); }
 
-        /* ---- Canvas ---- */
+        /* ======== Canvas ======== */
         #cy-wrap { position: relative; overflow: hidden; }
         #cy { width: 100%; height: 100%; }
 
         #stats-bar {
-            position: absolute; top: 10px; left: 10px;
+            position: absolute; top: 12px; left: 12px;
             background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-            padding: 6px 14px; font-size: 12px; color: var(--text-muted);
-            display: flex; gap: 16px; z-index: 10;
+            padding: 8px 16px; font-size: 14px; color: var(--text-muted);
+            display: flex; gap: 20px; z-index: 10;
         }
         #stats-bar span { color: var(--accent); font-weight: 600; }
 
         #toolbar {
-            position: absolute; bottom: 12px; left: 12px;
+            position: absolute; bottom: 14px; left: 14px;
             display: flex; gap: 6px; z-index: 10;
         }
         #toolbar button {
             background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
-            color: var(--text); padding: 6px 10px; cursor: pointer; font-size: 13px;
+            color: var(--text); padding: 8px 14px; cursor: pointer; font-size: 15px;
         }
         #toolbar button:hover { background: var(--surface2); }
 
-        /* ---- Side Panel ---- */
+        /* Panel toggle button — always visible on canvas */
+        #panelToggle {
+            position: absolute; top: 12px; right: 12px; z-index: 10;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+            color: var(--text); padding: 8px 12px; cursor: pointer; font-size: 18px;
+            line-height: 1; transition: transform .3s;
+        }
+        #panelToggle:hover { background: var(--surface2); }
+        #app.panel-hidden #panelToggle { transform: rotate(180deg); }
+
+        /* ======== Side Panel ======== */
         #panel {
             background: var(--surface); border-left: 1px solid var(--border);
             display: flex; flex-direction: column; overflow: hidden;
+            transition: opacity .3s, visibility .3s;
         }
+        #app.panel-hidden #panel { opacity: 0; visibility: hidden; pointer-events: none; }
 
-        .panel-section {
-            padding: 12px 14px; border-bottom: 1px solid var(--border);
+        /* Scrollable panel body */
+        #panel-body {
+            flex: 1; overflow-y: auto;
         }
-        .panel-section h3 {
-            font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
-            color: var(--text-muted); margin-bottom: 8px;
-        }
+        #panel-body::-webkit-scrollbar { width: 6px; }
+        #panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-        label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+        /* ---- Panel sections (collapsible) ---- */
+        .panel-section { border-bottom: 1px solid var(--border); }
+        .section-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px; cursor: pointer; user-select: none;
+        }
+        .section-header:hover { background: var(--surface2); }
+        .section-header h3 {
+            font-size: 13px; text-transform: uppercase; letter-spacing: 1px;
+            color: var(--text-muted); margin: 0; font-weight: 600;
+        }
+        .section-arrow {
+            font-size: 12px; color: var(--text-muted); transition: transform .2s;
+        }
+        .panel-section.collapsed .section-arrow { transform: rotate(-90deg); }
+        .section-body { padding: 4px 16px 14px; }
+        .panel-section.collapsed .section-body { display: none; }
+
+        /* ---- Form elements ---- */
+        label {
+            display: block; font-size: 13px; color: var(--text-muted);
+            margin-bottom: 3px; margin-top: 6px;
+        }
+        label:first-child { margin-top: 0; }
         input[type=number], input[type=text] {
-            width: 100%; padding: 6px 8px; font-size: 13px;
-            background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px;
-            margin-bottom: 6px;
+            width: 100%; padding: 8px 10px; font-size: 15px;
+            background: var(--bg); color: var(--text);
+            border: 1px solid var(--border); border-radius: 6px;
+            margin-bottom: 4px;
         }
         input:focus { outline: none; border-color: var(--accent); }
 
-        .row { display: flex; gap: 8px; }
+        .row { display: flex; gap: 10px; }
         .row > * { flex: 1; }
 
         .checkbox-row {
-            display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 13px;
+            display: flex; align-items: center; gap: 8px;
+            margin: 8px 0; font-size: 14px;
         }
-        .checkbox-row input[type=checkbox] { accent-color: var(--accent); }
+        .checkbox-row input[type=checkbox] {
+            accent-color: var(--accent); width: 18px; height: 18px;
+        }
 
         .btn {
             display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-            width: 100%; padding: 8px; font-size: 13px; font-weight: 600;
+            width: 100%; padding: 10px; font-size: 15px; font-weight: 600;
             border: none; border-radius: 6px; cursor: pointer;
-            transition: background .15s;
+            transition: background .15s; margin-top: 6px;
         }
         .btn-primary { background: var(--accent); color: var(--bg); }
         .btn-primary:hover { background: #a0c4ff; }
         .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 
-        /* ---- Kind filter chips ---- */
-        .kind-chips {
-            display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px;
+        select {
+            width: 100%; padding: 8px 10px; font-size: 15px;
+            background: var(--bg); color: var(--text);
+            border: 1px solid var(--border); border-radius: 6px;
+            margin-bottom: 4px;
         }
-        .kind-chip {
-            font-size: 11px; padding: 3px 8px; border-radius: 10px;
+        select:focus { outline: none; border-color: var(--accent); }
+
+        /* ---- Filter chips ---- */
+        .chip-container {
+            display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0;
+        }
+        .chip {
+            font-size: 12px; padding: 4px 10px; border-radius: 12px;
             border: 1px solid var(--border); cursor: pointer; user-select: none;
             background: transparent; color: var(--text-muted);
-            transition: all .15s;
+            transition: all .15s; white-space: nowrap;
         }
-        .kind-chip.active { border-color: var(--accent); color: var(--text); background: var(--accent-dim); }
-        .kind-chip:hover { border-color: var(--accent); }
+        .chip.active {
+            border-color: var(--accent); color: var(--text);
+            background: var(--accent-dim);
+        }
+        .chip:hover { border-color: var(--accent); }
+
+        .chip-actions {
+            display: flex; gap: 8px; margin-bottom: 6px; font-size: 12px;
+        }
+        .chip-actions a {
+            color: var(--accent); cursor: pointer; text-decoration: none;
+        }
+        .chip-actions a:hover { text-decoration: underline; }
 
         /* ---- Legend ---- */
-        .legend { display: flex; flex-wrap: wrap; gap: 4px 10px; }
-        .legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); }
-        .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
-
-        /* ---- Edge legend ---- */
-        .legend-line { width: 18px; height: 2px; border-radius: 1px; }
+        .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+        .legend-item {
+            display: flex; align-items: center; gap: 5px;
+            font-size: 13px; color: var(--text-muted);
+        }
+        .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+        .legend-line { width: 20px; height: 3px; border-radius: 2px; flex-shrink: 0; }
 
         /* ---- Details ---- */
-        #details {
-            flex: 1; overflow-y: auto; padding: 14px;
+        .detail-placeholder {
+            color: var(--text-muted); font-size: 15px;
+            text-align: center; padding: 40px 16px;
         }
-        #details::-webkit-scrollbar { width: 6px; }
-        #details::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        .detail-placeholder small { font-size: 13px; color: var(--text-muted); }
 
-        .detail-placeholder { color: var(--text-muted); font-size: 13px; text-align: center; padding-top: 40px; }
+        .detail-header { margin-bottom: 14px; padding: 0 16px; }
+        .detail-header h2 { font-size: 17px; color: var(--text); word-break: break-all; }
+        .detail-meta { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
 
-        .detail-header { margin-bottom: 12px; }
-        .detail-header h2 { font-size: 15px; color: var(--text); word-break: break-all; }
-        .detail-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-
-        .detail-block { margin-bottom: 14px; }
+        .detail-block { margin-bottom: 16px; padding: 0 16px; }
         .detail-block h4 {
-            font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
-            color: var(--text-muted); margin-bottom: 4px;
+            font-size: 12px; text-transform: uppercase; letter-spacing: .5px;
+            color: var(--text-muted); margin-bottom: 6px;
         }
         .detail-block pre {
-            background: var(--bg); padding: 8px; border-radius: 6px; font-size: 12px;
+            background: var(--bg); padding: 10px 12px; border-radius: 6px; font-size: 13px;
             overflow-x: auto; white-space: pre-wrap; word-break: break-word;
-            max-height: 300px; overflow-y: auto; color: var(--text);
+            max-height: 350px; overflow-y: auto; color: var(--text);
+            line-height: 1.5;
         }
 
-        .relation-list { list-style: none; font-size: 12px; }
+        .relation-list { list-style: none; font-size: 14px; }
         .relation-list li {
-            padding: 3px 0; border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; gap: 6px;
+            padding: 5px 0; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 8px;
         }
         .relation-kind {
-            font-size: 10px; padding: 1px 5px; border-radius: 3px;
+            font-size: 11px; padding: 2px 7px; border-radius: 4px;
             background: var(--accent-dim); color: var(--accent);
+            white-space: nowrap;
         }
-        .relation-link { color: var(--accent); cursor: pointer; text-decoration: underline; }
+        .relation-link {
+            color: var(--accent); cursor: pointer; text-decoration: underline;
+        }
 
-        /* ---- Loading overlay ---- */
+        /* ---- Loading / Toast ---- */
         .loading-overlay {
             position: absolute; inset: 0; background: rgba(30,30,46,.8);
             display: flex; align-items: center; justify-content: center;
-            z-index: 100; font-size: 14px; color: var(--text-muted);
+            z-index: 100; font-size: 16px; color: var(--text-muted);
         }
         .spinner {
-            width: 24px; height: 24px; border: 3px solid var(--border);
+            width: 28px; height: 28px; border: 3px solid var(--border);
             border-top-color: var(--accent); border-radius: 50%;
-            animation: spin .8s linear infinite; margin-right: 10px;
+            animation: spin .8s linear infinite; margin-right: 12px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
         .toast {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: var(--red); color: var(--bg); padding: 10px 20px;
-            border-radius: 8px; font-size: 13px; z-index: 200;
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: var(--red); color: var(--bg); padding: 12px 24px;
+            border-radius: 8px; font-size: 14px; z-index: 200;
+            max-width: 600px; text-align: center;
             animation: fadeInOut 4s forwards;
         }
         @keyframes fadeInOut {
@@ -180,22 +249,14 @@
             100% { opacity: 0; }
         }
 
-        /* ---- Search highlight ---- */
+        /* ---- Search ---- */
         .search-wrap { position: relative; }
-        .search-wrap input { padding-right: 28px; }
+        .search-wrap input { padding-right: 32px; }
         .search-clear {
-            position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+            position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
             background: none; border: none; color: var(--text-muted); cursor: pointer;
-            font-size: 14px; padding: 2px;
+            font-size: 18px; padding: 2px;
         }
-
-        /* ---- Layout select ---- */
-        select {
-            width: 100%; padding: 6px 8px; font-size: 13px;
-            background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px;
-            margin-bottom: 6px;
-        }
-        select:focus { outline: none; border-color: var(--accent); }
     </style>
 </head>
 <body>
@@ -214,68 +275,123 @@
             <button onclick="cy.zoom(cy.zoom()/1.3);cy.center()" title="Zoom out">&minus;</button>
             <button onclick="relayout()" title="Re-run layout">Layout</button>
         </div>
+        <button id="panelToggle" onclick="togglePanel()" title="Toggle panel">&#x25C0;</button>
     </div>
 
     <!-- ===== Side panel ===== -->
     <div id="panel">
-        <!-- Controls -->
-        <div class="panel-section">
-            <h3>Graph Query</h3>
-            <div class="row">
-                <div>
-                    <label>Application ID</label>
-                    <input id="appId" type="number" value="14"/>
+        <div id="panel-body">
+
+            <!-- QUERY -->
+            <div class="panel-section" id="sec-query">
+                <div class="section-header" onclick="toggleSection('sec-query')">
+                    <h3>Graph Query</h3>
+                    <span class="section-arrow">&#9660;</span>
                 </div>
-                <div>
-                    <label>Limit</label>
-                    <input id="limit" type="number" value="500"/>
+                <div class="section-body">
+                    <div class="row">
+                        <div>
+                            <label>Application ID</label>
+                            <input id="appId" type="number" value="14"/>
+                        </div>
+                        <div>
+                            <label>Limit</label>
+                            <input id="limit" type="number" value="500"/>
+                        </div>
+                    </div>
+
+                    <label>Layout</label>
+                    <select id="layoutSelect">
+                        <option value="cose">COSE (force-directed)</option>
+                        <option value="breadthfirst">Breadthfirst (hierarchical)</option>
+                        <option value="circle">Circle</option>
+                        <option value="concentric">Concentric</option>
+                        <option value="grid">Grid</option>
+                    </select>
+
+                    <button class="btn btn-primary" id="loadBtn" onclick="loadGraph()">Load Graph</button>
                 </div>
             </div>
 
-            <label>Node kinds</label>
-            <div id="kindChips" class="kind-chips"></div>
-
-            <div class="checkbox-row">
-                <input type="checkbox" id="withRelations"/>
-                <label for="withRelations" style="margin:0">Show all edge types (not just CALLS)</label>
+            <!-- NODE KINDS -->
+            <div class="panel-section" id="sec-nodekinds">
+                <div class="section-header" onclick="toggleSection('sec-nodekinds')">
+                    <h3>Node Kinds</h3>
+                    <span class="section-arrow">&#9660;</span>
+                </div>
+                <div class="section-body">
+                    <div class="chip-actions">
+                        <a onclick="chipSelectAll('node')">Select all</a>
+                        <a onclick="chipSelectNone('node')">Clear</a>
+                    </div>
+                    <div id="nodeKindChips" class="chip-container"></div>
+                </div>
             </div>
 
-            <label>Layout</label>
-            <select id="layoutSelect">
-                <option value="cose">COSE (force-directed)</option>
-                <option value="breadthfirst">Breadthfirst (hierarchical)</option>
-                <option value="circle">Circle</option>
-                <option value="concentric">Concentric</option>
-                <option value="grid">Grid</option>
-            </select>
-
-            <button class="btn btn-primary" id="loadBtn" onclick="loadGraph()">Load Graph</button>
-        </div>
-
-        <!-- Search -->
-        <div class="panel-section">
-            <h3>Search</h3>
-            <div class="search-wrap">
-                <input id="searchInput" type="text" placeholder="Search nodes by name..." oninput="onSearch(this.value)"/>
-                <button class="search-clear" onclick="clearSearch()" title="Clear">&times;</button>
+            <!-- EDGE KINDS -->
+            <div class="panel-section" id="sec-edgekinds">
+                <div class="section-header" onclick="toggleSection('sec-edgekinds')">
+                    <h3>Edge Kinds (visible)</h3>
+                    <span class="section-arrow">&#9660;</span>
+                </div>
+                <div class="section-body">
+                    <div class="chip-actions">
+                        <a onclick="chipSelectAll('edge')">Select all</a>
+                        <a onclick="chipSelectNone('edge')">Clear</a>
+                    </div>
+                    <div id="edgeKindChips" class="chip-container"></div>
+                    <div class="checkbox-row" style="margin-top:8px">
+                        <input type="checkbox" id="withRelations"/>
+                        <label for="withRelations" style="margin:0">Fetch ALL edge types from server</label>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <!-- Legend -->
-        <div class="panel-section">
-            <h3>Node Legend</h3>
-            <div id="nodeLegend" class="legend"></div>
-            <h3 style="margin-top:10px">Edge Legend</h3>
-            <div id="edgeLegend" class="legend"></div>
-        </div>
-
-        <!-- Details -->
-        <div id="details">
-            <div class="detail-placeholder">
-                Click a node to see details<br/>
-                <span style="font-size:11px; color:var(--text-muted)">Double-click to expand neighbors</span>
+            <!-- SEARCH -->
+            <div class="panel-section" id="sec-search">
+                <div class="section-header" onclick="toggleSection('sec-search')">
+                    <h3>Search</h3>
+                    <span class="section-arrow">&#9660;</span>
+                </div>
+                <div class="section-body">
+                    <div class="search-wrap">
+                        <input id="searchInput" type="text" placeholder="Search nodes by name..." oninput="onSearch(this.value)"/>
+                        <button class="search-clear" onclick="clearSearch()" title="Clear">&times;</button>
+                    </div>
+                </div>
             </div>
-        </div>
+
+            <!-- LEGEND -->
+            <div class="panel-section collapsed" id="sec-legend">
+                <div class="section-header" onclick="toggleSection('sec-legend')">
+                    <h3>Legend</h3>
+                    <span class="section-arrow">&#9660;</span>
+                </div>
+                <div class="section-body">
+                    <label style="margin-top:0">Nodes</label>
+                    <div id="nodeLegend" class="legend"></div>
+                    <label>Edges</label>
+                    <div id="edgeLegend" class="legend"></div>
+                </div>
+            </div>
+
+            <!-- DETAILS -->
+            <div class="panel-section" id="sec-details">
+                <div class="section-header" onclick="toggleSection('sec-details')">
+                    <h3>Node Details</h3>
+                    <span class="section-arrow">&#9660;</span>
+                </div>
+                <div class="section-body" style="padding-left:0;padding-right:0">
+                    <div id="details">
+                        <div class="detail-placeholder">
+                            Click a node to see details<br/>
+                            <small>Double-click to expand neighbors</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /panel-body -->
     </div>
 </div>
 
@@ -290,172 +406,196 @@ const NODE_KINDS = [
     'DB_TABLE','DB_VIEW','DB_QUERY','SCHEMA','CONFIG','MIGRATION','ANNOTATION'
 ];
 
+const EDGE_KINDS = [
+    'CALLS','CALLS_CODE','CONTAINS','DEPENDS_ON',
+    'IMPLEMENTS','INHERITS','EXTENDS','OVERRIDES','ANNOTATED_WITH',
+    'THROWS','LOCKS',
+    'CALLS_HTTP','CALLS_GRPC','CALLS_CAMEL',
+    'PRODUCES','CONSUMES',
+    'QUERIES','READS','WRITES',
+    'CONTRACTS_WITH','CONFIGURES',
+    'CIRCUIT_BREAKER_TO','RETRIES_TO','TIMEOUTS_TO'
+];
+
 const NODE_COLORS = {
-    CLASS:      '#fab387', // peach
-    INTERFACE:  '#cba6f7', // mauve
-    ENUM:       '#f9e2af', // yellow
-    RECORD:     '#f2cdcd', // flamingo
-    METHOD:     '#a6e3a1', // green
-    FIELD:      '#74c7ec', // sapphire
-    EXCEPTION:  '#f38ba8', // red
-    TEST:       '#94e2d5', // teal
-    MAPPER:     '#89dceb', // sky
-    REPO:       '#585b70', // surface2
-    MODULE:     '#6c7086', // overlay0
-    PACKAGE:    '#7f849c', // overlay1
-    SERVICE:    '#89b4fa', // blue
-    ENDPOINT:   '#b4befe', // lavender
-    CLIENT:     '#f5c2e7', // pink
-    TOPIC:      '#eba0ac', // maroon
-    JOB:        '#a6adc8', // subtext0
-    DB_TABLE:   '#f9e2af', // yellow
-    DB_VIEW:    '#f5e0dc', // rosewater
-    DB_QUERY:   '#fab387', // peach
-    SCHEMA:     '#cba6f7', // mauve
-    CONFIG:     '#9399b2', // overlay2
-    MIGRATION:  '#bac2de', // subtext1
-    ANNOTATION: '#f5c2e7', // pink
+    CLASS:'#fab387', INTERFACE:'#cba6f7', ENUM:'#f9e2af', RECORD:'#f2cdcd',
+    METHOD:'#a6e3a1', FIELD:'#74c7ec', EXCEPTION:'#f38ba8', TEST:'#94e2d5',
+    MAPPER:'#89dceb', REPO:'#585b70', MODULE:'#6c7086', PACKAGE:'#7f849c',
+    SERVICE:'#89b4fa', ENDPOINT:'#b4befe', CLIENT:'#f5c2e7', TOPIC:'#eba0ac',
+    JOB:'#a6adc8', DB_TABLE:'#f9e2af', DB_VIEW:'#f5e0dc', DB_QUERY:'#fab387',
+    SCHEMA:'#cba6f7', CONFIG:'#9399b2', MIGRATION:'#bac2de', ANNOTATION:'#f5c2e7',
 };
 
 const NODE_SHAPES = {
-    CLASS:     'round-rectangle',
-    INTERFACE: 'diamond',
-    ENUM:      'pentagon',
-    METHOD:    'ellipse',
-    SERVICE:   'hexagon',
-    ENDPOINT:  'star',
-    CLIENT:    'vee',
-    TOPIC:     'tag',
-    DB_TABLE:  'barrel',
+    CLASS:'round-rectangle', INTERFACE:'diamond', ENUM:'pentagon',
+    METHOD:'ellipse', SERVICE:'hexagon', ENDPOINT:'star',
+    CLIENT:'vee', TOPIC:'tag', DB_TABLE:'barrel',
 };
 
 const EDGE_COLORS = {
-    CALLS:           '#a6e3a1',
-    CALLS_CODE:      '#a6e3a1',
-    CONTAINS:        '#585b70',
-    DEPENDS_ON:      '#f9e2af',
-    IMPLEMENTS:      '#cba6f7',
-    INHERITS:        '#b4befe',
-    EXTENDS:         '#b4befe',
-    OVERRIDES:       '#89b4fa',
-    ANNOTATED_WITH:  '#f5c2e7',
-    THROWS:          '#f38ba8',
-    CALLS_HTTP:      '#89b4fa',
-    CALLS_GRPC:      '#94e2d5',
-    CALLS_CAMEL:     '#fab387',
-    PRODUCES:        '#fab387',
-    CONSUMES:        '#eba0ac',
-    QUERIES:         '#f9e2af',
-    READS:           '#74c7ec',
-    WRITES:          '#f38ba8',
-    LOCKS:           '#f38ba8',
-    CONTRACTS_WITH:  '#cba6f7',
-    CONFIGURES:      '#9399b2',
-    CIRCUIT_BREAKER_TO: '#f38ba8',
-    RETRIES_TO:      '#f9e2af',
-    TIMEOUTS_TO:     '#fab387',
+    CALLS:'#a6e3a1', CALLS_CODE:'#a6e3a1', CONTAINS:'#585b70',
+    DEPENDS_ON:'#f9e2af', IMPLEMENTS:'#cba6f7', INHERITS:'#b4befe',
+    EXTENDS:'#b4befe', OVERRIDES:'#89b4fa', ANNOTATED_WITH:'#f5c2e7',
+    THROWS:'#f38ba8', CALLS_HTTP:'#89b4fa', CALLS_GRPC:'#94e2d5',
+    CALLS_CAMEL:'#fab387', PRODUCES:'#fab387', CONSUMES:'#eba0ac',
+    QUERIES:'#f9e2af', READS:'#74c7ec', WRITES:'#f38ba8', LOCKS:'#f38ba8',
+    CONTRACTS_WITH:'#cba6f7', CONFIGURES:'#9399b2',
+    CIRCUIT_BREAKER_TO:'#f38ba8', RETRIES_TO:'#f9e2af', TIMEOUTS_TO:'#fab387',
 };
 
 const DEFAULT_NODE_COLOR = '#7f849c';
 const DEFAULT_EDGE_COLOR = '#585b70';
 
-// Active kinds for filtering
-let activeKinds = new Set(['CLASS', 'METHOD']);
+// ---- State ----
+let activeNodeKinds = new Set(['CLASS', 'METHOD']);
+let activeEdgeKinds = new Set(EDGE_KINDS);     // all visible by default
 let currentLayoutName = 'cose';
-
-// ============================================================
-//  INIT
-// ============================================================
 let cy;
 
+// ============================================================
+//  PANEL UI
+// ============================================================
+function togglePanel() {
+    document.getElementById('app').classList.toggle('panel-hidden');
+    // let cytoscape recalculate after animation
+    setTimeout(() => cy.resize(), 350);
+}
+
+function toggleSection(sectionId) {
+    document.getElementById(sectionId).classList.toggle('collapsed');
+}
+
+// ============================================================
+//  CHIP BUILDERS
+// ============================================================
+function buildChips(containerId, items, activeSet, colorMap, type) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    for (const item of items) {
+        const chip = document.createElement('span');
+        chip.className = 'chip' + (activeSet.has(item) ? ' active' : '');
+        chip.textContent = item;
+        chip.dataset.kind = item;
+        chip.dataset.type = type;
+        if (activeSet.has(item) && colorMap[item]) {
+            chip.style.borderColor = colorMap[item];
+        }
+        chip.onclick = () => {
+            if (activeSet.has(item)) {
+                activeSet.delete(item);
+                chip.classList.remove('active');
+                chip.style.borderColor = '';
+            } else {
+                activeSet.add(item);
+                chip.classList.add('active');
+                chip.style.borderColor = colorMap[item] || '';
+            }
+            if (type === 'edge') applyEdgeFilter();
+        };
+        container.appendChild(chip);
+    }
+}
+
+function chipSelectAll(type) {
+    if (type === 'node') {
+        NODE_KINDS.forEach(k => activeNodeKinds.add(k));
+        buildChips('nodeKindChips', NODE_KINDS, activeNodeKinds, NODE_COLORS, 'node');
+    } else {
+        EDGE_KINDS.forEach(k => activeEdgeKinds.add(k));
+        buildChips('edgeKindChips', EDGE_KINDS, activeEdgeKinds, EDGE_COLORS, 'edge');
+        applyEdgeFilter();
+    }
+}
+
+function chipSelectNone(type) {
+    if (type === 'node') {
+        activeNodeKinds.clear();
+        buildChips('nodeKindChips', NODE_KINDS, activeNodeKinds, NODE_COLORS, 'node');
+    } else {
+        activeEdgeKinds.clear();
+        buildChips('edgeKindChips', EDGE_KINDS, activeEdgeKinds, EDGE_COLORS, 'edge');
+        applyEdgeFilter();
+    }
+}
+
+// Show/hide edges based on activeEdgeKinds (client-side filter, no reload)
+function applyEdgeFilter() {
+    if (!cy) return;
+    cy.edges().forEach(e => {
+        if (activeEdgeKinds.has(e.data('kind'))) {
+            e.style('display', 'element');
+        } else {
+            e.style('display', 'none');
+        }
+    });
+    updateStats();
+}
+
+// ============================================================
+//  CYTOSCAPE INIT
+// ============================================================
 function buildCyStyles() {
     const styles = [
         {
             selector: 'node',
             style: {
                 'label': 'data(label)',
-                'font-size': 9,
+                'font-size': 11,
                 'font-family': 'Segoe UI, system-ui, sans-serif',
                 'color': '#cdd6f4',
                 'text-outline-color': '#1e1e2e',
-                'text-outline-width': 1.5,
+                'text-outline-width': 2,
                 'text-valign': 'bottom',
-                'text-margin-y': 4,
+                'text-margin-y': 5,
                 'background-color': DEFAULT_NODE_COLOR,
-                'width': 28,
-                'height': 28,
+                'width': 32,
+                'height': 32,
                 'border-width': 0,
-                'overlay-padding': 4,
+                'overlay-padding': 5,
             }
         },
         {
             selector: 'edge',
             style: {
                 'line-color': DEFAULT_EDGE_COLOR,
-                'width': 1.5,
+                'width': 2,
                 'curve-style': 'bezier',
                 'target-arrow-shape': 'triangle',
                 'target-arrow-color': DEFAULT_EDGE_COLOR,
-                'arrow-scale': 0.8,
+                'arrow-scale': 0.9,
                 'opacity': 0.6,
             }
         },
-        // Selected
         {
             selector: ':selected',
-            style: {
-                'border-width': 3,
-                'border-color': '#89b4fa',
-                'z-index': 10,
-            }
+            style: { 'border-width': 3, 'border-color': '#89b4fa', 'z-index': 10 }
         },
-        // Highlighted (search / neighbor expand)
         {
             selector: '.highlighted',
-            style: {
-                'border-width': 3,
-                'border-color': '#f9e2af',
-            }
+            style: { 'border-width': 3, 'border-color': '#f9e2af' }
         },
         {
             selector: '.dimmed',
-            style: {
-                'opacity': 0.15,
-            }
+            style: { 'opacity': 0.12 }
         },
         {
             selector: '.expanded-source',
-            style: {
-                'border-width': 4,
-                'border-color': '#f5c2e7',
-                'border-style': 'double',
-            }
+            style: { 'border-width': 4, 'border-color': '#f5c2e7', 'border-style': 'double' }
         }
     ];
 
-    // Node kind styles
     for (const [kind, color] of Object.entries(NODE_COLORS)) {
-        const shape = NODE_SHAPES[kind] || 'ellipse';
         styles.push({
-            selector: `node[kind = "${kind}"]`,
-            style: {
-                'background-color': color,
-                'shape': shape,
-            }
+            selector: 'node[kind = "' + kind + '"]',
+            style: { 'background-color': color, 'shape': NODE_SHAPES[kind] || 'ellipse' }
         });
     }
-
-    // Edge kind styles
     for (const [kind, color] of Object.entries(EDGE_COLORS)) {
         styles.push({
-            selector: `edge[kind = "${kind}"]`,
-            style: {
-                'line-color': color,
-                'target-arrow-color': color,
-            }
+            selector: 'edge[kind = "' + kind + '"]',
+            style: { 'line-color': color, 'target-arrow-color': color }
         });
     }
-
     return styles;
 }
 
@@ -470,27 +610,31 @@ function initCy() {
         wheelSensitivity: 0.3,
     });
 
-    // Single click — show details
-    cy.on('tap', 'node', async evt => {
-        const n = evt.target;
-        showNodeDetails(n);
-    });
-
-    // Double click — expand neighbors
-    cy.on('dbltap', 'node', async evt => {
-        const n = evt.target;
-        await expandNode(n.id());
-    });
-
-    // Tap on background — deselect
+    cy.on('tap', 'node', evt => showNodeDetails(evt.target));
+    cy.on('dbltap', 'node', evt => expandNode(evt.target.id()));
     cy.on('tap', evt => {
-        if (evt.target === cy) {
-            clearHighlights();
+        if (evt.target === cy) { clearHighlights(); updateStats(); }
+    });
+    cy.on('select unselect', () => updateStats());
+
+    // Del / Backspace — remove selected nodes visually
+    document.addEventListener('keydown', evt => {
+        if (evt.key === 'Delete' || evt.key === 'Backspace') {
+            // don't fire when typing in an input/select
+            const tag = (evt.target.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+            const selected = cy.$(':selected');
+            if (selected.length === 0) return;
+
+            evt.preventDefault();
+            // remove connected edges first, then nodes
+            selected.connectedEdges().remove();
+            selected.remove();
             updateStats();
+            updateLegends();
         }
     });
-
-    cy.on('select unselect', () => updateStats());
 }
 
 // ============================================================
@@ -512,7 +656,7 @@ async function fetchGraph(appId, kinds, limit, withRelations) {
     const json = await res.json();
     console.log('[graph] Response:', json);
     if (!json || !Array.isArray(json.nodes)) {
-        throw new Error('Unexpected response format: ' + JSON.stringify(json).substring(0, 300));
+        throw new Error('Unexpected response: ' + JSON.stringify(json).substring(0, 300));
     }
     return json;
 }
@@ -543,7 +687,7 @@ async function fetchDetails(id) {
 }
 
 // ============================================================
-//  GRAPH OPERATIONS
+//  GRAPH OPS
 // ============================================================
 function toCyElements(graph) {
     if (!graph) return { nodes: [], edges: [] };
@@ -555,33 +699,22 @@ function toCyElements(graph) {
     for (const n of graphNodes) {
         if (nodeSet.has(n.id)) continue;
         nodeSet.add(n.id);
-        nodes.push({
-            data: {
-                id: n.id,
-                label: n.label,
-                kind: n.kind,
-                group: n.group || '',
-                size: n.size || 20,
-            }
-        });
+        nodes.push({ data: {
+            id: n.id, label: n.label, kind: n.kind,
+            group: n.group || '', size: n.size || 20,
+        }});
     }
 
     const edgeSet = new Set();
     const edges = [];
     for (const e of graphEdges) {
         if (edgeSet.has(e.id)) continue;
-        // skip edges whose source or target is not in the graph
         if (!nodeSet.has(e.source) || !nodeSet.has(e.target)) continue;
         edgeSet.add(e.id);
-        edges.push({
-            data: {
-                id: e.id,
-                source: e.source,
-                target: e.target,
-                kind: e.kind,
-                weight: e.weight || 1,
-            }
-        });
+        edges.push({ data: {
+            id: e.id, source: e.source, target: e.target,
+            kind: e.kind, weight: e.weight || 1,
+        }});
     }
     return { nodes, edges };
 }
@@ -594,21 +727,16 @@ function runLayout(name) {
         Object.assign(opts, {
             nodeRepulsion: function() { return 8000; },
             idealEdgeLength: function() { return 80; },
-            gravity: 0.3,
-            numIter: 500,
-            animate: 'end',
+            gravity: 0.3, numIter: 500, animate: 'end',
         });
     } else if (currentLayoutName === 'breadthfirst') {
         Object.assign(opts, { spacingFactor: 1.2, directed: true });
     } else if (currentLayoutName === 'concentric') {
         Object.assign(opts, {
-            concentric: function(n) {
-                return n.connectedEdges().length;
-            },
-            levelWidth: function() { return 3; }
+            concentric: function(n) { return n.connectedEdges().length; },
+            levelWidth: function() { return 3; },
         });
     }
-
     cy.layout(opts).run();
 }
 
@@ -616,7 +744,7 @@ function relayout() {
     runLayout(document.getElementById('layoutSelect').value);
 }
 
-// ---- Loading ----
+// ---- Loading / Toast ----
 function showLoading(text) {
     let el = document.getElementById('loadingOverlay');
     if (!el) {
@@ -640,17 +768,15 @@ function showToast(msg) {
     setTimeout(() => el.remove(), 4500);
 }
 
-// ---- Load graph ----
+// ---- Load ----
 async function loadGraph() {
     const appId = Number(document.getElementById('appId').value);
     const limit = Number(document.getElementById('limit').value) || 500;
     const withRelations = document.getElementById('withRelations').checked;
-    const kinds = [...activeKinds];
+    const kinds = [...activeNodeKinds];
 
-    if (!appId || appId <= 0) {
-        showToast('Application ID must be a positive number');
-        return;
-    }
+    if (!appId || appId <= 0) { showToast('Application ID must be positive'); return; }
+    if (kinds.length === 0) { showToast('Select at least one Node Kind'); return; }
 
     const btn = document.getElementById('loadBtn');
     btn.disabled = true;
@@ -663,6 +789,8 @@ async function loadGraph() {
         cy.elements().remove();
         cy.add(nodes);
         cy.add(edges);
+
+        applyEdgeFilter();
 
         showLoading('Running layout...');
         runLayout(document.getElementById('layoutSelect').value);
@@ -679,14 +807,13 @@ async function loadGraph() {
     }
 }
 
-// ---- Expand neighbors ----
+// ---- Expand ----
 async function expandNode(nodeId) {
     showLoading('Expanding neighbors...');
     try {
         const g = await fetchExpand(nodeId, 50);
         const { nodes, edges } = toCyElements(g);
 
-        // Don't add duplicates
         const existingIds = new Set(cy.nodes().map(n => n.id()));
         const newNodes = nodes.filter(n => !existingIds.has(n.data.id));
 
@@ -700,22 +827,17 @@ async function expandNode(nodeId) {
 
         cy.add(newNodes);
         cy.add(newEdges);
+        applyEdgeFilter();
 
-        // Mark source node
         cy.getElementById(nodeId).addClass('expanded-source');
-
-        // Highlight new nodes
         newNodes.forEach(n => cy.getElementById(n.data.id).addClass('highlighted'));
 
-        // Run layout on new nodes only (to not disturb existing positions)
-        const newNodeCollection = cy.collection(newNodes.map(n => cy.getElementById(n.data.id)));
-        newNodeCollection.layout({
+        const newColl = cy.collection(newNodes.map(n => cy.getElementById(n.data.id)));
+        newColl.layout({
             name: 'concentric',
             boundingBox: cy.getElementById(nodeId).boundingBox(),
-            concentric: () => 1,
-            levelWidth: () => 1,
-            animate: true,
-            animationDuration: 400,
+            concentric: () => 1, levelWidth: () => 1,
+            animate: true, animationDuration: 400,
         }).run();
 
         updateStats();
@@ -730,8 +852,12 @@ async function expandNode(nodeId) {
 
 // ---- Details ----
 async function showNodeDetails(cyNode) {
+    // Auto-open details section if collapsed
+    const sec = document.getElementById('sec-details');
+    if (sec.classList.contains('collapsed')) sec.classList.remove('collapsed');
+
     const detailsEl = document.getElementById('details');
-    detailsEl.innerHTML = '<div class="detail-placeholder"><div class="spinner" style="margin:0 auto 8px"></div>Loading details...</div>';
+    detailsEl.innerHTML = '<div class="detail-placeholder"><div class="spinner" style="margin:0 auto 10px"></div>Loading...</div>';
 
     try {
         const d = await fetchDetails(cyNode.id());
@@ -746,13 +872,11 @@ async function showNodeDetails(cyNode) {
         if (d.embeddingSize != null) html += ' &bull; emb: ' + d.embeddingSize + 'd';
         html += '</div></div>';
 
-        // Content
         if (d.content) {
             html += '<div class="detail-block"><h4>Content</h4>';
             html += '<pre>' + escapeHtml(d.content) + '</pre></div>';
         }
 
-        // Relations
         if (d.relations) {
             if (d.relations.outgoing && d.relations.outgoing.length > 0) {
                 html += '<div class="detail-block"><h4>Outgoing (' + d.relations.outgoing.length + ')</h4>';
@@ -774,7 +898,6 @@ async function showNodeDetails(cyNode) {
             }
         }
 
-        // Metadata
         if (d.metadata && Object.keys(d.metadata).length > 0) {
             html += '<div class="detail-block"><h4>Metadata</h4>';
             html += '<pre>' + escapeHtml(JSON.stringify(d.metadata, null, 2)) + '</pre></div>';
@@ -793,7 +916,7 @@ function focusNode(nodeId) {
         n.select();
         showNodeDetails(n);
     } else {
-        showToast('Node ' + nodeId + ' not in current graph. Try expanding.');
+        showToast('Node ' + nodeId + ' not in graph. Try expanding.');
     }
 }
 
@@ -801,33 +924,26 @@ function focusNode(nodeId) {
 function onSearch(query) {
     clearHighlights();
     if (!query || query.length < 2) return;
-
     const q = query.toLowerCase();
     const matches = cy.nodes().filter(n => {
         const label = (n.data('label') || '').toLowerCase();
         const group = (n.data('group') || '').toLowerCase();
         return label.includes(q) || group.includes(q);
     });
-
     if (matches.length === 0) return;
-
-    // Dim everything, highlight matches
     cy.elements().addClass('dimmed');
     matches.forEach(n => {
         n.removeClass('dimmed').addClass('highlighted');
         n.connectedEdges().removeClass('dimmed');
     });
-
     if (matches.length <= 10) {
         cy.animate({ fit: { eles: matches, padding: 50 } }, { duration: 400 });
     }
 }
-
 function clearSearch() {
     document.getElementById('searchInput').value = '';
     clearHighlights();
 }
-
 function clearHighlights() {
     cy.elements().removeClass('dimmed highlighted');
 }
@@ -835,41 +951,18 @@ function clearHighlights() {
 // ---- Stats ----
 function updateStats() {
     document.getElementById('stat-nodes').textContent = cy.nodes().length;
-    document.getElementById('stat-edges').textContent = cy.edges().length;
+    // Count only visible edges
+    const visibleEdges = cy.edges().filter(e => e.style('display') !== 'none');
+    document.getElementById('stat-edges').textContent = visibleEdges.length;
     const sel = cy.$(':selected');
-    document.getElementById('stat-selected').textContent = sel.length > 0 ? sel.data('label') || sel.id() : '-';
-}
-
-// ---- Kind chips ----
-function initKindChips() {
-    const container = document.getElementById('kindChips');
-    container.innerHTML = '';
-    for (const kind of NODE_KINDS) {
-        const chip = document.createElement('span');
-        chip.className = 'kind-chip' + (activeKinds.has(kind) ? ' active' : '');
-        chip.textContent = kind;
-        chip.style.borderColor = activeKinds.has(kind) ? (NODE_COLORS[kind] || DEFAULT_NODE_COLOR) : '';
-        chip.onclick = () => {
-            if (activeKinds.has(kind)) {
-                activeKinds.delete(kind);
-                chip.classList.remove('active');
-                chip.style.borderColor = '';
-            } else {
-                activeKinds.add(kind);
-                chip.classList.add('active');
-                chip.style.borderColor = NODE_COLORS[kind] || DEFAULT_NODE_COLOR;
-            }
-        };
-        container.appendChild(chip);
-    }
+    document.getElementById('stat-selected').textContent =
+        sel.length > 0 ? (sel.data('label') || sel.id()) : '-';
 }
 
 // ---- Legends ----
 function updateLegends() {
-    // Node legend — only show kinds present in current graph
     const kindsInGraph = new Set();
     cy.nodes().forEach(n => kindsInGraph.add(n.data('kind')));
-
     const nodeLegend = document.getElementById('nodeLegend');
     nodeLegend.innerHTML = '';
     for (const kind of kindsInGraph) {
@@ -879,10 +972,8 @@ function updateLegends() {
         nodeLegend.appendChild(item);
     }
 
-    // Edge legend — only show edge kinds present
     const edgeKindsInGraph = new Set();
     cy.edges().forEach(e => edgeKindsInGraph.add(e.data('kind')));
-
     const edgeLegend = document.getElementById('edgeLegend');
     edgeLegend.innerHTML = '';
     for (const kind of edgeKindsInGraph) {
@@ -897,7 +988,7 @@ function updateLegends() {
 function escapeHtml(s) {
     if (!s) return '';
     return String(s).replace(/[&<>"']/g, c => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
     }[c]));
 }
 
@@ -906,8 +997,8 @@ function escapeHtml(s) {
 // ============================================================
 (function bootstrap() {
     initCy();
-    initKindChips();
-    // auto-load on page open
+    buildChips('nodeKindChips', NODE_KINDS, activeNodeKinds, NODE_COLORS, 'node');
+    buildChips('edgeKindChips', EDGE_KINDS, activeEdgeKinds, EDGE_COLORS, 'edge');
     loadGraph().catch(e => {
         console.error('Initial load failed:', e);
         hideLoading();
