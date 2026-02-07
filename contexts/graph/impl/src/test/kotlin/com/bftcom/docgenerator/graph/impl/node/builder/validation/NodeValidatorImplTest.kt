@@ -150,6 +150,8 @@ class NodeValidatorImplTest {
         "com.example.Class.method(Type1, Type2)",
         "com.example.Class.method()",
         "method()",
+        "com.example.Class.method(String?,LocalDate?)",
+        "com.bftcom.rr.uds.service.api.SiaService.findSiaUsers(Set,String?,Set,Set,Set,Set,Set,Set,Set,Set,Set,Set,Set,Set,LocalDate?,String)",
     ])
     fun `validate - валидные форматы FQN`(fqn: String) {
         assertThatCode {

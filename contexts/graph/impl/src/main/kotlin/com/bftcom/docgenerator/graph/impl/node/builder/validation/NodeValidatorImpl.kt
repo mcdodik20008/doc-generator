@@ -17,7 +17,8 @@ class NodeValidatorImpl : NodeValidator {
         // Поддерживает:
         // - Базовый формат: package.ClassName или package.ClassName.method
         // - Формат функций: package.ClassName.method(Type1,Type2) или package.method(Type1,Type2)
-        private val FQN_PATTERN = Regex("^[a-zA-Z_][a-zA-Z0-9_.]*(?:\\([a-zA-Z0-9_,. ]*\\))?$")
+        // - Nullable типы в параметрах: String?, LocalDate?
+        private val FQN_PATTERN = Regex("^[a-zA-Z_][a-zA-Z0-9_.]*(?:\\([a-zA-Z0-9_,. ?]*\\))?$")
     }
 
     override fun validate(
