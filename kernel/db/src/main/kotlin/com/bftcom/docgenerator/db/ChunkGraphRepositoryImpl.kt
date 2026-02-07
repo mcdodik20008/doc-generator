@@ -161,7 +161,7 @@ open class ChunkGraphRepositoryImpl(
 
     private fun Edge.toGEdge(): GEdge =
         GEdge(
-            id = setOfNotNull(this.dst.id, this.src.id).toString(),
+            id = "${this.src.id}->${this.dst.id}:${this.kind.name}",
             source = this.src.id.toString(),
             target = this.dst.id.toString(),
             kind = this.kind.name,

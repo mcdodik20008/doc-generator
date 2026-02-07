@@ -2,6 +2,7 @@ package com.bftcom.docgenerator.api.rag
 
 import com.bftcom.docgenerator.api.common.RateLimited
 import com.bftcom.docgenerator.api.rag.client.DocEvaluatorClient
+import com.bftcom.docgenerator.api.rag.dto.EvaluationResult
 import com.bftcom.docgenerator.api.rag.dto.RagRequest
 import com.bftcom.docgenerator.api.rag.dto.ValidatedRagResponse
 import com.bftcom.docgenerator.db.NodeRepository
@@ -76,7 +77,7 @@ class RagController(
         }
 
         // Пытаемся провалидировать ответ
-        var validation: com.bftcom.docgenerator.api.rag.dto.EvaluationResult? = null
+        var validation: EvaluationResult? = null
         var validationError: String? = null
 
         try {

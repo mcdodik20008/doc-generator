@@ -1,169 +1,897 @@
 <!doctype html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="utf-8"/>
-    <title>Node Chunk Graph</title>
+    <title>Code Graph Explorer</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
     <style>
-        html, body {
-            height: 100%;
-            margin: 0;
+        :root {
+            --bg: #1e1e2e;
+            --surface: #282840;
+            --surface2: #313150;
+            --border: #3e3e5e;
+            --text: #cdd6f4;
+            --text-muted: #8888aa;
+            --accent: #89b4fa;
+            --accent-dim: #45577d;
+            --green: #a6e3a1;
+            --red: #f38ba8;
+            --yellow: #f9e2af;
+            --peach: #fab387;
+            --pink: #f5c2e7;
+            --teal: #94e2d5;
+            --lavender: #b4befe;
+            --mauve: #cba6f7;
+            --panel-w: 380px;
         }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
 
         #app {
             display: grid;
-            grid-template-columns: 1fr 360px;
+            grid-template-columns: 1fr var(--panel-w);
             height: 100%;
         }
 
-        #cy {
-            width: 100%;
-            height: 100%;
-        }
+        /* ---- Canvas ---- */
+        #cy-wrap { position: relative; overflow: hidden; }
+        #cy { width: 100%; height: 100%; }
 
+        #stats-bar {
+            position: absolute; top: 10px; left: 10px;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+            padding: 6px 14px; font-size: 12px; color: var(--text-muted);
+            display: flex; gap: 16px; z-index: 10;
+        }
+        #stats-bar span { color: var(--accent); font-weight: 600; }
+
+        #toolbar {
+            position: absolute; bottom: 12px; left: 12px;
+            display: flex; gap: 6px; z-index: 10;
+        }
+        #toolbar button {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+            color: var(--text); padding: 6px 10px; cursor: pointer; font-size: 13px;
+        }
+        #toolbar button:hover { background: var(--surface2); }
+
+        /* ---- Side Panel ---- */
         #panel {
-            border-left: 1px solid #eee;
-            padding: 12px;
-            overflow: auto;
+            background: var(--surface); border-left: 1px solid var(--border);
+            display: flex; flex-direction: column; overflow: hidden;
         }
 
-        .muted {
-            color: #777;
-            font-size: 12px;
+        .panel-section {
+            padding: 12px 14px; border-bottom: 1px solid var(--border);
         }
+        .panel-section h3 {
+            font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+            color: var(--text-muted); margin-bottom: 8px;
+        }
+
+        label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+        input[type=number], input[type=text] {
+            width: 100%; padding: 6px 8px; font-size: 13px;
+            background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px;
+            margin-bottom: 6px;
+        }
+        input:focus { outline: none; border-color: var(--accent); }
+
+        .row { display: flex; gap: 8px; }
+        .row > * { flex: 1; }
+
+        .checkbox-row {
+            display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 13px;
+        }
+        .checkbox-row input[type=checkbox] { accent-color: var(--accent); }
+
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            width: 100%; padding: 8px; font-size: 13px; font-weight: 600;
+            border: none; border-radius: 6px; cursor: pointer;
+            transition: background .15s;
+        }
+        .btn-primary { background: var(--accent); color: var(--bg); }
+        .btn-primary:hover { background: #a0c4ff; }
+        .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+        /* ---- Kind filter chips ---- */
+        .kind-chips {
+            display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px;
+        }
+        .kind-chip {
+            font-size: 11px; padding: 3px 8px; border-radius: 10px;
+            border: 1px solid var(--border); cursor: pointer; user-select: none;
+            background: transparent; color: var(--text-muted);
+            transition: all .15s;
+        }
+        .kind-chip.active { border-color: var(--accent); color: var(--text); background: var(--accent-dim); }
+        .kind-chip:hover { border-color: var(--accent); }
+
+        /* ---- Legend ---- */
+        .legend { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+        .legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        /* ---- Edge legend ---- */
+        .legend-line { width: 18px; height: 2px; border-radius: 1px; }
+
+        /* ---- Details ---- */
+        #details {
+            flex: 1; overflow-y: auto; padding: 14px;
+        }
+        #details::-webkit-scrollbar { width: 6px; }
+        #details::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .detail-placeholder { color: var(--text-muted); font-size: 13px; text-align: center; padding-top: 40px; }
+
+        .detail-header { margin-bottom: 12px; }
+        .detail-header h2 { font-size: 15px; color: var(--text); word-break: break-all; }
+        .detail-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+        .detail-block { margin-bottom: 14px; }
+        .detail-block h4 {
+            font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+            color: var(--text-muted); margin-bottom: 4px;
+        }
+        .detail-block pre {
+            background: var(--bg); padding: 8px; border-radius: 6px; font-size: 12px;
+            overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+            max-height: 300px; overflow-y: auto; color: var(--text);
+        }
+
+        .relation-list { list-style: none; font-size: 12px; }
+        .relation-list li {
+            padding: 3px 0; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .relation-kind {
+            font-size: 10px; padding: 1px 5px; border-radius: 3px;
+            background: var(--accent-dim); color: var(--accent);
+        }
+        .relation-link { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+        /* ---- Loading overlay ---- */
+        .loading-overlay {
+            position: absolute; inset: 0; background: rgba(30,30,46,.8);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 100; font-size: 14px; color: var(--text-muted);
+        }
+        .spinner {
+            width: 24px; height: 24px; border: 3px solid var(--border);
+            border-top-color: var(--accent); border-radius: 50%;
+            animation: spin .8s linear infinite; margin-right: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--red); color: var(--bg); padding: 10px 20px;
+            border-radius: 8px; font-size: 13px; z-index: 200;
+            animation: fadeInOut 4s forwards;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+            10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* ---- Search highlight ---- */
+        .search-wrap { position: relative; }
+        .search-wrap input { padding-right: 28px; }
+        .search-clear {
+            position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; color: var(--text-muted); cursor: pointer;
+            font-size: 14px; padding: 2px;
+        }
+
+        /* ---- Layout select ---- */
+        select {
+            width: 100%; padding: 6px 8px; font-size: 13px;
+            background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px;
+            margin-bottom: 6px;
+        }
+        select:focus { outline: none; border-color: var(--accent); }
     </style>
-    <!-- Можно через CDN или положить в /static/js/cytoscape.min.js -->
-    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
 </head>
 <body>
 <div id="app">
-    <div id="cy"></div>
-    <div id="panel">
-        <div>
-            <label>Application ID</label>
-            <input id="appId" type="number" value="14" style="width:100%"/>
-            <label>Node kinds (comma)</label>
-            <input id="kinds" type="text" value="CLASS,METHOD" style="width:100%"/>
-            <label>Limit</label>
-            <input id="limit" type="number" value="500" style="width:100%"/>
-            <button id="loadBtn">Load</button>
+    <!-- ===== Canvas ===== -->
+    <div id="cy-wrap">
+        <div id="cy"></div>
+        <div id="stats-bar">
+            Nodes: <span id="stat-nodes">0</span>
+            Edges: <span id="stat-edges">0</span>
+            Selected: <span id="stat-selected">-</span>
         </div>
-        <hr/>
-        <div id="nodeDetails" class="muted">Click node to see details…</div>
+        <div id="toolbar">
+            <button onclick="cy.fit(undefined,30)" title="Fit to screen">Fit</button>
+            <button onclick="cy.zoom(cy.zoom()*1.3);cy.center()" title="Zoom in">+</button>
+            <button onclick="cy.zoom(cy.zoom()/1.3);cy.center()" title="Zoom out">&minus;</button>
+            <button onclick="relayout()" title="Re-run layout">Layout</button>
+        </div>
+    </div>
+
+    <!-- ===== Side panel ===== -->
+    <div id="panel">
+        <!-- Controls -->
+        <div class="panel-section">
+            <h3>Graph Query</h3>
+            <div class="row">
+                <div>
+                    <label>Application ID</label>
+                    <input id="appId" type="number" value="14"/>
+                </div>
+                <div>
+                    <label>Limit</label>
+                    <input id="limit" type="number" value="500"/>
+                </div>
+            </div>
+
+            <label>Node kinds</label>
+            <div id="kindChips" class="kind-chips"></div>
+
+            <div class="checkbox-row">
+                <input type="checkbox" id="withRelations"/>
+                <label for="withRelations" style="margin:0">Show all edge types (not just CALLS)</label>
+            </div>
+
+            <label>Layout</label>
+            <select id="layoutSelect">
+                <option value="cose">COSE (force-directed)</option>
+                <option value="breadthfirst">Breadthfirst (hierarchical)</option>
+                <option value="circle">Circle</option>
+                <option value="concentric">Concentric</option>
+                <option value="grid">Grid</option>
+            </select>
+
+            <button class="btn btn-primary" id="loadBtn" onclick="loadGraph()">Load Graph</button>
+        </div>
+
+        <!-- Search -->
+        <div class="panel-section">
+            <h3>Search</h3>
+            <div class="search-wrap">
+                <input id="searchInput" type="text" placeholder="Search nodes by name..." oninput="onSearch(this.value)"/>
+                <button class="search-clear" onclick="clearSearch()" title="Clear">&times;</button>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="panel-section">
+            <h3>Node Legend</h3>
+            <div id="nodeLegend" class="legend"></div>
+            <h3 style="margin-top:10px">Edge Legend</h3>
+            <div id="edgeLegend" class="legend"></div>
+        </div>
+
+        <!-- Details -->
+        <div id="details">
+            <div class="detail-placeholder">
+                Click a node to see details<br/>
+                <span style="font-size:11px; color:var(--text-muted)">Double-click to expand neighbors</span>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-    let cy;
+// ============================================================
+//  CONFIG
+// ============================================================
+const NODE_KINDS = [
+    'CLASS','INTERFACE','ENUM','RECORD','METHOD','FIELD','EXCEPTION','TEST','MAPPER',
+    'REPO','MODULE','PACKAGE',
+    'SERVICE','ENDPOINT','CLIENT','TOPIC','JOB',
+    'DB_TABLE','DB_VIEW','DB_QUERY','SCHEMA','CONFIG','MIGRATION','ANNOTATION'
+];
 
-    async function fetchGraph(appId, kinds, limit) {
-        const params = new URLSearchParams();
-        params.set('applicationId', String(appId));
-        params.set('limit', String(limit));
-        kinds.filter(Boolean).forEach(kind => params.append('kinds', kind));
-        const res = await fetch(`/api/graph/chunks?${params.toString()}`);
-        if (!res.ok) throw new Error('Failed to load graph');
-        return res.json();
+const NODE_COLORS = {
+    CLASS:      '#fab387', // peach
+    INTERFACE:  '#cba6f7', // mauve
+    ENUM:       '#f9e2af', // yellow
+    RECORD:     '#f2cdcd', // flamingo
+    METHOD:     '#a6e3a1', // green
+    FIELD:      '#74c7ec', // sapphire
+    EXCEPTION:  '#f38ba8', // red
+    TEST:       '#94e2d5', // teal
+    MAPPER:     '#89dceb', // sky
+    REPO:       '#585b70', // surface2
+    MODULE:     '#6c7086', // overlay0
+    PACKAGE:    '#7f849c', // overlay1
+    SERVICE:    '#89b4fa', // blue
+    ENDPOINT:   '#b4befe', // lavender
+    CLIENT:     '#f5c2e7', // pink
+    TOPIC:      '#eba0ac', // maroon
+    JOB:        '#a6adc8', // subtext0
+    DB_TABLE:   '#f9e2af', // yellow
+    DB_VIEW:    '#f5e0dc', // rosewater
+    DB_QUERY:   '#fab387', // peach
+    SCHEMA:     '#cba6f7', // mauve
+    CONFIG:     '#9399b2', // overlay2
+    MIGRATION:  '#bac2de', // subtext1
+    ANNOTATION: '#f5c2e7', // pink
+};
+
+const NODE_SHAPES = {
+    CLASS:     'round-rectangle',
+    INTERFACE: 'diamond',
+    ENUM:      'pentagon',
+    METHOD:    'ellipse',
+    SERVICE:   'hexagon',
+    ENDPOINT:  'star',
+    CLIENT:    'vee',
+    TOPIC:     'tag',
+    DB_TABLE:  'barrel',
+};
+
+const EDGE_COLORS = {
+    CALLS:           '#a6e3a1',
+    CALLS_CODE:      '#a6e3a1',
+    CONTAINS:        '#585b70',
+    DEPENDS_ON:      '#f9e2af',
+    IMPLEMENTS:      '#cba6f7',
+    INHERITS:        '#b4befe',
+    EXTENDS:         '#b4befe',
+    OVERRIDES:       '#89b4fa',
+    ANNOTATED_WITH:  '#f5c2e7',
+    THROWS:          '#f38ba8',
+    CALLS_HTTP:      '#89b4fa',
+    CALLS_GRPC:      '#94e2d5',
+    CALLS_CAMEL:     '#fab387',
+    PRODUCES:        '#fab387',
+    CONSUMES:        '#eba0ac',
+    QUERIES:         '#f9e2af',
+    READS:           '#74c7ec',
+    WRITES:          '#f38ba8',
+    LOCKS:           '#f38ba8',
+    CONTRACTS_WITH:  '#cba6f7',
+    CONFIGURES:      '#9399b2',
+    CIRCUIT_BREAKER_TO: '#f38ba8',
+    RETRIES_TO:      '#f9e2af',
+    TIMEOUTS_TO:     '#fab387',
+};
+
+const DEFAULT_NODE_COLOR = '#7f849c';
+const DEFAULT_EDGE_COLOR = '#585b70';
+
+// Active kinds for filtering
+let activeKinds = new Set(['CLASS', 'METHOD']);
+let currentLayoutName = 'cose';
+
+// ============================================================
+//  INIT
+// ============================================================
+let cy;
+
+function buildCyStyles() {
+    const styles = [
+        {
+            selector: 'node',
+            style: {
+                'label': 'data(label)',
+                'font-size': 9,
+                'font-family': 'Segoe UI, system-ui, sans-serif',
+                'color': '#cdd6f4',
+                'text-outline-color': '#1e1e2e',
+                'text-outline-width': 1.5,
+                'text-valign': 'bottom',
+                'text-margin-y': 4,
+                'background-color': DEFAULT_NODE_COLOR,
+                'width': 28,
+                'height': 28,
+                'border-width': 0,
+                'overlay-padding': 4,
+            }
+        },
+        {
+            selector: 'edge',
+            style: {
+                'line-color': DEFAULT_EDGE_COLOR,
+                'width': 1.5,
+                'curve-style': 'bezier',
+                'target-arrow-shape': 'triangle',
+                'target-arrow-color': DEFAULT_EDGE_COLOR,
+                'arrow-scale': 0.8,
+                'opacity': 0.6,
+            }
+        },
+        // Selected
+        {
+            selector: ':selected',
+            style: {
+                'border-width': 3,
+                'border-color': '#89b4fa',
+                'z-index': 10,
+            }
+        },
+        // Highlighted (search / neighbor expand)
+        {
+            selector: '.highlighted',
+            style: {
+                'border-width': 3,
+                'border-color': '#f9e2af',
+            }
+        },
+        {
+            selector: '.dimmed',
+            style: {
+                'opacity': 0.15,
+            }
+        },
+        {
+            selector: '.expanded-source',
+            style: {
+                'border-width': 4,
+                'border-color': '#f5c2e7',
+                'border-style': 'double',
+            }
+        }
+    ];
+
+    // Node kind styles
+    for (const [kind, color] of Object.entries(NODE_COLORS)) {
+        const shape = NODE_SHAPES[kind] || 'ellipse';
+        styles.push({
+            selector: `node[kind = "${kind}"]`,
+            style: {
+                'background-color': color,
+                'shape': shape,
+            }
+        });
     }
 
-    async function fetchDetails(id) {
-        const res = await fetch(`/api/chunks/${encodeURIComponent(id)}`);
-        if (!res.ok) throw new Error('Failed to load details');
-        return res.json();
+    // Edge kind styles
+    for (const [kind, color] of Object.entries(EDGE_COLORS)) {
+        styles.push({
+            selector: `edge[kind = "${kind}"]`,
+            style: {
+                'line-color': color,
+                'target-arrow-color': color,
+            }
+        });
     }
 
-    function toCyElements(graph) {
-        const nodes = graph.nodes.map(n => ({
+    return styles;
+}
+
+function initCy() {
+    cy = cytoscape({
+        container: document.getElementById('cy'),
+        elements: [],
+        style: buildCyStyles(),
+        layout: { name: 'preset' },
+        minZoom: 0.05,
+        maxZoom: 5,
+        wheelSensitivity: 0.3,
+    });
+
+    // Single click — show details
+    cy.on('tap', 'node', async evt => {
+        const n = evt.target;
+        showNodeDetails(n);
+    });
+
+    // Double click — expand neighbors
+    cy.on('dbltap', 'node', async evt => {
+        const n = evt.target;
+        await expandNode(n.id());
+    });
+
+    // Tap on background — deselect
+    cy.on('tap', evt => {
+        if (evt.target === cy) {
+            clearHighlights();
+            updateStats();
+        }
+    });
+
+    cy.on('select unselect', () => updateStats());
+}
+
+// ============================================================
+//  API
+// ============================================================
+async function fetchGraph(appId, kinds, limit, withRelations) {
+    const params = new URLSearchParams();
+    params.set('applicationId', String(appId));
+    params.set('limit', String(limit));
+    params.set('withRelations', String(withRelations));
+    kinds.forEach(kind => params.append('kinds', kind));
+    const res = await fetch('/api/graph/chunks?' + params.toString());
+    if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error('Failed to load graph: ' + res.status + ' ' + text.substring(0, 200));
+    }
+    return res.json();
+}
+
+async function fetchExpand(nodeId, limit) {
+    const params = new URLSearchParams();
+    params.set('nodeId', nodeId);
+    params.set('limit', String(limit));
+    const res = await fetch('/api/graph/chunks/expand?' + params.toString());
+    if (!res.ok) throw new Error('Failed to expand: ' + res.status);
+    return res.json();
+}
+
+async function fetchDetails(id) {
+    const res = await fetch('/api/chunks/' + encodeURIComponent(id));
+    if (!res.ok) throw new Error('Failed to load details: ' + res.status);
+    return res.json();
+}
+
+// ============================================================
+//  GRAPH OPERATIONS
+// ============================================================
+function toCyElements(graph) {
+    const nodeSet = new Set();
+    const nodes = [];
+    for (const n of graph.nodes) {
+        if (nodeSet.has(n.id)) continue;
+        nodeSet.add(n.id);
+        nodes.push({
             data: {
                 id: n.id,
                 label: n.label,
                 kind: n.kind,
-                group: n.group,
-                size: n.size || 20
+                group: n.group || '',
+                size: n.size || 20,
             }
-        }));
-        const edges = graph.edges.map(e => ({
+        });
+    }
+
+    const edgeSet = new Set();
+    const edges = [];
+    for (const e of graph.edges) {
+        if (edgeSet.has(e.id)) continue;
+        // skip edges whose source or target is not in the graph
+        if (!nodeSet.has(e.source) || !nodeSet.has(e.target)) continue;
+        edgeSet.add(e.id);
+        edges.push({
             data: {
                 id: e.id,
                 source: e.source,
                 target: e.target,
                 kind: e.kind,
-                weight: e.weight || 1
-            }
-        }));
-        return {nodes, edges};
-    }
-
-    function initCy() {
-        cy = cytoscape({
-            container: document.getElementById('cy'),
-            elements: [],
-            style: [
-                {
-                    selector: 'node',
-                    style: {
-                        'label': 'data(label)',
-                        'font-size': 8,
-                        'background-color': '#7dafff',
-                        'width': 'mapData(size, 10, 200, 10, 60)',
-                        'height': 'mapData(size, 10, 200, 10, 60)'
-                    }
-                },
-                {
-                    selector: 'edge',
-                    style: {
-                        'line-color': '#ccc',
-                        'width': 'mapData(weight, 1, 10, 1, 6)',
-                        'curve-style': 'bezier',
-                        'target-arrow-shape': 'triangle',
-                        'target-arrow-color': '#ccc'
-                    }
-                },
-                {selector: 'node[kind = "METHOD"]', style: {'background-color': '#9fd'}},
-                {selector: 'node[kind = "CLASS"]', style: {'background-color': '#fc9'}},
-                {selector: ':selected', style: {'border-width': 3, 'border-color': '#333'}}
-            ],
-            layout: {name: 'cose', animate: false}
-        });
-
-        cy.on('tap', 'node', async (evt) => {
-            const n = evt.target;
-            document.getElementById('nodeDetails').textContent = 'Loading…';
-            try {
-                const d = await fetchDetails(n.id());
-                document.getElementById('nodeDetails').innerHTML =
-                    `<b>${n.data('label')}</b><br/>
-           <span class="muted">${n.data('kind')} • ${n.data('group') || ''}</span><br/><br/>
-           <pre>${escapeHtml(JSON.stringify(d, null, 2))}</pre>`;
-            } catch (e) {
-                document.getElementById('nodeDetails').textContent = String(e);
+                weight: e.weight || 1,
             }
         });
     }
+    return { nodes, edges };
+}
 
-    function escapeHtml(s) {
-        return s.replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]))
+function runLayout(name) {
+    currentLayoutName = name || currentLayoutName;
+    const opts = { name: currentLayoutName, animate: true, animationDuration: 600 };
+
+    if (currentLayoutName === 'cose') {
+        Object.assign(opts, {
+            nodeRepulsion: function() { return 8000; },
+            idealEdgeLength: function() { return 80; },
+            gravity: 0.3,
+            numIter: 500,
+            animate: 'end',
+        });
+    } else if (currentLayoutName === 'breadthfirst') {
+        Object.assign(opts, { spacingFactor: 1.2, directed: true });
+    } else if (currentLayoutName === 'concentric') {
+        Object.assign(opts, {
+            concentric: function(n) {
+                return n.connectedEdges().length;
+            },
+            levelWidth: function() { return 3; }
+        });
     }
 
-    async function loadGraph() {
-        const appId = Number(document.getElementById('appId').value);
-        const kinds = document.getElementById('kinds').value.split(',').map(s => s.trim()).filter(Boolean);
-        const limit = Number(document.getElementById('limit').value);
-        const g = await fetchGraph(appId, kinds, limit);
-        const {nodes, edges} = toCyElements(g);
+    cy.layout(opts).run();
+}
+
+function relayout() {
+    runLayout(document.getElementById('layoutSelect').value);
+}
+
+// ---- Loading ----
+function showLoading(text) {
+    let el = document.getElementById('loadingOverlay');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'loadingOverlay';
+        el.className = 'loading-overlay';
+        document.getElementById('cy-wrap').appendChild(el);
+    }
+    el.innerHTML = '<div class="spinner"></div>' + escapeHtml(text || 'Loading...');
+    el.style.display = 'flex';
+}
+function hideLoading() {
+    const el = document.getElementById('loadingOverlay');
+    if (el) el.style.display = 'none';
+}
+function showToast(msg) {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4500);
+}
+
+// ---- Load graph ----
+async function loadGraph() {
+    const appId = Number(document.getElementById('appId').value);
+    const limit = Number(document.getElementById('limit').value) || 500;
+    const withRelations = document.getElementById('withRelations').checked;
+    const kinds = [...activeKinds];
+
+    if (!appId || appId <= 0) {
+        showToast('Application ID must be a positive number');
+        return;
+    }
+
+    const btn = document.getElementById('loadBtn');
+    btn.disabled = true;
+    showLoading('Loading graph data...');
+
+    try {
+        const g = await fetchGraph(appId, kinds, limit, withRelations);
+        const { nodes, edges } = toCyElements(g);
+
         cy.elements().remove();
         cy.add(nodes);
         cy.add(edges);
-        cy.layout({name: 'cose', animate: false}).run();
-        cy.fit(undefined, 20);
+
+        showLoading('Running layout...');
+        runLayout(document.getElementById('layoutSelect').value);
+        cy.fit(undefined, 30);
+
+        updateStats();
+        updateLegends();
+    } catch (e) {
+        console.error(e);
+        showToast(String(e.message || e));
+    } finally {
+        btn.disabled = false;
+        hideLoading();
+    }
+}
+
+// ---- Expand neighbors ----
+async function expandNode(nodeId) {
+    showLoading('Expanding neighbors...');
+    try {
+        const g = await fetchExpand(nodeId, 50);
+        const { nodes, edges } = toCyElements(g);
+
+        // Don't add duplicates
+        const existingIds = new Set(cy.nodes().map(n => n.id()));
+        const newNodes = nodes.filter(n => !existingIds.has(n.data.id));
+
+        const existingEdgeIds = new Set(cy.edges().map(e => e.id()));
+        const newEdges = edges.filter(e => !existingEdgeIds.has(e.data.id));
+
+        if (newNodes.length === 0 && newEdges.length === 0) {
+            showToast('No new neighbors found');
+            return;
+        }
+
+        cy.add(newNodes);
+        cy.add(newEdges);
+
+        // Mark source node
+        cy.getElementById(nodeId).addClass('expanded-source');
+
+        // Highlight new nodes
+        newNodes.forEach(n => cy.getElementById(n.data.id).addClass('highlighted'));
+
+        // Run layout on new nodes only (to not disturb existing positions)
+        const newNodeCollection = cy.collection(newNodes.map(n => cy.getElementById(n.data.id)));
+        newNodeCollection.layout({
+            name: 'concentric',
+            boundingBox: cy.getElementById(nodeId).boundingBox(),
+            concentric: () => 1,
+            levelWidth: () => 1,
+            animate: true,
+            animationDuration: 400,
+        }).run();
+
+        updateStats();
+        updateLegends();
+    } catch (e) {
+        console.error(e);
+        showToast('Expand failed: ' + (e.message || e));
+    } finally {
+        hideLoading();
+    }
+}
+
+// ---- Details ----
+async function showNodeDetails(cyNode) {
+    const detailsEl = document.getElementById('details');
+    detailsEl.innerHTML = '<div class="detail-placeholder"><div class="spinner" style="margin:0 auto 8px"></div>Loading details...</div>';
+
+    try {
+        const d = await fetchDetails(cyNode.id());
+
+        let html = '<div class="detail-header">';
+        html += '<h2>' + escapeHtml(d.title || cyNode.data('label')) + '</h2>';
+        html += '<div class="detail-meta">';
+        if (d.node) {
+            html += '<span style="color:' + (NODE_COLORS[d.node.kind] || DEFAULT_NODE_COLOR) + '">' + escapeHtml(d.node.kind) + '</span>';
+            if (d.node.packageName) html += ' &bull; ' + escapeHtml(d.node.packageName);
+        }
+        if (d.embeddingSize != null) html += ' &bull; emb: ' + d.embeddingSize + 'd';
+        html += '</div></div>';
+
+        // Content
+        if (d.content) {
+            html += '<div class="detail-block"><h4>Content</h4>';
+            html += '<pre>' + escapeHtml(d.content) + '</pre></div>';
+        }
+
+        // Relations
+        if (d.relations) {
+            if (d.relations.outgoing && d.relations.outgoing.length > 0) {
+                html += '<div class="detail-block"><h4>Outgoing (' + d.relations.outgoing.length + ')</h4>';
+                html += '<ul class="relation-list">';
+                for (const r of d.relations.outgoing) {
+                    html += '<li><span class="relation-kind">' + escapeHtml(r.kind) + '</span>';
+                    html += ' <span class="relation-link" onclick="focusNode(\'' + escapeHtml(r.otherNodeId) + '\')">' + escapeHtml(r.otherNodeId) + '</span></li>';
+                }
+                html += '</ul></div>';
+            }
+            if (d.relations.incoming && d.relations.incoming.length > 0) {
+                html += '<div class="detail-block"><h4>Incoming (' + d.relations.incoming.length + ')</h4>';
+                html += '<ul class="relation-list">';
+                for (const r of d.relations.incoming) {
+                    html += '<li><span class="relation-kind">' + escapeHtml(r.kind) + '</span>';
+                    html += ' <span class="relation-link" onclick="focusNode(\'' + escapeHtml(r.otherNodeId) + '\')">' + escapeHtml(r.otherNodeId) + '</span></li>';
+                }
+                html += '</ul></div>';
+            }
+        }
+
+        // Metadata
+        if (d.metadata && Object.keys(d.metadata).length > 0) {
+            html += '<div class="detail-block"><h4>Metadata</h4>';
+            html += '<pre>' + escapeHtml(JSON.stringify(d.metadata, null, 2)) + '</pre></div>';
+        }
+
+        detailsEl.innerHTML = html;
+    } catch (e) {
+        detailsEl.innerHTML = '<div class="detail-placeholder" style="color:var(--red)">' + escapeHtml(String(e.message || e)) + '</div>';
+    }
+}
+
+function focusNode(nodeId) {
+    const n = cy.getElementById(nodeId);
+    if (n.length > 0) {
+        cy.animate({ center: { eles: n }, zoom: 2 }, { duration: 400 });
+        n.select();
+        showNodeDetails(n);
+    } else {
+        showToast('Node ' + nodeId + ' not in current graph. Try expanding.');
+    }
+}
+
+// ---- Search ----
+function onSearch(query) {
+    clearHighlights();
+    if (!query || query.length < 2) return;
+
+    const q = query.toLowerCase();
+    const matches = cy.nodes().filter(n => {
+        const label = (n.data('label') || '').toLowerCase();
+        const group = (n.data('group') || '').toLowerCase();
+        return label.includes(q) || group.includes(q);
+    });
+
+    if (matches.length === 0) return;
+
+    // Dim everything, highlight matches
+    cy.elements().addClass('dimmed');
+    matches.forEach(n => {
+        n.removeClass('dimmed').addClass('highlighted');
+        n.connectedEdges().removeClass('dimmed');
+    });
+
+    if (matches.length <= 10) {
+        cy.animate({ fit: { eles: matches, padding: 50 } }, { duration: 400 });
+    }
+}
+
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    clearHighlights();
+}
+
+function clearHighlights() {
+    cy.elements().removeClass('dimmed highlighted');
+}
+
+// ---- Stats ----
+function updateStats() {
+    document.getElementById('stat-nodes').textContent = cy.nodes().length;
+    document.getElementById('stat-edges').textContent = cy.edges().length;
+    const sel = cy.$(':selected');
+    document.getElementById('stat-selected').textContent = sel.length > 0 ? sel.data('label') || sel.id() : '-';
+}
+
+// ---- Kind chips ----
+function initKindChips() {
+    const container = document.getElementById('kindChips');
+    container.innerHTML = '';
+    for (const kind of NODE_KINDS) {
+        const chip = document.createElement('span');
+        chip.className = 'kind-chip' + (activeKinds.has(kind) ? ' active' : '');
+        chip.textContent = kind;
+        chip.style.borderColor = activeKinds.has(kind) ? (NODE_COLORS[kind] || DEFAULT_NODE_COLOR) : '';
+        chip.onclick = () => {
+            if (activeKinds.has(kind)) {
+                activeKinds.delete(kind);
+                chip.classList.remove('active');
+                chip.style.borderColor = '';
+            } else {
+                activeKinds.add(kind);
+                chip.classList.add('active');
+                chip.style.borderColor = NODE_COLORS[kind] || DEFAULT_NODE_COLOR;
+            }
+        };
+        container.appendChild(chip);
+    }
+}
+
+// ---- Legends ----
+function updateLegends() {
+    // Node legend — only show kinds present in current graph
+    const kindsInGraph = new Set();
+    cy.nodes().forEach(n => kindsInGraph.add(n.data('kind')));
+
+    const nodeLegend = document.getElementById('nodeLegend');
+    nodeLegend.innerHTML = '';
+    for (const kind of kindsInGraph) {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML = '<div class="legend-dot" style="background:' + (NODE_COLORS[kind] || DEFAULT_NODE_COLOR) + '"></div>' + kind;
+        nodeLegend.appendChild(item);
     }
 
-    document.getElementById('loadBtn').addEventListener('click', loadGraph);
+    // Edge legend — only show edge kinds present
+    const edgeKindsInGraph = new Set();
+    cy.edges().forEach(e => edgeKindsInGraph.add(e.data('kind')));
 
-    (function bootstrap() {
-        initCy();
-        loadGraph().catch(console.error);
-    })();
+    const edgeLegend = document.getElementById('edgeLegend');
+    edgeLegend.innerHTML = '';
+    for (const kind of edgeKindsInGraph) {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML = '<div class="legend-line" style="background:' + (EDGE_COLORS[kind] || DEFAULT_EDGE_COLOR) + '"></div>' + kind;
+        edgeLegend.appendChild(item);
+    }
+}
+
+// ---- Util ----
+function escapeHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+
+// ============================================================
+//  BOOTSTRAP
+// ============================================================
+(function bootstrap() {
+    initCy();
+    initKindChips();
+    // auto-load on page open
+    loadGraph().catch(e => {
+        console.error('Initial load failed:', e);
+        hideLoading();
+    });
+})();
 </script>
 </body>
 </html>
