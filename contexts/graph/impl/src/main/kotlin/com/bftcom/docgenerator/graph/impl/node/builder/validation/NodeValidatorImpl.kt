@@ -14,7 +14,10 @@ class NodeValidatorImpl : NodeValidator {
 
     companion object {
         private const val MAX_FQN_LENGTH = 1000
-        private val FQN_PATTERN = Regex("^[a-zA-Z_][a-zA-Z0-9_.]*$")
+        // Поддерживает:
+        // - Базовый формат: package.ClassName или package.ClassName.method
+        // - Формат функций: package.ClassName.method(Type1,Type2) или package.method(Type1,Type2)
+        private val FQN_PATTERN = Regex("^[a-zA-Z_][a-zA-Z0-9_.]*(?:\\([a-zA-Z0-9_,. ]*\\))?$")
     }
 
     override fun validate(
@@ -33,7 +36,7 @@ class NodeValidatorImpl : NodeValidator {
 
             // Валидация формата FQN (базовая проверка)
             require(fqn.matches(FQN_PATTERN)) {
-                "FQN has invalid format: $fqn (must start with letter/underscore, contain only alphanumeric, dots, underscores)"
+                "FQN has invalid format: $fqn (must start with letter/underscore, contain only alphanumeric, dots, underscores, and optionally function parameters in parentheses)"
             }
 
             // Валидация диапазона строк

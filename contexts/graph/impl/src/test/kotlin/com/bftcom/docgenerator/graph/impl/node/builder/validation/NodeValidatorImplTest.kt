@@ -141,7 +141,15 @@ class NodeValidatorImplTest {
         "com.example.Valid123",
         "_private.Class",
         "a.b.c",
-        "ValidClass"
+        "ValidClass",
+        "com.example.Class.method(Array)",
+        "com.example.method(Array)",
+        "com.bftcom.rr.uds.main(Array)",
+        "com.example.Class.method(Type1,Type2)",
+        "method(Type1)",
+        "com.example.Class.method(Type1, Type2)",
+        "com.example.Class.method()",
+        "method()",
     ])
     fun `validate - валидные форматы FQN`(fqn: String) {
         assertThatCode {
@@ -163,7 +171,9 @@ class NodeValidatorImplTest {
         "invalid.fqn.with space",
         "invalid.fqn.with@symbol",
         "",
-        "   "
+        "   ",
+        "invalid.fqn.with space(Param)",
+        "invalid.fqn.with@symbol(Param)",
     ])
     fun `validate - невалидные форматы FQN`(fqn: String) {
         assertThatThrownBy {
