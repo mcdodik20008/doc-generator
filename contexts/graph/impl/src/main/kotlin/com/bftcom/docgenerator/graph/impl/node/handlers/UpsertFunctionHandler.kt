@@ -29,7 +29,7 @@ class UpsertFunctionHandler(
     ) {
         val r = cmd.raw
         val pkgFqn = r.pkgFqn ?: state.getFilePackage(r.filePath)
-        val fqn = FqnBuilder.buildFunctionFqn(r.ownerFqn, pkgFqn, r.name)
+        val fqn = FqnBuilder.buildFunctionFqn(r.ownerFqn, pkgFqn, r.name, r.paramTypeNames)
 
         val parent =
             when {
@@ -70,6 +70,7 @@ class UpsertFunctionHandler(
                 pkgFqn = pkgFqn,
                 ownerFqn = r.ownerFqn,
                 params = r.paramNames,
+                paramTypes = r.paramTypeNames.takeIf { it.isNotEmpty() },
                 rawUsages = r.rawUsages,
                 annotations = r.annotationsRepr.toList(),
                 imports = state.getFileImports(r.filePath),

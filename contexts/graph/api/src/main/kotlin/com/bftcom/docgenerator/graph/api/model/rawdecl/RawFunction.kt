@@ -5,7 +5,7 @@ import com.bftcom.docgenerator.shared.node.RawUsage
 /**
  * Функция или метод (член класса или top-level функция).
  *
- * Не содержит типы параметров — только имена, сигнатура и сырой текст тела.
+ * Содержит имена и простые типы параметров, сигнатуру и сырой текст тела.
  * Все вызовы внутри тела представлены как список [com.bftcom.docgenerator.domain.node.RawUsage].
  */
 data class RawFunction(
@@ -20,6 +20,8 @@ data class RawFunction(
     val signatureRepr: String?,
     /** Имена параметров, как указаны в исходнике. */
     val paramNames: List<String>,
+    /** Простые имена типов параметров (без generics). */
+    val paramTypeNames: List<String> = emptyList(),
     /** Аннотации, применённые к функции. */
     val annotationsRepr: Set<String>,
     /** Список "сырых" упоминаний/вызовов, найденных в теле функции. */

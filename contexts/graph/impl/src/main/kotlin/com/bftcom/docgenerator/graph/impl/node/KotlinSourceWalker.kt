@@ -266,6 +266,9 @@ class KotlinSourceWalker(
                         name = funDecl.name ?: return@forEach,
                         signatureRepr = fsig,
                         paramNames = funDecl.valueParameters.map { it.name ?: "_" },
+                        paramTypeNames = funDecl.valueParameters.mapNotNull {
+                            it.typeReference?.text?.substringBefore('<')?.substringAfterLast('.')
+                        },
                         annotationsRepr = annotationsFun,
                         rawUsages = rawUsages,
                         throwsRepr = throwsRepr,
@@ -316,6 +319,9 @@ class KotlinSourceWalker(
                     name = funDecl.name ?: return@forEach,
                     signatureRepr = sig,
                     paramNames = funDecl.valueParameters.map { it.name ?: "_" },
+                    paramTypeNames = funDecl.valueParameters.mapNotNull {
+                        it.typeReference?.text?.substringBefore('<')?.substringAfterLast('.')
+                    },
                     annotationsRepr = annotations,
                     rawUsages = rawUsages,
                     throwsRepr = throwsRepr,

@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 /**
- * Линкер для связей вызовов методов (CALLS).
+ * Линкер для связей вызовов методов (CALLS_CODE).
  */
 @Component
 class CallEdgeLinker : EdgeLinker {
@@ -20,7 +20,7 @@ class CallEdgeLinker : EdgeLinker {
         return try {
             doLink(node, meta, index)
         } catch (e: Exception) {
-            log.error("Error linking CALLS edges for node fqn={}: {}", node.fqn, e.message, e)
+            log.error("Error linking CALLS_CODE edges for node fqn={}: {}", node.fqn, e.message, e)
             emptyList()
         }
     }
@@ -39,20 +39,27 @@ class CallEdgeLinker : EdgeLinker {
             when (u) {
                 is RawUsage.Simple -> {
                     if (owner != null) {
-                        index.findByFqn("${owner.fqn}.${u.name}")?.let {
-                            res += Triple(node, it, EdgeKind.CALLS)
+                        val baseFqn = "${owner.fqn}.${u.name}"
+                        val exact = index.findByFqn(baseFqn)
+                        if (exact != null) {
+                            res += Triple(node, exact, EdgeKind.CALLS_CODE)
+                            return@forEach
+                        }
+                        val overloads = index.findMethodsByName(baseFqn)
+                        if (overloads.isNotEmpty()) {
+                            overloads.forEach { target ->
+                                res += Triple(node, target, EdgeKind.CALLS_CODE)
+                            }
                             return@forEach
                         }
                     }
-                    // NOTE: checkIsCall() uses heuristics; overloaded methods are matched by name only
                     if (u.checkIsCall()) {
                         index.resolveType(u.name, imports, pkg)?.let {
-                            res += Triple(node, it, EdgeKind.CALLS)
+                            res += Triple(node, it, EdgeKind.CALLS_CODE)
                         }
                     }
                 }
                 is RawUsage.Dot -> {
-                    // NOTE: isUpperCase() heuristic doesn't cover all Kotlin conventions (companion objects, extensions)
                     val recvType =
                         if (u.receiver.firstOrNull()?.isUpperCase() == true) {
                             index.resolveType(u.receiver, imports, pkg)
@@ -63,11 +70,19 @@ class CallEdgeLinker : EdgeLinker {
                         log.trace("Could not resolve receiver type for dot usage: receiver={}, member={}, node={}", u.receiver, u.member, node.fqn)
                     }
                     recvType?.let { r ->
-                        val target = index.findByFqn("${r.fqn}.${u.member}")
+                        val baseFqn = "${r.fqn}.${u.member}"
+                        val target = index.findByFqn(baseFqn)
                         if (target != null) {
-                            res += Triple(node, target, EdgeKind.CALLS)
+                            res += Triple(node, target, EdgeKind.CALLS_CODE)
                         } else {
-                            log.trace("Member not found: {}.{} (from node {})", r.fqn, u.member, node.fqn)
+                            val overloads = index.findMethodsByName(baseFqn)
+                            if (overloads.isNotEmpty()) {
+                                overloads.forEach { t ->
+                                    res += Triple(node, t, EdgeKind.CALLS_CODE)
+                                }
+                            } else {
+                                log.trace("Member not found: {}.{} (from node {})", r.fqn, u.member, node.fqn)
+                            }
                         }
                     }
                 }

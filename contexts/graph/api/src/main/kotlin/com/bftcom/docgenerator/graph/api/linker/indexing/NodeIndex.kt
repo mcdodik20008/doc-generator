@@ -15,4 +15,7 @@ interface NodeIndex {
         imports: List<String>,
         pkg: String,
     ): Node?
+
+    /** Находит все перегрузки метода по базовому FQN (без скобок). */
+    fun findMethodsByName(baseFqn: String): List<Node>
 }

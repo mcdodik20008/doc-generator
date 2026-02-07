@@ -15,11 +15,11 @@ class CallEdgeLinkerTest {
     private val app = Application(id = 1L, key = "app", name = "App")
 
     @Test
-    fun `link - Simple usage with owner resolves via owner FQN`() {
+    fun `link - Simple usage with owner resolves via findMethodsByName fallback`() {
         // given
         val owner = node(fqn = "com.example.Owner", name = "Owner", pkg = "com.example", kind = NodeKind.CLASS)
-        val method = node(fqn = "com.example.Owner.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
-        val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
+        val method = node(fqn = "com.example.Owner.method()", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
+        val caller = node(fqn = "com.example.Caller()", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(owner, method, caller))
         val meta = NodeMeta(ownerFqn = "com.example.Owner", rawUsages = listOf(RawUsage.Simple("method", isCall = true)))
@@ -27,9 +27,9 @@ class CallEdgeLinkerTest {
         // when
         val edges = CallEdgeLinker().link(caller, meta, index)
 
-        // then
+        // then — findByFqn("com.example.Owner.method") misses, fallback finds "com.example.Owner.method()"
         assertThat(edges).containsExactly(
-            Triple(caller, method, EdgeKind.CALLS),
+            Triple(caller, method, EdgeKind.CALLS_CODE),
         )
     }
 
@@ -50,7 +50,7 @@ class CallEdgeLinkerTest {
 
         // then
         assertThat(edges).containsExactly(
-            Triple(caller, target, EdgeKind.CALLS),
+            Triple(caller, target, EdgeKind.CALLS_CODE),
         )
     }
 
@@ -92,7 +92,7 @@ class CallEdgeLinkerTest {
 
         // then - should fallback to type resolution
         assertThat(edges).containsExactly(
-            Triple(caller, target, EdgeKind.CALLS),
+            Triple(caller, target, EdgeKind.CALLS_CODE),
         )
     }
 
@@ -100,8 +100,8 @@ class CallEdgeLinkerTest {
     fun `link - Dot usage with uppercase receiver resolves via type resolution`() {
         // given
         val receiverType = node(fqn = "com.example.Receiver", name = "Receiver", pkg = "com.example", kind = NodeKind.CLASS)
-        val method = node(fqn = "com.example.Receiver.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
-        val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
+        val method = node(fqn = "com.example.Receiver.method()", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
+        val caller = node(fqn = "com.example.Caller()", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(receiverType, method, caller))
         val meta = NodeMeta(
@@ -114,7 +114,7 @@ class CallEdgeLinkerTest {
 
         // then
         assertThat(edges).containsExactly(
-            Triple(caller, method, EdgeKind.CALLS),
+            Triple(caller, method, EdgeKind.CALLS_CODE),
         )
     }
 
@@ -122,8 +122,8 @@ class CallEdgeLinkerTest {
     fun `link - Dot usage with lowercase receiver resolves via owner`() {
         // given
         val owner = node(fqn = "com.example.Owner", name = "Owner", pkg = "com.example", kind = NodeKind.CLASS)
-        val method = node(fqn = "com.example.Owner.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
-        val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
+        val method = node(fqn = "com.example.Owner.method()", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
+        val caller = node(fqn = "com.example.Caller()", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(owner, method, caller))
         val meta = NodeMeta(
@@ -136,7 +136,7 @@ class CallEdgeLinkerTest {
 
         // then
         assertThat(edges).containsExactly(
-            Triple(caller, method, EdgeKind.CALLS),
+            Triple(caller, method, EdgeKind.CALLS_CODE),
         )
     }
 
@@ -228,8 +228,8 @@ class CallEdgeLinkerTest {
     fun `link - mixed Simple and Dot usages creates multiple edges`() {
         // given
         val owner = node(fqn = "com.example.Owner", name = "Owner", pkg = "com.example", kind = NodeKind.CLASS)
-        val method1 = node(fqn = "com.example.Owner.method1", name = "method1", pkg = "com.example", kind = NodeKind.METHOD)
-        val method2 = node(fqn = "com.example.Owner.method2", name = "method2", pkg = "com.example", kind = NodeKind.METHOD)
+        val method1 = node(fqn = "com.example.Owner.method1()", name = "method1", pkg = "com.example", kind = NodeKind.METHOD)
+        val method2 = node(fqn = "com.example.Owner.method2()", name = "method2", pkg = "com.example", kind = NodeKind.METHOD)
         val target = node(fqn = "com.example.Target", name = "Target", pkg = "com.example", kind = NodeKind.CLASS)
         val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
@@ -249,9 +249,9 @@ class CallEdgeLinkerTest {
 
         // then
         assertThat(edges).containsExactlyInAnyOrder(
-            Triple(caller, method1, EdgeKind.CALLS),
-            Triple(caller, method2, EdgeKind.CALLS),
-            Triple(caller, target, EdgeKind.CALLS),
+            Triple(caller, method1, EdgeKind.CALLS_CODE),
+            Triple(caller, method2, EdgeKind.CALLS_CODE),
+            Triple(caller, target, EdgeKind.CALLS_CODE),
         )
     }
 
@@ -259,8 +259,8 @@ class CallEdgeLinkerTest {
     fun `link - Dot usage with empty receiver first char uses owner`() {
         // given
         val owner = node(fqn = "com.example.Owner", name = "Owner", pkg = "com.example", kind = NodeKind.CLASS)
-        val method = node(fqn = "com.example.Owner.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
-        val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
+        val method = node(fqn = "com.example.Owner.method()", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
+        val caller = node(fqn = "com.example.Caller()", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(owner, method, caller))
         val meta = NodeMeta(
@@ -273,7 +273,7 @@ class CallEdgeLinkerTest {
 
         // then - empty receiver first char is null, should use owner
         assertThat(edges).containsExactly(
-            Triple(caller, method, EdgeKind.CALLS),
+            Triple(caller, method, EdgeKind.CALLS_CODE),
         )
     }
 
@@ -304,8 +304,8 @@ class CallEdgeLinkerTest {
         val edgesB = CallEdgeLinker().link(nodeB, metaB, index)
 
         // then
-        assertThat(edgesA).contains(Triple(nodeA, nodeB, EdgeKind.CALLS))
-        assertThat(edgesB).contains(Triple(nodeB, nodeA, EdgeKind.CALLS))
+        assertThat(edgesA).contains(Triple(nodeA, nodeB, EdgeKind.CALLS_CODE))
+        assertThat(edgesB).contains(Triple(nodeB, nodeA, EdgeKind.CALLS_CODE))
     }
 
     @Test
@@ -344,17 +344,17 @@ class CallEdgeLinkerTest {
         val edgesC = CallEdgeLinker().link(nodeC, metaC, index)
 
         // then
-        assertThat(edgesA).contains(Triple(nodeA, nodeB, EdgeKind.CALLS))
-        assertThat(edgesB).contains(Triple(nodeB, nodeC, EdgeKind.CALLS))
-        assertThat(edgesC).contains(Triple(nodeC, nodeA, EdgeKind.CALLS))
+        assertThat(edgesA).contains(Triple(nodeA, nodeB, EdgeKind.CALLS_CODE))
+        assertThat(edgesB).contains(Triple(nodeB, nodeC, EdgeKind.CALLS_CODE))
+        assertThat(edgesC).contains(Triple(nodeC, nodeA, EdgeKind.CALLS_CODE))
     }
 
     @Test
     fun `link - множественные циклические зависимости через Dot usage`() {
         // given
         val receiver = node(fqn = "com.example.Receiver", name = "Receiver", pkg = "com.example", kind = NodeKind.CLASS)
-        val methodA = node(fqn = "com.example.Receiver.methodA", name = "methodA", pkg = "com.example", kind = NodeKind.METHOD)
-        val methodB = node(fqn = "com.example.Receiver.methodB", name = "methodB", pkg = "com.example", kind = NodeKind.METHOD)
+        val methodA = node(fqn = "com.example.Receiver.methodA()", name = "methodA", pkg = "com.example", kind = NodeKind.METHOD)
+        val methodB = node(fqn = "com.example.Receiver.methodB()", name = "methodB", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(receiver, methodA, methodB))
 
@@ -375,14 +375,14 @@ class CallEdgeLinkerTest {
         val edgesB = CallEdgeLinker().link(methodB, metaB, index)
 
         // then
-        assertThat(edgesA).contains(Triple(methodA, methodB, EdgeKind.CALLS))
-        assertThat(edgesB).contains(Triple(methodB, methodA, EdgeKind.CALLS))
+        assertThat(edgesA).contains(Triple(methodA, methodB, EdgeKind.CALLS_CODE))
+        assertThat(edgesB).contains(Triple(methodB, methodA, EdgeKind.CALLS_CODE))
     }
 
     @Test
     fun `link - самоссылка метод вызывает сам себя`() {
         // given
-        val method = node(fqn = "com.example.Method.selfCall", name = "selfCall", pkg = "com.example", kind = NodeKind.METHOD)
+        val method = node(fqn = "com.example.Method.selfCall()", name = "selfCall", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(method))
 
@@ -396,42 +396,42 @@ class CallEdgeLinkerTest {
         val edges = CallEdgeLinker().link(method, meta, index)
 
         // then
-        assertThat(edges).contains(Triple(method, method, EdgeKind.CALLS))
+        assertThat(edges).contains(Triple(method, method, EdgeKind.CALLS_CODE))
     }
 
     @Test
     fun `link - null imports использует пустой список`() {
         val owner = node(fqn = "com.example.Owner", name = "Owner", pkg = "com.example", kind = NodeKind.CLASS)
-        val method = node(fqn = "com.example.Owner.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
-        val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
+        val method = node(fqn = "com.example.Owner.method()", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
+        val caller = node(fqn = "com.example.Caller()", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(owner, method, caller))
         val meta = NodeMeta(ownerFqn = "com.example.Owner", rawUsages = listOf(RawUsage.Simple("method", isCall = true)), imports = null)
 
         val edges = CallEdgeLinker().link(caller, meta, index)
 
-        assertThat(edges).containsExactly(Triple(caller, method, EdgeKind.CALLS))
+        assertThat(edges).containsExactly(Triple(caller, method, EdgeKind.CALLS_CODE))
     }
 
     @Test
     fun `link - null packageName использует пустую строку`() {
         val owner = node(fqn = "com.example.Owner", name = "Owner", pkg = "com.example", kind = NodeKind.CLASS)
-        val method = node(fqn = "com.example.Owner.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
-        val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = null, kind = NodeKind.METHOD)
+        val method = node(fqn = "com.example.Owner.method()", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
+        val caller = node(fqn = "com.example.Caller()", name = "Caller", pkg = null, kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(owner, method, caller))
         val meta = NodeMeta(ownerFqn = "com.example.Owner", rawUsages = listOf(RawUsage.Simple("method", isCall = true)))
 
         val edges = CallEdgeLinker().link(caller, meta, index)
 
-        assertThat(edges).containsExactly(Triple(caller, method, EdgeKind.CALLS))
+        assertThat(edges).containsExactly(Triple(caller, method, EdgeKind.CALLS_CODE))
     }
 
     @Test
     fun `link - Dot usage с null ownerFqn не использует owner`() {
         val receiverType = node(fqn = "com.example.Receiver", name = "Receiver", pkg = "com.example", kind = NodeKind.CLASS)
-        val method = node(fqn = "com.example.Receiver.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
-        val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
+        val method = node(fqn = "com.example.Receiver.method()", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
+        val caller = node(fqn = "com.example.Caller()", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(receiverType, method, caller))
         val meta = NodeMeta(
@@ -464,7 +464,7 @@ class CallEdgeLinkerTest {
     @Test
     fun `link - множественные Simple usages с разными исходами создают все edges`() {
         val owner = node(fqn = "com.example.Owner", name = "Owner", pkg = "com.example", kind = NodeKind.CLASS)
-        val method1 = node(fqn = "com.example.Owner.method1", name = "method1", pkg = "com.example", kind = NodeKind.METHOD)
+        val method1 = node(fqn = "com.example.Owner.method1()", name = "method1", pkg = "com.example", kind = NodeKind.METHOD)
         val target = node(fqn = "com.example.Target", name = "Target", pkg = "com.example", kind = NodeKind.CLASS)
         val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
@@ -481,17 +481,17 @@ class CallEdgeLinkerTest {
         val edges = CallEdgeLinker().link(caller, meta, index)
 
         assertThat(edges).containsExactlyInAnyOrder(
-            Triple(caller, method1, EdgeKind.CALLS),
-            Triple(caller, target, EdgeKind.CALLS),
+            Triple(caller, method1, EdgeKind.CALLS_CODE),
+            Triple(caller, target, EdgeKind.CALLS_CODE),
         )
     }
 
     @Test
     fun `link - множественные Dot usages создают все edges`() {
         val receiverType1 = node(fqn = "com.example.Receiver1", name = "Receiver1", pkg = "com.example", kind = NodeKind.CLASS)
-        val method1 = node(fqn = "com.example.Receiver1.method1", name = "method1", pkg = "com.example", kind = NodeKind.METHOD)
+        val method1 = node(fqn = "com.example.Receiver1.method1()", name = "method1", pkg = "com.example", kind = NodeKind.METHOD)
         val owner = node(fqn = "com.example.Owner", name = "Owner", pkg = "com.example", kind = NodeKind.CLASS)
-        val method2 = node(fqn = "com.example.Owner.method2", name = "method2", pkg = "com.example", kind = NodeKind.METHOD)
+        val method2 = node(fqn = "com.example.Owner.method2()", name = "method2", pkg = "com.example", kind = NodeKind.METHOD)
         val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(receiverType1, method1, owner, method2, caller))
@@ -507,8 +507,8 @@ class CallEdgeLinkerTest {
         val edges = CallEdgeLinker().link(caller, meta, index)
 
         assertThat(edges).containsExactlyInAnyOrder(
-            Triple(caller, method1, EdgeKind.CALLS),
-            Triple(caller, method2, EdgeKind.CALLS),
+            Triple(caller, method1, EdgeKind.CALLS_CODE),
+            Triple(caller, method2, EdgeKind.CALLS_CODE),
         )
     }
 
@@ -538,9 +538,9 @@ class CallEdgeLinkerTest {
         val edgesA = CallEdgeLinker().link(nodeA, metaA, index)
         val edgesB = CallEdgeLinker().link(nodeB, metaB, index)
 
-        assertThat(edgesA).contains(Triple(nodeA, nodeB, EdgeKind.CALLS))
-        assertThat(edgesB).contains(Triple(nodeB, nodeB, EdgeKind.CALLS))
-        assertThat(edgesB).contains(Triple(nodeB, nodeC, EdgeKind.CALLS))
+        assertThat(edgesA).contains(Triple(nodeA, nodeB, EdgeKind.CALLS_CODE))
+        assertThat(edgesB).contains(Triple(nodeB, nodeB, EdgeKind.CALLS_CODE))
+        assertThat(edgesB).contains(Triple(nodeB, nodeC, EdgeKind.CALLS_CODE))
     }
 
     @Test
@@ -585,12 +585,54 @@ class CallEdgeLinkerTest {
         val edgesB = CallEdgeLinker().link(nodeB, metaB, index)
         val edgesC = CallEdgeLinker().link(nodeC, metaC, index)
 
-        assertThat(edgesA).contains(Triple(nodeA, nodeB, EdgeKind.CALLS))
-        assertThat(edgesA).contains(Triple(nodeA, nodeC, EdgeKind.CALLS))
-        assertThat(edgesB).contains(Triple(nodeB, nodeA, EdgeKind.CALLS))
-        assertThat(edgesB).contains(Triple(nodeB, nodeC, EdgeKind.CALLS))
-        assertThat(edgesC).contains(Triple(nodeC, nodeA, EdgeKind.CALLS))
-        assertThat(edgesC).contains(Triple(nodeC, nodeB, EdgeKind.CALLS))
+        assertThat(edgesA).contains(Triple(nodeA, nodeB, EdgeKind.CALLS_CODE))
+        assertThat(edgesA).contains(Triple(nodeA, nodeC, EdgeKind.CALLS_CODE))
+        assertThat(edgesB).contains(Triple(nodeB, nodeA, EdgeKind.CALLS_CODE))
+        assertThat(edgesB).contains(Triple(nodeB, nodeC, EdgeKind.CALLS_CODE))
+        assertThat(edgesC).contains(Triple(nodeC, nodeA, EdgeKind.CALLS_CODE))
+        assertThat(edgesC).contains(Triple(nodeC, nodeB, EdgeKind.CALLS_CODE))
+    }
+
+    @Test
+    fun `link - Simple usage resolves all overloads via findMethodsByName`() {
+        val owner = node(fqn = "com.example.Owner", name = "Owner", pkg = "com.example", kind = NodeKind.CLASS)
+        val overload1 = node(fqn = "com.example.Owner.process(String)", name = "process", pkg = "com.example", kind = NodeKind.METHOD)
+        val overload2 = node(fqn = "com.example.Owner.process(Int)", name = "process", pkg = "com.example", kind = NodeKind.METHOD)
+        val caller = node(fqn = "com.example.Caller.run()", name = "run", pkg = "com.example", kind = NodeKind.METHOD)
+
+        val index = NodeIndexFactory().create(listOf(owner, overload1, overload2, caller))
+        val meta = NodeMeta(
+            ownerFqn = "com.example.Owner",
+            rawUsages = listOf(RawUsage.Simple("process", isCall = true)),
+        )
+
+        val edges = CallEdgeLinker().link(caller, meta, index)
+
+        assertThat(edges).containsExactlyInAnyOrder(
+            Triple(caller, overload1, EdgeKind.CALLS_CODE),
+            Triple(caller, overload2, EdgeKind.CALLS_CODE),
+        )
+    }
+
+    @Test
+    fun `link - Dot usage resolves all overloads via findMethodsByName`() {
+        val receiverType = node(fqn = "com.example.Service", name = "Service", pkg = "com.example", kind = NodeKind.CLASS)
+        val overload1 = node(fqn = "com.example.Service.handle(String)", name = "handle", pkg = "com.example", kind = NodeKind.METHOD)
+        val overload2 = node(fqn = "com.example.Service.handle(Int,String)", name = "handle", pkg = "com.example", kind = NodeKind.METHOD)
+        val caller = node(fqn = "com.example.Caller.run()", name = "run", pkg = "com.example", kind = NodeKind.METHOD)
+
+        val index = NodeIndexFactory().create(listOf(receiverType, overload1, overload2, caller))
+        val meta = NodeMeta(
+            imports = listOf("com.example.Service"),
+            rawUsages = listOf(RawUsage.Dot(receiver = "Service", member = "handle", isCall = true)),
+        )
+
+        val edges = CallEdgeLinker().link(caller, meta, index)
+
+        assertThat(edges).containsExactlyInAnyOrder(
+            Triple(caller, overload1, EdgeKind.CALLS_CODE),
+            Triple(caller, overload2, EdgeKind.CALLS_CODE),
+        )
     }
 
     private fun node(

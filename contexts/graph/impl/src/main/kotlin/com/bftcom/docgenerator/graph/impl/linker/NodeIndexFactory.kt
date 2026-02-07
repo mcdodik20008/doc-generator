@@ -7,6 +7,9 @@ import org.springframework.stereotype.Component
 
 @Component
 class NodeIndexFactory {
+    companion object {
+        private val CALLABLE_KINDS = setOf(NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.JOB)
+    }
     fun create(all: List<Node>): NodeIndex = SnapshotNodeIndex(all)
 
     fun createMutable(initial: List<Node>): MutableNodeIndex = MutableNodeIndex(initial)
@@ -16,6 +19,9 @@ class NodeIndexFactory {
     ) : NodeIndex {
         private val byFqn = all.associateBy { it.fqn }
         private val bySimple = all.groupBy { it.name }
+        private val byBaseFqn: Map<String, List<Node>> = all
+            .filter { it.kind in CALLABLE_KINDS }
+            .groupBy { it.fqn.substringBefore('(') }
 
         override fun findByFqn(fqn: String): Node? = byFqn[fqn]
 
@@ -35,6 +41,8 @@ class NodeIndexFactory {
             byFqn["$pkg.$simple"]?.let { return it }
             return bySimple[simple]?.firstOrNull()
         }
+
+        override fun findMethodsByName(baseFqn: String): List<Node> = byBaseFqn[baseFqn].orEmpty()
     }
 
     /**
@@ -47,6 +55,9 @@ class NodeIndexFactory {
         private val byFqn = initial.associateBy { it.fqn }.toMutableMap()
         private val bySimple = initial.groupBy { it.name }.toMutableMap()
         private val packages = initial.filter { it.kind == NodeKind.PACKAGE }.associateBy { it.fqn }.toMutableMap()
+        private val byBaseFqn: MutableMap<String, MutableList<Node>> = initial
+            .filter { it.kind in CALLABLE_KINDS }
+            .groupByTo(mutableMapOf()) { it.fqn.substringBefore('(') }
 
         fun addNode(node: Node) {
             if (byFqn.containsKey(node.fqn)) {
@@ -64,6 +75,10 @@ class NodeIndexFactory {
             bySimple[node.name] = updated
             if (node.kind == NodeKind.PACKAGE) {
                 packages[node.fqn] = node
+            }
+            if (node.kind in CALLABLE_KINDS) {
+                val base = node.fqn.substringBefore('(')
+                byBaseFqn.getOrPut(base) { mutableListOf() }.add(node)
             }
         }
 
@@ -89,5 +104,7 @@ class NodeIndexFactory {
             byFqn["$pkg.$simple"]?.let { return it }
             return bySimple[simple]?.firstOrNull()
         }
+
+        override fun findMethodsByName(baseFqn: String): List<Node> = byBaseFqn[baseFqn].orEmpty()
     }
 }

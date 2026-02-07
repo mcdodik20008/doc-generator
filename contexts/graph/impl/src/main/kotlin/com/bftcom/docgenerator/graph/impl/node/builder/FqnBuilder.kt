@@ -13,18 +13,21 @@ object FqnBuilder {
     ): String = listOfNotNull(packageFqn?.takeIf { it.isNotBlank() }, className).joinToString(".")
 
     /**
-     * Строит FQN для функции/метода: owner + methodName или package + methodName
+     * Строит FQN для функции/метода: `owner.method(ParamType1,ParamType2)`.
      */
     fun buildFunctionFqn(
         ownerFqn: String?,
         packageFqn: String?,
         functionName: String,
-    ): String =
-        when {
+        paramTypeNames: List<String> = emptyList(),
+    ): String {
+        val base = when {
             !ownerFqn.isNullOrBlank() -> "$ownerFqn.$functionName"
             !packageFqn.isNullOrBlank() -> "$packageFqn.$functionName"
             else -> functionName
         }
+        return "$base(${paramTypeNames.joinToString(",")})"
+    }
 
     /**
      * Строит FQN для поля: owner + fieldName
