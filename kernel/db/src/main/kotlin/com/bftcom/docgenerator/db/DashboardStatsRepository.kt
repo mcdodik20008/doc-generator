@@ -2,7 +2,9 @@ package com.bftcom.docgenerator.db
 
 import jakarta.persistence.EntityManager
 import org.springframework.stereotype.Repository
+import java.time.Instant
 import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 data class ApplicationStats(
     val applicationId: Long,
@@ -93,14 +95,14 @@ open class DashboardStatsRepository(
                 repoUrl = r[4] as? String,
                 repoProvider = r[5] as? String,
                 defaultBranch = r[6] as String,
-                lastIndexedAt = r[7] as? OffsetDateTime,
+                lastIndexedAt = toOffsetDateTime(r[7]),
                 lastIndexStatus = r[8] as? String,
                 lastIndexError = r[9] as? String,
                 lastCommitSha = r[10] as? String,
                 languages = sqlArrayToList(r[11]),
                 tags = sqlArrayToList(r[12]),
-                createdAt = r[13] as OffsetDateTime,
-                updatedAt = r[14] as OffsetDateTime,
+                createdAt = toOffsetDateTime(r[13])!!,
+                updatedAt = toOffsetDateTime(r[14])!!,
                 nodeCount = (r[15] as Number).toLong(),
                 chunkCount = (r[16] as Number).toLong(),
                 edgeCount = (r[17] as Number).toLong(),
@@ -126,6 +128,13 @@ open class DashboardStatsRepository(
             totalChunks = (row[2] as Number).toLong(),
             totalEdges = (row[3] as Number).toLong(),
         )
+    }
+
+    private fun toOffsetDateTime(value: Any?): OffsetDateTime? = when (value) {
+        null -> null
+        is OffsetDateTime -> value
+        is Instant -> value.atOffset(ZoneOffset.UTC)
+        else -> throw IllegalArgumentException("Cannot convert ${value.javaClass} to OffsetDateTime")
     }
 
     private fun sqlArrayToList(value: Any?): List<String> {
