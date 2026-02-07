@@ -51,7 +51,7 @@ class ChunkDetailsServiceTest {
             application = app,
             node = node,
             source = "doc",
-            kind = "explanation",
+            kind = "tech",
             content = "Test content",
             metadata = mapOf("key" to "value"),
         )
@@ -98,7 +98,7 @@ class ChunkDetailsServiceTest {
             application = app,
             node = node,
             source = "doc",
-            kind = "explanation",
+            kind = "tech",
             content = "Test content",
         )
 
@@ -141,7 +141,7 @@ class ChunkDetailsServiceTest {
             application = app,
             node = node,
             source = "doc",
-            kind = "explanation",
+            kind = "tech",
             content = "Test content",
         )
 
@@ -152,7 +152,7 @@ class ChunkDetailsServiceTest {
 
         // then
         assertThat(result.id).isEqualTo("1")
-        assertThat(result.title).isEqualTo("doc:explanation")
+        assertThat(result.title).isEqualTo("doc:tech")
         assertThat(result.node).isNull()
         assertThat(result.relations).isEqualTo(ChunkRelations(emptyList(), emptyList()))
         assertThat(result.content).isEqualTo("Test content")
@@ -182,7 +182,7 @@ class ChunkDetailsServiceTest {
             application = app,
             node = node,
             source = "doc",
-            kind = "explanation",
+            kind = "tech",
             content = "Test content",
         )
 
@@ -212,7 +212,7 @@ class ChunkDetailsServiceTest {
             application = app,
             node = node,
             source = "doc",
-            kind = "explanation",
+            kind = "tech",
             content = "Test content",
         )
 
@@ -225,7 +225,7 @@ class ChunkDetailsServiceTest {
         val result = service.getDetails("100")
 
         // then
-        assertThat(result.title).isEqualTo("doc:explanation") // fallback title
+        assertThat(result.title).isEqualTo("doc:tech") // fallback title
         assertThat(result.node).isNull()
     }
 
@@ -268,7 +268,7 @@ class ChunkDetailsServiceTest {
             application = app,
             node = node,
             source = "doc",
-            kind = "explanation",
+            kind = "tech",
             content = "Test content",
         )
         chunk.emb = floatArrayOf(1.0f, 2.0f, 3.0f, 4.0f, 5.0f) // 5 элементов
@@ -302,7 +302,7 @@ class ChunkDetailsServiceTest {
             application = app,
             node = node,
             source = "doc",
-            kind = "explanation",
+            kind = "tech",
             content = "Test content",
         )
 
@@ -343,7 +343,7 @@ class ChunkDetailsServiceTest {
             application = app,
             node = node,
             source = "doc",
-            kind = "explanation",
+            kind = "tech",
             content = "Test content",
         )
 
@@ -388,7 +388,7 @@ class ChunkDetailsServiceTest {
             application = app,
             node = node,
             source = "doc",
-            kind = "explanation",
+            kind = "tech",
             content = "Test content",
         )
         chunk.emb = null // null embedding

@@ -6,7 +6,7 @@ data class ChunkPlan(
     val id: String, // детерминированный ID (nodeId+source+kind)
     val nodeId: Long, // прямая связь с нодой
     val source: String, // "code" | "doc"
-    val kind: String, // "snippet" | "explanation"
+    val kind: String, // "snippet" | "tech" | "public"
     val lang: String?, // "kotlin" | "java" | "ru" и т.д.
     val spanLines: IntRange?, // диапазон строк исходника, если применимо
     val title: String?, // обычно fqn

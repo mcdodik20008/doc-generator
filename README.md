@@ -357,7 +357,7 @@ Doc-Generator решает указанные проблемы через ком
 4. **Создание ChunkPlan**:
    - **DOC-чанк** (если есть документация):
      - `source = "doc"`
-     - `kind = "explanation"`
+     - `kind = "tech"`
      - Pipeline stages: `["render-doc", "embed", "link-edges"]`
    - **CODE-чанк** (если нет документации):
      - `source = "code"`

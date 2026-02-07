@@ -33,12 +33,12 @@ class PerNodeChunkStrategy : ChunkStrategy {
 
         return listOf(
             if (hasDoc) {
-                // 1) DOC-чанк (эксплейнер из сигнатуры/док-коммента)
+                // 1) DOC-чанк (техническая документация из сигнатуры/док-коммента)
                 ChunkPlan(
-                    id = chunkId(node, source = "doc", kind = "explanation"),
+                    id = chunkId(node, source = "doc", kind = "tech"),
                     nodeId = nodeId,
                     source = "doc",
-                    kind = "explanation",
+                    kind = "tech",
                     lang = "ru",
                     spanLines = toRange(node.lineStart, node.lineEnd),
                     title = node.fqn,

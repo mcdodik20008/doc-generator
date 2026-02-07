@@ -28,7 +28,7 @@ class PerNodeChunkStrategyTest {
         assertThat(plans).hasSize(1)
         val plan = plans[0]
         assertThat(plan.source).isEqualTo("doc")
-        assertThat(plan.kind).isEqualTo("explanation")
+        assertThat(plan.kind).isEqualTo("tech")
         assertThat(plan.lang).isEqualTo("ru")
         assertThat(plan.pipeline.stages).containsExactly("render-doc", "embed", "link-edges")
         assertThat(plan.pipeline.params["signature"]).isEqualTo("fun test(): Unit")
@@ -379,7 +379,7 @@ class PerNodeChunkStrategyTest {
         val codePlans = strategy.buildChunks(nodeWithoutDoc, emptyList())
 
         // then
-        assertThat(docPlans[0].id).isEqualTo("100:doc:explanation")
+        assertThat(docPlans[0].id).isEqualTo("100:doc:tech")
         assertThat(codePlans[0].id).isEqualTo("100:code:snippet")
     }
 

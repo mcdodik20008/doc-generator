@@ -106,7 +106,7 @@ class ChunkWriterImplTest {
         node.sourceCode = null
         node.docComment = "/** Test doc */"
 
-        val plan = plan(node, source = "doc", kind = "explanation")
+        val plan = plan(node, source = "doc", kind = "tech")
 
         every { chunkRepo.findTopByNodeIdOrderByCreatedAtDesc(any()) } returns null
         every { chunkRepo.save(any()) } returns mockk<Chunk>()
@@ -185,7 +185,7 @@ class ChunkWriterImplTest {
 
         val node2 = node(fqn = "com.example.Test2", name = "Test2", packageName = "com.example", kind = NodeKind.CLASS)
         node2.id = 200L
-        val plan2 = plan(node2, source = "doc", kind = "explanation", lang = null)
+        val plan2 = plan(node2, source = "doc", kind = "tech", lang = null)
 
         every { chunkRepo.findTopByNodeIdOrderByCreatedAtDesc(any()) } returns null
         every { chunkRepo.save(any()) } returns mockk<Chunk>()
