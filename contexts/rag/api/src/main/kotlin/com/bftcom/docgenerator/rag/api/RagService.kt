@@ -2,7 +2,16 @@ package com.bftcom.docgenerator.rag.api
 
 interface RagService {
     fun ask(query: String, sessionId: String, applicationId: Long? = null): RagResponse
+    fun prepareContext(query: String, sessionId: String, applicationId: Long? = null): RagPreparedContext
 }
+
+data class RagPreparedContext(
+        val prompt: String?,
+        val fallbackAnswer: String?,
+        val sources: List<RagSource>,
+        val metadata: RagQueryMetadata,
+        val sessionId: String,
+)
 
 data class RagResponse(
         val answer: String,

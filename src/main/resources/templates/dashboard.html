@@ -4,7 +4,9 @@
     <meta charset="utf-8"/>
     <title>Doc Generator — Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
     <link rel="stylesheet" href="/css/common.css"/>
+    <script src="/js/common.js"></script>
     <style>
         /* ======== Global Stats ======== */
         .global-stats {
@@ -127,10 +129,15 @@
 <body>
 
 <div class="header">
-    <h1>
-        <span class="logo">&#9670;</span>
-        Doc Generator Dashboard
-    </h1>
+    <div>
+        <h1>
+            <span class="logo">&#9670;</span>
+            Doc Generator Dashboard
+        </h1>
+        <div class="breadcrumbs" style="margin-top:4px;margin-left:38px">
+            <a href="/">Doc Generator</a><span class="sep">/</span><span class="current">Dashboard</span>
+        </div>
+    </div>
     <div class="header-right">
         <nav class="nav-links">
             <a href="/" class="active">Dashboard</a>
@@ -141,6 +148,7 @@
         </nav>
         <span id="lastUpdated"></span>
         <button class="btn" onclick="loadDashboard()">&#8635; Refresh</button>
+        <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">&#9728;</button>
     </div>
 </div>
 
@@ -314,47 +322,7 @@
         }).join('');
     }
 
-    function getStatusClass(status) {
-        if (!status) return 'status-unknown';
-        const s = status.toLowerCase();
-        if (s === 'success' || s === 'completed') return 'status-success';
-        if (s === 'failed' || s === 'error') return 'status-failed';
-        if (s === 'running' || s === 'in_progress') return 'status-running';
-        if (s === 'partial') return 'status-partial';
-        return 'status-unknown';
-    }
-
-    function formatDate(iso) {
-        if (!iso) return '';
-        try {
-            const d = new Date(iso);
-            return d.toLocaleDateString('ru-RU') + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        } catch {
-            return iso;
-        }
-    }
-
-    function fmt(n) {
-        if (n == null) return '0';
-        return Number(n).toLocaleString('ru-RU');
-    }
-
-    function esc(s) {
-        if (!s) return '';
-        const el = document.createElement('span');
-        el.textContent = s;
-        return el.innerHTML;
-    }
-
-    function showToast(msg) {
-        const existing = document.querySelector('.toast');
-        if (existing) existing.remove();
-        const t = document.createElement('div');
-        t.className = 'toast toast-error';
-        t.textContent = msg;
-        document.body.appendChild(t);
-        setTimeout(() => t.remove(), 6000);
-    }
+    // esc, showToast, getStatusClass, formatDate, fmt — from /js/common.js
 
     // Auto-refresh every 60 seconds
     function startAutoRefresh() {

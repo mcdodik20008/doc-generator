@@ -160,3 +160,71 @@ html, body {
     z-index: 100; word-break: break-word; margin-bottom: 6px;
 }
 .error-hint:hover .error-tooltip { display: block; }
+
+/* ======== Light Theme (Catppuccin Latte) ======== */
+[data-theme="light"] {
+    --bg: #eff1f5;
+    --surface: #e6e9ef;
+    --surface2: #dce0e8;
+    --border: #bcc0cc;
+    --text: #4c4f69;
+    --text-muted: #7c7f93;
+    --accent: #1e66f5;
+    --accent-dim: #bcc8e8;
+    --green: #40a02b;
+    --red: #d20f39;
+    --yellow: #df8e1d;
+    --peach: #fe640b;
+    --pink: #ea76cb;
+    --teal: #179299;
+    --lavender: #7287fd;
+    --mauve: #8839ef;
+}
+[data-theme="light"] .status-success { background: #d5f0d0; color: #2a7a1a; }
+[data-theme="light"] .status-success::before { background: #40a02b; }
+[data-theme="light"] .status-failed { background: #f5d0d8; color: #b00f2e; }
+[data-theme="light"] .status-failed::before { background: #d20f39; }
+[data-theme="light"] .status-running { background: #dde0f5; color: #5560b0; }
+[data-theme="light"] .status-running::before { background: #7287fd; }
+[data-theme="light"] .status-partial { background: #f5e6c8; color: #a06a10; }
+[data-theme="light"] .status-partial::before { background: #df8e1d; }
+[data-theme="light"] .provider-github { background: #dce0e8; color: #4c4f69; }
+[data-theme="light"] .provider-gitlab { background: #e8daf5; color: #6b3aaf; }
+
+/* ======== Theme Toggle ======== */
+.theme-toggle {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    transition: background .15s;
+}
+.theme-toggle:hover { background: var(--accent-dim); }
+
+/* ======== Breadcrumbs ======== */
+.breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.breadcrumbs a {
+    color: var(--accent);
+    text-decoration: none;
+}
+.breadcrumbs a:hover { text-decoration: underline; }
+.breadcrumbs .sep {
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+.breadcrumbs .current {
+    color: var(--text-muted);
+}
+
+/* ======== Graph detail syntax HL override ======== */
+.detail-block pre code.hljs { background: none; padding: 0; }

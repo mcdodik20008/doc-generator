@@ -4,7 +4,9 @@
     <meta charset="utf-8"/>
     <title>Doc Generator — Health</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
     <link rel="stylesheet" href="/css/common.css"/>
+    <script src="/js/common.js"></script>
     <style>
         .health-grid {
             display: grid;
@@ -73,10 +75,15 @@
 <body>
 
 <div class="header">
-    <h1>
-        <span class="logo">&#9670;</span>
-        System Health
-    </h1>
+    <div>
+        <h1>
+            <span class="logo">&#9670;</span>
+            System Health
+        </h1>
+        <div class="breadcrumbs" style="margin-top:4px;margin-left:38px">
+            <a href="/">Doc Generator</a><span class="sep">/</span><span class="current">Health</span>
+        </div>
+    </div>
     <div class="header-right">
         <nav class="nav-links">
             <a href="/">Dashboard</a>
@@ -87,6 +94,7 @@
         </nav>
         <span id="lastUpdated"></span>
         <button class="btn" onclick="loadHealth()">&#8635; Refresh</button>
+        <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">&#9728;</button>
     </div>
 </div>
 
@@ -190,12 +198,7 @@
         return String(val);
     }
 
-    function esc(s) {
-        if (!s) return '';
-        const el = document.createElement('span');
-        el.textContent = s;
-        return el.innerHTML;
-    }
+    // esc — from /js/common.js
 
     // Auto-refresh every 30 seconds
     function startAutoRefresh() {

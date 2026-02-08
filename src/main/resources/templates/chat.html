@@ -4,8 +4,12 @@
     <meta charset="utf-8"/>
     <title>Doc Generator — Chat</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
     <link rel="stylesheet" href="/css/common.css"/>
+    <script src="/js/common.js"></script>
     <script src="https://unpkg.com/marked@12.0.0/marked.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/styles/github-dark.min.css"/>
+    <script src="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/highlight.min.js"></script>
     <style>
         html, body {
             height: 100vh;
@@ -184,11 +188,9 @@
         .message-label {
             font-size: 11px;
             color: var(--text-muted);
-            margin-bottom: 4px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        .message-user .message-label { text-align: right; }
 
         /* ======== Markdown in assistant messages ======== */
         .message-assistant .message-bubble p { margin-bottom: 8px; }
@@ -202,19 +204,63 @@
             font-family: 'Consolas', 'Courier New', monospace;
             font-size: 13px;
         }
+        .message-assistant .message-bubble .code-block-wrapper {
+            position: relative;
+            margin: 8px 0;
+        }
+        .message-assistant .message-bubble .code-block-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-bottom: none;
+            border-radius: 6px 6px 0 0;
+            padding: 4px 12px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        .message-assistant .message-bubble .code-copy-btn {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-muted);
+            font-size: 11px;
+            padding: 2px 8px;
+            cursor: pointer;
+            transition: all .15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .message-assistant .message-bubble .code-copy-btn:hover {
+            color: var(--text);
+            border-color: var(--accent);
+        }
+        .message-assistant .message-bubble .code-copy-btn.copied {
+            color: var(--green);
+            border-color: var(--green);
+        }
         .message-assistant .message-bubble pre {
             background: var(--bg);
             border: 1px solid var(--border);
             border-radius: 6px;
             padding: 12px;
             overflow-x: auto;
-            margin: 8px 0;
+            margin: 0;
+        }
+        .message-assistant .message-bubble .code-block-wrapper pre {
+            border-radius: 0 0 6px 6px;
         }
         .message-assistant .message-bubble pre code {
             background: none;
             padding: 0;
             font-size: 13px;
             line-height: 1.5;
+        }
+        .message-assistant .message-bubble pre code.hljs {
+            background: none;
+            padding: 0;
         }
         .message-assistant .message-bubble ul,
         .message-assistant .message-bubble ol {
@@ -454,7 +500,7 @@
             align-items: flex-end;
         }
         .input-bar textarea {
-            flex: 1;
+            width: 100%;
             background: var(--surface2);
             border: 1px solid var(--border);
             border-radius: 8px;
@@ -497,6 +543,136 @@
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
+        /* ======== Message Header (timestamp, copy, actions) ======== */
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .message-user .message-header { justify-content: flex-end; }
+        .message-time {
+            font-size: 11px;
+            color: var(--text-muted);
+            opacity: 0.7;
+        }
+        .message-actions {
+            display: flex;
+            gap: 4px;
+            margin-left: auto;
+        }
+        .message-user .message-actions { margin-left: 0; margin-right: 0; }
+        .message-copy-btn {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-muted);
+            font-size: 11px;
+            padding: 1px 6px;
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .message-copy-btn:hover {
+            color: var(--text);
+            border-color: var(--accent);
+        }
+        .message-copy-btn.copied {
+            color: var(--green);
+            border-color: var(--green);
+        }
+
+        /* ======== Collapsible Code Blocks ======== */
+        .code-collapsed pre {
+            max-height: 300px;
+            overflow: hidden;
+        }
+        .code-collapsed::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(transparent, var(--bg));
+            pointer-events: none;
+            border-radius: 0 0 6px 6px;
+        }
+        .code-block-wrapper {
+            position: relative;
+        }
+        .code-toggle-btn {
+            display: block;
+            width: 100%;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            color: var(--accent);
+            font-size: 12px;
+            padding: 4px 0;
+            cursor: pointer;
+            text-align: center;
+            transition: background .15s;
+        }
+        .code-toggle-btn:hover {
+            background: var(--accent-dim);
+        }
+        .code-block-wrapper.has-toggle pre {
+            border-radius: 0;
+        }
+        .code-block-wrapper.has-toggle .code-block-header + pre {
+            border-radius: 0;
+        }
+
+        /* ======== Stop Button ======== */
+        .btn-stop {
+            background: var(--red, #e55);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity .15s;
+            white-space: nowrap;
+        }
+        .btn-stop:hover { opacity: 0.85; }
+
+        /* ======== Input Hint ======== */
+        .input-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .input-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            opacity: 0.7;
+        }
+
+        /* ======== Error Message ======== */
+        .message-error .message-bubble {
+            background: rgba(255, 80, 80, 0.08);
+            border: 1px solid var(--red, #e55);
+            color: var(--red, #e55);
+        }
+        .error-retry-btn {
+            background: none;
+            border: 1px solid var(--red, #e55);
+            border-radius: 6px;
+            color: var(--red, #e55);
+            font-size: 12px;
+            padding: 4px 12px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: all .15s;
+        }
+        .error-retry-btn:hover {
+            background: rgba(255, 80, 80, 0.1);
+        }
+
         /* ======== Responsive ======== */
         @media (max-width: 768px) {
             .sidebar { display: none; }
@@ -511,9 +687,12 @@
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-header">
-            <div class="sidebar-brand">
-                <span class="logo">&#9670;</span>
-                RAG Chat
+            <div style="display:flex;align-items:center;justify-content:space-between">
+                <div class="sidebar-brand">
+                    <span class="logo">&#9670;</span>
+                    RAG Chat
+                </div>
+                <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">&#9728;</button>
             </div>
             <div class="app-selector">
                 <label>Application</label>
@@ -560,11 +739,14 @@
         </div>
 
         <div class="input-bar">
-            <textarea id="queryInput"
-                      placeholder="Ask a question... (Enter to send, Shift+Enter for newline)"
-                      rows="1"
-                      oninput="autoResize(this)"
-                      onkeydown="handleKeydown(event)"></textarea>
+            <div class="input-wrapper">
+                <textarea id="queryInput"
+                          placeholder="Ask a question... (Enter to send, Shift+Enter for newline)"
+                          rows="1"
+                          oninput="autoResize(this)"
+                          onkeydown="handleKeydown(event)"></textarea>
+                <div class="input-hint">Shift+Enter — new line, Ctrl+Enter — send</div>
+            </div>
             <button class="btn-send" id="sendBtn" onclick="sendMessage()">Send</button>
         </div>
     </div>
@@ -702,9 +884,11 @@
 
         messages.forEach(msg => {
             if (msg.role === 'user') {
-                appendUserMessage(msg.content, false);
+                appendUserMessage(msg.content, false, msg.timestamp);
+            } else if (msg.role === 'error') {
+                appendErrorMessage(msg.content, msg.query, false, msg.timestamp);
             } else {
-                appendAssistantMessage(msg.data, false);
+                appendAssistantMessage(msg.data, false, msg.timestamp);
             }
         });
         scrollToBottom();
@@ -757,6 +941,73 @@
         sendMessage();
     }
 
+    // ======== SSE Helpers ========
+    function parseSSEEvents(buffer) {
+        const events = [];
+        const blocks = buffer.split('\n\n');
+        // last element may be incomplete — return it as remaining
+        const remaining = blocks.pop();
+        for (const block of blocks) {
+            if (!block.trim()) continue;
+            let event = 'message';
+            let data = '';
+            for (const line of block.split('\n')) {
+                if (line.startsWith('event:')) {
+                    event = line.substring(6).trim();
+                } else if (line.startsWith('data:')) {
+                    data += line.substring(5);
+                } else if (line.startsWith('data :')) {
+                    // some SSE impls use "data :" with a space
+                    data += line.substring(6);
+                }
+            }
+            events.push({ event, data });
+        }
+        return { events, remaining };
+    }
+
+    function createStreamingMessageDiv(timestamp) {
+        const container = document.getElementById('messagesContainer');
+        const div = document.createElement('div');
+        div.className = 'message message-assistant';
+        const time = formatTime(timestamp);
+        div.innerHTML = `
+            <div class="message-header">
+                <span class="message-label">Assistant</span>
+                <span class="message-time">${time}</span>
+                <div class="message-actions">
+                    <button class="message-copy-btn" onclick="copyMessageText(this)">Copy</button>
+                </div>
+            </div>
+            <div class="message-bubble"></div>
+        `;
+        div.dataset.rawAnswer = '';
+        container.appendChild(div);
+        return div;
+    }
+
+    function updateStreamingContent(div, rawText) {
+        const bubble = div.querySelector('.message-bubble');
+        // Use marked without hljs for streaming speed — highlight on done
+        bubble.innerHTML = marked.parse(rawText);
+    }
+
+    function finalizeStreamingMessage(div, rawText, sources, metadata) {
+        // Final render with full markdown + hljs
+        const bubble = div.querySelector('.message-bubble');
+        bubble.innerHTML = renderMarkdown(rawText);
+        div.dataset.rawAnswer = rawText;
+        initCollapsibleCodeBlocks(div);
+
+        // Append sources, steps, rewritten query
+        const sourcesHtml = renderSources(sources || []);
+        const stepsHtml = renderSteps(metadata?.processingSteps || []);
+        const rewrittenHtml = metadata?.rewrittenQuery
+            ? `<div class="rewritten-query">Rewritten: <span>${esc(metadata.rewrittenQuery)}</span></div>`
+            : '';
+        div.insertAdjacentHTML('beforeend', rewrittenHtml + sourcesHtml + stepsHtml);
+    }
+
     async function sendMessage() {
         const input = document.getElementById('queryInput');
         const query = input.value.trim();
@@ -770,8 +1021,9 @@
         if (emptyState) emptyState.remove();
 
         // Append user message
-        appendUserMessage(query, true);
-        saveMessage(currentSessionId, { role: 'user', content: query });
+        const userTimestamp = Date.now();
+        appendUserMessage(query, true, userTimestamp);
+        saveMessage(currentSessionId, { role: 'user', content: query, timestamp: userTimestamp });
 
         // Update history title from first message
         const messages = loadMessages(currentSessionId);
@@ -783,41 +1035,111 @@
         input.style.height = 'auto';
         setLoading(true);
 
-        // Show loading
+        // Show loading dots until first token arrives
         const loadingEl = showLoadingDots();
+
+        let streamingDiv = null;
+        let rawText = '';
+        let sources = [];
+        let metadata = {};
+        let loadingRemoved = false;
 
         try {
             abortController = new AbortController();
-            const timeoutId = setTimeout(() => abortController.abort(), 60000);
 
             const body = { query, sessionId: currentSessionId };
             if (applicationId) body.applicationId = applicationId;
 
-            const res = await fetch('/api/rag/ask', {
+            const res = await fetch('/api/rag/ask/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
                 signal: abortController.signal,
             });
 
-            clearTimeout(timeoutId);
-
             if (!res.ok) {
                 const errorText = await res.text().catch(() => res.statusText);
                 throw new Error(errorText || `HTTP ${res.status}`);
             }
 
-            const data = await res.json();
-            loadingEl.remove();
-            appendAssistantMessage(data, true);
-            saveMessage(currentSessionId, { role: 'assistant', data });
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let sseBuffer = '';
 
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                sseBuffer += decoder.decode(value, { stream: true });
+                const parsed = parseSSEEvents(sseBuffer);
+                sseBuffer = parsed.remaining;
+
+                for (const evt of parsed.events) {
+                    switch (evt.event) {
+                        case 'sources':
+                            try { sources = JSON.parse(evt.data); } catch {}
+                            break;
+                        case 'metadata':
+                            try { metadata = JSON.parse(evt.data); } catch {}
+                            break;
+                        case 'token':
+                            if (!loadingRemoved) {
+                                loadingEl.remove();
+                                loadingRemoved = true;
+                            }
+                            if (!streamingDiv) {
+                                streamingDiv = createStreamingMessageDiv(Date.now());
+                            }
+                            rawText += evt.data;
+                            updateStreamingContent(streamingDiv, rawText);
+                            scrollToBottom();
+                            break;
+                        case 'done':
+                            if (!loadingRemoved) {
+                                loadingEl.remove();
+                                loadingRemoved = true;
+                            }
+                            if (streamingDiv) {
+                                finalizeStreamingMessage(streamingDiv, rawText, sources, metadata);
+                            }
+                            // Save to localStorage in the same format as before
+                            const assistantTimestamp = Date.now();
+                            saveMessage(currentSessionId, {
+                                role: 'assistant',
+                                data: { answer: rawText, sources, metadata },
+                                timestamp: assistantTimestamp,
+                            });
+                            scrollToBottom();
+                            break;
+                        case 'error':
+                            if (!loadingRemoved) {
+                                loadingEl.remove();
+                                loadingRemoved = true;
+                            }
+                            throw new Error(evt.data || 'Stream error');
+                    }
+                }
+            }
         } catch (e) {
-            loadingEl.remove();
-            if (e.name === 'AbortError') {
-                showToast('Request timed out after 60 seconds');
-            } else {
-                showToast('Error: ' + e.message);
+            if (!loadingRemoved) {
+                loadingEl.remove();
+            }
+            // If we were mid-stream, finalize what we have
+            if (streamingDiv && rawText) {
+                finalizeStreamingMessage(streamingDiv, rawText, sources, metadata);
+                saveMessage(currentSessionId, {
+                    role: 'assistant',
+                    data: { answer: rawText, sources, metadata },
+                    timestamp: Date.now(),
+                });
+            }
+            if (e.name !== 'AbortError' || !rawText) {
+                const errorText = e.name === 'AbortError'
+                    ? 'Request was cancelled'
+                    : 'Error: ' + e.message;
+                const errorTimestamp = Date.now();
+                appendErrorMessage(errorText, query, true, errorTimestamp);
+                saveMessage(currentSessionId, { role: 'error', content: errorText, query, timestamp: errorTimestamp });
             }
         } finally {
             setLoading(false);
@@ -827,9 +1149,23 @@
 
     function setLoading(loading) {
         isLoading = loading;
-        document.getElementById('sendBtn').disabled = loading;
-        document.getElementById('queryInput').disabled = loading;
-        if (!loading) document.getElementById('queryInput').focus();
+        const btn = document.getElementById('sendBtn');
+        const input = document.getElementById('queryInput');
+        input.disabled = loading;
+        if (loading) {
+            btn.textContent = 'Stop';
+            btn.className = 'btn-stop';
+            btn.disabled = false;
+            btn.onclick = () => {
+                if (abortController) abortController.abort();
+            };
+        } else {
+            btn.textContent = 'Send';
+            btn.className = 'btn-send';
+            btn.disabled = false;
+            btn.onclick = sendMessage;
+            input.focus();
+        }
     }
 
     function showLoadingDots() {
@@ -843,19 +1179,28 @@
     }
 
     // ======== Render Messages ========
-    function appendUserMessage(text, scroll) {
+    function formatTime(timestamp) {
+        const d = timestamp ? new Date(timestamp) : new Date();
+        return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function appendUserMessage(text, scroll, timestamp) {
         const container = document.getElementById('messagesContainer');
         const div = document.createElement('div');
         div.className = 'message message-user';
+        const time = formatTime(timestamp);
         div.innerHTML = `
-            <div class="message-label">You</div>
+            <div class="message-header">
+                <span class="message-label">You</span>
+                <span class="message-time">${time}</span>
+            </div>
             <div class="message-bubble">${esc(text)}</div>
         `;
         container.appendChild(div);
         if (scroll) scrollToBottom();
     }
 
-    function appendAssistantMessage(data, scroll) {
+    function appendAssistantMessage(data, scroll, timestamp) {
         const container = document.getElementById('messagesContainer');
         const div = document.createElement('div');
         div.className = 'message message-assistant';
@@ -866,22 +1211,156 @@
         const rewrittenHtml = data.metadata?.rewrittenQuery
             ? `<div class="rewritten-query">Rewritten: <span>${esc(data.metadata.rewrittenQuery)}</span></div>`
             : '';
+        const time = formatTime(timestamp);
+        const rawAnswer = data.answer || '';
 
         div.innerHTML = `
-            <div class="message-label">Assistant</div>
+            <div class="message-header">
+                <span class="message-label">Assistant</span>
+                <span class="message-time">${time}</span>
+                <div class="message-actions">
+                    <button class="message-copy-btn" onclick="copyMessageText(this)">Copy</button>
+                </div>
+            </div>
             <div class="message-bubble">${answerHtml}</div>
             ${rewrittenHtml}
             ${sourcesHtml}
             ${stepsHtml}
         `;
+        // Store raw answer for copy
+        div.dataset.rawAnswer = rawAnswer;
+        container.appendChild(div);
+        initCollapsibleCodeBlocks(div);
+        if (scroll) scrollToBottom();
+    }
+
+    function copyMessageText(btn) {
+        const msg = btn.closest('.message-assistant');
+        const text = msg.dataset.rawAnswer || '';
+        navigator.clipboard.writeText(text).then(() => {
+            btn.textContent = 'Copied!';
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.textContent = 'Copy';
+                btn.classList.remove('copied');
+            }, 2000);
+        }).catch(() => {
+            btn.textContent = 'Failed';
+            setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+        });
+    }
+
+    function appendErrorMessage(errorText, query, scroll, timestamp) {
+        const container = document.getElementById('messagesContainer');
+        const div = document.createElement('div');
+        div.className = 'message message-assistant message-error';
+        const time = formatTime(timestamp);
+        div.innerHTML = `
+            <div class="message-header">
+                <span class="message-label">Error</span>
+                <span class="message-time">${time}</span>
+            </div>
+            <div class="message-bubble">
+                ${esc(errorText)}
+                <br/>
+                <button class="error-retry-btn" onclick="retryLastMessage()">Retry</button>
+            </div>
+        `;
         container.appendChild(div);
         if (scroll) scrollToBottom();
     }
 
-    // ======== Markdown Renderer (marked.js) ========
+    function retryLastMessage() {
+        const messages = loadMessages(currentSessionId);
+        // Find last user message
+        let lastQuery = null;
+        for (let i = messages.length - 1; i >= 0; i--) {
+            if (messages[i].role === 'user') {
+                lastQuery = messages[i].content;
+                break;
+            }
+        }
+        if (!lastQuery) return;
+        // Remove error messages from the end
+        const container = document.getElementById('messagesContainer');
+        const lastChild = container.lastElementChild;
+        if (lastChild && lastChild.classList.contains('message-error')) {
+            lastChild.remove();
+        }
+        // Remove last error from storage
+        const stored = loadMessages(currentSessionId);
+        if (stored.length > 0 && stored[stored.length - 1].role === 'error') {
+            stored.pop();
+            localStorage.setItem('docgen_msgs_' + currentSessionId, JSON.stringify(stored));
+        }
+        // Re-send
+        document.getElementById('queryInput').value = lastQuery;
+        sendMessage();
+    }
+
+    function initCollapsibleCodeBlocks(messageEl) {
+        const wrappers = messageEl.querySelectorAll('.code-block-wrapper');
+        wrappers.forEach(wrapper => {
+            const code = wrapper.querySelector('code');
+            if (!code) return;
+            const lineCount = code.textContent.split('\n').length;
+            if (lineCount <= 15) return;
+
+            wrapper.classList.add('code-collapsed', 'has-toggle');
+            const btn = document.createElement('button');
+            btn.className = 'code-toggle-btn';
+            btn.textContent = 'Show more (' + lineCount + ' lines)';
+            btn.addEventListener('click', () => {
+                const collapsed = wrapper.classList.toggle('code-collapsed');
+                btn.textContent = collapsed
+                    ? 'Show more (' + lineCount + ' lines)'
+                    : 'Show less';
+            });
+            wrapper.appendChild(btn);
+        });
+    }
+
+    // ======== Markdown Renderer (marked.js + highlight.js) ========
+    (function configureMarked() {
+        const renderer = new marked.Renderer();
+        renderer.code = function(code, infostring) {
+            const lang = (infostring || '').split(/\s+/)[0];
+            const language = lang && hljs.getLanguage(lang) ? lang : null;
+            const highlighted = language
+                ? hljs.highlight(code, { language }).value
+                : hljs.highlightAuto(code).value;
+            const langLabel = language || 'code';
+            return '<div class="code-block-wrapper">'
+                + '<div class="code-block-header">'
+                +   '<span>' + esc(langLabel) + '</span>'
+                +   '<button class="code-copy-btn" onclick="copyCodeBlock(this)">Copy</button>'
+                + '</div>'
+                + '<pre><code class="hljs">' + highlighted + '</code></pre>'
+                + '</div>';
+        };
+        marked.setOptions({ renderer });
+    })();
+
     function renderMarkdown(text) {
         if (!text) return '';
         return marked.parse(text);
+    }
+
+    function copyCodeBlock(btn) {
+        const wrapper = btn.closest('.code-block-wrapper');
+        const code = wrapper.querySelector('code');
+        const text = code.textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            btn.textContent = 'Copied!';
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.textContent = 'Copy';
+                btn.classList.remove('copied');
+            }, 2000);
+        }).catch(() => {
+            btn.textContent = 'Failed';
+            setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+        });
     }
 
     // ======== Sources ========
@@ -980,6 +1459,10 @@
             e.preventDefault();
             sendMessage();
         }
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            sendMessage();
+        }
     }
 
     function truncate(str, max) {
@@ -987,22 +1470,7 @@
         return str.length > max ? str.substring(0, max) + '...' : str;
     }
 
-    function esc(s) {
-        if (!s) return '';
-        const el = document.createElement('span');
-        el.textContent = s;
-        return el.innerHTML;
-    }
-
-    function showToast(msg) {
-        const existing = document.querySelector('.toast');
-        if (existing) existing.remove();
-        const t = document.createElement('div');
-        t.className = 'toast toast-error';
-        t.textContent = msg;
-        document.body.appendChild(t);
-        setTimeout(() => t.remove(), 6000);
-    }
+    // esc, showToast — from /js/common.js
 
     // ======== Start ========
     init();

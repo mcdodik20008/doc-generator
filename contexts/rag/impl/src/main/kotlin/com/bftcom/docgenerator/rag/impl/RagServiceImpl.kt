@@ -6,6 +6,7 @@ import com.bftcom.docgenerator.rag.api.ProcessingStepType
 import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
 import com.bftcom.docgenerator.rag.api.QueryProcessingContext
 import com.bftcom.docgenerator.rag.api.RagQueryMetadata
+import com.bftcom.docgenerator.rag.api.RagPreparedContext
 import com.bftcom.docgenerator.rag.api.RagResponse
 import com.bftcom.docgenerator.rag.api.RagService
 import com.bftcom.docgenerator.rag.api.RagSource
@@ -36,7 +37,23 @@ class RagServiceImpl(
     }
 
     override fun ask(query: String, sessionId: String, applicationId: Long?): RagResponse {
-        // Валидация входных параметров
+        val prepared = prepareContext(query, sessionId, applicationId)
+
+        val prompt = prepared.prompt
+        val answer = if (prompt != null) {
+            callLlm(prompt, prepared.sessionId)
+        } else {
+            prepared.fallbackAnswer ?: "Не удалось получить ответ."
+        }
+
+        return RagResponse(
+            answer = answer,
+            sources = prepared.sources,
+            metadata = prepared.metadata,
+        )
+    }
+
+    override fun prepareContext(query: String, sessionId: String, applicationId: Long?): RagPreparedContext {
         require(query.isNotBlank()) { "Query cannot be blank" }
         require(query.length <= 10000) { "Query length cannot exceed 10000 characters, got ${query.length}" }
         require(sessionId.isNotBlank()) { "Session ID cannot be blank" }
@@ -47,34 +64,39 @@ class RagServiceImpl(
             }.orTimeout(PROCESSING_TIMEOUT_SECONDS, TimeUnit.SECONDS).get()
         } catch (e: TimeoutException) {
             log.error("Query processing timed out after {}s: query='{}'", PROCESSING_TIMEOUT_SECONDS, query.take(50))
-            return RagResponse(
-                answer = "Не удалось обработать запрос — превышено время ожидания.",
+            return RagPreparedContext(
+                prompt = null,
+                fallbackAnswer = "Не удалось обработать запрос — превышено время ожидания.",
                 sources = emptyList(),
                 metadata = RagQueryMetadata(originalQuery = query),
+                sessionId = sessionId,
             )
         } catch (e: Exception) {
             val cause = e.cause ?: e
             log.error("Query processing failed: {}", cause.message, cause)
-            return RagResponse(
-                answer = "Произошла ошибка при обработке запроса.",
+            return RagPreparedContext(
+                prompt = null,
+                fallbackAnswer = "Произошла ошибка при обработке запроса.",
                 sources = emptyList(),
                 metadata = RagQueryMetadata(originalQuery = query),
+                sessionId = sessionId,
             )
         }
         val processingStatus = processingContext.getMetadata<String>(QueryMetadataKeys.PROCESSING_STATUS)
 
         if (processingStatus == ProcessingStepType.FAILED.name) {
-            return RagResponse(
-                answer = "Информация не найдена",
+            return RagPreparedContext(
+                prompt = null,
+                fallbackAnswer = "Информация не найдена",
                 sources = emptyList(),
                 metadata = buildMetadata(processingContext),
+                sessionId = sessionId,
             )
         }
 
         val searchResults = buildSearchResults(processingContext)
         log.info("RAG search: итоговых результатов = {}", searchResults.size)
 
-        // Добавляем найденные узлы из точного поиска в начало контекста
         val exactNodes = processingContext.getMetadata<List<*>>(QueryMetadataKeys.EXACT_NODES)
         val exactNodesContext = if (exactNodes != null && exactNodes.isNotEmpty()) {
             val nodes = exactNodes.filterIsInstance<Node>().take(maxExactNodes)
@@ -88,7 +110,6 @@ class RagServiceImpl(
             ""
         }
 
-        // Добавляем соседние узлы из расширения окрестности
         val neighborNodes = processingContext.getMetadata<List<*>>(QueryMetadataKeys.NEIGHBOR_NODES)
         val neighborNodesContext = if (neighborNodes != null && neighborNodes.isNotEmpty()) {
             val nodes = neighborNodes.filterIsInstance<Node>().take(maxNeighborNodes)
@@ -149,42 +170,46 @@ class RagServiceImpl(
             """.trimIndent()
 
         log.info("RAG prompt generated: query='{}', context_length={}, prompt_length={}", processingContext.originalQuery.take(80), truncatedContext.length, prompt.length)
-        val response =
-            try {
-                CompletableFuture.supplyAsync {
-                    chatClient
-                        .prompt()
-                        .user(prompt)
-                        .advisors { spec ->
-                            spec.param(
-                                DEFAULT_CONVERSATION_ID,
-                                sessionId
-                            )
-                        }
-                        .call()
-                        .content()
-                }
-                    .orTimeout(30, TimeUnit.SECONDS)
-                    .exceptionally { ex ->
-                        log.error("LLM call failed or timed out: ${ex.message}", ex)
-                        null
-                    }
-                    .get()
-                    ?: "Не удалось получить ответ."
-            } catch (e: Exception) {
-                log.error("Error during LLM call: ${e.message}", e)
-                "Не удалось получить ответ."
-            }
 
-        // Формируем метаданные
-        return RagResponse(
-            answer = response,
-            sources =
-                searchResults.map {
-                    RagSource(it.id, it.content, it.metadata, it.similarity)
-                },
+        val sources = searchResults.map {
+            RagSource(it.id, it.content, it.metadata, it.similarity)
+        }
+
+        return RagPreparedContext(
+            prompt = prompt,
+            fallbackAnswer = null,
+            sources = sources,
             metadata = buildMetadata(processingContext),
+            sessionId = sessionId,
         )
+    }
+
+    private fun callLlm(prompt: String, sessionId: String): String {
+        return try {
+            CompletableFuture.supplyAsync {
+                chatClient
+                    .prompt()
+                    .user(prompt)
+                    .advisors { spec ->
+                        spec.param(
+                            DEFAULT_CONVERSATION_ID,
+                            sessionId
+                        )
+                    }
+                    .call()
+                    .content()
+            }
+                .orTimeout(30, TimeUnit.SECONDS)
+                .exceptionally { ex ->
+                    log.error("LLM call failed or timed out: ${ex.message}", ex)
+                    null
+                }
+                .get()
+                ?: "Не удалось получить ответ."
+        } catch (e: Exception) {
+            log.error("Error during LLM call: ${e.message}", e)
+            "Не удалось получить ответ."
+        }
     }
 
     private fun buildSearchResults(context: QueryProcessingContext): List<SearchResult> {

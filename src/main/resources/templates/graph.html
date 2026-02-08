@@ -4,8 +4,14 @@
     <meta charset="utf-8"/>
     <title>Code Graph Explorer</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
     <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/styles/github-dark.min.css"/>
+    <script src="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/cytoscape-navigator@2.0.4/cytoscape.js-navigator.css"/>
+    <script src="https://unpkg.com/cytoscape-navigator@2.0.4/cytoscape-navigator.js"></script>
     <link rel="stylesheet" href="/css/common.css"/>
+    <script src="/js/common.js"></script>
     <style>
         html, body { height: 100%; overflow: hidden; }
 
@@ -217,7 +223,7 @@
 
         /* ---- Loading / Toast (graph-specific overrides) ---- */
         .loading-overlay {
-            position: absolute; inset: 0; background: rgba(30,30,46,.8);
+            position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) 80%, transparent);
             display: flex; align-items: center; justify-content: center;
             z-index: 100; font-size: 16px; color: var(--text-muted);
             padding: 0;
@@ -251,23 +257,39 @@
             background: none; border: none; color: var(--text-muted); cursor: pointer;
             font-size: 18px; padding: 2px;
         }
+
+        /* ---- Minimap ---- */
+        #cy-navigator {
+            position: absolute; bottom: 14px; right: 14px;
+            width: 180px; height: 130px; z-index: 10;
+            border: 1px solid var(--border); border-radius: 6px;
+            overflow: hidden; background: var(--surface);
+        }
     </style>
 </head>
 <body>
 <div id="app">
     <!-- ===== Nav Bar ===== -->
     <div class="graph-nav">
-        <div class="nav-title">
-            <span class="logo">&#9670;</span>
-            Code Graph Explorer
+        <div>
+            <div class="nav-title">
+                <span class="logo">&#9670;</span>
+                Code Graph Explorer
+            </div>
+            <div class="breadcrumbs" style="margin-top:2px;margin-left:26px">
+                <a href="/">Doc Generator</a><span class="sep">/</span><span class="current">Graph</span>
+            </div>
         </div>
-        <nav class="nav-links">
-            <a href="/">Dashboard</a>
-            <a href="/graph" class="active">Graph</a>
-            <a href="/chat">Chat</a>
-            <a href="/ingest">Ingest</a>
-            <a href="/health">Health</a>
-        </nav>
+        <div style="display:flex;align-items:center;gap:12px">
+            <nav class="nav-links">
+                <a href="/">Dashboard</a>
+                <a href="/graph" class="active">Graph</a>
+                <a href="/chat">Chat</a>
+                <a href="/ingest">Ingest</a>
+                <a href="/health">Health</a>
+            </nav>
+            <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">&#9728;</button>
+        </div>
     </div>
 
     <!-- ===== Canvas ===== -->
@@ -285,6 +307,7 @@
             <button onclick="relayout()" title="Re-run layout">Layout</button>
         </div>
         <button id="panelToggle" onclick="togglePanel()" title="Toggle panel">&#x25C0;</button>
+        <div id="cy-navigator"></div>
     </div>
 
     <!-- ===== Side panel ===== -->
@@ -300,8 +323,8 @@
                 <div class="section-body">
                     <div class="row">
                         <div>
-                            <label>Application ID</label>
-                            <input id="appId" type="number" value="14"/>
+                            <label>Application</label>
+                            <select id="appId"><option value="">Select application...</option></select>
                         </div>
                         <div>
                             <label>Limit</label>
@@ -350,6 +373,10 @@
                     </div>
                     <div id="edgeKindChips" class="chip-container"></div>
                     <div class="checkbox-row" style="margin-top:8px">
+                        <input type="checkbox" id="showEdgeLabels"/>
+                        <label for="showEdgeLabels" style="margin:0">Show edge labels</label>
+                    </div>
+                    <div class="checkbox-row">
                         <input type="checkbox" id="withRelations"/>
                         <label for="withRelations" style="margin:0">Fetch ALL edge types from server</label>
                     </div>
@@ -544,6 +571,10 @@ function applyEdgeFilter() {
 //  CYTOSCAPE INIT
 // ============================================================
 function buildCyStyles() {
+    var cs = getComputedStyle(document.documentElement);
+    var textColor = cs.getPropertyValue('--text').trim() || '#cdd6f4';
+    var bgColor = cs.getPropertyValue('--bg').trim() || '#1e1e2e';
+
     const styles = [
         {
             selector: 'node',
@@ -551,8 +582,8 @@ function buildCyStyles() {
                 'label': 'data(label)',
                 'font-size': 11,
                 'font-family': 'Segoe UI, system-ui, sans-serif',
-                'color': '#cdd6f4',
-                'text-outline-color': '#1e1e2e',
+                'color': textColor,
+                'text-outline-color': bgColor,
                 'text-outline-width': 2,
                 'text-valign': 'bottom',
                 'text-margin-y': 5,
@@ -573,6 +604,13 @@ function buildCyStyles() {
                 'target-arrow-color': DEFAULT_EDGE_COLOR,
                 'arrow-scale': 0.9,
                 'opacity': 0.6,
+                'label': 'data(kind)',
+                'font-size': 9,
+                'text-rotation': 'autorotate',
+                'text-outline-width': 1.5,
+                'text-outline-color': bgColor,
+                'color': textColor,
+                'text-opacity': 0,
             }
         },
         {
@@ -625,6 +663,16 @@ function initCy() {
         if (evt.target === cy) { clearHighlights(); updateStats(); }
     });
     cy.on('select unselect', () => updateStats());
+
+    // Minimap
+    if (typeof cy.navigator === 'function') {
+        cy.navigator({ container: document.getElementById('cy-navigator') });
+    }
+
+    // Edge label toggle
+    document.getElementById('showEdgeLabels').addEventListener('change', function(e) {
+        cy.edges().style('text-opacity', e.target.checked ? 0.8 : 0);
+    });
 
     // Del / Backspace — remove selected nodes visually
     document.addEventListener('keydown', evt => {
@@ -769,22 +817,16 @@ function hideLoading() {
     const el = document.getElementById('loadingOverlay');
     if (el) el.style.display = 'none';
 }
-function showToast(msg) {
-    const el = document.createElement('div');
-    el.className = 'toast';
-    el.textContent = msg;
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 4500);
-}
+// showToast — from /js/common.js (graph CSS overrides toast positioning)
 
 // ---- Load ----
 async function loadGraph() {
-    const appId = Number(document.getElementById('appId').value);
+    const appId = document.getElementById('appId').value;
     const limit = Number(document.getElementById('limit').value) || 500;
     const withRelations = document.getElementById('withRelations').checked;
     const kinds = [...activeNodeKinds];
 
-    if (!appId || appId <= 0) { showToast('Application ID must be positive'); return; }
+    if (!appId) { showToast('Please select an application'); return; }
     if (kinds.length === 0) { showToast('Select at least one Node Kind'); return; }
 
     const btn = document.getElementById('loadBtn');
@@ -807,6 +849,7 @@ async function loadGraph() {
 
         updateStats();
         updateLegends();
+        applyNodeSizing();
     } catch (e) {
         console.error(e);
         showToast(String(e.message || e));
@@ -851,6 +894,7 @@ async function expandNode(nodeId) {
 
         updateStats();
         updateLegends();
+        applyNodeSizing();
     } catch (e) {
         console.error(e);
         showToast('Expand failed: ' + (e.message || e));
@@ -883,7 +927,7 @@ async function showNodeDetails(cyNode) {
 
         if (d.content) {
             html += '<div class="detail-block"><h4>Content</h4>';
-            html += '<pre>' + escapeHtml(d.content) + '</pre></div>';
+            html += '<pre><code>' + escapeHtml(d.content) + '</code></pre></div>';
         }
 
         if (d.relations) {
@@ -913,6 +957,7 @@ async function showNodeDetails(cyNode) {
         }
 
         detailsEl.innerHTML = html;
+        detailsEl.querySelectorAll('pre code').forEach(function(b) { hljs.highlightElement(b); });
     } catch (e) {
         detailsEl.innerHTML = '<div class="detail-placeholder" style="color:var(--red)">' + escapeHtml(String(e.message || e)) + '</div>';
     }
@@ -994,27 +1039,58 @@ function updateLegends() {
 }
 
 // ---- Util ----
-function escapeHtml(s) {
-    if (!s) return '';
-    return String(s).replace(/[&<>"']/g, c => ({
-        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-    }[c]));
+// esc() from /js/common.js; alias for backward compatibility
+const escapeHtml = esc;
+
+// ============================================================
+//  APPLICATION SELECTOR
+// ============================================================
+async function loadApplications() {
+    try {
+        const res = await fetch('/api/dashboard/applications');
+        if (!res.ok) return;
+        const apps = await res.json();
+        const select = document.getElementById('appId');
+        apps.forEach(function(app) {
+            var opt = document.createElement('option');
+            opt.value = app.id;
+            opt.textContent = app.name + ' (' + app.key + ')';
+            select.appendChild(opt);
+        });
+    } catch (e) {
+        console.error('Failed to load applications', e);
+    }
+}
+
+// ============================================================
+//  NODE SIZING BY CONNECTIONS
+// ============================================================
+function applyNodeSizing() {
+    cy.nodes().forEach(function(n) {
+        var deg = n.degree();
+        var size = Math.max(24, Math.min(64, 24 + deg * 3));
+        n.style({ width: size, height: size });
+    });
 }
 
 // ============================================================
 //  BOOTSTRAP
 // ============================================================
 (function bootstrap() {
-    // Read ?appId= from URL
-    const urlAppId = new URLSearchParams(window.location.search).get('appId');
-    if (urlAppId) document.getElementById('appId').value = urlAppId;
-
     initCy();
     buildChips('nodeKindChips', NODE_KINDS, activeNodeKinds, NODE_COLORS, 'node');
     buildChips('edgeKindChips', EDGE_KINDS, activeEdgeKinds, EDGE_COLORS, 'edge');
-    loadGraph().catch(e => {
-        console.error('Initial load failed:', e);
-        hideLoading();
+
+    // Load application dropdown, then set URL param and auto-load
+    loadApplications().then(function() {
+        var urlAppId = new URLSearchParams(window.location.search).get('appId');
+        if (urlAppId) document.getElementById('appId').value = urlAppId;
+        if (document.getElementById('appId').value) {
+            loadGraph().catch(function(e) {
+                console.error('Initial load failed:', e);
+                hideLoading();
+            });
+        }
     });
 })();
 </script>

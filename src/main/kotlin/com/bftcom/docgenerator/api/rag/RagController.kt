@@ -8,12 +8,21 @@ import com.bftcom.docgenerator.api.rag.dto.ValidatedRagResponse
 import com.bftcom.docgenerator.db.NodeRepository
 import com.bftcom.docgenerator.rag.api.RagResponse
 import com.bftcom.docgenerator.rag.api.RagService
+import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.validation.Valid
 import org.slf4j.LoggerFactory
+import org.springframework.ai.chat.client.ChatClient
+import org.springframework.ai.chat.memory.ChatMemory.DEFAULT_CONVERSATION_ID
+import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.http.MediaType
+import org.springframework.http.codec.ServerSentEvent
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -24,6 +33,8 @@ class RagController(
         private val ragService: RagService,
         private val docEvaluatorClient: DocEvaluatorClient,
         private val nodeRepository: NodeRepository,
+        @Qualifier("ragChatClient") private val chatClient: ChatClient,
+        private val objectMapper: ObjectMapper,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -134,5 +145,66 @@ class RagController(
                 ragResponse = ragResponse,
                 validationError = validationError
         )
+    }
+
+    @PostMapping("/ask/stream", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
+    @RateLimited(maxRequests = 30, windowSeconds = 60)
+    fun askStream(@RequestBody @Valid request: RagRequest): Flux<ServerSentEvent<String>> {
+        log.info("RAG stream request received: sessionId=${request.sessionId}, query_length=${request.query.length}")
+
+        return Mono.fromCallable {
+            ragService.prepareContext(request.query, request.sessionId, request.applicationId)
+        }
+            .subscribeOn(Schedulers.boundedElastic())
+            .flatMapMany { prepared ->
+                val sourcesEvent = ServerSentEvent.builder<String>()
+                    .event("sources")
+                    .data(objectMapper.writeValueAsString(prepared.sources))
+                    .build()
+                val metadataEvent = ServerSentEvent.builder<String>()
+                    .event("metadata")
+                    .data(objectMapper.writeValueAsString(prepared.metadata))
+                    .build()
+                val doneEvent = ServerSentEvent.builder<String>()
+                    .event("done")
+                    .data("")
+                    .build()
+
+                val prompt = prepared.prompt
+                if (prompt == null) {
+                    val fallbackToken = ServerSentEvent.builder<String>()
+                        .event("token")
+                        .data(prepared.fallbackAnswer ?: "Не удалось получить ответ.")
+                        .build()
+                    Flux.just(sourcesEvent, metadataEvent, fallbackToken, doneEvent)
+                } else {
+                    val tokenStream = chatClient
+                        .prompt()
+                        .user(prompt)
+                        .advisors { spec ->
+                            spec.param(DEFAULT_CONVERSATION_ID, prepared.sessionId)
+                        }
+                        .stream()
+                        .content()
+                        .map { chunk ->
+                            ServerSentEvent.builder<String>()
+                                .event("token")
+                                .data(chunk)
+                                .build()
+                        }
+
+                    Flux.just(sourcesEvent, metadataEvent)
+                        .concatWith(tokenStream)
+                        .concatWith(Mono.just(doneEvent))
+                }
+            }
+            .onErrorResume { e ->
+                log.error("SSE stream error: ${e.message}", e)
+                val errorEvent = ServerSentEvent.builder<String>()
+                    .event("error")
+                    .data(sanitizeErrorMessage(e as? Exception ?: RuntimeException(e)))
+                    .build()
+                Flux.just(errorEvent)
+            }
     }
 }

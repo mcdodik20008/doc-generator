@@ -4,7 +4,9 @@
     <meta charset="utf-8"/>
     <title>Doc Generator — Ingest</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
     <link rel="stylesheet" href="/css/common.css"/>
+    <script src="/js/common.js"></script>
     <style>
         /* ======== Section ======== */
         .section {
@@ -115,10 +117,15 @@
 <body>
 
 <div class="header">
-    <h1>
-        <span class="logo">&#9670;</span>
-        Ingest / Indexing
-    </h1>
+    <div>
+        <h1>
+            <span class="logo">&#9670;</span>
+            Ingest / Indexing
+        </h1>
+        <div class="breadcrumbs" style="margin-top:4px;margin-left:38px">
+            <a href="/">Doc Generator</a><span class="sep">/</span><span class="current">Ingest</span>
+        </div>
+    </div>
     <div class="header-right">
         <nav class="nav-links">
             <a href="/">Dashboard</a>
@@ -129,6 +136,7 @@
         </nav>
         <span id="lastUpdated"></span>
         <button class="btn" onclick="loadApps()">&#8635; Refresh</button>
+        <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">&#9728;</button>
     </div>
 </div>
 
@@ -421,54 +429,7 @@
             '</div>';
     }
 
-    // ========== Utilities ==========
-    function getStatusClass(status) {
-        if (!status) return 'status-unknown';
-        const s = status.toLowerCase();
-        if (s === 'success' || s === 'completed') return 'status-success';
-        if (s === 'failed' || s === 'error') return 'status-failed';
-        if (s === 'running' || s === 'in_progress') return 'status-running';
-        if (s === 'partial') return 'status-partial';
-        return 'status-unknown';
-    }
-
-    function formatDate(iso) {
-        if (!iso) return '';
-        try {
-            const d = new Date(iso);
-            return d.toLocaleDateString('ru-RU') + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        } catch { return iso; }
-    }
-
-    function formatDuration(ms) {
-        if (ms == null) return '—';
-        if (ms < 1000) return ms + 'ms';
-        const s = Math.floor(ms / 1000);
-        if (s < 60) return s + 's';
-        return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
-    }
-
-    function fmt(n) {
-        if (n == null) return '0';
-        return Number(n).toLocaleString('ru-RU');
-    }
-
-    function esc(s) {
-        if (!s) return '';
-        const el = document.createElement('span');
-        el.textContent = s;
-        return el.innerHTML;
-    }
-
-    function showToast(msg, type) {
-        const existing = document.querySelector('.toast');
-        if (existing) existing.remove();
-        const t = document.createElement('div');
-        t.className = 'toast ' + (type === 'success' ? 'toast-success' : 'toast-error');
-        t.textContent = msg;
-        document.body.appendChild(t);
-        setTimeout(() => t.remove(), 6000);
-    }
+    // esc, showToast, getStatusClass, formatDate, formatDuration, fmt — from /js/common.js
 
     // Auto-refresh every 15 seconds
     function startAutoRefresh() {
