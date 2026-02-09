@@ -923,6 +923,39 @@
             cursor: not-allowed;
         }
 
+        /* ======== Drag & Drop overlay ======== */
+        .drop-overlay {
+            position: absolute; inset: 0; z-index: 50;
+            background: color-mix(in srgb, var(--accent) 15%, transparent);
+            border: 2px dashed var(--accent); border-radius: 8px;
+            display: none; align-items: center; justify-content: center;
+            font-size: 16px; color: var(--accent); font-weight: 600;
+            pointer-events: none;
+        }
+        .drop-overlay.visible { display: flex; }
+
+        /* ======== Attached files ======== */
+        .attached-files {
+            display: flex; gap: 6px; flex-wrap: wrap; padding: 0 24px 0;
+        }
+        .attached-file {
+            display: flex; align-items: center; gap: 6px;
+            background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+            padding: 4px 10px; font-size: 12px; color: var(--text-muted);
+        }
+        .attached-file .file-name { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .attached-file .file-remove {
+            background: none; border: none; color: var(--text-muted); cursor: pointer;
+            font-size: 14px; padding: 0 2px;
+        }
+        .attached-file .file-remove:hover { color: var(--red); }
+
+        /* ======== Code hint ======== */
+        .code-hint {
+            font-size: 11px; color: var(--accent); display: none; align-items: center; gap: 4px;
+        }
+        .code-hint.visible { display: flex; }
+
         /* ======== Input Footer (hint + counter + preview) ======== */
         .input-footer {
             display: flex;
@@ -1433,17 +1466,20 @@
             </div>
         </div>
 
-        <div class="input-bar">
+        <div id="attachedFiles" class="attached-files"></div>
+        <div class="input-bar" style="position:relative">
+            <div class="drop-overlay" id="dropOverlay">Drop files here</div>
             <div class="input-wrapper">
                 <textarea id="queryInput"
                           placeholder="Ask a question... (Enter to send, Shift+Enter for newline)"
                           rows="1"
                           maxlength="10000"
-                          oninput="autoResize(this); updateCharCounter()"
+                          oninput="autoResize(this); updateCharCounter(); detectCodeSnippet(this)"
                           onkeydown="handleKeydown(event)"></textarea>
                 <div class="input-footer">
                     <div class="input-footer-left">
                         <span class="input-hint">Shift+Enter — new line</span>
+                        <span class="code-hint" id="codeHint">&#128196; Code detected — wrap with ``` for formatting</span>
                     </div>
                     <div class="input-footer-right">
                         <span class="char-counter" id="charCounter">0 / 10000</span>
@@ -2876,6 +2912,94 @@
     }
 
     // esc, showToast — from /js/common.js
+
+    // ======== Drag & Drop Files ========
+    let attachedFiles = [];
+
+    (function initDragDrop() {
+        const inputBar = document.querySelector('.input-bar');
+        const overlay = document.getElementById('dropOverlay');
+        let dragCounter = 0;
+
+        inputBar.addEventListener('dragenter', e => {
+            e.preventDefault();
+            dragCounter++;
+            overlay.classList.add('visible');
+        });
+        inputBar.addEventListener('dragleave', e => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter <= 0) { overlay.classList.remove('visible'); dragCounter = 0; }
+        });
+        inputBar.addEventListener('dragover', e => e.preventDefault());
+        inputBar.addEventListener('drop', e => {
+            e.preventDefault();
+            overlay.classList.remove('visible');
+            dragCounter = 0;
+            const files = e.dataTransfer.files;
+            if (files.length === 0) return;
+            for (const f of files) {
+                if (attachedFiles.length >= 5) {
+                    showToast('Maximum 5 files allowed');
+                    break;
+                }
+                if (f.size > 5 * 1024 * 1024) {
+                    showToast('File "' + f.name + '" exceeds 5 MB limit');
+                    continue;
+                }
+                attachedFiles.push({ name: f.name, size: f.size, type: f.type, file: f });
+            }
+            renderAttachedFiles();
+        });
+    })();
+
+    function renderAttachedFiles() {
+        const container = document.getElementById('attachedFiles');
+        if (attachedFiles.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+        container.innerHTML = attachedFiles.map((f, i) =>
+            '<div class="attached-file">' +
+                '<span class="file-name" title="' + esc(f.name) + '">' + esc(f.name) + '</span>' +
+                '<span style="font-size:10px;color:var(--text-muted)">(' + formatFileSize(f.size) + ')</span>' +
+                '<button class="file-remove" onclick="removeAttachedFile(' + i + ')" title="Remove">&times;</button>' +
+            '</div>'
+        ).join('');
+    }
+
+    function removeAttachedFile(index) {
+        attachedFiles.splice(index, 1);
+        renderAttachedFiles();
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + 'B';
+        if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + 'KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + 'MB';
+    }
+
+    // ======== Code Snippet Detection ========
+    const codePatterns = [
+        /^(import |from |package |#include)/m,
+        /function\s+\w+\s*\(/,
+        /class\s+\w+/,
+        /\{[\s\S]*\}/,
+        /=>\s*\{/,
+        /^(def |val |var |const |let )/m,
+        /^\s*(if|for|while)\s*\(/m,
+    ];
+
+    function detectCodeSnippet(textarea) {
+        const hint = document.getElementById('codeHint');
+        const val = textarea.value;
+        if (val.length < 20 || val.includes('```')) {
+            hint.classList.remove('visible');
+            return;
+        }
+        const isCode = codePatterns.some(p => p.test(val));
+        hint.classList.toggle('visible', isCode);
+    }
 
     // ======== Live Steps Animation ========
     function showLiveSteps(steps) {

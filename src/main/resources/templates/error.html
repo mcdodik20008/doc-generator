@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8"/>
+    <title>Doc Generator — Error</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+    <link rel="stylesheet" href="/css/common.css"/>
+    <script src="/js/common.js"></script>
+    <style>
+        .error-page {
+            display: flex; align-items: center; justify-content: center;
+            min-height: calc(100vh - 80px); flex-direction: column; gap: 16px;
+            padding: 40px 32px; text-align: center;
+        }
+        .error-code {
+            font-size: 96px; font-weight: 800; color: var(--accent);
+            line-height: 1; opacity: 0.7;
+        }
+        .error-message {
+            font-size: 20px; color: var(--text); font-weight: 600;
+        }
+        .error-detail {
+            font-size: 15px; color: var(--text-muted); max-width: 500px;
+        }
+        .error-actions {
+            display: flex; gap: 12px; margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h1>
+            <span class="logo">&#9670;</span>
+            Doc Generator
+        </h1>
+    </div>
+    <div class="header-right">
+        <nav class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/graph">Graph</a>
+            <a href="/chat">Chat</a>
+            <a href="/ingest">Ingest</a>
+            <a href="/health">Health</a>
+        </nav>
+        <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">&#9728;</button>
+    </div>
+</div>
+
+<div class="error-page">
+    <div class="error-code" id="errorCode">404</div>
+    <div class="error-message" id="errorMessage">Page Not Found</div>
+    <div class="error-detail" id="errorDetail">
+        The page you're looking for doesn't exist or has been moved.
+    </div>
+    <div class="error-actions">
+        <a class="btn btn-accent" href="/">Go to Dashboard</a>
+        <button class="btn" onclick="history.back()">Go Back</button>
+    </div>
+</div>
+
+<script>
+    // Try to extract error info from the page (Spring Boot sets these)
+    const statusEl = document.getElementById('errorCode');
+    const msgEl = document.getElementById('errorMessage');
+    const detailEl = document.getElementById('errorDetail');
+
+    // Spring Boot default error attributes via Thymeleaf-less approach:
+    // We check URL params as fallback
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status');
+    if (status) statusEl.textContent = status;
+    const msg = params.get('message');
+    if (msg) msgEl.textContent = msg;
+
+    // Update title
+    document.title = 'Doc Generator \u2014 Error ' + statusEl.textContent;
+</script>
+
+</body>
+</html>

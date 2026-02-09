@@ -265,6 +265,118 @@
             border: 1px solid var(--border); border-radius: 6px;
             overflow: hidden; background: var(--surface);
         }
+
+        /* ---- Search autocomplete ---- */
+        .search-autocomplete {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: var(--surface2); border: 1px solid var(--border); border-top: none;
+            border-radius: 0 0 6px 6px; z-index: 20;
+            max-height: 240px; overflow-y: auto; display: none;
+        }
+        .search-autocomplete.visible { display: block; }
+        .autocomplete-item {
+            padding: 8px 12px; cursor: pointer; font-size: 13px;
+            display: flex; align-items: center; gap: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .autocomplete-item:hover, .autocomplete-item.active {
+            background: var(--accent-dim);
+        }
+        .autocomplete-item .ac-kind {
+            font-size: 10px; padding: 1px 6px; border-radius: 3px;
+            background: var(--surface); color: var(--text-muted); white-space: nowrap;
+        }
+        .autocomplete-item .ac-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .autocomplete-item .ac-group { font-size: 11px; color: var(--text-muted); }
+
+        /* ---- Search navigate ---- */
+        .search-nav {
+            display: none; align-items: center; gap: 6px; margin-top: 6px;
+        }
+        .search-nav.visible { display: flex; }
+        .search-nav button {
+            background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+            color: var(--text); cursor: pointer; padding: 3px 8px; font-size: 13px;
+        }
+        .search-nav button:hover { border-color: var(--accent); }
+        .search-nav .search-pos { font-size: 12px; color: var(--text-muted); min-width: 40px; text-align: center; }
+
+        /* ---- Search result count ---- */
+        .search-result-count {
+            font-size: 12px; color: var(--text-muted); margin-top: 6px;
+            padding: 3px 10px; border-radius: 10px;
+            background: var(--surface2); display: inline-block;
+        }
+        .search-result-count .match-count { color: var(--accent); font-weight: 600; }
+
+        /* ---- Copy FQN button ---- */
+        .copy-fqn-btn {
+            background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+            color: var(--text-muted); cursor: pointer; font-size: 12px;
+            padding: 2px 8px; margin-left: 8px; transition: all .15s;
+            vertical-align: middle;
+        }
+        .copy-fqn-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+        /* ---- Export menu ---- */
+        .export-menu {
+            display: none; position: absolute; bottom: 100%; left: 0;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+            min-width: 160px; margin-bottom: 6px; z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .export-menu.visible { display: block; }
+        .export-menu-item {
+            padding: 8px 14px; font-size: 13px; cursor: pointer;
+            white-space: nowrap; transition: background .1s;
+        }
+        .export-menu-item:hover { background: var(--accent-dim); }
+        .export-menu-item:first-child { border-radius: 6px 6px 0 0; }
+        .export-menu-item:last-child { border-radius: 0 0 6px 6px; }
+
+        /* ---- Node tooltip on hover ---- */
+        #nodeTooltip {
+            position: absolute; z-index: 50; pointer-events: none; display: none;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+            padding: 8px 12px; font-size: 12px; max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        #nodeTooltip .tt-label { font-weight: 600; color: var(--text); margin-bottom: 2px; }
+        #nodeTooltip .tt-kind { font-size: 11px; padding: 1px 6px; border-radius: 3px; display: inline-block; margin-bottom: 2px; }
+        #nodeTooltip .tt-group { font-size: 11px; color: var(--text-muted); }
+
+        /* ---- Panel resize handle ---- */
+        #panelResizer {
+            width: 4px; cursor: col-resize; background: transparent;
+            position: absolute; top: 0; bottom: 0; left: -2px; z-index: 20;
+            transition: background .15s;
+        }
+        #panelResizer:hover, #panelResizer.active { background: var(--accent); }
+
+        /* ---- Snap-to-grid toggle ---- */
+        #toolbar button.active {
+            background: var(--accent-dim); border-color: var(--accent); color: var(--accent);
+        }
+
+        /* ---- Loading progress ---- */
+        .loading-progress {
+            margin-top: 8px; font-size: 13px; color: var(--accent);
+        }
+        .progress-bar {
+            width: 200px; height: 4px; background: var(--border); border-radius: 2px; margin-top: 4px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%; background: var(--accent); border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        /* ---- Full-screen mode ---- */
+        #app.fullscreen { grid-template-rows: 1fr; }
+        #app.fullscreen .graph-nav { display: none; }
+        #app.fullscreen #panel { display: none; }
+        #app.fullscreen { grid-template-columns: 1fr; }
     </style>
 </head>
 <body>
@@ -305,13 +417,24 @@
             <button onclick="cy.zoom(cy.zoom()*1.3);cy.center()" title="Zoom in">+</button>
             <button onclick="cy.zoom(cy.zoom()/1.3);cy.center()" title="Zoom out">&minus;</button>
             <button onclick="relayout()" title="Re-run layout">Layout</button>
+            <button onclick="toggleSnapToGrid()" id="snapGridBtn" title="Snap to grid">&#x23F9;</button>
+            <button onclick="toggleFullscreen()" id="fullscreenBtn" title="Toggle full-screen (F11)">&#x26F6;</button>
+            <button onclick="toggleExportMenu()" id="exportBtn" title="Export" style="position:relative">&#x2913;
+                <div id="exportMenu" class="export-menu">
+                    <div class="export-menu-item" onclick="exportPNG()">Export PNG</div>
+                    <div class="export-menu-item" onclick="exportJSON()">Export JSON</div>
+                    <div class="export-menu-item" onclick="copyShareLink()">Copy Share Link</div>
+                </div>
+            </button>
         </div>
         <button id="panelToggle" onclick="togglePanel()" title="Toggle panel">&#x25C0;</button>
+        <div id="nodeTooltip"></div>
         <div id="cy-navigator"></div>
     </div>
 
     <!-- ===== Side panel ===== -->
-    <div id="panel">
+    <div id="panel" style="position:relative">
+        <div id="panelResizer"></div>
         <div id="panel-body">
 
             <!-- QUERY -->
@@ -379,6 +502,33 @@
                 </div>
             </div>
 
+            <!-- FILTERS -->
+            <div class="panel-section collapsed" id="sec-filters">
+                <div class="section-header" onclick="toggleSection('sec-filters')">
+                    <h3>Filters</h3>
+                    <span class="section-arrow">&#9660;</span>
+                </div>
+                <div class="section-body">
+                    <label style="margin-top:0">Filter by Package</label>
+                    <select id="packageFilter" onchange="applyPackageFilter()">
+                        <option value="">All packages</option>
+                    </select>
+
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="hideOrphans" onchange="applyOrphanFilter()"/>
+                        <label for="hideOrphans" style="margin:0">Hide orphan nodes (no connections)</label>
+                    </div>
+
+                    <label>Expand depth (hops)</label>
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <input type="range" id="depthSlider" min="1" max="5" value="2"
+                               style="flex:1;accent-color:var(--accent)"
+                               oninput="document.getElementById('depthValue').textContent=this.value"/>
+                        <span id="depthValue" style="font-size:14px;font-weight:600;color:var(--accent);min-width:16px">2</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- SEARCH -->
             <div class="panel-section" id="sec-search">
                 <div class="section-header" onclick="toggleSection('sec-search')">
@@ -387,8 +537,21 @@
                 </div>
                 <div class="section-body">
                     <div class="search-wrap">
-                        <input id="searchInput" type="text" placeholder="Search nodes by name..." oninput="onSearch(this.value)"/>
+                        <input id="searchInput" type="text" placeholder="Search nodes by name..."
+                               oninput="onSearchDebounced(this.value)"
+                               onkeydown="onSearchKeydown(event)"
+                               onfocus="showAutocomplete()"
+                               autocomplete="off"/>
                         <button class="search-clear" onclick="clearSearch()" title="Clear">&times;</button>
+                        <div id="searchAutocomplete" class="search-autocomplete"></div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <div id="searchResultCount" class="search-result-count" style="display:none"></div>
+                        <div id="searchNav" class="search-nav">
+                            <button onclick="searchNavigate(-1)" title="Previous match">&#9650;</button>
+                            <span class="search-pos" id="searchPos"></span>
+                            <button onclick="searchNavigate(1)" title="Next match">&#9660;</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -670,18 +833,70 @@ function initCy() {
         cy.edges().style('text-opacity', e.target.checked ? 0.8 : 0);
     });
 
+    // Node tooltip on hover
+    const tooltip = document.getElementById('nodeTooltip');
+    cy.on('mouseover', 'node', evt => {
+        const n = evt.target;
+        const kind = n.data('kind') || '';
+        const color = NODE_COLORS[kind] || DEFAULT_NODE_COLOR;
+        tooltip.innerHTML =
+            '<div class="tt-label">' + escapeHtml(n.data('label') || n.id()) + '</div>' +
+            '<span class="tt-kind" style="background:' + color + '33;color:' + color + '">' + escapeHtml(kind) + '</span>' +
+            (n.data('group') ? '<div class="tt-group">' + escapeHtml(n.data('group')) + '</div>' : '');
+        tooltip.style.display = 'block';
+    });
+    cy.on('mousemove', 'node', evt => {
+        const pos = evt.renderedPosition || evt.position;
+        const wrap = document.getElementById('cy-wrap').getBoundingClientRect();
+        tooltip.style.left = (pos.x + 15) + 'px';
+        tooltip.style.top = (pos.y + 15) + 'px';
+    });
+    cy.on('mouseout', 'node', () => { tooltip.style.display = 'none'; });
+
     // Del / Backspace — remove selected nodes visually
+    // Escape — exit full-screen
+    // F11 — toggle full-screen
     document.addEventListener('keydown', evt => {
+        const tag = (evt.target.tagName || '').toLowerCase();
+
+        if (evt.key === 'Escape') {
+            const app = document.getElementById('app');
+            if (app.classList.contains('fullscreen')) {
+                toggleFullscreen();
+                evt.preventDefault();
+            }
+            return;
+        }
+        if (evt.key === 'F11') {
+            evt.preventDefault();
+            toggleFullscreen();
+            return;
+        }
+
+        // Undo / Redo
+        if ((evt.ctrlKey || evt.metaKey) && evt.key === 'z' && !evt.shiftKey) {
+            if (tag === 'input' || tag === 'textarea') return;
+            evt.preventDefault();
+            undo();
+            return;
+        }
+        if ((evt.ctrlKey || evt.metaKey) && (evt.key === 'y' || (evt.key === 'z' && evt.shiftKey))) {
+            if (tag === 'input' || tag === 'textarea') return;
+            evt.preventDefault();
+            redo();
+            return;
+        }
+
         if (evt.key === 'Delete' || evt.key === 'Backspace') {
-            // don't fire when typing in an input/select
-            const tag = (evt.target.tagName || '').toLowerCase();
             if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 
             const selected = cy.$(':selected');
             if (selected.length === 0) return;
 
             evt.preventDefault();
-            // remove connected edges first, then nodes
+            // Save to undo stack
+            const allEles = selected.union(selected.connectedEdges());
+            pushUndoAction({ type: 'remove', elements: allEles.jsons() });
             selected.connectedEdges().remove();
             selected.remove();
             updateStats();
@@ -827,24 +1042,30 @@ async function loadGraph() {
 
     const btn = document.getElementById('loadBtn');
     btn.disabled = true;
-    showLoading('Loading graph data...');
+    showLoadingProgress('Loading graph data...', 0);
 
     try {
+        showLoadingProgress('Fetching graph...', 20);
         const g = await fetchGraph(appId, kinds, limit, edgeKinds);
+        showLoadingProgress('Processing nodes...', 50);
         const { nodes, edges } = toCyElements(g);
 
         cy.elements().remove();
+        undoStack.length = 0;
+        redoStack.length = 0;
         cy.add(nodes);
         cy.add(edges);
 
         applyEdgeFilter();
 
-        showLoading('Running layout...');
+        showLoadingProgress('Running layout...', 80);
         runLayout(document.getElementById('layoutSelect').value);
         cy.fit(undefined, 30);
+        if (snapToGridEnabled) applySnapToGrid();
 
         updateStats();
         updateLegends();
+        updatePackageFilter();
         applyNodeSizing();
     } catch (e) {
         console.error(e);
@@ -859,7 +1080,8 @@ async function loadGraph() {
 async function expandNode(nodeId) {
     showLoading('Expanding neighbors...');
     try {
-        const g = await fetchExpand(nodeId, 50);
+        const depthLimit = Number(document.getElementById('depthSlider').value) || 2;
+        const g = await fetchExpand(nodeId, depthLimit * 25);
         const { nodes, edges } = toCyElements(g);
 
         const existingIds = new Set(cy.nodes().map(n => n.id()));
@@ -875,6 +1097,10 @@ async function expandNode(nodeId) {
 
         cy.add(newNodes);
         cy.add(newEdges);
+        // Track for undo
+        const addedIds = newNodes.map(n => n.data.id).concat(newEdges.map(e => e.data.id));
+        pushUndoAction({ type: 'add', ids: addedIds });
+
         applyEdgeFilter();
 
         cy.getElementById(nodeId).addClass('expanded-source');
@@ -888,8 +1114,11 @@ async function expandNode(nodeId) {
             animate: true, animationDuration: 400,
         }).run();
 
+        if (snapToGridEnabled) setTimeout(applySnapToGrid, 500);
+
         updateStats();
         updateLegends();
+        updatePackageFilter();
         applyNodeSizing();
     } catch (e) {
         console.error(e);
@@ -911,8 +1140,9 @@ async function showNodeDetails(cyNode) {
     try {
         const d = await fetchDetails(cyNode.id());
 
+        const fqn = d.title || cyNode.data('label');
         let html = '<div class="detail-header">';
-        html += '<h2>' + escapeHtml(d.title || cyNode.data('label')) + '</h2>';
+        html += '<h2>' + escapeHtml(fqn) + '<button class="copy-fqn-btn" onclick="copyFqn(this)" data-fqn="' + escapeHtml(fqn) + '" title="Copy FQN">&#128203;</button></h2>';
         html += '<div class="detail-meta">';
         if (d.node) {
             html += '<span style="color:' + (NODE_COLORS[d.node.kind] || DEFAULT_NODE_COLOR) + '">' + escapeHtml(d.node.kind) + '</span>';
@@ -959,27 +1189,75 @@ async function showNodeDetails(cyNode) {
     }
 }
 
-function focusNode(nodeId) {
+async function focusNode(nodeId) {
     const n = cy.getElementById(nodeId);
     if (n.length > 0) {
         cy.animate({ center: { eles: n }, zoom: 2 }, { duration: 400 });
         n.select();
         showNodeDetails(n);
     } else {
-        showToast('Node ' + nodeId + ' not in graph. Try expanding.');
+        // Auto-expand to load the missing node
+        showToast('Loading node ' + nodeId + '...', 'success');
+        try {
+            await expandNode(nodeId);
+            const loaded = cy.getElementById(nodeId);
+            if (loaded.length > 0) {
+                cy.animate({ center: { eles: loaded }, zoom: 2 }, { duration: 400 });
+                loaded.select();
+                showNodeDetails(loaded);
+            }
+        } catch (e) {
+            showToast('Could not load node: ' + (e.message || e));
+        }
     }
 }
 
 // ---- Search ----
+let searchDebounceTimer = null;
+let searchMatches = [];
+let searchCurrentIndex = -1;
+let autocompleteIndex = -1;
+
+function onSearchDebounced(query) {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+        onSearch(query);
+        updateAutocomplete(query);
+    }, 200);
+}
+
 function onSearch(query) {
     clearHighlights();
-    if (!query || query.length < 2) return;
+    const countEl = document.getElementById('searchResultCount');
+    const navEl = document.getElementById('searchNav');
+    searchMatches = [];
+    searchCurrentIndex = -1;
+
+    if (!query || query.length < 2) {
+        countEl.style.display = 'none';
+        navEl.classList.remove('visible');
+        return;
+    }
     const q = query.toLowerCase();
     const matches = cy.nodes().filter(n => {
         const label = (n.data('label') || '').toLowerCase();
         const group = (n.data('group') || '').toLowerCase();
         return label.includes(q) || group.includes(q);
     });
+    searchMatches = matches.toArray();
+
+    // Show result count
+    countEl.style.display = 'inline-block';
+    countEl.innerHTML = 'Found <span class="match-count">' + matches.length + '</span> match' + (matches.length !== 1 ? 'es' : '');
+
+    // Show/hide navigate arrows
+    if (searchMatches.length > 0) {
+        navEl.classList.add('visible');
+        searchNavigate(0); // go to first
+    } else {
+        navEl.classList.remove('visible');
+    }
+
     if (matches.length === 0) return;
     cy.elements().addClass('dimmed');
     matches.forEach(n => {
@@ -990,8 +1268,117 @@ function onSearch(query) {
         cy.animate({ fit: { eles: matches, padding: 50 } }, { duration: 400 });
     }
 }
+
+function searchNavigate(delta) {
+    if (searchMatches.length === 0) return;
+    if (delta === 0) {
+        searchCurrentIndex = 0;
+    } else {
+        searchCurrentIndex = (searchCurrentIndex + delta + searchMatches.length) % searchMatches.length;
+    }
+    const posEl = document.getElementById('searchPos');
+    posEl.textContent = (searchCurrentIndex + 1) + '/' + searchMatches.length;
+    const n = searchMatches[searchCurrentIndex];
+    cy.animate({ center: { eles: cy.getElementById(n.id()) }, zoom: Math.max(cy.zoom(), 1.5) }, { duration: 300 });
+    n.select();
+}
+
+// ---- Autocomplete ----
+function updateAutocomplete(query) {
+    const ac = document.getElementById('searchAutocomplete');
+    autocompleteIndex = -1;
+    if (!query || query.length < 2 || !cy || cy.nodes().length === 0) {
+        ac.classList.remove('visible');
+        return;
+    }
+    const q = query.toLowerCase();
+    const suggestions = [];
+    cy.nodes().forEach(n => {
+        const label = n.data('label') || '';
+        const group = n.data('group') || '';
+        if (label.toLowerCase().includes(q) || group.toLowerCase().includes(q)) {
+            suggestions.push({ id: n.id(), label: label, kind: n.data('kind'), group: group });
+        }
+    });
+    if (suggestions.length === 0) {
+        ac.classList.remove('visible');
+        return;
+    }
+    const top = suggestions.slice(0, 10);
+    ac.innerHTML = top.map((s, i) =>
+        '<div class="autocomplete-item" data-index="' + i + '" data-nodeid="' + escapeHtml(s.id) + '" onclick="selectAutocomplete(\'' + escapeHtml(s.id) + '\')">' +
+            '<span class="ac-kind" style="border-left:3px solid ' + (NODE_COLORS[s.kind] || DEFAULT_NODE_COLOR) + '">' + escapeHtml(s.kind) + '</span>' +
+            '<span class="ac-label">' + escapeHtml(s.label) + '</span>' +
+            (s.group ? '<span class="ac-group">' + escapeHtml(s.group) + '</span>' : '') +
+        '</div>'
+    ).join('');
+    ac.classList.add('visible');
+}
+
+function selectAutocomplete(nodeId) {
+    hideAutocomplete();
+    focusNode(nodeId);
+}
+
+function showAutocomplete() {
+    const val = document.getElementById('searchInput').value;
+    if (val && val.length >= 2) updateAutocomplete(val);
+}
+
+function hideAutocomplete() {
+    document.getElementById('searchAutocomplete').classList.remove('visible');
+    autocompleteIndex = -1;
+}
+
+function onSearchKeydown(evt) {
+    const ac = document.getElementById('searchAutocomplete');
+    const items = ac.querySelectorAll('.autocomplete-item');
+
+    if (ac.classList.contains('visible') && items.length > 0) {
+        if (evt.key === 'ArrowDown') {
+            evt.preventDefault();
+            autocompleteIndex = Math.min(autocompleteIndex + 1, items.length - 1);
+            items.forEach((el, i) => el.classList.toggle('active', i === autocompleteIndex));
+            return;
+        }
+        if (evt.key === 'ArrowUp') {
+            evt.preventDefault();
+            autocompleteIndex = Math.max(autocompleteIndex - 1, 0);
+            items.forEach((el, i) => el.classList.toggle('active', i === autocompleteIndex));
+            return;
+        }
+        if (evt.key === 'Enter' && autocompleteIndex >= 0) {
+            evt.preventDefault();
+            const nodeId = items[autocompleteIndex].dataset.nodeid;
+            selectAutocomplete(nodeId);
+            return;
+        }
+    }
+
+    if (evt.key === 'Escape') {
+        hideAutocomplete();
+        return;
+    }
+
+    // Navigate results with Ctrl+Arrow
+    if (searchMatches.length > 0) {
+        if (evt.key === 'ArrowDown' && evt.ctrlKey) { evt.preventDefault(); searchNavigate(1); return; }
+        if (evt.key === 'ArrowUp' && evt.ctrlKey) { evt.preventDefault(); searchNavigate(-1); return; }
+    }
+}
+
+// Close autocomplete when clicking outside
+document.addEventListener('click', evt => {
+    if (!evt.target.closest('.search-wrap')) hideAutocomplete();
+});
+
 function clearSearch() {
     document.getElementById('searchInput').value = '';
+    document.getElementById('searchResultCount').style.display = 'none';
+    document.getElementById('searchNav').classList.remove('visible');
+    hideAutocomplete();
+    searchMatches = [];
+    searchCurrentIndex = -1;
     clearHighlights();
 }
 function clearHighlights() {
@@ -1034,6 +1421,149 @@ function updateLegends() {
     }
 }
 
+// ---- Package filter ----
+function updatePackageFilter() {
+    const select = document.getElementById('packageFilter');
+    const currentVal = select.value;
+    const groups = new Set();
+    cy.nodes().forEach(n => {
+        const g = n.data('group');
+        if (g) groups.add(g);
+    });
+    select.innerHTML = '<option value="">All packages</option>';
+    [...groups].sort().forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g;
+        opt.textContent = g;
+        select.appendChild(opt);
+    });
+    if (currentVal && groups.has(currentVal)) select.value = currentVal;
+}
+
+function applyPackageFilter() {
+    const pkg = document.getElementById('packageFilter').value;
+    if (!pkg) {
+        cy.nodes().style('display', 'element');
+    } else {
+        cy.nodes().forEach(n => {
+            n.style('display', n.data('group') === pkg ? 'element' : 'none');
+        });
+    }
+    applyEdgeFilter();
+    updateStats();
+}
+
+// ---- Hide orphan nodes ----
+function applyOrphanFilter() {
+    const hide = document.getElementById('hideOrphans').checked;
+    if (!hide) {
+        cy.nodes().style('display', 'element');
+        applyPackageFilter(); // re-apply package filter
+        return;
+    }
+    cy.nodes().forEach(n => {
+        if (n.connectedEdges().filter(e => e.style('display') !== 'none').length === 0) {
+            n.style('display', 'none');
+        }
+    });
+    updateStats();
+}
+
+// ---- Copy FQN ----
+function copyFqn(btn) {
+    const fqn = btn.dataset.fqn;
+    navigator.clipboard.writeText(fqn).then(() => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '&#10003;';
+        setTimeout(() => { btn.innerHTML = orig; }, 1500);
+    }).catch(() => showToast('Failed to copy'));
+}
+
+// ---- Full-screen mode ----
+function toggleFullscreen() {
+    const app = document.getElementById('app');
+    app.classList.toggle('fullscreen');
+    const isFs = app.classList.contains('fullscreen');
+    document.getElementById('fullscreenBtn').title = isFs ? 'Exit full-screen (Esc)' : 'Toggle full-screen (F11)';
+    setTimeout(() => cy.resize(), 350);
+}
+
+// ---- Panel resize ----
+(function initPanelResize() {
+    const resizer = document.getElementById('panelResizer');
+    const app = document.getElementById('app');
+    let startX, startW;
+
+    resizer.addEventListener('mousedown', e => {
+        e.preventDefault();
+        startX = e.clientX;
+        startW = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--panel-w')) || 440;
+        resizer.classList.add('active');
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    });
+
+    function onMouseMove(e) {
+        const delta = startX - e.clientX;
+        const newW = Math.max(280, Math.min(700, startW + delta));
+        document.documentElement.style.setProperty('--panel-w', newW + 'px');
+    }
+
+    function onMouseUp() {
+        resizer.classList.remove('active');
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        setTimeout(() => cy.resize(), 50);
+    }
+})();
+
+// ---- Export ----
+function toggleExportMenu() {
+    document.getElementById('exportMenu').classList.toggle('visible');
+}
+document.addEventListener('click', evt => {
+    if (!evt.target.closest('#exportBtn')) {
+        document.getElementById('exportMenu').classList.remove('visible');
+    }
+});
+
+function exportPNG() {
+    const dataUrl = cy.png({ full: true, scale: 2, bg: getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() });
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = 'graph-export.png';
+    a.click();
+    document.getElementById('exportMenu').classList.remove('visible');
+}
+
+function exportJSON() {
+    const data = {
+        nodes: cy.nodes().map(n => ({ id: n.id(), label: n.data('label'), kind: n.data('kind'), group: n.data('group') })),
+        edges: cy.edges().map(e => ({ id: e.id(), source: e.data('source'), target: e.data('target'), kind: e.data('kind') })),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'graph-export.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    document.getElementById('exportMenu').classList.remove('visible');
+}
+
+function copyShareLink() {
+    const params = new URLSearchParams();
+    const appId = document.getElementById('appId').value;
+    if (appId) params.set('appId', appId);
+    if (activeNodeKinds.size > 0) params.set('kinds', [...activeNodeKinds].join(','));
+    params.set('layout', currentLayoutName);
+    params.set('limit', document.getElementById('limit').value);
+    const url = window.location.origin + '/graph?' + params.toString();
+    navigator.clipboard.writeText(url).then(() => {
+        showToast('Share link copied!', 'success');
+    }).catch(() => showToast('Failed to copy link'));
+    document.getElementById('exportMenu').classList.remove('visible');
+}
+
 // ---- Util ----
 // esc() from /js/common.js; alias for backward compatibility
 const escapeHtml = esc;
@@ -1067,6 +1597,134 @@ function applyNodeSizing() {
         var size = Math.max(24, Math.min(64, 24 + deg * 3));
         n.style({ width: size, height: size });
     });
+}
+
+// ============================================================
+//  UNDO / REDO (History stack)
+// ============================================================
+const undoStack = [];
+const redoStack = [];
+
+function pushUndoAction(action) {
+    undoStack.push(action);
+    if (undoStack.length > 50) undoStack.shift();
+    redoStack.length = 0;
+}
+
+function undo() {
+    if (undoStack.length === 0) return;
+    const action = undoStack.pop();
+    if (action.type === 'remove') {
+        // Restore removed elements
+        cy.add(action.elements);
+        redoStack.push({ type: 'add', elements: action.elements });
+    } else if (action.type === 'add') {
+        // Remove added elements
+        const eles = action.ids.map(id => cy.getElementById(id)).filter(e => e.length > 0);
+        const coll = cy.collection(eles);
+        redoStack.push({ type: 'remove', elements: coll.jsons() });
+        coll.remove();
+    }
+    updateStats();
+    updateLegends();
+}
+
+function redo() {
+    if (redoStack.length === 0) return;
+    const action = redoStack.pop();
+    if (action.type === 'remove') {
+        cy.add(action.elements);
+        undoStack.push({ type: 'add', elements: action.elements });
+    } else if (action.type === 'add') {
+        const eles = action.ids.map(id => cy.getElementById(id)).filter(e => e.length > 0);
+        const coll = cy.collection(eles);
+        undoStack.push({ type: 'remove', elements: coll.jsons() });
+        coll.remove();
+    }
+    updateStats();
+    updateLegends();
+}
+
+// ============================================================
+//  SNAP TO GRID
+// ============================================================
+let snapToGridEnabled = false;
+const GRID_SIZE = 50;
+
+function toggleSnapToGrid() {
+    snapToGridEnabled = !snapToGridEnabled;
+    const btn = document.getElementById('snapGridBtn');
+    btn.classList.toggle('active', snapToGridEnabled);
+    btn.title = snapToGridEnabled ? 'Snap to grid (ON)' : 'Snap to grid';
+    if (snapToGridEnabled) applySnapToGrid();
+}
+
+function applySnapToGrid() {
+    if (!snapToGridEnabled) return;
+    cy.nodes().forEach(n => {
+        const pos = n.position();
+        n.position({
+            x: Math.round(pos.x / GRID_SIZE) * GRID_SIZE,
+            y: Math.round(pos.y / GRID_SIZE) * GRID_SIZE,
+        });
+    });
+}
+
+// ============================================================
+//  CLUSTER VISUALIZATION (group by package)
+// ============================================================
+let clusterMode = false;
+
+function toggleClusterMode() {
+    clusterMode = !clusterMode;
+    if (clusterMode) {
+        // Group nodes by package using concentric layout per group
+        const groups = {};
+        cy.nodes().forEach(n => {
+            const g = n.data('group') || 'unknown';
+            if (!groups[g]) groups[g] = [];
+            groups[g].push(n);
+        });
+        // Arrange groups in a grid pattern
+        const keys = Object.keys(groups).sort();
+        const cols = Math.ceil(Math.sqrt(keys.length));
+        const spacing = 500;
+        keys.forEach((g, idx) => {
+            const col = idx % cols;
+            const row = Math.floor(idx / cols);
+            const cx = col * spacing;
+            const cy_ = row * spacing;
+            const nodes = groups[g];
+            const perRow = Math.ceil(Math.sqrt(nodes.length));
+            nodes.forEach((n, i) => {
+                n.animate({
+                    position: { x: cx + (i % perRow) * 60, y: cy_ + Math.floor(i / perRow) * 60 },
+                    duration: 500,
+                });
+            });
+        });
+    } else {
+        relayout();
+    }
+}
+
+// ============================================================
+//  LOADING PROGRESS
+// ============================================================
+function showLoadingProgress(text, percent) {
+    let el = document.getElementById('loadingOverlay');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'loadingOverlay';
+        el.className = 'loading-overlay';
+        document.getElementById('cy-wrap').appendChild(el);
+    }
+    el.innerHTML = '<div style="text-align:center"><div class="spinner" style="margin:0 auto 8px"></div>' +
+        escapeHtml(text || 'Loading...') +
+        (percent != null ? '<div class="loading-progress">' + Math.round(percent) + '%' +
+            '<div class="progress-bar"><div class="progress-bar-fill" style="width:' + Math.round(percent) + '%"></div></div></div>' : '') +
+        '</div>';
+    el.style.display = 'flex';
 }
 
 // ============================================================

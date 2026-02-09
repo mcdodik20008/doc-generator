@@ -11,18 +11,38 @@ function esc(s) {
 }
 
 /**
- * Show a toast notification.
+ * Show a toast notification with dismiss button. Supports up to 3 stacked toasts.
  * @param {string} msg - Message text
  * @param {'error'|'success'} [type='error'] - Toast type
  */
 function showToast(msg, type) {
-    const existing = document.querySelector('.toast');
-    if (existing) existing.remove();
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    // Limit to 3 toasts — remove the oldest
+    const toasts = container.querySelectorAll('.toast');
+    if (toasts.length >= 3) toasts[0].remove();
+
     const t = document.createElement('div');
     t.className = 'toast ' + (type === 'success' ? 'toast-success' : 'toast-error');
     t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 6000);
+
+    const dismiss = document.createElement('button');
+    dismiss.className = 'toast-dismiss';
+    dismiss.innerHTML = '&times;';
+    dismiss.onclick = () => { t.remove(); cleanupToastContainer(); };
+    t.appendChild(dismiss);
+
+    container.appendChild(t);
+    setTimeout(() => { t.remove(); cleanupToastContainer(); }, 6000);
+}
+
+function cleanupToastContainer() {
+    const container = document.querySelector('.toast-container');
+    if (container && container.children.length === 0) container.remove();
 }
 
 /**
@@ -82,6 +102,11 @@ function initTheme() {
     document.documentElement.dataset.theme = theme;
     updateThemeIcon(theme);
 
+    // Dynamic page title based on current URL
+    const pageNames = { '/': 'Dashboard', '/graph': 'Graph Explorer', '/chat': 'Chat', '/ingest': 'Ingest', '/health': 'Health' };
+    const pageName = pageNames[window.location.pathname];
+    if (pageName) document.title = 'Doc Generator \u2014 ' + pageName;
+
     // Add title hints for nav links (Alt+1..5)
     const shortcuts = { '/': '1', '/graph': '2', '/chat': '3', '/ingest': '4', '/health': '5' };
     const labels = { '/': 'Dashboard', '/graph': 'Graph', '/chat': 'Chat', '/ingest': 'Ingest', '/health': 'Health' };
@@ -119,5 +144,44 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
+// ========== Scroll-to-top button ==========
+function initScrollToTop() {
+    // Only for scrollable pages (not graph/chat which handle their own scroll)
+    const path = window.location.pathname;
+    if (path === '/graph' || path === '/chat') return;
+
+    const btn = document.createElement('button');
+    btn.className = 'scroll-top-btn';
+    btn.innerHTML = '&#9650;';
+    btn.title = 'Scroll to top';
+    btn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.body.appendChild(btn);
+
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    }, { passive: true });
+}
+
+// ========== Mobile hamburger menu ==========
+function initHamburger() {
+    const nav = document.querySelector('.header .nav-links');
+    if (!nav) return;
+
+    const btn = document.createElement('button');
+    btn.className = 'hamburger-btn';
+    btn.innerHTML = '&#9776;';
+    btn.title = 'Menu';
+    btn.onclick = () => nav.classList.toggle('mobile-open');
+    nav.parentElement.insertBefore(btn, nav);
+
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.hamburger-btn') && !e.target.closest('.nav-links')) {
+            nav.classList.remove('mobile-open');
+        }
+    });
+}
+
 // Init theme on load
 initTheme();
+initScrollToTop();
+initHamburger();
