@@ -13,4 +13,7 @@ data class RagRequest(
     val sessionId: String = "default",
 
     val applicationId: Long? = null,
+
+    val temperature: Double? = null,
+    val maxTokens: Int? = null,
 )

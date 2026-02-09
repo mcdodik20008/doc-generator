@@ -3,6 +3,7 @@ package com.bftcom.docgenerator.db
 import com.bftcom.docgenerator.domain.dto.GEdge
 import com.bftcom.docgenerator.domain.dto.GNode
 import com.bftcom.docgenerator.domain.edge.Edge
+import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import org.slf4j.LoggerFactory
@@ -58,7 +59,7 @@ open class ChunkGraphRepositoryImpl(
     override fun loadEdges(
         appId: Long,
         nodeIds: Set<String>,
-        withRelations: Boolean,
+        edgeKinds: Set<String>,
     ): List<GEdge> {
         if (nodeIds.isEmpty()) return emptyList()
 
@@ -81,18 +82,20 @@ open class ChunkGraphRepositoryImpl(
             val sortedIds = ids.sorted()
             "first 5: ${sortedIds.take(5)}, last 5: ${sortedIds.takeLast(5)}"
         }
-        log.info("Loading edges for nodeIds=$idsPreview (size=${ids.size}), withRelations=$withRelations")
+        log.info("Loading edges for nodeIds=$idsPreview (size=${ids.size}), edgeKinds=${edgeKinds.size}")
         // Используем объединенный запрос вместо двух отдельных (фикс N+1 проблемы)
         // DISTINCT уже в SQL запросе, поэтому не нужен distinctBy в памяти
         val all = edgeRepo.findAllBySrcIdInOrDstIdIn(ids)
 
-        // Фильтруем edges по withRelations параметру
-        val filtered = if (withRelations) {
-            // Возвращаем все типы рёбер включая отношения (RELATES, USES, INHERITS и т.д.)
+        // Парсим запрошенные edge kinds; если пусто — возвращаем все
+        val requestedKinds: Set<EdgeKind> = edgeKinds
+            .mapNotNull { s -> runCatching { EdgeKind.valueOf(s.trim()) }.getOrNull() }
+            .toSet()
+
+        val filtered = if (requestedKinds.isEmpty()) {
             all
         } else {
-            // Возвращаем только базовые связи вызовов
-            all.filter { it.kind == com.bftcom.docgenerator.domain.enums.EdgeKind.CALLS }
+            all.filter { it.kind in requestedKinds }
         }
 
         log.info("Edges loaded=${all.size}, after filtering=${filtered.size}")

@@ -1,5 +1,6 @@
 package com.bftcom.docgenerator.api.rag
 
+import com.bftcom.docgenerator.ai.props.AiClientsProperties
 import com.bftcom.docgenerator.api.common.RateLimited
 import com.bftcom.docgenerator.api.rag.client.DocEvaluatorClient
 import com.bftcom.docgenerator.api.rag.dto.EvaluationResult
@@ -13,9 +14,11 @@ import jakarta.validation.Valid
 import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.chat.memory.ChatMemory.DEFAULT_CONVERSATION_ID
+import org.springframework.ai.openai.OpenAiChatOptions
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.http.MediaType
 import org.springframework.http.codec.ServerSentEvent
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -35,6 +38,7 @@ class RagController(
         private val nodeRepository: NodeRepository,
         @Qualifier("ragChatClient") private val chatClient: ChatClient,
         private val objectMapper: ObjectMapper,
+        private val aiClientsProperties: AiClientsProperties,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -178,12 +182,22 @@ class RagController(
                         .build()
                     Flux.just(sourcesEvent, metadataEvent, fallbackToken, doneEvent)
                 } else {
-                    val tokenStream = chatClient
+                    val promptSpec = chatClient
                         .prompt()
                         .user(prompt)
                         .advisors { spec ->
                             spec.param(DEFAULT_CONVERSATION_ID, prepared.sessionId)
                         }
+
+                    val hasCustomOptions = request.temperature != null || request.maxTokens != null
+                    if (hasCustomOptions) {
+                        val optionsBuilder = OpenAiChatOptions.builder()
+                        request.temperature?.let { optionsBuilder.temperature(it) }
+                        request.maxTokens?.let { optionsBuilder.maxTokens(it) }
+                        promptSpec.options(optionsBuilder.build())
+                    }
+
+                    val tokenStream = promptSpec
                         .stream()
                         .content()
                         .map { chunk ->
@@ -206,5 +220,15 @@ class RagController(
                     .build()
                 Flux.just(errorEvent)
             }
+    }
+
+    @GetMapping("/settings")
+    fun getSettings(): Map<String, Any?> {
+        val coder = aiClientsProperties.coder
+        return mapOf(
+            "model" to coder.model,
+            "temperature" to coder.temperature,
+            "topP" to coder.topP,
+        )
     }
 }

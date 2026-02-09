@@ -13,7 +13,7 @@ interface ChunkGraphRepository {
     fun loadEdges(
         appId: Long,
         nodeIds: Set<String>,
-        withRelations: Boolean,
+        edgeKinds: Set<String>,
     ): List<GEdge>
 
     fun loadNeighbors(

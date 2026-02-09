@@ -376,10 +376,6 @@
                         <input type="checkbox" id="showEdgeLabels"/>
                         <label for="showEdgeLabels" style="margin:0">Show edge labels</label>
                     </div>
-                    <div class="checkbox-row">
-                        <input type="checkbox" id="withRelations"/>
-                        <label for="withRelations" style="margin:0">Fetch ALL edge types from server</label>
-                    </div>
                 </div>
             </div>
 
@@ -697,12 +693,12 @@ function initCy() {
 // ============================================================
 //  API
 // ============================================================
-async function fetchGraph(appId, kinds, limit, withRelations) {
+async function fetchGraph(appId, kinds, limit, edgeKinds) {
     const params = new URLSearchParams();
     params.set('applicationId', String(appId));
     params.set('limit', String(limit));
-    params.set('withRelations', String(withRelations));
     kinds.forEach(kind => params.append('kinds', kind));
+    edgeKinds.forEach(kind => params.append('edgeKinds', kind));
     const url = '/api/graph/chunks?' + params.toString();
     console.log('[graph] GET', url);
     const res = await fetch(url);
@@ -823,8 +819,8 @@ function hideLoading() {
 async function loadGraph() {
     const appId = document.getElementById('appId').value;
     const limit = Number(document.getElementById('limit').value) || 500;
-    const withRelations = document.getElementById('withRelations').checked;
     const kinds = [...activeNodeKinds];
+    const edgeKinds = [...activeEdgeKinds];
 
     if (!appId) { showToast('Please select an application'); return; }
     if (kinds.length === 0) { showToast('Select at least one Node Kind'); return; }
@@ -834,7 +830,7 @@ async function loadGraph() {
     showLoading('Loading graph data...');
 
     try {
-        const g = await fetchGraph(appId, kinds, limit, withRelations);
+        const g = await fetchGraph(appId, kinds, limit, edgeKinds);
         const { nodes, edges } = toCyElements(g);
 
         cy.elements().remove();

@@ -195,7 +195,7 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
         val edges = chunkGraphRepository.loadEdges(
             appId = application.id!!,
             nodeIds = setOf(node1.id.toString(), node2.id.toString()),
-            withRelations = true,
+            edgeKinds = emptySet(),
         )
 
         // Then
@@ -229,7 +229,7 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
         val edges = chunkGraphRepository.loadEdges(
             appId = application.id!!,
             nodeIds = setOf(node1.id.toString()),
-            withRelations = true,
+            edgeKinds = emptySet(),
         )
 
         // Then: должны быть оба ребра (исходящее и входящее)
@@ -260,7 +260,7 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
         val edges = chunkGraphRepository.loadEdges(
             appId = application.id!!,
             nodeIds = setOf(node1.id.toString(), node2.id.toString()),
-            withRelations = true,
+            edgeKinds = emptySet(),
         )
 
         // Then
@@ -279,7 +279,7 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
         val edges = chunkGraphRepository.loadEdges(
             appId = application.id!!,
             nodeIds = emptySet(),
-            withRelations = true,
+            edgeKinds = emptySet(),
         )
 
         // Then

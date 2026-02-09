@@ -12,10 +12,10 @@ class ChunkGraphService(
         appId: Long,
         kinds: Set<String>,
         limit: Int,
-        withRelations: Boolean,
+        edgeKinds: Set<String>,
     ): GraphResponse {
         val nodes = repo.loadNodes(appId, kinds, limit)
-        val edges = repo.loadEdges(appId, nodes.map { it.id }.toSet(), withRelations)
+        val edges = repo.loadEdges(appId, nodes.map { it.id }.toSet(), edgeKinds)
         return GraphResponse(nodes, edges)
     }
 

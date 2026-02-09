@@ -31,12 +31,13 @@ class ChunkGraphServiceTest {
         val edges = listOf(
             GEdge(id = "1", source = "100", target = "200", kind = "CALLS"),
         )
+        val edgeKinds = setOf("CALLS")
 
         every { repo.loadNodes(1L, emptySet(), 500) } returns nodes
-        every { repo.loadEdges(1L, setOf("100", "200"), true) } returns edges
+        every { repo.loadEdges(1L, setOf("100", "200"), edgeKinds) } returns edges
 
         // when
-        val result = service.buildGraph(1L, emptySet(), 500, true)
+        val result = service.buildGraph(1L, emptySet(), 500, edgeKinds)
 
         // then
         assertThat(result).isNotNull
@@ -58,28 +59,29 @@ class ChunkGraphServiceTest {
         every { repo.loadEdges(any(), any(), any()) } returns emptyList()
 
         // when
-        service.buildGraph(1L, kinds, limit, true)
+        service.buildGraph(1L, kinds, limit, emptySet())
 
         // then
         verify(exactly = 1) { repo.loadNodes(1L, kinds, limit) }
     }
 
     @Test
-    fun `buildGraph - вызывает repo loadEdges с корректными nodeIds и withRelations`() {
+    fun `buildGraph - вызывает repo loadEdges с корректными nodeIds и edgeKinds`() {
         // given
         val nodes = listOf(
             GNode(id = "100", label = "Node1", kind = "CLASS", group = "com.example"),
             GNode(id = "200", label = "Node2", kind = "METHOD", group = "com.example"),
         )
+        val edgeKinds = setOf("CALLS_CODE", "CONTAINS")
 
         every { repo.loadNodes(1L, emptySet(), 500) } returns nodes
-        every { repo.loadEdges(1L, setOf("100", "200"), true) } returns emptyList()
+        every { repo.loadEdges(1L, setOf("100", "200"), edgeKinds) } returns emptyList()
 
         // when
-        service.buildGraph(1L, emptySet(), 500, true)
+        service.buildGraph(1L, emptySet(), 500, edgeKinds)
 
         // then
-        verify(exactly = 1) { repo.loadEdges(1L, setOf("100", "200"), true) }
+        verify(exactly = 1) { repo.loadEdges(1L, setOf("100", "200"), edgeKinds) }
     }
 
     @Test
@@ -91,7 +93,7 @@ class ChunkGraphServiceTest {
         every { repo.loadEdges(any(), any(), any()) } returns emptyList()
 
         // when
-        val result = service.buildGraph(1L, emptySet(), 500, true)
+        val result = service.buildGraph(1L, emptySet(), 500, emptySet())
 
         // then
         assertThat(result.nodes).hasSize(1)
@@ -107,29 +109,30 @@ class ChunkGraphServiceTest {
         every { repo.loadEdges(any(), any(), any()) } returns emptyList()
 
         // when
-        val result = service.buildGraph(1L, emptySet(), 0, true)
+        val result = service.buildGraph(1L, emptySet(), 0, emptySet())
 
         // then
         assertThat(result.nodes).isEmpty()
         assertThat(result.edges).isEmpty()
         verify(exactly = 1) { repo.loadNodes(1L, emptySet(), 0) }
-        verify(exactly = 1) { repo.loadEdges(1L, emptySet(), true) }
+        verify(exactly = 1) { repo.loadEdges(1L, emptySet(), emptySet()) }
     }
 
     @Test
-    fun `buildGraph - обрабатывает withRelations = false`() {
+    fun `buildGraph - обрабатывает конкретные edgeKinds`() {
         // given
         val nodes = listOf(GNode(id = "100", label = "Node1", kind = "CLASS", group = "com.example"))
+        val edgeKinds = setOf("CALLS_CODE")
 
         every { repo.loadNodes(1L, emptySet(), 500) } returns nodes
-        every { repo.loadEdges(1L, setOf("100"), false) } returns emptyList()
+        every { repo.loadEdges(1L, setOf("100"), edgeKinds) } returns emptyList()
 
         // when
-        val result = service.buildGraph(1L, emptySet(), 500, false)
+        val result = service.buildGraph(1L, emptySet(), 500, edgeKinds)
 
         // then
         assertThat(result.nodes).hasSize(1)
-        verify(exactly = 1) { repo.loadEdges(1L, setOf("100"), false) }
+        verify(exactly = 1) { repo.loadEdges(1L, setOf("100"), edgeKinds) }
     }
 
     @Test
@@ -138,15 +141,15 @@ class ChunkGraphServiceTest {
         val nodes = emptyList<GNode>()
 
         every { repo.loadNodes(1L, emptySet(), 500) } returns nodes
-        every { repo.loadEdges(1L, emptySet(), true) } returns emptyList()
+        every { repo.loadEdges(1L, emptySet(), emptySet()) } returns emptyList()
 
         // when
-        val result = service.buildGraph(1L, emptySet(), 500, true)
+        val result = service.buildGraph(1L, emptySet(), 500, emptySet())
 
         // then
         assertThat(result.nodes).isEmpty()
         assertThat(result.edges).isEmpty()
-        verify(exactly = 1) { repo.loadEdges(1L, emptySet(), true) }
+        verify(exactly = 1) { repo.loadEdges(1L, emptySet(), emptySet()) }
     }
 
     @Test
@@ -159,7 +162,7 @@ class ChunkGraphServiceTest {
         every { repo.loadEdges(any(), any(), any()) } returns emptyList()
 
         // when
-        val result = service.buildGraph(1L, emptySet(), largeLimit, true)
+        val result = service.buildGraph(1L, emptySet(), largeLimit, emptySet())
 
         // then
         assertThat(result.nodes).hasSize(1000)
@@ -176,13 +179,13 @@ class ChunkGraphServiceTest {
         )
 
         every { repo.loadNodes(1L, emptySet(), 500) } returns nodes
-        every { repo.loadEdges(1L, setOf("100", "200", "300"), true) } returns emptyList()
+        every { repo.loadEdges(1L, setOf("100", "200", "300"), emptySet()) } returns emptyList()
 
         // when
-        service.buildGraph(1L, emptySet(), 500, true)
+        service.buildGraph(1L, emptySet(), 500, emptySet())
 
         // then
-        verify(exactly = 1) { repo.loadEdges(1L, setOf("100", "200", "300"), true) }
+        verify(exactly = 1) { repo.loadEdges(1L, setOf("100", "200", "300"), emptySet()) }
     }
 
     @Test
@@ -334,7 +337,7 @@ class ChunkGraphServiceTest {
         every { repo.loadEdges(any(), any(), any()) } returns emptyList()
 
         // when
-        val result = service.buildGraph(1L, kinds, 500, true)
+        val result = service.buildGraph(1L, kinds, 500, emptySet())
 
         // then
         assertThat(result.nodes).hasSize(1)
