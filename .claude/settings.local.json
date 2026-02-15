@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew test:*)",
+      "Bash(./gradlew :contexts:rag:contexts-rag-impl:test:*)",
+      "Bash(./gradlew :contexts:graph:contexts-graph-impl:compileKotlin:*)",
+      "Bash(./gradlew :contexts:graph:contexts-graph-impl:test:*)",
+      "Bash(.\\\\gradlew.bat compileKotlin:*)",
+      "Bash(cmd /c \"gradlew.bat compileKotlin 2>&1\")",
+      "Bash(cmd /c \"gradlew.bat compileKotlin\")",
+      "Bash(cmd /c \"gradlew.bat compileKotlin 2>&1 | findstr /i /c:BUILD /c:FAIL /c:error\")",
+      "Bash(cmd /c \"gradlew.bat compileKotlin --console=plain --no-daemon 2>&1\":*)",
+      "Bash(cd:*)",
+      "Bash(cmd //c \"gradlew.bat compileKotlin --console=plain --no-daemon\")",
+      "Bash(ls:*)",
+      "Bash(./gradlew compileKotlin:*)",
+      "Bash(.gradlew compileKotlin:*)",
+      "Bash(./gradlew compileTestKotlin:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(gradlew.bat compileKotlin:*)",
+      "Bash(cmd.exe /c \"gradlew.bat compileKotlin\")",
+      "Bash(gradlew.bat:*)",
+      "Bash(./gradlew :contexts:library:impl:compileKotlin:*)",
+      "Bash(./gradlew projects:*)",
+      "Bash(./gradlew :contexts:library:contexts-library-impl:compileKotlin:*)",
+      "Bash(./gradlew:*)",
+      "WebFetch(domain:unpkg.com)",
+      "WebSearch",
+      "Bash(npm install)",
+      "Bash(npx playwright install chromium)",
+      "Bash(npx playwright test)"
+    ]
+  }
+}

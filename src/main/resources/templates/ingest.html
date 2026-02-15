@@ -51,66 +51,162 @@
         }
         .num-cell { font-weight: 600; text-align: right; }
 
-        /* ======== Form Card ======== */
-        .form-card {
-            background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-            padding: 24px; max-width: 640px;
+        /* ======== Start Ingest Form (inline) ======== */
+        .start-form {
+            display: flex; align-items: center; gap: 8px;
         }
-        .form-row {
-            display: flex; gap: 16px; margin-bottom: 16px;
-        }
-        .form-group {
-            display: flex; flex-direction: column; gap: 4px; flex: 1;
-        }
-        .form-group label {
-            font-size: 12px; color: var(--text-muted); text-transform: uppercase;
-            letter-spacing: 0.5px; font-weight: 600;
-        }
-        .form-group input {
+        .start-form select, .start-form input {
             background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
-            padding: 8px 12px; color: var(--text); font-size: 14px;
+            padding: 6px 10px; color: var(--text); font-size: 13px;
             font-family: inherit;
         }
-        .form-group input:focus {
+        .start-form select:focus, .start-form input:focus {
             outline: none; border-color: var(--accent);
         }
-        .form-group input:disabled {
-            opacity: 0.5;
-        }
-        .form-group .hint {
-            font-size: 11px; color: var(--text-muted);
-        }
-        .form-actions {
-            display: flex; align-items: center; gap: 16px; margin-top: 8px;
-        }
 
-        /* ======== Result Card ======== */
-        .result-card {
-            background: var(--surface); border: 1px solid var(--green); border-radius: 10px;
-            padding: 20px 24px; max-width: 640px; margin-top: 16px;
-        }
-        .result-card h3 {
-            font-size: 15px; font-weight: 600; color: var(--green); margin-bottom: 12px;
-        }
-        .result-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px;
-        }
-        .result-item .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
-        .result-item .value { font-size: 18px; font-weight: 700; color: var(--text); }
-
-        .result-actions {
-            margin-top: 16px; display: flex; gap: 8px;
+        .branch-input {
+            width: 140px;
         }
 
         .elapsed-timer {
             font-size: 12px; color: var(--text-muted); font-family: 'Consolas', monospace;
         }
 
-        /* Responsive */
+        /* ======== Pipeline Panel ======== */
+        .pipeline-panel {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+            padding: 24px; margin-top: 16px;
+        }
+        .pipeline-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .pipeline-header h3 {
+            font-size: 16px; font-weight: 600;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .pipeline-meta {
+            display: flex; gap: 16px; font-size: 13px; color: var(--text-muted);
+        }
+        .pipeline-meta span { display: flex; align-items: center; gap: 4px; }
+
+        /* ======== Stepper ======== */
+        .stepper {
+            display: flex; align-items: flex-start; gap: 0; margin-bottom: 24px;
+            overflow-x: auto; padding-bottom: 4px;
+        }
+        .step-item {
+            display: flex; flex-direction: column; align-items: center;
+            flex: 1; min-width: 120px; position: relative;
+        }
+        .step-icon {
+            width: 36px; height: 36px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700;
+            border: 2px solid var(--border); background: var(--surface2);
+            color: var(--text-muted); position: relative; z-index: 2;
+            transition: all 0.3s;
+        }
+        .step-label {
+            margin-top: 8px; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.3px;
+            color: var(--text-muted); text-align: center;
+            transition: color 0.3s;
+        }
+        .step-duration {
+            font-size: 10px; color: var(--text-muted); margin-top: 2px;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* Connector line between steps */
+        .step-item:not(:last-child)::after {
+            content: ''; position: absolute;
+            top: 18px; left: calc(50% + 18px);
+            width: calc(100% - 36px); height: 2px;
+            background: var(--border); z-index: 1;
+            transition: background 0.3s;
+        }
+
+        /* Step states */
+        .step-item.completed .step-icon {
+            background: var(--green); border-color: var(--green); color: #1a1a2e;
+        }
+        .step-item.completed .step-label { color: var(--green); }
+        .step-item.completed::after { background: var(--green); }
+
+        .step-item.running .step-icon {
+            background: var(--accent-dim); border-color: var(--accent); color: var(--accent);
+            animation: pulse 1.5s infinite;
+        }
+        .step-item.running .step-label { color: var(--accent); }
+
+        .step-item.failed .step-icon {
+            background: #3a1a2a; border-color: var(--red); color: var(--red);
+        }
+        .step-item.failed .step-label { color: var(--red); }
+
+        .step-item.skipped .step-icon {
+            opacity: 0.4;
+        }
+        .step-item.skipped .step-label { opacity: 0.4; }
+
+        /* ======== Event Log ======== */
+        .event-log {
+            background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+            max-height: 320px; overflow-y: auto; padding: 0;
+            font-family: 'Consolas', 'Courier New', monospace; font-size: 13px;
+        }
+        .event-log::-webkit-scrollbar { width: 6px; }
+        .event-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .log-entry {
+            padding: 6px 14px; border-bottom: 1px solid var(--border);
+            display: flex; gap: 10px; align-items: baseline;
+        }
+        .log-entry:last-child { border-bottom: none; }
+        .log-entry:hover { background: var(--surface2); }
+
+        .log-time {
+            color: var(--text-muted); font-size: 11px; white-space: nowrap; min-width: 55px;
+        }
+        .log-level {
+            font-size: 11px; font-weight: 700; min-width: 40px;
+            text-transform: uppercase;
+        }
+        .log-level.info { color: var(--accent); }
+        .log-level.warn { color: var(--yellow); }
+        .log-level.error { color: var(--red); }
+        .log-step {
+            font-size: 11px; color: var(--mauve); min-width: 90px;
+        }
+        .log-msg { color: var(--text); word-break: break-word; }
+
+        .log-empty {
+            padding: 24px; text-align: center; color: var(--text-muted);
+        }
+
+        /* ======== Run History ======== */
+        .history-panel {
+            margin-top: 16px;
+        }
+        .run-row { cursor: pointer; }
+        .run-row.active-run { background: var(--accent-dim); }
+        .run-duration {
+            font-family: 'Consolas', monospace; font-size: 12px; color: var(--text-muted);
+        }
+
+        /* ======== Actions cell ======== */
+        .actions-cell {
+            display: flex; align-items: center; gap: 6px;
+        }
+
+        /* ======== Responsive ======== */
         @media (max-width: 900px) {
             .header { padding: 16px 20px; }
             .section { padding: 16px 20px; }
-            .form-row { flex-direction: column; }
+            .stepper { gap: 0; }
+            .step-item { min-width: 80px; }
+            .pipeline-header { flex-direction: column; align-items: flex-start; gap: 8px; }
         }
     </style>
 </head>
@@ -121,7 +217,7 @@
     <div>
         <h1>
             <span class="logo">&#9670;</span>
-            Ingest / Indexing
+            Ingest Pipeline
         </h1>
         <div class="breadcrumbs" style="margin-top:4px;margin-left:38px">
             <a href="/">Doc Generator</a><span class="sep">/</span><span class="current">Ingest</span>
@@ -141,10 +237,10 @@
     </div>
 </div>
 
-<!-- ======== Section 1: Applications Status Table ======== -->
 <main id="main">
+<!-- ======== Section 1: Applications Table ======== -->
 <div class="section">
-    <div class="section-title">Applications Index Status</div>
+    <div class="section-title">Applications</div>
 
     <div id="loading" class="loading-overlay">
         <div class="spinner"></div>
@@ -152,7 +248,7 @@
     </div>
 
     <div id="emptyState" class="empty-state" style="display:none">
-        No applications found. Use the form below to run your first ingest.
+        No applications found.
     </div>
 
     <div id="tableWrap" class="table-wrap" style="display:none">
@@ -176,61 +272,68 @@
     </div>
 </div>
 
-<!-- ======== Section 2: New Ingest Form ======== -->
-<div class="section">
-    <div class="section-title">New Ingest</div>
+<!-- ======== Section 2: Active Pipeline ======== -->
+<div class="section" id="pipelineSection" style="display:none">
+    <div class="section-title">Active Pipeline</div>
+    <div id="pipelinePanel" class="pipeline-panel"></div>
+</div>
 
-    <div class="form-card">
-        <form id="ingestForm" onsubmit="submitIngest(event)">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="f-appKey">App Key *</label>
-                    <input id="f-appKey" name="appKey" required placeholder="e.g. doc-generator"/>
-                </div>
-                <div class="form-group">
-                    <label for="f-repoGroup">Repo Group *</label>
-                    <input id="f-repoGroup" name="repoGroup" required placeholder="e.g. bftcom"/>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="f-repoName">Repo Name *</label>
-                    <input id="f-repoName" name="repoName" required placeholder="e.g. records-comparator"/>
-                </div>
-                <div class="form-group">
-                    <label for="f-branch">Branch</label>
-                    <input id="f-branch" name="branch" placeholder="default: develop"/>
-                    <span class="hint">Leave empty for default</span>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group" style="max-width:200px">
-                    <label for="f-depth">Depth</label>
-                    <input id="f-depth" name="depth" type="number" min="1" value="1"/>
-                    <span class="hint">Shallow clone depth</span>
-                </div>
-            </div>
-            <div class="form-actions">
-                <button type="submit" class="btn btn-accent" id="submitBtn">
-                    Run Ingest
-                </button>
-                <span id="formSpinner" style="display:none">
-                    <span class="inline-spinner"></span>
-                    <span class="elapsed-timer" id="formElapsed">0s</span>
-                </span>
-            </div>
-        </form>
+<!-- ======== Section 3: Run History ======== -->
+<div class="section" id="historySection" style="display:none">
+    <div class="section-title" id="historyTitle">Run History</div>
+    <div class="history-panel">
+        <div id="historyLoading" class="loading-overlay" style="display:none;padding:40px 0">
+            <div class="spinner"></div>
+        </div>
+        <div id="historyEmpty" class="empty-state" style="display:none">
+            No ingest runs found for this application.
+        </div>
+        <div id="historyTableWrap" class="table-wrap" style="display:none">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Run #</th>
+                        <th>Status</th>
+                        <th>Branch</th>
+                        <th>Commit</th>
+                        <th>Triggered By</th>
+                        <th>Started</th>
+                        <th>Duration</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody"></tbody>
+            </table>
+        </div>
     </div>
-
-    <div id="resultCard" style="display:none"></div>
 </div>
 </main>
 
 <script>
     let autoRefreshTimer = null;
-    let formTimerInterval = null;
-    let reindexTimers = {};
     let lastLoadedApps = [];
+    let activeRunId = null;
+    let activeEventSource = null;
+    let activeRunAppId = null;
+    let runElapsedTimer = null;
+
+    const STEP_LABELS = {
+        'CHECKOUT': 'Checkout',
+        'RESOLVE_CLASSPATH': 'Classpath',
+        'BUILD_LIBRARY': 'Libraries',
+        'BUILD_GRAPH': 'Graph',
+        'LINK': 'Link',
+    };
+
+    const STEP_ICONS = {
+        'CHECKOUT': '&#9745;',
+        'RESOLVE_CLASSPATH': '&#9881;',
+        'BUILD_LIBRARY': '&#9734;',
+        'BUILD_GRAPH': '&#9672;',
+        'LINK': '&#9741;',
+    };
+
+    const STEP_ORDER = ['CHECKOUT', 'RESOLVE_CLASSPATH', 'BUILD_LIBRARY', 'BUILD_GRAPH', 'LINK'];
 
     // ========== Load Applications Table ==========
     async function loadApps() {
@@ -279,15 +382,14 @@
         const statusClass = getStatusClass(app.lastIndexStatus);
         const statusLabel = app.lastIndexStatus || 'not indexed';
 
-        const indexTime = app.lastIndexedAt ? formatDate(app.lastIndexedAt) : '—';
-        const sha = app.lastCommitSha ? app.lastCommitSha.substring(0, 8) : '—';
+        const indexTime = app.lastIndexedAt ? formatDate(app.lastIndexedAt) : '\u2014';
+        const sha = app.lastCommitSha ? app.lastCommitSha.substring(0, 8) : '\u2014';
 
         const errorHtml = app.lastIndexError
             ? '<span class="error-hint"> &#9888;<span class="error-tooltip">' + esc(app.lastIndexError) + '</span></span>'
             : '';
 
-        const btnId = 'reindex-btn-' + app.applicationId;
-        const timerId = 'reindex-timer-' + app.applicationId;
+        const isRunning = activeRunAppId === app.applicationId;
 
         return '<tr>' +
             '<td>' + esc(app.applicationName) + '</td>' +
@@ -299,148 +401,456 @@
             '<td class="num-cell">' + fmt(app.nodeCount) + '</td>' +
             '<td class="num-cell">' + fmt(app.chunkCount) + '</td>' +
             '<td class="num-cell">' + fmt(app.edgeCount) + '</td>' +
-            '<td>' +
-                '<button class="btn btn-sm btn-danger" id="' + btnId + '" onclick="reindex(' + app.applicationId + ')">' +
-                    'Reindex' +
+            '<td class="actions-cell">' +
+                '<button class="btn btn-sm btn-accent" ' +
+                    (isRunning ? 'disabled' : '') +
+                    ' onclick="startIngest(' + app.applicationId + ')">' +
+                    (isRunning ? 'Running...' : 'Ingest') +
                 '</button>' +
-                '<span id="' + timerId + '" style="display:none;margin-left:8px">' +
-                    '<span class="inline-spinner"></span> ' +
-                    '<span class="elapsed-timer">0s</span>' +
-                '</span>' +
+                '<button class="btn btn-sm" onclick="showHistory(' + app.applicationId + ', \'' + esc(app.applicationName) + '\')">' +
+                    'History' +
+                '</button>' +
             '</td>' +
         '</tr>';
     }
 
-    // ========== Reindex ==========
-    async function reindex(appId) {
-        if (!confirm('This will re-index the application. Continue?')) return;
-
-        const btn = document.getElementById('reindex-btn-' + appId);
-        const timer = document.getElementById('reindex-timer-' + appId);
-        btn.disabled = true;
-        btn.textContent = 'Running...';
-        timer.style.display = 'inline';
-
-        const startTime = Date.now();
-        const elapsed = timer.querySelector('.elapsed-timer');
-        reindexTimers[appId] = setInterval(() => {
-            elapsed.textContent = Math.floor((Date.now() - startTime) / 1000) + 's';
-        }, 1000);
-
-        try {
-            const res = await fetch('/api/ingest/reindex/' + appId, { method: 'POST' });
-            if (!res.ok) {
-                const body = await res.text();
-                throw new Error('HTTP ' + res.status + ': ' + body);
-            }
-            const summary = await res.json();
-            showToast('Reindex completed: ' + summary.nodes + ' nodes, ' + summary.edges + ' edges, ' + summary.tookMs + 'ms', 'success');
-            loadApps();
-        } catch (e) {
-            console.error('Reindex error:', e);
-            showToast('Reindex failed: ' + e.message, 'error');
-        } finally {
-            clearInterval(reindexTimers[appId]);
-            delete reindexTimers[appId];
-            btn.disabled = false;
-            btn.textContent = 'Reindex';
-            timer.style.display = 'none';
+    // ========== Start Ingest ==========
+    async function startIngest(appId) {
+        if (activeRunId) {
+            showToast('An ingest run is already active. Wait for it to finish.', 'error');
+            return;
         }
-    }
-
-    // ========== New Ingest Form ==========
-    async function submitIngest(e) {
-        e.preventDefault();
-
-        const form = document.getElementById('ingestForm');
-        const btn = document.getElementById('submitBtn');
-        const spinner = document.getElementById('formSpinner');
-        const elapsedEl = document.getElementById('formElapsed');
-        const resultCard = document.getElementById('resultCard');
-
-        const payload = {
-            appKey: form.appKey.value.trim(),
-            repoGroup: form.repoGroup.value.trim(),
-            repoName: form.repoName.value.trim(),
-        };
-        if (form.branch.value.trim()) payload.branch = form.branch.value.trim();
-        if (form.depth.value) payload.depth = parseInt(form.depth.value);
-
-        // Disable form
-        Array.from(form.elements).forEach(el => el.disabled = true);
-        btn.textContent = 'Running...';
-        spinner.style.display = 'inline';
-        resultCard.style.display = 'none';
-
-        const startTime = Date.now();
-        formTimerInterval = setInterval(() => {
-            elapsedEl.textContent = Math.floor((Date.now() - startTime) / 1000) + 's';
-        }, 1000);
 
         try {
-            const res = await fetch('/internal/ingest/run', {
+            const res = await fetch('/api/ingest/start/' + appId, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ triggeredBy: 'ui' }),
             });
+
             if (!res.ok) {
                 const body = await res.text();
-                throw new Error('HTTP ' + res.status + ': ' + body);
+                throw new Error(body || ('HTTP ' + res.status));
             }
-            const summary = await res.json();
-            showResultCard(summary, payload.appKey);
-            showToast('Ingest completed successfully!', 'success');
-            loadApps();
+
+            const run = await res.json();
+            activeRunId = run.runId;
+            activeRunAppId = appId;
+
+            showPipeline(run);
+            connectSSE(run.runId);
+            loadApps(); // refresh table to show "Running" state
+
+            showToast('Ingest started (run #' + run.runId + ')', 'success');
         } catch (e) {
-            console.error('Ingest error:', e);
-            showToast('Ingest failed: ' + e.message, 'error');
-        } finally {
-            clearInterval(formTimerInterval);
-            Array.from(form.elements).forEach(el => el.disabled = false);
-            btn.textContent = 'Run Ingest';
-            spinner.style.display = 'none';
+            console.error('Start ingest error:', e);
+            showToast('Failed to start ingest: ' + e.message, 'error');
         }
     }
 
-    function showResultCard(summary, appKey) {
-        // Resolve applicationId from the loaded applications list
-        const matchedApp = lastLoadedApps.find(a => a.applicationKey === appKey);
-        const appId = matchedApp ? matchedApp.applicationId : null;
+    // ========== Pipeline Visualization ==========
+    function showPipeline(run) {
+        const section = document.getElementById('pipelineSection');
+        const panel = document.getElementById('pipelinePanel');
+        section.style.display = 'block';
 
-        const graphLink = appId
-            ? '<a class="btn btn-sm btn-accent" href="/graph?appId=' + appId + '">Open Graph</a>'
-            : '';
-        const chatLink = appId
-            ? '<a class="btn btn-sm" href="/chat?appId=' + appId + '">Chat</a>'
-            : '';
+        const app = lastLoadedApps.find(a => a.applicationId === (activeRunAppId || run.applicationId));
+        const appName = app ? app.applicationName : 'App #' + run.applicationId;
 
-        const card = document.getElementById('resultCard');
-        card.style.display = 'block';
-        card.innerHTML =
-            '<div class="result-card">' +
-                '<h3>&#10003; Ingest Completed</h3>' +
-                '<div class="result-grid">' +
-                    '<div class="result-item"><div class="label">App Key</div><div class="value">' + esc(summary.appKey) + '</div></div>' +
-                    '<div class="result-item"><div class="label">Nodes</div><div class="value">' + fmt(summary.nodes) + '</div></div>' +
-                    '<div class="result-item"><div class="label">Edges</div><div class="value">' + fmt(summary.edges) + '</div></div>' +
-                    '<div class="result-item"><div class="label">Duration</div><div class="value">' + formatDuration(summary.tookMs) + '</div></div>' +
-                    (summary.headSha ? '<div class="result-item"><div class="label">Commit</div><div class="value" style="font-size:14px;font-family:monospace">' + esc(summary.headSha.substring(0, 8)) + '</div></div>' : '') +
-                '</div>' +
-                (graphLink || chatLink
-                    ? '<div class="result-actions">' + graphLink + chatLink + '</div>'
-                    : '') +
-            '</div>';
+        panel.innerHTML = buildPipelineHtml(run, appName);
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Start elapsed timer
+        startRunTimer(run);
     }
 
-    // esc, showToast, getStatusClass, formatDate, formatDuration, fmt — from /js/common.js
+    function buildPipelineHtml(run, appName) {
+        const statusClass = getStatusClass(run.status);
+        const branch = run.branch || '\u2014';
+        const sha = run.commitSha ? run.commitSha.substring(0, 8) : '\u2014';
 
-    // Auto-refresh every 15 seconds
+        let html = '<div class="pipeline-header">' +
+            '<h3><span class="status-badge ' + statusClass + '">' + esc(run.status) + '</span> ' +
+            esc(appName) + ' &mdash; Run #' + run.runId + '</h3>' +
+            '<div class="pipeline-meta">' +
+                '<span>Branch: <strong>' + esc(branch) + '</strong></span>' +
+                '<span>Commit: <strong class="sha-cell">' + sha + '</strong></span>' +
+                '<span id="runElapsed" class="elapsed-timer"></span>' +
+            '</div>' +
+        '</div>';
+
+        // Stepper
+        html += '<div class="stepper">';
+        const stepsMap = {};
+        if (run.steps) {
+            run.steps.forEach(s => { stepsMap[s.stepType] = s; });
+        }
+
+        STEP_ORDER.forEach((type, i) => {
+            const step = stepsMap[type] || { status: 'PENDING' };
+            const stateClass = getStepClass(step.status);
+            const dur = stepDuration(step);
+
+            html += '<div class="step-item ' + stateClass + '" id="step-' + type + '">' +
+                '<div class="step-icon">' + getStepStatusIcon(step.status, i + 1) + '</div>' +
+                '<div class="step-label">' + (STEP_LABELS[type] || type) + '</div>' +
+                (dur ? '<div class="step-duration">' + dur + '</div>' : '<div class="step-duration" id="step-dur-' + type + '"></div>') +
+            '</div>';
+        });
+        html += '</div>';
+
+        // Error message
+        if (run.errorMessage) {
+            html += '<div style="background:#3a1a2a;border:1px solid var(--red);border-radius:8px;padding:12px 16px;margin-bottom:16px;color:var(--red);font-size:13px">' +
+                '&#9888; ' + esc(run.errorMessage) +
+            '</div>';
+        }
+
+        // Event log
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
+            '<div style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Event Log</div>' +
+            '<button class="btn btn-sm" onclick="clearLog()" style="font-size:11px;padding:4px 10px">Clear</button>' +
+        '</div>';
+        html += '<div class="event-log" id="eventLog">' +
+            '<div class="log-empty">Waiting for events...</div>' +
+        '</div>';
+
+        return html;
+    }
+
+    function getStepClass(status) {
+        if (!status) return '';
+        const s = status.toUpperCase();
+        if (s === 'COMPLETED') return 'completed';
+        if (s === 'RUNNING') return 'running';
+        if (s === 'FAILED') return 'failed';
+        if (s === 'SKIPPED') return 'skipped';
+        return '';
+    }
+
+    function getStepStatusIcon(status, num) {
+        if (!status) return num;
+        const s = status.toUpperCase();
+        if (s === 'COMPLETED') return '&#10003;';
+        if (s === 'RUNNING') return '<span class="inline-spinner" style="width:18px;height:18px;border-width:2px"></span>';
+        if (s === 'FAILED') return '&#10007;';
+        if (s === 'SKIPPED') return '&#8212;';
+        return num;
+    }
+
+    function stepDuration(step) {
+        if (!step.startedAt) return '';
+        if (step.finishedAt) {
+            const ms = new Date(step.finishedAt) - new Date(step.startedAt);
+            return formatDuration(ms);
+        }
+        return '';
+    }
+
+    function startRunTimer(run) {
+        if (runElapsedTimer) clearInterval(runElapsedTimer);
+        const startTime = run.startedAt ? new Date(run.startedAt).getTime() : Date.now();
+
+        function updateElapsed() {
+            const el = document.getElementById('runElapsed');
+            if (!el) return;
+            if (run.status === 'COMPLETED' || run.status === 'FAILED' || run.status === 'CANCELLED') {
+                if (run.finishedAt) {
+                    el.textContent = formatDuration(new Date(run.finishedAt) - startTime);
+                }
+                clearInterval(runElapsedTimer);
+                return;
+            }
+            el.textContent = formatDuration(Date.now() - startTime);
+        }
+
+        updateElapsed();
+        runElapsedTimer = setInterval(updateElapsed, 1000);
+    }
+
+    // ========== SSE Connection ==========
+    function connectSSE(runId) {
+        if (activeEventSource) {
+            activeEventSource.close();
+        }
+
+        const es = new EventSource('/api/ingest/runs/' + runId + '/stream');
+        activeEventSource = es;
+
+        es.addEventListener('log', e => handleEvent(e));
+        es.addEventListener('step_started', e => handleEvent(e));
+        es.addEventListener('step_completed', e => handleEvent(e));
+        es.addEventListener('step_failed', e => handleEvent(e));
+        es.addEventListener('run_completed', e => {
+            handleEvent(e);
+            onRunFinished('COMPLETED');
+        });
+        es.addEventListener('error', e => {
+            if (e.data) {
+                handleEvent(e);
+            }
+            // SSE will auto-reconnect on network errors; on stream end, close gracefully
+        });
+
+        es.onopen = () => {
+            console.log('SSE connected for run ' + runId);
+        };
+
+        // When the stream ends (server completes the flux), EventSource fires an error with readyState=2
+        es.onerror = () => {
+            if (es.readyState === EventSource.CLOSED) {
+                console.log('SSE stream closed for run ' + runId);
+                finalizeRun(runId);
+            }
+        };
+    }
+
+    function handleEvent(e) {
+        let event;
+        try {
+            event = JSON.parse(e.data);
+        } catch {
+            // Plain string error messages
+            appendLogEntry({ level: 'ERROR', message: e.data, createdAt: new Date().toISOString() });
+            return;
+        }
+
+        appendLogEntry(event);
+
+        // Update stepper based on event type
+        if (e.type === 'step_started' && event.stepType) {
+            updateStepState(event.stepType, 'RUNNING');
+        } else if (e.type === 'step_completed' && event.stepType) {
+            updateStepState(event.stepType, 'COMPLETED');
+        } else if (e.type === 'step_failed' && event.stepType) {
+            updateStepState(event.stepType, 'FAILED');
+        }
+    }
+
+    function appendLogEntry(event) {
+        const log = document.getElementById('eventLog');
+        if (!log) return;
+
+        // Remove "waiting" placeholder
+        const empty = log.querySelector('.log-empty');
+        if (empty) empty.remove();
+
+        const time = event.createdAt
+            ? new Date(event.createdAt).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'})
+            : '';
+        const level = (event.level || 'INFO').toLowerCase();
+        const step = event.stepType || '';
+
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML =
+            '<span class="log-time">' + time + '</span>' +
+            '<span class="log-level ' + level + '">' + esc(level) + '</span>' +
+            '<span class="log-step">' + esc(step ? (STEP_LABELS[step] || step) : '') + '</span>' +
+            '<span class="log-msg">' + esc(event.message) + '</span>';
+
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function clearLog() {
+        const log = document.getElementById('eventLog');
+        if (log) log.innerHTML = '<div class="log-empty">Log cleared</div>';
+    }
+
+    function updateStepState(stepType, status) {
+        const el = document.getElementById('step-' + stepType);
+        if (!el) return;
+
+        // Remove old state classes
+        el.classList.remove('completed', 'running', 'failed', 'skipped');
+        el.classList.add(getStepClass(status));
+
+        // Update icon
+        const idx = STEP_ORDER.indexOf(stepType);
+        const icon = el.querySelector('.step-icon');
+        if (icon) icon.innerHTML = getStepStatusIcon(status, idx + 1);
+    }
+
+    function onRunFinished(status) {
+        activeRunId = null;
+        activeRunAppId = null;
+        if (runElapsedTimer) clearInterval(runElapsedTimer);
+
+        // Update header badge
+        const badge = document.querySelector('#pipelinePanel .status-badge');
+        if (badge) {
+            badge.className = 'status-badge ' + getStatusClass(status);
+            badge.textContent = status;
+        }
+
+        if (activeEventSource) {
+            activeEventSource.close();
+            activeEventSource = null;
+        }
+
+        loadApps();
+    }
+
+    async function finalizeRun(runId) {
+        // Fetch final state from server
+        try {
+            const res = await fetch('/api/ingest/runs/' + runId);
+            if (!res.ok) return;
+            const run = await res.json();
+
+            // Update stepper with final data
+            if (run.steps) {
+                run.steps.forEach(step => {
+                    updateStepState(step.stepType, step.status);
+                    // Update duration
+                    const durEl = document.getElementById('step-dur-' + step.stepType);
+                    if (durEl) durEl.textContent = stepDuration(step);
+                });
+            }
+
+            if (run.status === 'COMPLETED' || run.status === 'FAILED' || run.status === 'CANCELLED') {
+                onRunFinished(run.status);
+                if (run.status === 'COMPLETED') {
+                    showToast('Ingest run #' + runId + ' completed successfully!', 'success');
+                } else if (run.status === 'FAILED') {
+                    showToast('Ingest run #' + runId + ' failed: ' + (run.errorMessage || 'Unknown error'), 'error');
+                }
+            }
+        } catch (e) {
+            console.error('Failed to fetch final run state:', e);
+        }
+    }
+
+    // ========== Run History ==========
+    async function showHistory(appId, appName) {
+        const section = document.getElementById('historySection');
+        const title = document.getElementById('historyTitle');
+        const loading = document.getElementById('historyLoading');
+        const empty = document.getElementById('historyEmpty');
+        const wrap = document.getElementById('historyTableWrap');
+        const body = document.getElementById('historyBody');
+
+        section.style.display = 'block';
+        title.textContent = 'Run History \u2014 ' + appName;
+        loading.style.display = 'flex';
+        empty.style.display = 'none';
+        wrap.style.display = 'none';
+
+        try {
+            const res = await fetch('/api/ingest/runs/app/' + appId);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const runs = await res.json();
+
+            loading.style.display = 'none';
+
+            if (runs.length === 0) {
+                empty.style.display = 'block';
+                return;
+            }
+
+            wrap.style.display = 'block';
+            body.innerHTML = runs.map(renderHistoryRow).join('');
+
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (e) {
+            loading.style.display = 'none';
+            console.error('History load error:', e);
+            showToast('Failed to load run history: ' + e.message, 'error');
+        }
+    }
+
+    function renderHistoryRow(run) {
+        const statusClass = getStatusClass(run.status);
+        const sha = run.commitSha ? run.commitSha.substring(0, 8) : '\u2014';
+        const started = run.startedAt ? formatDate(run.startedAt) : '\u2014';
+        const dur = (run.startedAt && run.finishedAt)
+            ? formatDuration(new Date(run.finishedAt) - new Date(run.startedAt))
+            : (run.status === 'RUNNING' ? '<span class="inline-spinner"></span>' : '\u2014');
+
+        const stepsHtml = (run.steps || []).map(s => {
+            const cls = getStepClass(s.status);
+            return '<span class="status-badge ' + getStatusClass(s.status) + '" style="font-size:10px;padding:2px 6px" title="' + esc(s.stepType) + '">' +
+                esc(STEP_LABELS[s.stepType] || s.stepType) + '</span>';
+        }).join(' ');
+
+        return '<tr class="run-row">' +
+            '<td><strong>#' + run.runId + '</strong></td>' +
+            '<td><span class="status-badge ' + statusClass + '">' + esc(run.status) + '</span></td>' +
+            '<td>' + esc(run.branch || '\u2014') + '</td>' +
+            '<td class="sha-cell">' + sha + '</td>' +
+            '<td style="font-size:13px;color:var(--text-muted)">' + esc(run.triggeredBy || '\u2014') + '</td>' +
+            '<td style="font-size:13px;color:var(--text-muted)">' + started + '</td>' +
+            '<td class="run-duration">' + dur + '</td>' +
+            '<td>' +
+                '<button class="btn btn-sm" onclick="viewRun(' + run.runId + ',' + run.applicationId + ')">View</button>' +
+            '</td>' +
+        '</tr>';
+    }
+
+    // ========== View a specific run ==========
+    async function viewRun(runId, appId) {
+        try {
+            const res = await fetch('/api/ingest/runs/' + runId);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const run = await res.json();
+
+            activeRunAppId = appId;
+
+            // If run is still active, connect SSE
+            if (run.status === 'RUNNING' || run.status === 'PENDING') {
+                activeRunId = runId;
+                showPipeline(run);
+                connectSSE(runId);
+            } else {
+                // Show completed/failed run with events
+                activeRunId = null;
+                showPipeline(run);
+                loadRunEvents(runId);
+            }
+        } catch (e) {
+            console.error('View run error:', e);
+            showToast('Failed to load run: ' + e.message, 'error');
+        }
+    }
+
+    async function loadRunEvents(runId) {
+        // Load events via the SSE endpoint but just read past events
+        // Actually, let's use the stream endpoint - it will send past events then complete
+        try {
+            const es = new EventSource('/api/ingest/runs/' + runId + '/stream');
+
+            es.addEventListener('log', e => handleEvent(e));
+            es.addEventListener('step_started', e => handleEvent(e));
+            es.addEventListener('step_completed', e => handleEvent(e));
+            es.addEventListener('step_failed', e => handleEvent(e));
+            es.addEventListener('run_completed', e => handleEvent(e));
+            es.addEventListener('error', e => {
+                if (e.data) handleEvent(e);
+            });
+
+            es.onerror = () => {
+                if (es.readyState === EventSource.CLOSED) {
+                    es.close();
+                }
+            };
+
+            // Auto-close after a few seconds for completed runs
+            setTimeout(() => es.close(), 5000);
+        } catch (e) {
+            console.error('Failed to load run events:', e);
+        }
+    }
+
+    // ========== Auto-refresh ==========
     function startAutoRefresh() {
         if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-        autoRefreshTimer = setInterval(loadApps, 15000);
+        autoRefreshTimer = setInterval(() => {
+            if (!activeRunId) loadApps();
+        }, 30000);
     }
 
-    // Initial load
+    // ========== Init ==========
     loadApps();
     startAutoRefresh();
 </script>

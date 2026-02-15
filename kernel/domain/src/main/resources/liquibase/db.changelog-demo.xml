@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- инженерный вестник дона -->
+<!-- Demo changelog: same as master but without pgvector extension (BYTEA instead of vector) -->
 <databaseChangeLog
         xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -7,24 +7,27 @@
         http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.23.xsd">
 
+    <!-- DEMO: init schema WITHOUT pgvector -->
     <changeSet id="0-init-schema" author="kaspshitskii" runInTransaction="false">
         <sqlFile
-                path="migration/0_init_schema.sql"
+                path="migration/demo/0_init_schema_demo.sql"
                 relativeToChangelogFile="true"
                 endDelimiter=";"
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
 
+    <!-- DEMO: init tables with BYTEA instead of vector(1024) -->
     <changeSet id="00-init-db" author="kaspshitskii">
         <sqlFile
-                path="migration/00_init.sql"
+                path="migration/demo/00_init_demo.sql"
                 relativeToChangelogFile="true"
                 endDelimiter=";"
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
 
+    <!-- Same as master -->
     <changeSet id="01-chat-memory" author="kaspshitskii">
         <sqlFile
                 path="migration/01_spring_ai_chat_memory.sql"
@@ -61,14 +64,7 @@
                 stripComments="true"/>
     </changeSet>
 
-    <changeSet id="05-add-pgvector" author="kaspshitskii">
-        <sqlFile
-                path="migration/05_add_pgvector.sql"
-                relativeToChangelogFile="true"
-                endDelimiter=";"
-                splitStatements="true"
-                stripComments="true"/>
-    </changeSet>
+    <!-- DEMO: 05-add-pgvector SKIPPED — pgvector not available -->
 
     <changeSet id="06-add-metadata-to-chunk" author="kaspshitskii">
         <sqlFile
@@ -124,9 +120,10 @@
                 stripComments="true"/>
     </changeSet>
 
+    <!-- DEMO: synonym dictionary with BYTEA instead of vector -->
     <changeSet id="13-add-synonym-dictionary" author="kaspshitskii">
         <sqlFile
-                path="migration/13_add_synonym_dictionary.sql"
+                path="migration/demo/13_add_synonym_demo.sql"
                 relativeToChangelogFile="true"
                 endDelimiter=";"
                 splitStatements="true"

@@ -95,6 +95,9 @@ dependencies {
     implementation("org.postgresql:postgresql")
     implementation("org.liquibase:liquibase-core")
 
+    // ===== Embedded PostgreSQL (demo profile) =====
+    implementation("io.zonky.test:embedded-postgres:2.1.0")
+
     // ===== Spring AI =====
     implementation("org.springframework.ai:spring-ai-starter-model-ollama")
     implementation("org.springframework.ai:spring-ai-starter-vector-store-pgvector")

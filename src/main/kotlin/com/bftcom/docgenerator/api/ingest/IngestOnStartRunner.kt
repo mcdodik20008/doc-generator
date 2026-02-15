@@ -18,7 +18,7 @@ class IngestOnStartRunner(
         val argList = args.filterNotNull()
 
         if (argList.none { it.startsWith("--ingest") }) {
-            log.info("⏭️  IngestOnStartRunner: no ingest flags passed, skipping")
+            log.info(" IngestOnStartRunner: no ingest flags passed, skipping")
             return
         }
 

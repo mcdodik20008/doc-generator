@@ -1,0 +1,25 @@
+# Demo profile — embedded PostgreSQL, no Docker, no Ollama, no pgvector
+# Run: gradlew.bat bootRun --args="--spring.profiles.active=demo"
+
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
+      - org.springframework.boot.docker.compose.autoconfigure.DockerComposeAutoConfiguration
+  liquibase:
+    change-log: classpath:/liquibase/db.changelog-demo.xml
+  ai:
+    ollama:
+      embedding:
+        enabled: false
+      chat:
+        enabled: false
+    openai:
+      chat:
+        enabled: false
+      embedding:
+        enabled: false
+
+docgen:
+  embed:
+    enabled: false
