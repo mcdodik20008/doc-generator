@@ -113,9 +113,9 @@ class ResultFilterServiceTest {
         // Act
         val filtered = filterService.filterResults(results, context)
 
-        // Assert
-        assertThat(filtered).hasSize(1)
-        assertThat(filtered[0].id).isEqualTo("1")
+        // Assert — with soft filtering, results matching EITHER class OR method pass
+        assertThat(filtered).hasSize(3)
+        assertThat(filtered.map { it.id }).containsExactlyInAnyOrder("1", "2", "3")
     }
 
     @Test

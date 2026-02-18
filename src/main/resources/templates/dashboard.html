@@ -28,6 +28,44 @@
             text-transform: uppercase; letter-spacing: 0.5px;
         }
 
+        /* ======== Skeleton Loading ======== */
+        .skeleton {
+            background: var(--surface2);
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+        }
+        .skeleton::after {
+            content: '';
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .skeleton-stat-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+            padding: 20px 24px; text-align: center;
+        }
+        .skeleton-stat-value {
+            width: 60px; height: 32px; margin: 0 auto 8px;
+        }
+        .skeleton-stat-label {
+            width: 80px; height: 14px; margin: 0 auto;
+        }
+        .skeleton-app-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 24px; display: flex; flex-direction: column; gap: 14px;
+        }
+        .skeleton-app-title { width: 60%; height: 20px; }
+        .skeleton-app-key { width: 40%; height: 14px; }
+        .skeleton-app-status { width: 30%; height: 24px; border-radius: 12px; }
+        .skeleton-app-stats { width: 80%; height: 14px; }
+        .skeleton-app-actions { width: 50%; height: 30px; border-radius: 6px; }
+
         /* ======== Applications Grid ======== */
         .section-title {
             padding: 8px 32px 16px;
@@ -75,6 +113,33 @@
         .index-time {
             font-size: 12px; color: var(--text-muted);
         }
+        .index-time[title] { cursor: help; }
+
+        /* Progress bar for running ingest */
+        .ingest-progress {
+            width: 100%;
+        }
+        .ingest-progress-bar {
+            height: 6px; border-radius: 3px; background: var(--surface2);
+            overflow: hidden;
+        }
+        .ingest-progress-fill {
+            height: 100%; border-radius: 3px;
+            background: var(--accent);
+            transition: width .5s ease;
+        }
+        .ingest-progress-fill.indeterminate {
+            width: 30% !important;
+            animation: indeterminate 1.5s infinite ease-in-out;
+        }
+        @keyframes indeterminate {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+        }
+        .ingest-progress-text {
+            font-size: 11px; color: var(--text-muted); margin-top: 4px;
+            display: flex; justify-content: space-between;
+        }
 
         /* Stats Row */
         .stats-row {
@@ -101,10 +166,18 @@
 
         /* Actions */
         .actions-row {
-            display: flex; gap: 8px; margin-top: auto;
+            display: flex; gap: 8px; margin-top: auto; flex-wrap: wrap;
         }
         .actions-row a, .actions-row button {
             text-decoration: none;
+        }
+        .btn-danger {
+            color: var(--red) !important;
+            border-color: var(--red) !important;
+        }
+        .btn-danger:hover {
+            background: var(--red) !important;
+            color: #fff !important;
         }
 
         .repo-link {
@@ -116,6 +189,64 @@
 
         .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
 
+        /* ======== Toolbar ======== */
+        .apps-toolbar {
+            display: flex; align-items: center; gap: 12px; padding: 0 32px 12px;
+            flex-wrap: wrap;
+        }
+        .apps-toolbar .search-input {
+            flex: 1; min-width: 200px; max-width: 360px;
+            padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--surface); color: var(--text); font-size: 14px;
+            outline: none; transition: border-color .2s;
+        }
+        .apps-toolbar .search-input:focus { border-color: var(--accent); }
+        .apps-toolbar .search-input::placeholder { color: var(--text-muted); }
+        .apps-toolbar select {
+            padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--surface); color: var(--text); font-size: 14px;
+            outline: none; cursor: pointer;
+        }
+        .apps-toolbar select:focus { border-color: var(--accent); }
+        .apps-toolbar .result-count {
+            font-size: 13px; color: var(--text-muted); margin-left: auto;
+        }
+
+        /* ======== Auto-refresh countdown ======== */
+        .refresh-countdown {
+            font-size: 12px; color: var(--text-muted);
+            display: inline-flex; align-items: center; gap: 4px;
+        }
+        .refresh-countdown-ring {
+            width: 18px; height: 18px;
+        }
+        .refresh-countdown-ring circle {
+            fill: none; stroke-width: 2;
+        }
+        .refresh-countdown-ring .bg { stroke: var(--surface2); }
+        .refresh-countdown-ring .fg {
+            stroke: var(--accent);
+            stroke-dasharray: 44;
+            stroke-dashoffset: 0;
+            transform: rotate(-90deg);
+            transform-origin: center;
+            transition: stroke-dashoffset 1s linear;
+        }
+
+        /* ======== Confirm dialog ======== */
+        .confirm-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .confirm-dialog {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 24px; max-width: 400px; width: 90%;
+        }
+        .confirm-dialog h3 { margin: 0 0 12px; font-size: 16px; }
+        .confirm-dialog p { margin: 0 0 20px; font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+        .confirm-dialog .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
         /* Responsive */
         @media (max-width: 900px) {
             .apps-grid { grid-template-columns: 1fr; }
@@ -123,6 +254,8 @@
             .global-stats { padding: 16px 20px; }
             .apps-grid { padding: 0 20px 20px; }
             .section-title { padding: 8px 20px 12px; }
+            .apps-toolbar { padding: 0 20px 12px; }
+            .apps-toolbar .search-input { max-width: 100%; }
         }
     </style>
 </head>
@@ -147,6 +280,13 @@
             <a href="/ingest">Ingest</a>
             <a href="/health">Health</a>
         </nav>
+        <span class="refresh-countdown" id="refreshCountdown" title="Auto-refresh countdown">
+            <svg class="refresh-countdown-ring" viewBox="0 0 20 20">
+                <circle class="bg" cx="10" cy="10" r="7"/>
+                <circle class="fg" id="countdownRing" cx="10" cy="10" r="7"/>
+            </svg>
+            <span id="countdownText">60s</span>
+        </span>
         <span id="lastUpdated"></span>
         <button class="btn" onclick="loadDashboard()">&#8635; Refresh</button>
         <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">&#9728;</button>
@@ -157,12 +297,27 @@
 <div id="globalStats" class="global-stats"></div>
 
 <div class="section-title" id="appsTitle" style="display:none">Applications</div>
-<div id="appsGrid" class="apps-grid"></div>
-
-<div id="loading" class="loading-overlay">
-    <div class="spinner"></div>
-    <div style="color: var(--text-muted)">Loading dashboard...</div>
+<div id="appsToolbar" class="apps-toolbar" style="display:none">
+    <input type="text" class="search-input" id="appSearch" placeholder="Search by name or key..." oninput="applyFilters()"/>
+    <select id="appSort" onchange="applyFilters()">
+        <option value="name-asc">Name A-Z</option>
+        <option value="name-desc">Name Z-A</option>
+        <option value="nodes-desc">Nodes &#8595;</option>
+        <option value="nodes-asc">Nodes &#8593;</option>
+        <option value="date-desc">Last indexed &#8595;</option>
+        <option value="date-asc">Last indexed &#8593;</option>
+        <option value="status">Status</option>
+    </select>
+    <select id="appStatusFilter" onchange="applyFilters()">
+        <option value="">All statuses</option>
+        <option value="completed">Completed</option>
+        <option value="failed">Failed</option>
+        <option value="running">Running</option>
+        <option value="not indexed">Not indexed</option>
+    </select>
+    <span class="result-count" id="resultCount"></span>
 </div>
+<div id="appsGrid" class="apps-grid"></div>
 
 <div id="emptyState" class="empty-state" style="display:none">
     <div class="empty-icon">&#128230;</div>
@@ -174,25 +329,80 @@
 </main>
 
 <script>
+    const AUTO_REFRESH_INTERVAL = 60; // seconds
     let autoRefreshTimer = null;
+    let countdownTimer = null;
+    let countdownSeconds = AUTO_REFRESH_INTERVAL;
+    let allApps = [];
 
+    // ======== Skeleton Loading ========
+    function showSkeletons() {
+        const globalStats = document.getElementById('globalStats');
+        const appsGrid = document.getElementById('appsGrid');
+
+        // Skeleton stat cards
+        globalStats.innerHTML = Array(5).fill(0).map(() => `
+            <div class="skeleton-stat-card">
+                <div class="skeleton skeleton-stat-value"></div>
+                <div class="skeleton skeleton-stat-label"></div>
+            </div>
+        `).join('');
+
+        // Skeleton app cards
+        appsGrid.innerHTML = Array(4).fill(0).map(() => `
+            <div class="skeleton-app-card">
+                <div class="skeleton skeleton-app-title"></div>
+                <div class="skeleton skeleton-app-key"></div>
+                <div class="skeleton skeleton-app-status"></div>
+                <div class="skeleton skeleton-app-stats"></div>
+                <div class="skeleton skeleton-app-actions"></div>
+            </div>
+        `).join('');
+    }
+
+    // ======== Auto-refresh countdown ========
+    function startCountdown() {
+        countdownSeconds = AUTO_REFRESH_INTERVAL;
+        updateCountdownUI();
+
+        if (countdownTimer) clearInterval(countdownTimer);
+        countdownTimer = setInterval(() => {
+            countdownSeconds--;
+            updateCountdownUI();
+            if (countdownSeconds <= 0) {
+                loadDashboard();
+            }
+        }, 1000);
+    }
+
+    function updateCountdownUI() {
+        const text = document.getElementById('countdownText');
+        const ring = document.getElementById('countdownRing');
+        if (text) text.textContent = countdownSeconds + 's';
+        if (ring) {
+            const circumference = 44; // 2 * PI * 7
+            const offset = circumference * (1 - countdownSeconds / AUTO_REFRESH_INTERVAL);
+            ring.style.strokeDashoffset = offset;
+        }
+    }
+
+    // ======== Main load ========
     async function loadDashboard() {
-        const loading = document.getElementById('loading');
         const globalStats = document.getElementById('globalStats');
         const appsGrid = document.getElementById('appsGrid');
         const appsTitle = document.getElementById('appsTitle');
+        const appsToolbar = document.getElementById('appsToolbar');
         const emptyState = document.getElementById('emptyState');
 
-        loading.style.display = 'flex';
-        globalStats.innerHTML = '';
-        appsGrid.innerHTML = '';
+        showSkeletons();
         appsTitle.style.display = 'none';
+        appsToolbar.style.display = 'none';
         emptyState.style.display = 'none';
 
         try {
             const res = await fetch('/api/dashboard/stats');
             if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                throw new Error('HTTP ' + res.status + ': ' + res.statusText);
             }
             const data = await res.json();
 
@@ -200,29 +410,67 @@
                 throw new Error('Invalid response format');
             }
 
-            loading.style.display = 'none';
             renderGlobalStats(data.global, data.applications);
+            allApps = data.applications;
 
             if (data.applications.length === 0) {
+                appsGrid.innerHTML = '';
                 emptyState.style.display = 'block';
             } else {
                 appsTitle.style.display = 'block';
-                renderApps(data.applications);
+                appsToolbar.style.display = 'flex';
+                applyFilters();
             }
 
             document.getElementById('lastUpdated').textContent =
                 'Updated: ' + new Date().toLocaleTimeString('ru-RU');
 
         } catch (e) {
-            loading.style.display = 'none';
+            globalStats.innerHTML = '';
+            appsGrid.innerHTML = '';
             console.error('Dashboard load error:', e);
             showToast('Failed to load dashboard: ' + e.message);
         }
+
+        startCountdown();
+    }
+
+    function applyFilters() {
+        const query = (document.getElementById('appSearch').value || '').toLowerCase();
+        const sortBy = document.getElementById('appSort').value;
+        const statusFilter = document.getElementById('appStatusFilter').value;
+
+        let filtered = allApps.filter(function(app) {
+            const name = (app.applicationName || '').toLowerCase();
+            const key = (app.applicationKey || '').toLowerCase();
+            const matchesSearch = !query || name.includes(query) || key.includes(query);
+            const status = (app.lastIndexStatus || 'not indexed').toLowerCase();
+            const matchesStatus = !statusFilter || status === statusFilter
+                || (statusFilter === 'running' && status === 'in_progress');
+            return matchesSearch && matchesStatus;
+        });
+
+        filtered.sort(function(a, b) {
+            switch (sortBy) {
+                case 'name-asc': return (a.applicationName || '').localeCompare(b.applicationName || '');
+                case 'name-desc': return (b.applicationName || '').localeCompare(a.applicationName || '');
+                case 'nodes-desc': return (b.nodeCount || 0) - (a.nodeCount || 0);
+                case 'nodes-asc': return (a.nodeCount || 0) - (b.nodeCount || 0);
+                case 'date-desc': return (b.lastIndexedAt || '').localeCompare(a.lastIndexedAt || '');
+                case 'date-asc': return (a.lastIndexedAt || '').localeCompare(b.lastIndexedAt || '');
+                case 'status': return (a.lastIndexStatus || '').localeCompare(b.lastIndexStatus || '');
+                default: return 0;
+            }
+        });
+
+        document.getElementById('resultCount').textContent =
+            filtered.length === allApps.length ? '' : filtered.length + ' of ' + allApps.length;
+        renderApps(filtered);
     }
 
     function renderGlobalStats(g, apps) {
         const el = document.getElementById('globalStats');
-        const runningCount = (apps || []).filter(a => {
+        const runningCount = (apps || []).filter(function(a) {
             const s = (a.lastIndexStatus || '').toLowerCase();
             return s === 'running' || s === 'in_progress';
         }).length;
@@ -234,17 +482,17 @@
             { label: 'Edges', value: fmt(g.totalEdges), color: 'var(--lavender)' },
             { label: 'Running Ingests', value: fmt(runningCount), color: runningCount > 0 ? 'var(--yellow)' : 'var(--text-muted)' },
         ];
-        el.innerHTML = stats.map(s => `
-            <div class="stat-card">
-                <div class="value" style="color:${s.color}">${s.value}</div>
-                <div class="label">${s.label}</div>
-            </div>
-        `).join('');
+        el.innerHTML = stats.map(function(s) {
+            return '<div class="stat-card">' +
+                '<div class="value" style="color:' + s.color + '">' + s.value + '</div>' +
+                '<div class="label">' + s.label + '</div>' +
+            '</div>';
+        }).join('');
     }
 
     function renderApps(apps) {
         const grid = document.getElementById('appsGrid');
-        grid.innerHTML = apps.map(app => {
+        grid.innerHTML = apps.map(function(app) {
             const provider = (app.repoProvider || '').toLowerCase();
             const providerClass = provider === 'github' ? 'provider-github'
                 : provider === 'gitlab' ? 'provider-gitlab'
@@ -254,88 +502,182 @@
             const statusClass = getStatusClass(app.lastIndexStatus);
             const statusLabel = app.lastIndexStatus || 'not indexed';
 
-            const indexTime = app.lastIndexedAt
-                ? formatDate(app.lastIndexedAt)
-                : '';
+            // Relative time with full date as tooltip
+            const relativeTime = app.lastIndexedAt ? formatRelativeTime(app.lastIndexedAt) : '';
+            const fullDate = app.lastIndexedAt ? formatDate(app.lastIndexedAt) : '';
 
-            const langs = (app.languages || []).map(l =>
-                `<span class="tag tag-lang">${esc(l)}</span>`
-            ).join('');
+            const isRunning = statusLabel.toLowerCase() === 'running'
+                || statusLabel.toLowerCase() === 'in_progress';
 
-            const tags = (app.tags || []).map(t =>
-                `<span class="tag">${esc(t)}</span>`
-            ).join('');
+            const langs = (app.languages || []).map(function(l) {
+                return '<span class="tag tag-lang">' + esc(l) + '</span>';
+            }).join('');
+
+            const tags = (app.tags || []).map(function(t) {
+                return '<span class="tag">' + esc(t) + '</span>';
+            }).join('');
 
             const descHtml = app.description
-                ? `<div class="app-desc">${esc(app.description)}</div>`
+                ? '<div class="app-desc">' + esc(app.description) + '</div>'
                 : '';
 
             const repoHtml = app.repoUrl
-                ? `<a class="repo-link" href="${esc(app.repoUrl)}" target="_blank" rel="noopener">${esc(app.repoUrl)}</a>`
+                ? '<a class="repo-link" href="' + esc(app.repoUrl) + '" target="_blank" rel="noopener">' + esc(app.repoUrl) + '</a>'
                 : '';
 
             const errorHtml = app.lastIndexError
-                ? `<span class="error-hint">&#9888;
-                     <span class="error-tooltip">${esc(app.lastIndexError)}</span>
-                   </span>`
+                ? '<span class="error-hint">&#9888;' +
+                    '<span class="error-tooltip">' + esc(app.lastIndexError) + '</span>' +
+                  '</span>'
                 : '';
 
-            return `
-            <div class="app-card">
-                <div class="app-card-header">
-                    <div>
-                        <div class="app-name">${esc(app.applicationName)}</div>
-                        <div class="app-key">${esc(app.applicationKey)}</div>
-                    </div>
-                    <span class="provider-badge ${providerClass}">${esc(providerLabel)}</span>
-                </div>
+            // Progress bar for running ingests
+            var progressHtml = '';
+            if (isRunning) {
+                progressHtml = '<div class="ingest-progress" id="progress-' + app.applicationId + '">' +
+                    '<div class="ingest-progress-bar">' +
+                        '<div class="ingest-progress-fill indeterminate" style="width:30%"></div>' +
+                    '</div>' +
+                    '<div class="ingest-progress-text">' +
+                        '<span>Indexing...</span>' +
+                        '<span></span>' +
+                    '</div>' +
+                '</div>';
+            }
 
-                ${descHtml}
+            return '<div class="app-card">' +
+                '<div class="app-card-header">' +
+                    '<div>' +
+                        '<div class="app-name">' + esc(app.applicationName) + '</div>' +
+                        '<div class="app-key">' + esc(app.applicationKey) + '</div>' +
+                    '</div>' +
+                    '<span class="provider-badge ' + providerClass + '">' + esc(providerLabel) + '</span>' +
+                '</div>' +
 
-                <div class="index-row">
-                    <span class="status-badge ${statusClass}">${esc(statusLabel)}</span>
-                    ${errorHtml}
-                    ${indexTime ? `<span class="index-time">${indexTime}</span>` : ''}
-                </div>
+                descHtml +
 
-                <div class="stats-row">
-                    <span class="mini-stat"><span class="num">${fmt(app.nodeCount)}</span> nodes</span>
-                    <span class="mini-stat"><span class="num">${fmt(app.chunkCount)}</span> chunks</span>
-                    <span class="mini-stat"><span class="num">${fmt(app.edgeCount)}</span> edges</span>
-                    <span class="mini-stat"><span class="num">${fmt(app.synonymCount)}</span> synonyms</span>
-                </div>
+                '<div class="index-row">' +
+                    '<span class="status-badge ' + statusClass + '">' + esc(statusLabel) + '</span>' +
+                    errorHtml +
+                    (relativeTime ? '<span class="index-time" title="' + esc(fullDate) + '">' + esc(relativeTime) + '</span>' : '') +
+                '</div>' +
 
-                ${(langs || tags) ? `<div class="tags-row">${langs}${tags}</div>` : ''}
+                progressHtml +
 
-                ${repoHtml}
+                '<div class="stats-row">' +
+                    '<span class="mini-stat"><span class="num">' + fmt(app.nodeCount) + '</span> nodes</span>' +
+                    '<span class="mini-stat"><span class="num">' + fmt(app.chunkCount) + '</span> chunks</span>' +
+                    '<span class="mini-stat"><span class="num">' + fmt(app.edgeCount) + '</span> edges</span>' +
+                    '<span class="mini-stat"><span class="num">' + fmt(app.synonymCount) + '</span> synonyms</span>' +
+                '</div>' +
 
-                <div class="actions-row">
-                    <a class="btn btn-sm btn-accent"
-                       href="/graph?appId=${app.applicationId}">Open Graph</a>
-                    <a class="btn btn-sm"
-                       href="/chat?appId=${app.applicationId}">Chat</a>
-                    <a class="btn btn-sm"
-                       href="/ingest">Ingest</a>
-                    <a class="btn btn-sm"
-                       href="/api/dashboard/stats"
-                       target="_blank">API</a>
-                </div>
-            </div>
-            `;
+                ((langs || tags) ? '<div class="tags-row">' + langs + tags + '</div>' : '') +
+
+                repoHtml +
+
+                '<div class="actions-row">' +
+                    '<a class="btn btn-sm btn-accent" href="/graph?appId=' + app.applicationId + '">Open Graph</a>' +
+                    '<a class="btn btn-sm" href="/chat?appId=' + app.applicationId + '">Chat</a>' +
+                    '<a class="btn btn-sm" href="/ingest">Ingest</a>' +
+                    '<button class="btn btn-sm btn-danger" onclick="confirmDeleteApp(' + app.applicationId + ', \'' + esc(app.applicationName).replace(/'/g, "\\'") + '\')">Delete</button>' +
+                '</div>' +
+            '</div>';
         }).join('');
+
+        // After rendering, fetch progress for running apps
+        apps.filter(function(app) {
+            const s = (app.lastIndexStatus || '').toLowerCase();
+            return s === 'running' || s === 'in_progress';
+        }).forEach(function(app) {
+            fetchIngestProgress(app.applicationId);
+        });
     }
 
-    // esc, showToast, getStatusClass, formatDate, fmt — from /js/common.js
+    // ======== Ingest progress ========
+    async function fetchIngestProgress(appId) {
+        try {
+            const res = await fetch('/api/ingest/runs/app/' + appId);
+            if (!res.ok) return;
+            const runs = await res.json();
 
-    // Auto-refresh every 60 seconds
-    function startAutoRefresh() {
-        if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-        autoRefreshTimer = setInterval(loadDashboard, 60000);
+            // Find the latest running run
+            const running = runs.find(function(r) {
+                var s = (r.status || '').toLowerCase();
+                return s === 'running' || s === 'pending';
+            });
+
+            if (!running) return;
+
+            const container = document.getElementById('progress-' + appId);
+            if (!container) return;
+
+            const steps = running.steps || [];
+            const totalSteps = steps.length;
+            const completedSteps = steps.filter(function(s) { return s.status === 'COMPLETED'; }).length;
+            const currentStep = steps.find(function(s) { return s.status === 'RUNNING'; });
+            const percent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+
+            var stepName = currentStep ? currentStep.stepType : '';
+            var stepProgress = '';
+            if (currentStep && currentStep.itemsTotal > 0) {
+                stepProgress = ' (' + currentStep.itemsProcessed + '/' + currentStep.itemsTotal + ')';
+            }
+
+            container.innerHTML =
+                '<div class="ingest-progress-bar">' +
+                    '<div class="ingest-progress-fill" style="width:' + percent + '%"></div>' +
+                '</div>' +
+                '<div class="ingest-progress-text">' +
+                    '<span>' + (stepName ? esc(stepName) + stepProgress : 'Indexing...') + '</span>' +
+                    '<span>' + percent + '%</span>' +
+                '</div>';
+        } catch (e) {
+            // silently ignore progress fetch errors
+        }
+    }
+
+    // ======== Delete application ========
+    function confirmDeleteApp(appId, appName) {
+        var overlay = document.createElement('div');
+        overlay.className = 'confirm-overlay';
+        overlay.innerHTML =
+            '<div class="confirm-dialog">' +
+                '<h3>Delete Application</h3>' +
+                '<p>Are you sure you want to delete <strong>' + esc(appName) + '</strong>?<br>' +
+                'This will remove all nodes, edges, chunks, and embeddings associated with this application. This action cannot be undone.</p>' +
+                '<div class="confirm-actions">' +
+                    '<button class="btn btn-sm" onclick="this.closest(\'.confirm-overlay\').remove()">Cancel</button>' +
+                    '<button class="btn btn-sm btn-danger" id="confirmDeleteBtn">Delete</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) overlay.remove();
+        });
+
+        document.getElementById('confirmDeleteBtn').onclick = function() {
+            overlay.remove();
+            deleteApp(appId, appName);
+        };
+    }
+
+    async function deleteApp(appId, appName) {
+        try {
+            var res = await fetch('/api/dashboard/applications/' + appId, { method: 'DELETE' });
+            if (!res.ok) {
+                var text = await res.text();
+                throw new Error(text || ('HTTP ' + res.status));
+            }
+            showToast('Application "' + appName + '" deleted', 'success');
+            loadDashboard();
+        } catch (e) {
+            showToast('Failed to delete: ' + e.message);
+        }
     }
 
     // Initial load
     loadDashboard();
-    startAutoRefresh();
 </script>
 
 </body>

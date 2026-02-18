@@ -29,12 +29,11 @@ class RagServiceImpl(
     @Value("\${docgen.rag.max-context-chars:30000}") private val maxContextChars: Int = 30000,
     @Value("\${docgen.rag.max-exact-nodes:5}") private val maxExactNodes: Int = 5,
     @Value("\${docgen.rag.max-neighbor-nodes:10}") private val maxNeighborNodes: Int = 10,
+    @Value("\${docgen.rag.processing-timeout-seconds:45}") private val processingTimeoutSeconds: Long = 45,
+    @Value("\${docgen.rag.llm-timeout-seconds:30}") private val llmTimeoutSeconds: Long = 30,
+    @Value("\${docgen.rag.max-graph-relations-chars:5000}") private val maxGraphRelationsChars: Int = 5000,
 ) : RagService {
     private val log = LoggerFactory.getLogger(javaClass)
-
-    companion object {
-        private const val PROCESSING_TIMEOUT_SECONDS = 45L
-    }
 
     override fun ask(query: String, sessionId: String, applicationId: Long?): RagResponse {
         val prepared = prepareContext(query, sessionId, applicationId)
@@ -61,9 +60,9 @@ class RagServiceImpl(
         val processingContext = try {
             CompletableFuture.supplyAsync {
                 graphRequestProcessor.process(query, sessionId, applicationId)
-            }.orTimeout(PROCESSING_TIMEOUT_SECONDS, TimeUnit.SECONDS).get()
+            }.orTimeout(processingTimeoutSeconds, TimeUnit.SECONDS).get()
         } catch (e: TimeoutException) {
-            log.error("Query processing timed out after {}s: query='{}'", PROCESSING_TIMEOUT_SECONDS, query.take(50))
+            log.error("Query processing timed out after {}s: query='{}'", processingTimeoutSeconds, query.take(50))
             return RagPreparedContext(
                 prompt = null,
                 fallbackAnswer = "Не удалось обработать запрос — превышено время ожидания.",
@@ -138,7 +137,13 @@ class RagServiceImpl(
             }
             if (!graphRelationsText.isNullOrBlank()) {
                 append("=== СВЯЗИ В ГРАФЕ КОДА ===\n")
-                append(graphRelationsText)
+                if (graphRelationsText.length > maxGraphRelationsChars) {
+                    log.warn("Graph relations text truncated: {} -> {} chars", graphRelationsText.length, maxGraphRelationsChars)
+                    append(graphRelationsText.take(maxGraphRelationsChars))
+                    append("\n... [связи обрезаны]")
+                } else {
+                    append(graphRelationsText)
+                }
                 append("\n\n")
             }
             if (exactNodesContext.isNotEmpty() || neighborNodesContext.isNotEmpty()) {
@@ -199,7 +204,7 @@ class RagServiceImpl(
                     .call()
                     .content()
             }
-                .orTimeout(30, TimeUnit.SECONDS)
+                .orTimeout(llmTimeoutSeconds, TimeUnit.SECONDS)
                 .exceptionally { ex ->
                     log.error("LLM call failed or timed out: ${ex.message}", ex)
                     null

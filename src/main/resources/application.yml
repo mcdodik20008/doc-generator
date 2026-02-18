@@ -84,6 +84,7 @@ spring:
 
 management:
   endpoints.web.exposure.include: health,info,prometheus
+  endpoint.health.show-details: always
   metrics.tags.application: ${spring.application.name}
 
 logging:
@@ -135,6 +136,28 @@ docgen:
     # Защита от OOM при обработке очень больших графов
     # Если узлов больше, будут загружены только первые max-nodes
     max-nodes: 100000
+  rag:
+    # Таймаут на весь пайплайн обработки запроса (секунды)
+    processing-timeout-seconds: 45
+    # Таймаут на вызов LLM (секунды)
+    llm-timeout-seconds: 30
+    # Таймаут на один шаг FSM (секунды)
+    step-timeout-seconds: 30
+    # Порог медленного шага для предупреждений (мс)
+    slow-step-threshold-ms: 10000
+    # Лимит символов для текста связей графа в контексте
+    max-graph-re5lations-chars: 5000
+    # Максимум символов исходного кода в ноде для контекста
+    max-node-code-chars: 3000
+    # Общий лимит контекста для LLM
+    max-context-chars: 30000
+    # Максимум точных нод в контексте
+    max-exact-nodes: 5
+    # Максимум соседних нод в контексте
+    max-neighbor-nodes: 10
+  library:
+    # Префиксы groupId для обработки библиотек (через запятую)
+    whitelist: com.bftcom,ru.bftcom,ru.supercode,rrbpm
 
 springdoc:
   api-docs.enabled: true

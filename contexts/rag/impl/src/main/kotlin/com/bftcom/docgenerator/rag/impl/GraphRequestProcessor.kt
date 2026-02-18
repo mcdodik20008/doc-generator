@@ -7,6 +7,7 @@ import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
 import com.bftcom.docgenerator.rag.api.QueryProcessingContext
 import com.bftcom.docgenerator.rag.impl.steps.QueryStep
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
@@ -19,14 +20,14 @@ import java.util.concurrent.TimeoutException
 @Component
 class GraphRequestProcessor(
         steps: List<QueryStep>,
+        @Value("\${docgen.rag.step-timeout-seconds:30}") private val stepTimeoutSeconds: Long = 30,
+        @Value("\${docgen.rag.slow-step-threshold-ms:10000}") private val slowStepThresholdMs: Long = 10_000,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val registry = steps.associateBy { it.type }
 
     companion object {
         private const val MAX_ITERATIONS = 20
-        private const val SLOW_STEP_THRESHOLD_MS = 10_000L
-        private const val STEP_TIMEOUT_SECONDS = 30L
     }
 
         fun process(originalQuery: String, sessionId: String, applicationId: Long? = null): QueryProcessingContext {
@@ -78,11 +79,11 @@ class GraphRequestProcessor(
                         val result = try {
                                 CompletableFuture.supplyAsync {
                                     step.execute(context)
-                                }.orTimeout(STEP_TIMEOUT_SECONDS, TimeUnit.SECONDS).get()
+                                }.orTimeout(stepTimeoutSeconds, TimeUnit.SECONDS).get()
                         } catch (e: TimeoutException) {
-                                log.error("Шаг {} превысил timeout в {} секунд", currentStep, STEP_TIMEOUT_SECONDS)
+                                log.error("Шаг {} превысил timeout в {} секунд", currentStep, stepTimeoutSeconds)
                                 val errorKey = "${QueryMetadataKeys.ERROR_PREFIX.key}${currentStep.name}"
-                                val failedContext = context.setMetadata(errorKey, "Step timed out after ${STEP_TIMEOUT_SECONDS}s")
+                                val failedContext = context.setMetadata(errorKey, "Step timed out after ${stepTimeoutSeconds}s")
                                 return finalizeProcessing(failedContext, ProcessingStepType.FAILED)
                         } catch (e: Exception) {
                                 val cause = e.cause ?: e
@@ -92,7 +93,7 @@ class GraphRequestProcessor(
                                 return finalizeProcessing(failedContext, ProcessingStepType.FAILED)
                         }
                         val duration = System.currentTimeMillis() - startTime
-                        if (duration > SLOW_STEP_THRESHOLD_MS) {
+                        if (duration > slowStepThresholdMs) {
                                 log.warn("Шаг {} выполнялся слишком долго: {} мс", currentStep, duration)
                         }
 

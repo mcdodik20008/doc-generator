@@ -73,6 +73,46 @@ function formatDate(iso) {
 }
 
 /**
+ * Format ISO date to relative time ("5 минут назад", "2 часа назад", etc).
+ * Falls back to formatDate() for dates older than 7 days.
+ */
+function formatRelativeTime(iso) {
+    if (!iso) return '';
+    try {
+        const d = new Date(iso);
+        const now = new Date();
+        const diffMs = now - d;
+        if (diffMs < 0) return formatDate(iso);
+
+        const seconds = Math.floor(diffMs / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+
+        if (seconds < 60) return 'только что';
+        if (minutes < 60) return minutes + ' ' + pluralize(minutes, 'минуту', 'минуты', 'минут') + ' назад';
+        if (hours < 24) return hours + ' ' + pluralize(hours, 'час', 'часа', 'часов') + ' назад';
+        if (days === 1) return 'вчера';
+        if (days < 7) return days + ' ' + pluralize(days, 'день', 'дня', 'дней') + ' назад';
+        return formatDate(iso);
+    } catch {
+        return iso;
+    }
+}
+
+/**
+ * Russian pluralization helper.
+ */
+function pluralize(n, one, few, many) {
+    const abs = Math.abs(n) % 100;
+    const lastDigit = abs % 10;
+    if (abs > 10 && abs < 20) return many;
+    if (lastDigit === 1) return one;
+    if (lastDigit >= 2 && lastDigit <= 4) return few;
+    return many;
+}
+
+/**
  * Format number with Russian locale thousand separators.
  */
 function fmt(n) {

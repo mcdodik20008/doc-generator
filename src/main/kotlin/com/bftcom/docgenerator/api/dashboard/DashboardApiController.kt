@@ -7,7 +7,9 @@ import com.bftcom.docgenerator.db.GlobalStats
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
@@ -55,5 +57,16 @@ class DashboardApiController(
             log.error("Failed to load applications list", e)
             throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to load applications")
         }
+    }
+
+    @DeleteMapping("/applications/{id}")
+    @Transactional
+    fun deleteApplication(@PathVariable id: Long) {
+        val app = applicationRepo.findById(id).orElseThrow {
+            ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found: $id")
+        }
+        log.info("Deleting application: id={}, key={}, name={}", id, app.key, app.name)
+        applicationRepo.delete(app)
+        log.info("Application deleted: id={}", id)
     }
 }

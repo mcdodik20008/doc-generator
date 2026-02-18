@@ -98,7 +98,8 @@ class ResultFilterService {
 
     /**
      * Проверяет, содержит ли документ нужные ключевые слова с ТОЧНЫМ совпадением.
-     * Используется для строгой фильтрации, когда нужно исключить похожие классы.
+     * Если есть и класс, и метод — достаточно совпадения хотя бы одного из них,
+     * чтобы не отфильтровывать документы, содержащие только имя класса или только метод.
      */
     private fun containsKeywordsExact(
         content: String,
@@ -106,16 +107,12 @@ class ResultFilterService {
         className: String?,
         methodName: String?,
     ): Boolean {
-        // Если есть и класс, и метод - требуем наличие ОБОИХ (строгая фильтрация)
         if (className != null && methodName != null) {
             val hasClass = containsKeywordExact(content, className)
             val hasMethod = containsKeywordExact(content, methodName)
-            
-            // Документ должен содержать оба с точным совпадением
-            return hasClass && hasMethod
+            return hasClass || hasMethod
         }
-        
-        // Если только класс или только метод - проверяем точное совпадение
+
         return keywords.any { keyword ->
             containsKeywordExact(content, keyword)
         }
@@ -132,17 +129,13 @@ class ResultFilterService {
         methodName: String?,
     ): Boolean {
         val lowerContent = content.lowercase()
-        
-        // Если есть и класс, и метод - требуем наличие ОБОИХ (но совпадение может быть нечетким)
+
         if (className != null && methodName != null) {
             val hasClass = containsKeywordFuzzy(lowerContent, className)
             val hasMethod = containsKeywordFuzzy(lowerContent, methodName)
-            
-            // Документ должен содержать оба
-            return hasClass && hasMethod
+            return hasClass || hasMethod
         }
-        
-        // Если только класс или только метод - проверяем наличие
+
         return keywords.any { keyword ->
             containsKeywordFuzzy(lowerContent, keyword)
         }

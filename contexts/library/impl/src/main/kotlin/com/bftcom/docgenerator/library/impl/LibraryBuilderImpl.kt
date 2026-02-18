@@ -14,6 +14,7 @@ import com.bftcom.docgenerator.library.api.bytecode.HttpBytecodeAnalyzer
 import com.bftcom.docgenerator.library.impl.coordinate.LibraryCoordinateParser
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
@@ -33,16 +34,12 @@ class LibraryBuilderImpl(
     private val libraryNodeRepo: LibraryNodeRepository,
     private val objectMapper: ObjectMapper,
     @Lazy private val self: LibraryBuilderImpl?, // важно для вызова @Transactional-метода
+    @Value("\${docgen.library.whitelist:com.bftcom,ru.bftcom,ru.supercode,rrbpm}")
+    whitelistProp: String = "com.bftcom,ru.bftcom,ru.supercode,rrbpm",
 ) : LibraryBuilder {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val whiteList =
-        listOf(
-            "com.bftcom",
-            "ru.bftcom",
-            "ru.supercode",
-            "rrbpm",
-        )
+    private val whiteList: List<String> = whitelistProp.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
     data class SingleLibraryResult(
         val librariesProcessed: Int = 0,
