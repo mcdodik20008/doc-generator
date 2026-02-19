@@ -444,15 +444,42 @@
                     <span class="section-arrow">&#9660;</span>
                 </div>
                 <div class="section-body">
-                    <div class="row">
-                        <div>
-                            <label>Application</label>
-                            <select id="appId"><option value="">Select application...</option></select>
+                    <label>View Mode</label>
+                    <select id="viewMode" onchange="onViewModeChange()">
+                        <option value="single">Single Application</option>
+                        <option value="cross-app">Cross-App View</option>
+                    </select>
+
+                    <!-- Single App Controls -->
+                    <div id="singleAppControls">
+                        <div class="row" style="margin-top: 6px;">
+                            <div>
+                                <label>Application</label>
+                                <select id="appId"><option value="">Select application...</option></select>
+                            </div>
+                            <div>
+                                <label>Limit</label>
+                                <input id="limit" type="number" value="500"/>
+                            </div>
                         </div>
-                        <div>
-                            <label>Limit</label>
-                            <input id="limit" type="number" value="500"/>
+                    </div>
+
+                    <!-- Cross-App Controls -->
+                    <div id="crossAppControls" style="display: none;">
+                        <label>Applications (multi-select)</label>
+                        <select id="crossAppIds" multiple size="6" style="height: auto;">
+                            <option value="">Loading...</option>
+                        </select>
+
+                        <label>Integration Types</label>
+                        <div id="integrationTypeChips" class="chip-container">
+                            <div class="chip active" data-type="HTTP" onclick="toggleIntegrationType('HTTP')">HTTP</div>
+                            <div class="chip active" data-type="KAFKA" onclick="toggleIntegrationType('KAFKA')">KAFKA</div>
+                            <div class="chip active" data-type="CAMEL" onclick="toggleIntegrationType('CAMEL')">CAMEL</div>
                         </div>
+
+                        <label>Limit</label>
+                        <input id="crossAppLimit" type="number" value="1000"/>
                     </div>
 
                     <label>Layout</label>
@@ -647,6 +674,10 @@ let activeEdgeKinds = new Set(EDGE_KINDS);     // all visible by default
 let currentLayoutName = 'cose';
 let cy;
 
+// ---- Cross-App State ----
+let currentViewMode = 'single'; // 'single' or 'cross-app'
+let activeIntegrationTypes = new Set(['HTTP', 'KAFKA', 'CAMEL']);
+
 // ============================================================
 //  PANEL UI
 // ============================================================
@@ -787,6 +818,28 @@ function buildCyStyles() {
         {
             selector: '.expanded-source',
             style: { 'border-width': 4, 'border-color': '#f5c2e7', 'border-style': 'double' }
+        },
+        // Cross-app specific styles
+        {
+            selector: 'node[kind = "APPLICATION"]',
+            style: {
+                'background-color': '#89b4fa',
+                'shape': 'round-rectangle',
+                'width': 80,
+                'height': 80,
+                'font-size': 14,
+                'font-weight': 'bold',
+                'text-valign': 'center',
+                'text-margin-y': 0
+            }
+        },
+        {
+            selector: 'node[group = "integrations"]',
+            style: {
+                'width': 50,
+                'height': 50,
+                'font-size': 12
+            }
         }
     ];
 
@@ -1032,6 +1085,14 @@ function hideLoading() {
 
 // ---- Load ----
 async function loadGraph() {
+    if (currentViewMode === 'cross-app') {
+        await loadCrossAppGraph();
+    } else {
+        await loadSingleAppGraph();
+    }
+}
+
+async function loadSingleAppGraph() {
     const appId = document.getElementById('appId').value;
     const limit = Number(document.getElementById('limit').value) || 500;
     const kinds = [...activeNodeKinds];
@@ -1067,6 +1128,62 @@ async function loadGraph() {
         updateLegends();
         updatePackageFilter();
         applyNodeSizing();
+    } catch (e) {
+        console.error(e);
+        showToast(String(e.message || e));
+    } finally {
+        btn.disabled = false;
+        hideLoading();
+    }
+}
+
+async function loadCrossAppGraph() {
+    const selectedOptions = document.getElementById('crossAppIds').selectedOptions;
+    const selectedAppIds = Array.from(selectedOptions).map(opt => opt.value).filter(v => v);
+    const limit = Number(document.getElementById('crossAppLimit').value) || 1000;
+    const integrationTypes = [...activeIntegrationTypes];
+
+    if (selectedAppIds.length === 0) {
+        showToast('Please select at least one application');
+        return;
+    }
+
+    const btn = document.getElementById('loadBtn');
+    btn.disabled = true;
+    showLoadingProgress('Loading cross-app graph...', 0);
+
+    try {
+        showLoadingProgress('Fetching cross-app data...', 20);
+        const params = new URLSearchParams();
+        selectedAppIds.forEach(id => params.append('applicationIds', id));
+        integrationTypes.forEach(type => params.append('integrationTypes', type));
+        params.set('limit', String(limit));
+
+        const url = '/api/graph/cross-app?' + params.toString();
+        console.log('[cross-app] GET', url);
+        const res = await fetch(url);
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            throw new Error('HTTP ' + res.status + ': ' + text.substring(0, 300));
+        }
+        const data = await res.json();
+        console.log('[cross-app] Response:', data);
+
+        showLoadingProgress('Processing nodes...', 50);
+        const { nodes, edges } = toCrossAppCyElements(data);
+
+        cy.elements().remove();
+        undoStack.length = 0;
+        redoStack.length = 0;
+        cy.add(nodes);
+        cy.add(edges);
+
+        showLoadingProgress('Running layout...', 80);
+        runLayout(document.getElementById('layoutSelect').value);
+        cy.fit(undefined, 30);
+
+        updateCrossAppStats(data.statistics);
+        updateLegends();
     } catch (e) {
         console.error(e);
         showToast(String(e.message || e));
@@ -1135,6 +1252,13 @@ async function showNodeDetails(cyNode) {
     if (sec.classList.contains('collapsed')) sec.classList.remove('collapsed');
 
     const detailsEl = document.getElementById('details');
+
+    // Handle cross-app nodes differently
+    if (currentViewMode === 'cross-app') {
+        showCrossAppNodeDetails(cyNode);
+        return;
+    }
+
     detailsEl.innerHTML = '<div class="detail-placeholder"><div class="spinner" style="margin:0 auto 10px"></div>Loading...</div>';
 
     try {
@@ -1725,6 +1849,180 @@ function showLoadingProgress(text, percent) {
             '<div class="progress-bar"><div class="progress-bar-fill" style="width:' + Math.round(percent) + '%"></div></div></div>' : '') +
         '</div>';
     el.style.display = 'flex';
+}
+
+// ============================================================
+//  CROSS-APP FUNCTIONS
+// ============================================================
+function onViewModeChange() {
+    const viewMode = document.getElementById('viewMode').value;
+    currentViewMode = viewMode;
+
+    const singleControls = document.getElementById('singleAppControls');
+    const crossAppControls = document.getElementById('crossAppControls');
+    const nodeKindsSection = document.getElementById('sec-nodekinds');
+    const edgeKindsSection = document.getElementById('sec-edgekinds');
+
+    if (viewMode === 'cross-app') {
+        // Show cross-app controls, hide single-app controls
+        singleControls.style.display = 'none';
+        crossAppControls.style.display = 'block';
+
+        // Hide node/edge kind filters in cross-app mode
+        nodeKindsSection.style.display = 'none';
+        edgeKindsSection.style.display = 'none';
+
+        // Load applications for multi-select
+        loadCrossAppApplications();
+    } else {
+        // Show single-app controls, hide cross-app controls
+        singleControls.style.display = 'block';
+        crossAppControls.style.display = 'none';
+
+        // Show node/edge kind filters in single-app mode
+        nodeKindsSection.style.display = 'block';
+        edgeKindsSection.style.display = 'block';
+    }
+}
+
+async function loadCrossAppApplications() {
+    try {
+        const res = await fetch('/api/graph/cross-app/applications');
+        if (!res.ok) throw new Error('Failed to load applications');
+
+        const apps = await res.json();
+        const select = document.getElementById('crossAppIds');
+        select.innerHTML = '';
+
+        apps.forEach(app => {
+            const option = document.createElement('option');
+            option.value = app.id;
+            option.textContent = app.name + ' (' + app.key + ')';
+            select.appendChild(option);
+        });
+    } catch (e) {
+        console.error('Failed to load cross-app applications:', e);
+        showToast('Failed to load applications: ' + e.message);
+    }
+}
+
+function toggleIntegrationType(type) {
+    if (activeIntegrationTypes.has(type)) {
+        activeIntegrationTypes.delete(type);
+    } else {
+        activeIntegrationTypes.add(type);
+    }
+
+    // Update chip visual state
+    const chip = document.querySelector(`#integrationTypeChips .chip[data-type="${type}"]`);
+    if (chip) {
+        chip.classList.toggle('active');
+    }
+}
+
+function toCrossAppCyElements(data) {
+    const nodes = data.nodes.map(n => ({
+        data: {
+            id: n.id,
+            label: n.label,
+            kind: n.kind,
+            metadata: n.metadata,
+            group: n.kind === 'APPLICATION' ? 'apps' : 'integrations'
+        }
+    }));
+
+    const edges = data.edges.map(e => ({
+        data: {
+            id: e.source + '_' + e.target + '_' + e.kind,
+            source: e.source,
+            target: e.target,
+            kind: e.kind,
+            methodCount: e.methodCount
+        }
+    }));
+
+    return { nodes, edges };
+}
+
+function updateCrossAppStats(stats) {
+    const statNodes = document.getElementById('stat-nodes');
+    const statEdges = document.getElementById('stat-edges');
+    const statSelected = document.getElementById('stat-selected');
+
+    statNodes.textContent = stats.applicationCount + ' apps, ' +
+        stats.httpEndpoints + ' HTTP, ' +
+        stats.kafkaTopics + ' Kafka, ' +
+        stats.camelRoutes + ' Camel';
+    statEdges.textContent = stats.totalEdges;
+    statSelected.textContent = '-';
+}
+
+function showCrossAppNodeDetails(cyNode) {
+    const detailsEl = document.getElementById('details');
+    const nodeData = cyNode.data();
+    const kind = nodeData.kind;
+    const label = nodeData.label;
+    const metadata = nodeData.metadata || {};
+
+    let html = '<div class="detail-header">';
+    html += '<h2>' + escapeHtml(label) + '</h2>';
+    html += '<div class="detail-meta">';
+    html += '<span style="color:var(--accent)">' + escapeHtml(kind) + '</span>';
+    html += '</div></div>';
+
+    if (kind === 'APPLICATION') {
+        html += '<div class="detail-block"><h4>Application Info</h4>';
+        html += '<pre>' + escapeHtml(JSON.stringify({
+            key: metadata.key,
+            description: metadata.description
+        }, null, 2)) + '</pre></div>';
+
+        // Show connected integrations
+        const connectedEdges = cyNode.connectedEdges();
+        if (connectedEdges.length > 0) {
+            html += '<div class="detail-block"><h4>Integrations (' + connectedEdges.length + ')</h4>';
+            html += '<ul class="relation-list">';
+            connectedEdges.forEach(edge => {
+                const targetNode = edge.target().id() === nodeData.id ? edge.source() : edge.target();
+                const edgeKind = edge.data('kind');
+                const targetLabel = targetNode.data('label');
+                html += '<li><span class="relation-kind">' + escapeHtml(edgeKind) + '</span>';
+                html += ' <span class="relation-link" onclick="focusNode(\'' + escapeHtml(targetNode.id()) + '\')">' + escapeHtml(targetLabel) + '</span>';
+                if (edge.data('methodCount') > 1) {
+                    html += ' <span style="color:var(--text-muted);font-size:12px">(' + edge.data('methodCount') + ' methods)</span>';
+                }
+                html += '</li>';
+            });
+            html += '</ul></div>';
+        }
+    } else if (kind === 'ENDPOINT' || kind === 'TOPIC') {
+        html += '<div class="detail-block"><h4>Integration Point</h4>';
+        html += '<pre>' + escapeHtml(JSON.stringify({
+            fqn: metadata.fqn,
+            applicationsCount: metadata.applicationsCount
+        }, null, 2)) + '</pre></div>';
+
+        // Show which applications use this integration
+        const connectedEdges = cyNode.connectedEdges();
+        if (connectedEdges.length > 0) {
+            html += '<div class="detail-block"><h4>Used By Applications (' + connectedEdges.length + ')</h4>';
+            html += '<ul class="relation-list">';
+            connectedEdges.forEach(edge => {
+                const sourceNode = edge.source().id() === nodeData.id ? edge.target() : edge.source();
+                const edgeKind = edge.data('kind');
+                const sourceLabel = sourceNode.data('label');
+                html += '<li><span class="relation-kind">' + escapeHtml(edgeKind) + '</span>';
+                html += ' <span class="relation-link" onclick="focusNode(\'' + escapeHtml(sourceNode.id()) + '\')">' + escapeHtml(sourceLabel) + '</span>';
+                if (edge.data('methodCount') > 1) {
+                    html += ' <span style="color:var(--text-muted);font-size:12px">(' + edge.data('methodCount') + ' methods)</span>';
+                }
+                html += '</li>';
+            });
+            html += '</ul></div>';
+        }
+    }
+
+    detailsEl.innerHTML = html;
 }
 
 // ============================================================
