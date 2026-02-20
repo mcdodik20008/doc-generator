@@ -1,6 +1,7 @@
 package com.bftcom.docgenerator.ai.chatclients
 
 import com.bftcom.docgenerator.ai.model.TalkerRewriteRequest
+import com.bftcom.docgenerator.ai.resilience.ResilientExecutor
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
@@ -13,6 +14,7 @@ import java.util.regex.Pattern
 class OllamaTalkerClient(
     @param:Qualifier("talkerChatClient")
     private val chat: ChatClient,
+    private val resilientExecutor: ResilientExecutor? = null,
 ) {
     private val thinkRegex = Pattern.compile("<think>.*?</think>", Pattern.DOTALL)
 
@@ -58,14 +60,21 @@ class OllamaTalkerClient(
                 appendLine(req.rawContent.trim())
             }
 
-        val rawResult =
-            chat
+        val operation = {
+            val rawResult = chat
                 .prompt()
                 .system(rewriteSystemPrompt)
                 .user(userPrompt)
                 .call()
                 .content()
 
-        return thinkRegex.matcher(rawResult.orEmpty()).replaceAll("").trim()
+            thinkRegex.matcher(rawResult.orEmpty()).replaceAll("").trim()
+        }
+
+        return if (resilientExecutor != null) {
+            resilientExecutor.executeString("talker-rewrite:${req.nodeFqn}", operation)
+        } else {
+            operation()
+        }
     }
 }

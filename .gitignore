@@ -45,3 +45,17 @@ out/
 ### Logs ###
 logs/
 *.log
+
+### Generated docs (AI-generated) ###
+CIRCUIT_BREAKER.md
+CROSS_APP_IMPLEMENTATION_SUMMARY.md
+CROSS_APP_TESTING.md
+RATE_LIMITING.md
+README_TECHNICAL.md
+TESTING_GUIDE.md
+improvements-backend.md
+improvements-ui.md
+
+### Misc ###
+nul
+sample-project/

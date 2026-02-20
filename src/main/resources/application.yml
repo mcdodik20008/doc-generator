@@ -24,6 +24,18 @@ spring:
     password: ${DB_PASSWORD:docgen}
   liquibase:
     change-log: classpath:/liquibase/db.changelog-master.xml
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
 
   jpa:
     properties:
@@ -158,6 +170,12 @@ docgen:
   library:
     # Префиксы groupId для обработки библиотек (через запятую)
     whitelist: com.bftcom,ru.bftcom,ru.supercode,rrbpm
+  security:
+    # Отключите для dev-режима, включите в production
+    enabled: ${DOCGEN_SECURITY_ENABLED:false}
+  rate-limit:
+    # Отключите для dev-режима, включите в production
+    enabled: ${DOCGEN_RATE_LIMIT_ENABLED:true}
 
 springdoc:
   api-docs.enabled: true

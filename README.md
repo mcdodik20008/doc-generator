@@ -1,943 +1,594 @@
-# Doc-Generator: Система автоматической генерации документации на основе графа кода и RAG
+# Doc Generator
 
-## Аннотация
+AI-powered documentation generator for software projects. Automatically analyzes code, builds dependency graphs, and generates comprehensive technical documentation using LLM.
 
-Doc-Generator представляет собой комплексную систему автоматической генерации технической документации для программного кода, основанную на построении графа зависимостей кода, разбиении на семантические чанки, создании векторных представлений и многоэтапной генерации документации с использованием больших языковых моделей (LLM). Система реализует подход Retrieval-Augmented Generation (RAG) для обеспечения точности и релевантности генерируемой документации, а также поддерживает интерактивный поиск и ответы на вопросы о кодовой базе.
+[![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
+[![Kotlin](https://img.shields.io/badge/kotlin-2.0.21-blue.svg)](https://kotlinlang.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.6-green.svg)](https://spring.io/projects/spring-boot)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)]()
 
-## 1. Введение
+## 🎯 Key Features
 
-### 1.1. Проблематика
+### Core Functionality
+- **Automatic Code Analysis**: Parses Java/Kotlin projects and extracts structure
+- **Dependency Graph**: Builds interactive visualization of code dependencies
+- **LLM-Powered Documentation**: Generates human-readable docs using Ollama/OpenAI
+- **Semantic Search**: RAG-based Q&A system with pgvector embeddings
+- **Cross-Application Integration**: Visualizes integrations between multiple apps
 
-Поддержание актуальной и полной технической документации для крупных кодовых баз является одной из наиболее трудоёмких задач в разработке программного обеспечения. Традиционные подходы к документированию сталкиваются с рядом фундаментальных проблем:
+### Production-Ready Features (P0) ✨
 
-- **Устаревание документации**: Документация быстро расходится с актуальным состоянием кода при активной разработке
-- **Неполнота покрытия**: Значительная часть кода остаётся без документации из-за высокой трудоёмкости процесса
-- **Отсутствие контекста**: Статическая документация не учитывает динамические связи между компонентами системы
-- **Ограниченная интерактивность**: Разработчики не могут задавать вопросы о коде и получать контекстуальные ответы
+#### 🔐 Security & Authentication
+- **API Key Management**: SHA-256 hashed keys with scopes and expiration
+- **X-API-Key Authentication**: Secure all /api/ endpoints
+- **Audit Logging**: Immutable audit trail for all mutations
+- **Configurable Security**: Enable/disable for dev/prod environments
 
-### 1.2. Предлагаемое решение
+#### 🛡️ Resilience & Reliability
+- **Circuit Breaker**: Protects LLM calls with Resilience4j
+  - Auto-recovery from failures
+  - Configurable thresholds and timeouts
+  - Fallback strategies
+- **Rate Limiting**: Redis-backed sliding window rate limiter
+  - Per-API-key limits
+  - Different limits for endpoint types
+  - Cluster-ready
 
-Doc-Generator решает указанные проблемы через комплексный подход, объединяющий:
+#### 📊 Observability
+- **Health Checks**: Circuit breaker state in `/actuator/health`
+- **Prometheus Metrics**: Resilience4j metrics auto-exported
+- **Structured Audit Logs**: Searchable via API
 
-1. **Графовое представление кода**: Построение структурированного графа зависимостей, отражающего связи между компонентами системы
-2. **Семантическое разбиение**: Интеллектуальное разбиение кода на чанки с учётом структурных и семантических границ
-3. **Векторное представление**: Создание эмбеддингов для семантического поиска релевантных фрагментов кода
-4. **Многоэтапная генерация**: Двухэтапный процесс генерации документации, адаптированной для разных аудиторий
-5. **RAG-система**: Интерактивный поиск и генерация ответов на основе релевантного контекста из кодовой базы
+See [CIRCUIT_BREAKER.md](CIRCUIT_BREAKER.md) and [RATE_LIMITING.md](RATE_LIMITING.md) for details.
 
-## 2. Архитектура системы
-
-### 2.1. Общая архитектура
-
-Система построена по модульному принципу с разделением на следующие основные контексты (модули):
+## 🏗️ Architecture
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│                    Doc-Generator System                    │
-├────────────────────────────────────────────────────────────┤
-│                                                            │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
-│  │   Git    │→ │  Graph   │→ │ Chunking │→ │ Embedding│    │
-│  │ Checkout │  │  Builder │  │          │  │          │    │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘    │
-│       │              │              │              │       │
-│       └──────────────┴──────────────┴──────────────┘       │
-│                          │                                 │
-│                   ┌──────────┐            ┌──────────┐     │
-│                   │    AI     │──────────→│   Doc    │     │
-│                   │ Generation│←──────────│ Evaluator│     │
-│                   └──────────┘            └──────────┘     │
-│                          │                                 │
-│                   ┌──────────┐                             │
-│                   │   RAG    │                             │
-│                   │  Service │                             │
-│                   └──────────┘                             │
-│                                                            │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
-│  │ Library  │  │Postprocess│  │   DB     │                 │
-│  │Processing│  │           │  │PostgreSQL│                 │
-│  └──────────┘  └──────────┘  └──────────┘                  │
-│                                                            │
-└────────────────────────────────────────────────────────────┘
+┌─────────────────┐
+│   Web UI        │  Thymeleaf pages (Dashboard, Graph, Chat)
+│   /dashboard    │
+│   /graph        │
+│   /chat         │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   REST API      │  /api/v1/*
+│   Controllers   │  ├─ /ingest      (Ingestion pipeline)
+│                 │  ├─ /graph       (Dependency graph)
+│                 │  ├─ /rag         (Q&A system)
+│                 │  ├─ /embedding   (Vector search)
+│                 │  ├─ /api-keys    (Key management)
+│                 │  └─ /audit-logs  (Audit query)
+└────────┬────────┘
+         │
+    ┌────┴─────┬──────────┬──────────┐
+    ▼          ▼          ▼          ▼
+┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+│ Ingest │ │  RAG   │ │ Graph  │ │ Embed  │  Business Logic (contexts)
+└───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘
+    │          │          │          │
+    └──────────┴──────────┴──────────┘
+                  │
+         ┌────────┴─────────┐
+         ▼                  ▼
+    ┌─────────┐      ┌──────────┐
+    │ LLM     │      │ pgvector │  External Services
+    │ (Ollama)│      │ (Embeddings)
+    └─────────┘      └──────────┘
+         ▲
+         │ (protected by Circuit Breaker)
+         │
+    ┌────┴──────┐
+    │ Resilience│
+    │ - Retry   │
+    │ - Bulkhead│
+    └───────────┘
 ```
 
-### 2.2. Поток обработки данных
+### Technology Stack
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Backend** | Kotlin + Spring Boot 3.5.6 | REST API, WebFlux |
+| **Database** | PostgreSQL + pgvector | Persistence + embeddings |
+| **LLM** | Ollama (qwen2.5) | Code documentation |
+| **Embeddings** | bge-m3 / mxbai-embed-large | Semantic search |
+| **Cache/Rate Limit** | Redis | Distributed state |
+| **Security** | Spring Security | API key auth |
+| **Resilience** | Resilience4j | Circuit breaker, retry |
+| **Frontend** | Thymeleaf + Cytoscape.js | Web UI + graph viz |
+| **Migrations** | Liquibase | Schema versioning |
+| **Monitoring** | Actuator + Prometheus | Health & metrics |
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Java 21+**
+- **Docker & Docker Compose** (for dependencies)
+- **Git**
+
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/your-org/doc-generator.git
+cd doc-generator
+```
+
+### 2. Start Dependencies
+
+```bash
+docker-compose up -d
+```
+
+This starts:
+- PostgreSQL (port 5434)
+- Redis (port 6379)
+- Ollama (port 11434)
+
+### 3. Pull LLM Models
+
+```bash
+# Coder model (for technical docs)
+docker exec -it ollama ollama pull qwen2.5-coder:14b
+
+# Talker model (for human-readable docs)
+docker exec -it ollama ollama pull qwen2.5:14b-instruct
+
+# Embedding model
+docker exec -it ollama ollama pull bge-m3
+```
+
+### 4. Build & Run
+
+```bash
+./gradlew bootRun
+```
+
+### 5. Create API Key
+
+```bash
+curl -X POST http://localhost:8080/api/v1/api-keys \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-first-key",
+    "scopes": ["read", "write"],
+    "expiresInDays": 30
+  }'
+```
+
+Response:
+```json
+{
+  "id": 1,
+  "name": "my-first-key",
+  "rawKey": "dg_a1b2c3d4e5f6...",  // ⚠️ Save this! Shown only once
+  "scopes": ["read", "write"],
+  "expiresAt": "2026-03-21T10:30:00Z"
+}
+```
+
+### 6. Test API
+
+```bash
+export API_KEY="dg_a1b2c3d4e5f6..."
+
+# Ingest a project
+curl -X POST "http://localhost:8080/api/v1/ingest/reindex/1" \
+  -H "X-API-Key: $API_KEY"
+
+# Query documentation
+curl -X POST "http://localhost:8080/api/v1/rag/ask" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "applicationId": 1,
+    "query": "How does authentication work?"
+  }'
+```
+
+### 7. Open Web UI
+
+Visit:
+- **Dashboard**: http://localhost:8080/dashboard
+- **Graph View**: http://localhost:8080/graph
+- **Chat UI**: http://localhost:8080/chat
+- **Swagger**: http://localhost:8080/swagger-ui.html
+- **Health**: http://localhost:8080/actuator/health
+
+## ⚙️ Configuration
 
-Система реализует следующий конвейер обработки:
+### Environment Variables
 
-1. **Извлечение исходников**: Получение кода из Git-репозиториев
-2. **Построение графа**: Парсинг кода и создание графа узлов и рёбер
-3. **Разбиение на чанки**: Семантическое разбиение узлов графа на фрагменты
-4. **Создание эмбеддингов**: Векторизация чанков для семантического поиска
-5. **Генерация документации**: Многоэтапная генерация через LLM
-6. **RAG-поиск**: Интерактивный поиск и генерация ответов
+Create `.env` file:
 
-## 3. Детальное описание компонентов
+```bash
+# Database
+DB_HOST=localhost
+DB_PORT=5434
+DB_NAME=docgen
+DB_USERNAME=docgen
+DB_PASSWORD=docgen
 
-### 3.1. Модуль Git Checkout
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DATABASE=0
 
-#### 3.1.1. Назначение
+# Ollama LLM
+OLLAMA_HOSTNAME=localhost
+OLLAMA_PORT=11434
+OLLAMA_EMBEDDING_MODEL=bge-m3
+CODER_MODEL=qwen2.5-coder:14b
+TALKER_MODEL=qwen2.5:14b-instruct
 
-Модуль отвечает за получение исходного кода из Git-репозиториев и подготовку окружения для последующего анализа.
+# Git Providers
+GITHUB_TOKEN=ghp_yourtoken
+GITLAB_TOKEN=glpat_yourtoken
+GITLAB_URL=https://gitlab.company.com
 
-#### 3.1.2. Алгоритм работы
+# Security (disable for dev, enable for prod)
+DOCGEN_SECURITY_ENABLED=false
+DOCGEN_RATE_LIMIT_ENABLED=false
+```
 
-**Фаза 1: Checkout репозитория**
+### application.yml
 
-Система поддерживает два режима работы:
+See [application.yml](src/main/resources/application.yml) for full configuration.
 
-- **CLONE режим**: Первичное клонирование репозитория в локальную директорию
-- **UPDATE режим**: Обновление существующего репозитория через `git fetch` и `git pull`
+Key sections:
+- `spring.datasource` - PostgreSQL connection
+- `spring.data.redis` - Redis connection
+- `spring.ai.ollama` - LLM models
+- `docgen.security` - Auth toggle
+- `docgen.rate-limit` - Rate limiting toggle
+- `docgen.rag` - RAG pipeline timeouts
 
-Алгоритм определения режима:
-1. Проверка наличия директории `.git` в целевой директории
-2. Если директория существует → UPDATE режим
-3. Если директория отсутствует → CLONE режим
+## 🔑 API Key Management
+
+### Creating Keys
 
-**Фаза 2: Разрешение classpath**
+```bash
+# Development key (no expiration)
+curl -X POST http://localhost:8080/api/v1/api-keys \
+  -H "Content-Type: application/json" \
+  -d '{"name": "dev-key", "scopes": ["read", "write"]}'
+
+# Production key (30 days)
+curl -X POST http://localhost:8080/api/v1/api-keys \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "prod-integration",
+    "scopes": ["read"],
+    "expiresInDays": 30
+  }'
+```
+
+### Listing Keys
+
+```bash
+curl http://localhost:8080/api/v1/api-keys
+```
+
+### Revoking Keys
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/api-keys/1
+```
+
+### Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `read` | GET requests (query docs, search) |
+| `write` | POST/PUT/DELETE (ingest, reindex) |
+| `admin` | All operations including key management |
+
+See [TESTING_GUIDE.md](TESTING_GUIDE.md) for detailed testing procedures.
+
+## 📚 API Endpoints
+
+### Ingestion
+
+```
+POST   /api/v1/ingest/reindex/{appId}     Reindex application
+GET    /api/v1/dashboard/applications     List applications
+GET    /api/v1/dashboard/stats            Dashboard statistics
+```
 
-Критически важным этапом является разрешение classpath проекта для корректной работы PSI-парсера. Без classpath парсер не может разрешить типы, и тела функций остаются недоступными (`bodyExpression == null`).
+### Graph & Search
 
-Алгоритм разрешения classpath:
+```
+GET    /api/v1/graph/chunks               Get chunk graph
+GET    /api/v1/graph/cross-app            Cross-application graph
+POST   /api/v1/embedding/search           Semantic search
+```
 
-1. **Поиск Gradle проектов**: Рекурсивный поиск файлов `gradlew` или `gradlew.bat`
-2. **Создание init-скрипта**: Генерация временного Groovy-скрипта, который:
-   - Подключается к `allprojects.afterEvaluate`
-   - Для проектов с плагинами `java`/`java-library`/`org.jetbrains.kotlin.jvm`
-   - Получает конфигурацию `runtimeClasspath`
-   - Выводит каждый файл с маркером `CLASSPATH_ENTRY:`
-3. **Запуск Gradle**: Выполнение команды `gradlew --init-script {script} tasks --quiet`
-4. **Парсинг вывода**: Извлечение путей к JAR-файлам из вывода с маркером `CLASSPATH_ENTRY:`
+### RAG (Q&A)
 
-#### 3.1.3. Технические детали
+```
+POST   /api/v1/rag/ask                    Ask question about code
+```
 
-- **Библиотека**: JGit (`org.eclipse.jgit`) для работы с Git
-- **Аутентификация**: Поддержка username/password и OAuth2 token
-- **Оптимизация**: Кэширование локальных копий репозиториев для избежания повторных клонирований
+### Management
 
-### 3.2. Модуль Graph Builder
+```
+GET    /api/v1/api-keys                   List API keys
+POST   /api/v1/api-keys                   Create API key
+DELETE /api/v1/api-keys/{id}              Revoke API key
 
-#### 3.2.1. Назначение
+GET    /api/v1/audit-logs                 Search audit logs
+       ?user=alice&action=INGEST_START&from=2026-02-01T00:00:00Z
+```
 
-Модуль отвечает за построение графа кода — структурированного представления кодовой базы в виде узлов (nodes) и рёбер (edges), отражающих зависимости и связи между компонентами.
+### Health & Metrics
 
-#### 3.2.2. Алгоритм построения узлов
+```
+GET    /actuator/health                   Health check + circuit breaker status
+GET    /actuator/metrics                  Prometheus metrics
+GET    /actuator/prometheus               Prometheus endpoint
+```
 
-**Фаза 1: Инициализация PSI-парсера**
+## 🔍 Usage Examples
 
-Система использует Kotlin PSI (`org.jetbrains.kotlin:kotlin-compiler-embeddable`) для парсинга исходного кода:
+### 1. Ingest a Project
 
-1. **Создание KotlinCoreEnvironment**: Инициализация окружения компилятора с добавлением classpath
-2. **Создание PSI-фабрики**: `KtPsiFactory` для создания PSI-деревьев из исходного кода
+```kotlin
+// Add application to database first
+val app = Application(
+    name = "my-service",
+    gitUrl = "https://github.com/company/my-service",
+    branch = "main"
+)
+applicationRepository.save(app)
 
-**Фаза 2: Поиск и фильтрация файлов**
+// Trigger ingestion
+POST /api/v1/ingest/reindex/1
+```
 
-- Рекурсивный обход директории с исходниками
-- Фильтрация: только `.kt` файлы (исключаются `.kts`)
-- Исключение служебных директорий: `.git/`, `build/`, `out/`, `node_modules/`
+### 2. Ask Questions
 
-**Фаза 3: Парсинг и извлечение деклараций**
+```bash
+curl -X POST http://localhost:8080/api/v1/rag/ask \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "applicationId": 1,
+    "query": "How does the authentication flow work?",
+    "mode": "FULL",
+    "maxChunks": 5
+  }'
+```
 
-Для каждого Kotlin-файла извлекаются следующие типы деклараций:
+### 3. Search Code
 
-1. **Типы (классы, интерфейсы, enum, object)**:
-   - FQN (Fully Qualified Name)
-   - Супертипы (наследование/реализация)
-   - Аннотации
-   - KDoc комментарии
-   - Диапазон строк в исходнике
-   - Исходный код
+```bash
+curl -X POST http://localhost:8080/api/v1/embedding/search \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "applicationId": 1,
+    "query": "user authentication",
+    "topK": 10
+  }'
+```
 
-2. **Поля (свойства классов)**:
-   - Имя и тип
-   - Владелец (класс)
-   - Аннотации
-   - KDoc комментарии
+### 4. View Dependency Graph
 
-3. **Функции (методы классов и top-level)**:
-   - Сигнатура (параметры, возвращаемый тип)
-   - Владелец (класс или null для top-level)
-   - Использования (usages) — вызовы других методов
-   - Исключения (throws)
-   - KDoc комментарии
-   - Исходный код
+Open http://localhost:8080/graph and select your application.
 
-**Фаза 4: Сбор использований (usages)**
+### 5. Cross-Application Integrations
 
-Система использует два подхода для сбора использований:
+```bash
+curl "http://localhost:8080/api/v1/graph/cross-app?applicationIds=1,2,3&types=HTTP,KAFKA" \
+  -H "X-API-Key: $API_KEY"
+```
 
-1. **Через PSI (предпочтительно)**: Обход PSI-дерева с использованием `KtTreeVisitorVoid`:
-   - Обнаружение `KtDotQualifiedExpression` (вызовы с точкой)
-   - Обнаружение `KtCallExpression` (простые вызовы)
+## 🧪 Testing
 
-2. **Fallback через regex** (если PSI недоступен):
-   - Регулярные выражения для поиска вызовов функций
-   - Менее точный, но работает при отсутствии classpath
+See comprehensive [TESTING_GUIDE.md](TESTING_GUIDE.md).
 
-**Фаза 5: Создание узлов**
+Quick test commands:
 
-Для каждой декларации создаётся узел графа (`Node`) со следующими характеристиками:
+```bash
+# Run all tests
+./gradlew test
 
-- **FQN**: Уникальный идентификатор узла
-- **Kind**: Тип узла (PACKAGE, CLASS, INTERFACE, FUNCTION, FIELD, etc.)
-- **Lang**: Язык программирования (KOTLIN, JAVA, etc.)
-- **Parent**: Ссылка на родительский узел (иерархия)
-- **FilePath**: Относительный путь к файлу
-- **LineStart/LineEnd**: Диапазон строк в исходнике
-- **SourceCode**: Исходный код (до 10MB, с обрезкой при превышении)
-- **DocComment**: KDoc/Javadoc комментарий
-- **Signature**: Сигнатура (для функций/классов)
-- **CodeHash**: SHA-256 хеш для отслеживания изменений
-- **Meta**: Дополнительные метаданные (JSON)
+# Run specific test
+./gradlew test --tests "CrossAppGraphServiceImplTest"
 
-**Оптимизации при создании узлов**:
+# Build without tests
+./gradlew build -x test
 
-- **Кэширование**: `existingNodesCache` для избежания N+1 запросов к БД
-- **Хеширование**: `codeHash` позволяет пропускать обновление неизменённого кода
-- **Валидация**: Проверка корректности FQN, диапазонов строк, отсутствия циклических зависимостей
+# Check coverage
+./gradlew koverHtmlReport
+# Open build/reports/kover/html/index.html
+```
 
-#### 3.2.3. Алгоритм линковки (создание рёбер)
+## 🐛 Troubleshooting
 
-**Фаза 1: Инициализация индекса**
+### LLM not responding
 
-Создаётся мутабельный индекс узлов (`NodeIndex`) для быстрого поиска:
-- Поиск по FQN: `findByFqn(fqn: String): Node?`
-- Поиск по типу: `findByKind(kind: NodeKind): Sequence<Node>`
-- Разрешение типов: `resolveType(simpleOrFqn, imports, pkg): Node?`
+```bash
+# Check Ollama
+docker ps | grep ollama
+curl http://localhost:11434/api/tags
 
-**Алгоритм разрешения типов**:
-
-1. Прямой поиск по FQN
-2. Поиск через импорты (если имя заканчивается на `.simpleName`)
-3. Поиск в текущем пакете (`$pkg.$simpleName`)
-4. Поиск по простому имени (первый найденный)
-
-**Фаза 2: Структурные связи (CONTAINS)**
-
-Создаются иерархические связи:
-- `PACKAGE --[CONTAINS]--> TYPE` (пакет содержит тип)
-- `TYPE --[CONTAINS]--> MEMBER` (тип содержит метод/поле)
-
-**Фаза 3: Наследование и реализация (INHERITS, IMPLEMENTS)**
-
-Для каждого типа:
-- Извлечение супертипов из метаданных
-- Разрешение типов через индекс
-- Создание связей:
-  - Если супертип — интерфейс → `IMPLEMENTS` + `DEPENDS_ON`
-  - Если супертип — класс → `INHERITS` + `DEPENDS_ON`
-
-**Фаза 4: Аннотации (ANNOTATED_WITH)**
-
-Для каждой аннотации создаются две связи:
-- `ANNOTATED_WITH` — узел аннотирован типом
-- `DEPENDS_ON` — зависимость от типа аннотации
-
-**Фаза 5: Зависимости из сигнатуры (DEPENDS_ON)**
-
-Из сигнатуры функции извлекаются типы:
-- Параметры функции
-- Возвращаемый тип
-- Создание связей `DEPENDS_ON` к каждому типу
-
-**Фаза 6: Вызовы методов (CALLS)**
-
-Обработка использований (usages), собранных на этапе парсинга:
-
-1. **Простые вызовы** (`RawUsage.Simple`):
-   - Поиск метода в классе-владельце: `{owner.fqn}.{name}`
-   - Если не найдено и это вызов → разрешение как тип (конструктор)
-
-2. **Вызовы с точкой** (`RawUsage.Dot`):
-   - Определение типа получателя:
-     - Если `receiver` начинается с заглавной → разрешение как тип
-     - Иначе → использование владельца функции
-   - Поиск метода: `{receiver.fqn}.{member}`
-   - Создание связи `CALLS`
-
-**Фаза 7: Интеграционные связи**
-
-Система обнаруживает интеграционные точки через анализ библиотек:
-
-1. **HTTP Endpoints** (`CALLS_HTTP`):
-   - Обнаружение вызовов HTTP-клиентов (WebClient, RestTemplate, OkHttp)
-   - Извлечение URL и HTTP-метода
-   - Создание виртуальных узлов типа `ENDPOINT` с FQN: `endpoint://{httpMethod} {url}`
-   - Дополнительные связи для resilience patterns:
-     - `RETRIES_TO` — retry логика
-     - `TIMEOUTS_TO` — timeout
-     - `CIRCUIT_BREAKER_TO` — circuit breaker
-
-2. **Kafka Topics** (`PRODUCES`, `CONSUMES`):
-   - Обнаружение вызовов Kafka-клиентов
-   - Извлечение topic из параметров методов
-   - Создание виртуальных узлов типа `TOPIC` с FQN: `topic://{topic}`
-   - Создание связей `PRODUCES` или `CONSUMES` в зависимости от операции
-
-3. **Camel Routes**:
-   - Обнаружение Camel-вызовов
-   - Извлечение URI и типа endpoint
-   - Создание связей аналогично HTTP endpoints
-
-**Фаза 8: Исключения (THROWS)**
-
-Для каждого типа исключения из метаданных функции создаётся связь `THROWS` от функции к типу исключения.
-
-**Фаза 9: Сохранение рёбер**
-
-Все рёбра сохраняются в БД через `EdgeRepository.upsert()` с составным ключом `(src_id, dst_id, kind)`.
-
-#### 3.2.4. Типы связей (EdgeKind)
-
-Система поддерживает следующие типы связей:
-
-**Структурные связи**:
-- `CONTAINS` — иерархическая связь (пакет → тип, тип → член)
-- `DEPENDS_ON` — зависимость от типа
-- `IMPLEMENTS` — реализация интерфейса
-- `INHERITS` — наследование класса
-- `ANNOTATED_WITH` — аннотация узла
-
-**Вызовы в коде**:
-- `CALLS` — вызов метода/конструктора
-- `THROWS` — выбрасывание исключения
-
-**Интеграционные связи**:
-- `CALLS_HTTP` — HTTP вызов endpoint
-- `PRODUCES` — публикация в Kafka topic
-- `CONSUMES` — чтение из Kafka topic
-- `RETRIES_TO` — retry логика для endpoint
-- `TIMEOUTS_TO` — timeout для endpoint
-- `CIRCUIT_BREAKER_TO` — circuit breaker для endpoint
-
-### 3.3. Модуль Chunking
-
-#### 3.3.1. Назначение
-
-Модуль отвечает за разбиение узлов графа на чанки (chunks) — структурированные фрагменты кода или документации, которые могут быть проиндексированы, встроены в векторное пространство и использованы для поиска релевантного контекста при генерации документации через LLM.
-
-#### 3.3.2. Алгоритм разбиения
-
-**Фаза 1: Инициализация процесса**
-
-Создаётся запрос на разбиение (`ChunkBuildRequest`) с параметрами:
-- `applicationId` — ID приложения
-- `strategy` — стратегия разбиения (например, `"per-node"`)
-- `dryRun` — режим только подсчёта без записи
-- `limitNodes` — лимит узлов для обработки
-- `batchSize` — размер страницы при чтении узлов
-- `includeKinds` — фильтр по типам узлов
-
-**Фаза 2: Пагинация и чтение узлов**
-
-Узлы читаются страницами для оптимизации памяти:
-- Размер страницы: `max(50, batchSize)`
-- Сортировка по `id` для детерминированности
-- Опциональная фильтрация по типам узлов
-
-**Фаза 3: Загрузка рёбер (опционально)**
-
-Для каждого узла загружаются связанные рёбра батчем для избежания N+1 запросов:
-- Фильтрация по типу `CALLS`
-- Группировка по исходному узлу
-
-**Фаза 4: Построение планов чанков**
-
-Стратегия `PerNodeChunkStrategy` создаёт один чанк на узел:
-
-1. **Анализ узла**: Определение наличия документации (`signature` или `docComment`)
-
-2. **Построение sectionPath**: Создание иерархического пути:
-   ```kotlin
-   ["com", "bftcom", "package", "ClassName"]
-   ```
-
-3. **Извлечение связей**: Фильтрация рёбер типа `CALLS` для последующего использования в RAG
-
-4. **Создание ChunkPlan**:
-   - **DOC-чанк** (если есть документация):
-     - `source = "doc"`
-     - `kind = "tech"`
-     - Pipeline stages: `["render-doc", "embed", "link-edges"]`
-   - **CODE-чанк** (если нет документации):
-     - `source = "code"`
-     - `kind = "snippet"`
-     - Pipeline stages: `["extract-snippet", "summarize", "embed", "link-edges"]`
-
-**Фаза 5: Сохранение планов чанков**
-
-Планы накапливаются в буфере и сохраняются батчами по 1000 штук для оптимизации производительности.
-
-**Фаза 6: Обработка pipeline stages**
-
-После создания структуры чанка выполняются следующие стадии обработки:
-
-1. **extract-snippet** (для CODE-чанков):
-   - Чтение исходного файла по `filePath`
-   - Извлечение фрагмента по `spanLines`
-   - Сохранение в `contentRaw` и `content`
-
-2. **render-doc** (для DOC-чанков):
-   - Извлечение `signature` и `docComment` из узла
-   - Форматирование в Markdown
-   - Сохранение в `content`
-
-3. **summarize** (для CODE-чанков):
-   - Генерация краткого описания кода через LLM
-   - Сохранение в `explainMd`
-
-4. **embed** (для всех чанков):
-   - Создание векторного представления через embedding модель
-   - Сохранение в `emb` (vector(1024))
-   - Заполнение метаданных (`embedModel`, `embedTs`)
-
-5. **link-edges** (для всех чанков):
-   - Обогащение связями из графа
-   - Заполнение `usesMd` и `usedByMd` (человекочитаемые описания связей)
-
-#### 3.3.3. Структура Chunk
-
-Чанк содержит следующие поля:
-
-- **Идентификация**: `id`, `application`, `node`
-- **Тип/источник**: `source` ("code" | "doc" | "sql" | "log"), `kind`, `langDetected`
-- **Контент**: `contentRaw` (исходный текст), `content` (нормализованный текст), `contentTsv` (tsvector для полнотекстового поиска), `contentHash` (SHA-256), `tokenCount`
-- **Позиция**: `chunkIndex`, `spanLines` (INT4RANGE), `spanChars` (INT8RANGE)
-- **Контекст**: `title`, `sectionPath`, `usesMd`, `usedByMd`
-- **Векторное представление**: `emb` (vector(1024)), `embedModel`, `embedTs`
-- **LLM-объяснение**: `explainMd`, `explainQuality`
-- **Связи**: `relations`, `usedObjects`
-- **Pipeline**: `pipeline`, `freshnessAt`, `rankBoost`
-
-### 3.4. Модуль Embedding
-
-#### 3.4.1. Назначение
-
-Модуль отвечает за создание векторных представлений (эмбеддингов) чанков для последующего семантического поиска.
-
-#### 3.4.2. Технические детали
-
-- **Модель**: `mxbai-embed-large` (по умолчанию, настраивается)
-- **Размерность**: 1024
-- **Хранилище**: PostgreSQL с расширением pgvector
-- **Тип индекса**: HNSW (Hierarchical Navigable Small World)
-- **Метрика расстояния**: COSINE_DISTANCE
-
-### 3.5. Модуль AI Generation
-
-#### 3.5.1. Назначение
-
-Модуль реализует многоэтапную генерацию документации для узлов графа кода с использованием больших языковых моделей (LLM).
-
-#### 3.5.2. Архитектура генерации
-
-Система использует **двухэтапный подход** (с возможностью расширения до трёх этапов):
-
-1. **Coder** (техническое объяснение) — генерирует детальное техническое описание кода для разработчиков
-2. **Speaker/Talker** (человекочитаемый пересказ) — переписывает техническое описание в понятный для нетехнических специалистов формат
-3. **Instruct** (планируемый этап) — генерирует практические инструкции, примеры использования и предупреждения
-
-#### 3.5.3. Этап 1: Coder — Техническое объяснение
-
-**Назначение**: Генерация детального технического описания кода для разработчиков.
-
-**Процесс**:
-
-1. **Планировщик находит чанки для обработки**:
-   - Сервис: `RawContentFillerScheduler.pollAndFill()`
-   - Критерии отбора:
-     - Чанк имеет `content_raw == null` или пустой
-     - Чанк связан с узлом, у которого есть исходный код
-     - Чанк не заблокирован другим воркером
-
-2. **Создание запроса для LLM**:
-   - Фабрика: `ExplainRequestFactory.toCoderExplainRequest()`
-   - Структура запроса:
-     - `nodeFqn` — полное квалифицированное имя узла
-     - `language` — язык программирования
-     - `hints` — обогащённые подсказки из метаданных узла
-     - `codeExcerpt` — фрагмент исходного кода
-     - `lineStart`, `lineEnd` — диапазон строк
-
-3. **Построение обогащённых подсказок (hints)**:
-   
-   Подсказки включают:
-   - **Базовая информация**: Kind, Package, Owner, File, Span
-   - **Сигнатуры и типы**: Signature, Params, ReturnType, Supertypes
-   - **Аннотации и модификаторы**: Annotations, Modifiers
-   - **KDoc**: KDoc-Summary, KDoc-Details
-   - **Импорты**: Список импортов (первые 8)
-   - **Контекст пайплайна**: Chunking-Strategy, Audience, Goal, QualityTarget
-   - **Эвристики по роли**: Определение тестового контекста, HTTP endpoint, scheduled job, Kafka listener
-   - **Граф-подсказки по вызовам**: Calls-IntraClass, Calls-External, примеры вызовов
-   - **Инструкции для LLM**: Структурированный список требований к ответу
-
-4. **Генерация через LLM**:
-   - Клиент: `OllamaCoderClient.explain()`
-   - Модель: `qwen2.5-coder:14b` (специализированная модель для кода)
-   - Температура: 0.3 (низкая для детального и точного объяснения)
-   - System Prompt: Инструкции для строгого технического объяснения на русском языке
-   - User Message: Язык, расположение (FQN), диапазон строк, подсказки, фрагмент кода
-
-5. **Языковая валидация и перегенерация**:
-   - Проверка доли кириллицы в ответе
-   - Минимальная доля: 0.6 (настраивается)
-   - Максимальное количество перегенераций: 2
-   - При недостаточной доле кириллицы — добавление требования в hints и перегенерация
-
-6. **Сохранение результата**:
-   - Сохранение в `chunk.content_raw` (техническое объяснение на русском языке)
-   - Использование оптимистической блокировки для избежания конфликтов
-
-**Структура ответа Coder**:
-- Краткое описание
-- Основная логика
-- Контекст и связи
-
-#### 3.5.4. Этап 2: Speaker/Talker — Человекочитаемый пересказ
-
-**Назначение**: Переписывание технического описания в понятный для нетехнических специалистов (менеджеров, аналитиков) формат.
-
-**Процесс**:
-
-1. **Планировщик находит чанки для обработки**:
-   - Сервис: `ContentFillerScheduler.pollAndFill()`
-   - Критерии отбора:
-     - Чанк имеет заполненный `content_raw` (результат coder этапа)
-     - Чанк имеет пустой или устаревший `content`
-     - Чанк не заблокирован другим воркером
-
-2. **Создание запроса для LLM**:
-   - Фабрика: `ExplainRequestFactory.toTalkerRewriteRequest()`
-   - Структура запроса:
-     - `nodeFqn` — полное квалифицированное имя узла
-     - `language` — язык программирования
-     - `rawContent` — техническое описание из `content_raw`
-
-3. **Генерация через LLM**:
-   - Клиент: `OllamaTalkerClient.rewrite()`
-   - Модель: `qwen2.5:14b-instruct` (инструкционная модель)
-   - Температура: 0.7 (средняя для более естественного пересказа)
-   - System Prompt: Инструкции для переписывания в человекочитаемый формат без IT-жаргона
-   - User Message: Контекст (FQN, язык), техническое описание из coder этапа
-
-4. **Очистка ответа**:
-   - Удаление тегов `<think>...</think>` через регулярное выражение
-   - Удаление служебного текста о процессе мышления
-
-5. **Сохранение результата**:
-   - Сохранение в `chunk.content` (человекочитаемое описание на русском языке без IT-жаргона)
-
-**Критические правила для Talker**:
-- **ТОЛЬКО РУССКИЙ ЯЗЫК И БЕЗ ЖАРГОНА**: Весь ответ на чистом русском языке, категорически запрещено смешивать языки и использовать IT-термины
-- **НИКАКИХ ОБДУМЫВАНИЙ**: Ответ должен содержать только итоговый переписанный текст, без тегов мышления и вступлений
-
-#### 3.5.5. Этап 3: Instruct (планируемый)
-
-**Назначение**: Генерация практических инструкций по использованию компонента:
-- Примеры использования
-- Типичные сценарии
-- Предупреждения и подводные камни
-- Best practices
-
-**Планируемая реализация**: Этап будет использовать результат coder этапа для генерации инструкций с учётом контекста из графа (связи, зависимости) и примеров использования из связанных узлов.
-
-### 3.6. Модуль Library Processing
-
-#### 3.6.1. Назначение
-
-Модуль отвечает за анализ библиотек (JAR-файлов) из classpath, извлечения их структуры через байткод-анализ и создания узлов графа для последующего использования при линковке интеграционных связей.
-
-#### 3.6.2. Алгоритм обработки
-
-**Фаза 1: Инициализация обработки**
-
-Событие `LibraryBuildRequestedEvent` содержит:
-- `applicationId` — ID приложения
-- `sourceRoot` — корневая директория исходников
-- `classpath` — список JAR-файлов зависимостей
-
-**Фаза 2: Обработка JAR-файлов**
-
-1. **Фильтрация**: Извлечение только JAR-файлов из classpath
-2. **Обработка каждого JAR**: Каждый JAR обрабатывается в отдельной транзакции
-
-**Фаза 3: Извлечение координат библиотеки**
-
-Алгоритм извлечения координат (`LibraryCoordinateParser`):
-
-1. **Поиск в pom.properties**:
-   - Путь: `META-INF/maven/{groupId}/{artifactId}/pom.properties`
-   - Чтение свойств: `groupId`, `artifactId`, `version`
-   - Формат координаты: `{groupId}:{artifactId}:{version}`
-
-2. **Fallback: извлечение из имени файла**:
-   - Парсинг: `artifactId-version.jar`
-   - Regex: `-(\d+(\.\d+).*)$` для поиска версии
-   - Восстановление groupId из пути
-
-**Фаза 4: Проверка принадлежности компании**
-
-Whitelist префиксов:
-- `com.bftcom`
-- `ru.bftcom`
-- `ru.supercode`
-- `rrbpm`
-
-Обрабатываются только библиотеки компании.
-
-**Фаза 5: Парсинг байткода**
-
-Используется библиотека ASM (`org.objectweb.asm`) для анализа байткода:
-
-1. **Открытие JAR-архива**: Сбор всех `.class` файлов
-2. **Парсинг каждого класса через ASM**:
-   - Использование `ClassReader` с флагами `SKIP_CODE | SKIP_DEBUG | SKIP_FRAMES` (тело методов не анализируется на этом этапе)
-   - Извлечение информации о классе:
-     - FQN, простое имя, пакет
-     - Модификаторы доступа
-     - Суперкласс и интерфейсы
-     - Тип класса (CLASS, INTERFACE, ENUM)
-   - Извлечение полей:
-     - Имя, тип, модификаторы
-     - Дескриптор и сигнатура
-   - Извлечение методов:
-     - Имя, сигнатура, параметры, возвращаемый тип
-     - Исключения (throws)
-     - Определение Kotlin suspend функций
-
-**Фаза 6: Анализ интеграционных вызовов**
-
-**Важно**: Этот анализ выполняется **с анализом кода** (`ClassReader` без `SKIP_CODE`).
-
-Алгоритм:
-
-1. **Построение call graph**: Отслеживание вызовов методов между классами
-2. **Обнаружение HTTP-вызовов**:
-   - Паттерны HTTP-клиентов: WebClient, RestTemplate, OkHttp, Apache HttpClient
-   - Извлечение URL из стека операндов:
-     - Анализ `StringBuilder.append()` и `toString()`
-     - Анализ `String.concat()`
-     - Анализ `LDC` (load constant) инструкций
-   - Определение HTTP-метода по имени метода
-   - Обнаружение resilience patterns: retry, timeout, circuit breaker
-3. **Обнаружение Kafka-вызовов**:
-   - Паттерны: `KafkaProducer`, `KafkaConsumer`
-   - Извлечение topic из параметров методов
-   - Определение операции: PRODUCE или CONSUME
-4. **Обнаружение Camel-вызовов**:
-   - Паттерны: `RouteBuilder`, `ProducerTemplate`, `ConsumerTemplate`
-   - Извлечение URI и типа endpoint
-5. **Подъём до родительских клиентов**:
-   - Построение графа вызовов
-   - Поиск публичных методов, которые вызывают HTTP/Kafka/Camel методы
-   - Подъём информации о вызовах до родительских методов
-
-**Фаза 7: Фильтрация релевантных узлов**
-
-Критерии релевантности:
-
-1. **Классы**:
-   - Публичность
-   - Интеграционные аннотации: `RestController`, `Controller`, `FeignClient`, `KafkaListener`, `Service`, `Component`, `WebClient`
-   - HTTP-клиенты (по FQN)
-   - Kafka-клиенты
-   - Camel
-   - Интерфейсы (могут быть контрактами)
-
-2. **Методы**:
-   - Публичность
-   - Интеграционные аннотации: `@*Mapping`, `@KafkaListener`, `@Scheduled`
-   - Интеграционные вызовы (из анализа байткода)
-   - Методы интеграционных классов
-
-3. **Поля**:
-   - Публичные поля интеграционных классов
-   - Статические константы интеграционных классов
-
-**Фаза 8: Сохранение LibraryNode**
-
-Для каждого релевантного узла создаётся `LibraryNode` с интеграционными метаданными:
-- Базовая информация: FQN, имя, пакет, тип, язык
-- Метаданные: аннотации, модификаторы, интеграционный анализ
-- Для методов добавляется `integrationAnalysis` с информацией о:
-  - HTTP endpoints (URLs, методы, resilience patterns)
-  - Kafka topics (topics, операции)
-  - Camel routes (URIs, типы endpoints)
-
-**Фаза 9: Построение индекса LibraryNode**
-
-При старте приложения строится индекс для быстрого поиска:
-- Индекс по полному FQN метода: `com.example.Class.method`
-- Индекс по классу и методу: `com.example.Class.methodName`
-
-### 3.7. Модуль RAG (Retrieval-Augmented Generation)
-
-#### 3.7.1. Назначение
-
-Модуль реализует систему интерактивного поиска и генерации ответов на вопросы о кодовой базе на основе релевантного контекста.
-
-#### 3.7.2. Алгоритм работы
-
-**Фаза 1: Обработка запроса**
-
-Запрос пользователя обрабатывается через графовую машину состояний (`GraphRequestProcessor`), которая последовательно выполняет шаги:
-
-1. **EXTRACTION**: извлечение className/methodName (LLM + Regex fallback)
-2. **EXACT_SEARCH**: точный поиск узлов по графу
-3. **GRAPH_EXPANSION**: расширение по ребрам графа (CALLS_CODE/DEPENDS_ON/IMPLEMENTS/READS/WRITES)
-4. **VECTOR_SEARCH**: семантический поиск по чанкам
-5. **RERANKING**: фильтрация и очистка результатов
-
-**Фаза 2: Семантический поиск**
-
-Используется `EmbeddingSearchService.searchByText()` внутри шага `VECTOR_SEARCH`, результаты сохраняются в контексте и затем фильтруются в `RERANKING`.
-
-**Фаза 3: Фильтрация результатов**
-
-Сервис `ResultFilterService` применяет фильтры:
-- По языку программирования
-- По модулю/пакету
-- По типу узла
-- По качеству документации
-
-**Фаза 4: Формирование контекста**
-
-Собранные результаты форматируются для включения в промпт LLM:
-- Заголовок чанка (FQN узла)
-- Содержимое чанка
-- Метаданные (язык, тип узла, путь к файлу)
-- Связи (uses/usedBy)
-
-**Фаза 5: Генерация ответа**
-
-1. **Построение промпта**:
-   - Инструкции для LLM о формате ответа
-   - Контекст из найденных чанков
-   - Оригинальный запрос пользователя
-
-2. **Генерация через LLM**:
-   - Клиент: `ChatClient` с настройками для RAG
-   - Использование памяти чата для поддержания контекста диалога
-   - Генерация ответа на основе предоставленного контекста
-
-3. **Формирование метаданных**:
-   - Оригинальный запрос
-   - Переписанный запрос
-   - Расширенные запросы
-   - Шаги обработки
-   - Дополнительные данные
-
-**Фаза 6: Формирование ответа**
-
-Структура ответа:
-- `answer` — сгенерированный ответ LLM
-- `sources` — список источников (чанков) с метаданными и оценкой релевантности
-- `metadata` — метаданные обработки запроса
-
-### 3.8. Модуль Doc-Evaluator
-
-#### 3.8.1. Назначение
-
-Отдельный микросервис на Python, предназначенный для оценки качества сгенерированной документации. Он реализует гибридный подход к оценке, объединяя детерминированные метрики и вердикты больших языковых моделей (LLM Judges).
-
-#### 3.8.2. Архитектура оценки
-
-Сервис использует **оркестратор (EvaluationOrchestrator)**, который параллельно запускает два типа проверок для каждого запроса:
-
-1.  **Локальные метрики (Local Metrics)** — быстрые, CPU-bound проверки:
-    *   **Semantic Similarity**: Вычисляет косинусное сходство между эмбеддингами кода и документации (Sentence Transformers). Показывает, насколько смысл описания соответствует коду.
-    *   **Keyword Coverage**: Проверяет, насколько ключевые термины из кода (имена переменных, функций) покрыты документацией.
-    *   **Readability**: Оценивает читаемость текста (индексы Flesch-Reading-Ease и т.д.).
-
-2.  **LLM Судьи (LLM Judges)** — интеллектуальные, IO-bound проверки:
-    *   Используются несколько моделей судей: **GigaChat**, **Google Gemini**, **Ollama**.
-    *   **Self-Consistency**: Каждая модель опрашивается несколько раз с разной температурой (0.1, 0.3, ...), чтобы снизить влияние галлюцинаций.
-    *   Судьи оценивают точность, полноту и полезность документации по шкале от 1 до 10.
-
-#### 3.8.3. Расчет итоговой оценки
-
-Итоговый балл (Final Score) рассчитывается как взвешенная сумма всех метрик. Дополнительно вычисляется:
-*   **Variance (Дисперсия)**: Разброс оценок между разными LLM-судьями.
-*   **Confidence (Уверенность)**: Обратно пропорциональна дисперсии. Если все судьи единогласны — уверенность высокая. Если мнения разошлись — уверенность падает.
-
-Это позволяет системе автоматически помечать "сомнительную" документацию для ручной проверки человеком.
-
-## 4. Технические детали реализации
-
-### 4.1. Технологический стек
-
-- **Язык программирования**: Kotlin 2.0.21
-- **Фреймворк**: Spring Boot 3.5.6
-- **База данных**: PostgreSQL 16 с расширением pgvector
-- **Миграции**: Liquibase
-- **Парсинг кода**: Kotlin PSI (kotlin-compiler-embeddable)
-- **Анализ байткода**: ASM (org.objectweb.asm)
-- **LLM**: Ollama (qwen2.5-coder:14b, qwen2.5:14b-instruct)
-- **Embedding модель**: mxbai-embed-large (1024 размерности)
-- **Векторное хранилище**: pgvector с HNSW индексом
-- **Git**: JGit (org.eclipse.jgit)
-- **Doc-Evaluator**: Python 3.11, FastAPI, PyTorch, Transformers, Sentence-Transformers
-
-
-### 4.2. Архитектура базы данных
-
-#### 4.2.1. Основные сущности
-
-1. **Application**: Приложение (кодовая база)
-   - Идентификация: `key`, `name`, `description`
-   - Репозиторий: `repoUrl`, `repoProvider`, `repoOwner`, `repoName`, `defaultBranch`
-   - Индексация: `lastCommitSha`, `lastIndexedAt`, `lastIndexStatus`
-
-2. **Node**: Узел графа кода
-   - Идентификация: `fqn` (уникальный), `name`, `packageName`
-   - Тип: `kind` (PACKAGE, CLASS, INTERFACE, FUNCTION, FIELD, etc.)
-   - Язык: `lang` (KOTLIN, JAVA, etc.)
-   - Иерархия: `parent` (ссылка на родительский узел)
-   - Расположение: `filePath`, `lineStart`, `lineEnd`
-   - Контент: `sourceCode`, `docComment`, `signature`
-   - Метаданные: `codeHash` (SHA-256), `meta` (JSONB)
-
-3. **Edge**: Ребро графа (связь между узлами)
-   - Составной ключ: `(src_id, dst_id, kind)`
-   - Тип связи: `kind` (CONTAINS, CALLS, DEPENDS_ON, etc.)
-   - Метаданные: `evidence` (JSONB), `explainMd`, `confidence`, `relationStrength`
-
-4. **Chunk**: Чанк для RAG
-   - Связь с узлом: `node_id`
-   - Тип/источник: `source`, `kind`, `langDetected`
-   - Контент: `contentRaw`, `content`, `contentTsv` (tsvector), `contentHash`
-   - Позиция: `spanLines` (INT4RANGE), `spanChars` (INT8RANGE)
-   - Контекст: `title`, `sectionPath`, `usesMd`, `usedByMd`
-   - Векторное представление: `emb` (vector(1024)), `embedModel`, `embedTs`
-   - LLM-объяснение: `explainMd`, `explainQuality`
-   - Pipeline: `pipeline` (JSONB), `freshnessAt`, `rankBoost`
-
-5. **Library**: Библиотека
-   - Координата: `coordinate` (groupId:artifactId:version)
-   - Метаданные: `kind`, `metadata` (JSONB)
-
-6. **LibraryNode**: Узел библиотеки
-   - Связь с библиотекой: `library_id`
-   - Структура аналогична `Node`, но без исходного кода
-   - Метаданные: `meta` (JSONB) с `integrationAnalysis`
-
-### 4.3. Оптимизации производительности
-
-1. **Кэширование узлов**: `existingNodesCache` в `NodeBuilder` для избежания N+1 запросов
-2. **Хеширование кода**: `codeHash` позволяет пропускать обновление неизменённого кода
-3. **Батчевая обработка**: Обработка узлов, чанков и рёбер батчами
-4. **Пагинация**: Чтение узлов страницами для оптимизации памяти
-5. **Индексация**: Индексы на FQN, типы узлов, векторный поиск (HNSW)
-6. **Оптимистическая блокировка**: Для избежания конфликтов при параллельной обработке
-7. **Транзакционность**: Группировка операций в транзакции для атомарности
-
-### 4.4. Обработка ошибок
-
-1. **PSI body == NULL**: Логируется предупреждение, используется fallback на regex
-2. **Ошибка парсинга**: Логируется ошибка, файл пропускается
-3. **Ошибка валидации**: Исключение `IllegalArgumentException` с описанием проблемы
-4. **Ошибка генерации LLM**: Логируется, чанк остаётся в очереди для повторной обработки
-5. **Языковая валидация**: Автоматическая перегенерация до `maxRegens` раз
-6. **Конфликты блокировки**: Чанк пропускается, обрабатывается другим воркером
-
-## 5. Научные аспекты
-
-### 5.1. Графовое представление кода
-
-Система использует графовое представление кода для моделирования структурных и семантических связей между компонентами. Граф позволяет:
-
-- **Отслеживание зависимостей**: Явное представление зависимостей между компонентами
-- **Анализ влияния изменений**: Определение компонентов, затронутых изменениями
-- **Обнаружение паттернов**: Выявление архитектурных паттернов и антипаттернов
-- **Контекстный поиск**: Использование графа для расширения контекста при поиске
-
-### 5.2. Семантическое разбиение (Chunking)
-
-Подход к разбиению кода на чанки учитывает:
-
-- **Структурные границы**: Разбиение по границам классов, методов, функций
-- **Семантическую связность**: Группировка связанных фрагментов кода
-- **Контекстную информацию**: Сохранение метаданных о связях и зависимостях
-
-### 5.3. Векторное представление и семантический поиск
-
-Использование эмбеддингов для семантического поиска позволяет:
-
-- **Поиск по смыслу**: Нахождение релевантных фрагментов по семантическому сходству, а не только по ключевым словам
-- **Многоязычность**: Работа с кодом на разных языках программирования
-- **Масштабируемость**: Эффективный поиск в больших кодовых базах через HNSW индекс
-
-### 5.4. Многоэтапная генерация документации
-
-Двухэтапный подход к генерации документации обеспечивает:
-
-- **Адаптивность для аудитории**: Разные версии документации для разработчиков и нетехнических специалистов
-- **Качество генерации**: Разделение задач позволяет специализированным моделям генерировать более качественный контент
-- **Контролируемость**: Возможность валидации и контроля качества на каждом этапе
-
-### 5.5. RAG для кодовых баз
-
-Применение RAG к кодовым базам имеет особенности:
-
-- **Точность**: Использование только релевантного контекста из кодовой базы снижает галлюцинации
-- **Актуальность**: Документация всегда основана на актуальном коде
-- **Интерактивность**: Возможность задавать вопросы и получать контекстуальные ответы
-- **Трассируемость**: Ссылки на источники позволяют проверить достоверность ответа
-
-## 6. Использование системы
-
-### 6.1. Запуск системы
-
-1. **Настройка окружения**: Настройка переменных окружения для подключения к БД, Git, Ollama
-2. **Запуск приложения**: `./gradlew bootRun` или через Docker Compose
-3. **Инициализация приложения**: Создание записи `Application` в БД
-4. **Запуск индексации**: Вызов API или использование флага `--ingest` при старте
-
-### 6.2. API для индексации
-
-- `POST /api/ingest/start` — запуск индексации приложения
-- `GET /api/ingest/status` — статус индексации
-- `POST /api/chunk/build` — построение чанков
-- `POST /api/ai/fill` — заполнение документации через LLM
-
-### 6.3. API для RAG
-
-- `POST /api/rag/ask` — задать вопрос о кодовой базе
-- Параметры: `query` (текст вопроса), `sessionId` (ID сессии для контекста диалога)
-- Ответ: `answer` (ответ LLM), `sources` (источники), `metadata` (метаданные обработки)
-
-## 7. Заключение
-
-Doc-Generator представляет собой комплексную систему автоматической генерации документации, объединяющую графовое представление кода, семантическое разбиение, векторное представление и многоэтапную генерацию через LLM. Система решает фундаментальные проблемы поддержания актуальной документации и обеспечивает интерактивный поиск и генерацию ответов на основе релевантного контекста из кодовой базы.
-
-### 7.1. Достижения
-
-- **Автоматизация**: Полностью автоматизированный процесс генерации документации
-- **Актуальность**: Документация всегда основана на актуальном коде
-- **Адаптивность**: Разные версии документации для разных аудиторий
-- **Интерактивность**: RAG-система для интерактивного поиска и ответов
-- **Масштабируемость**: Эффективная работа с большими кодовыми базами
-
-### 7.2. Направления развития
-
-- **Этап Instruct**: Реализация третьего этапа генерации с практическими инструкциями
-- **Поддержка дополнительных языков**: Расширение поддержки языков программирования
-- **Улучшение качества генерации**: Тонкая настройка промптов и моделей
-- **Визуализация графа**: Интерактивная визуализация графа кода
-- **Метрики качества**: Автоматическая оценка качества генерируемой документации
-
-## 8. Литература и ссылки
-
-1. Retrieval-Augmented Generation (RAG) для кодовых баз
-2. Графовое представление кода и анализ зависимостей
-3. Семантическое разбиение кода (Code Chunking)
-4. Векторное представление кода (Code Embeddings)
-5. Многоэтапная генерация документации через LLM
+# Check circuit breaker
+curl http://localhost:8080/actuator/health | jq '.components.llmCircuitBreaker'
+```
+
+### Rate limit issues
+
+```bash
+# Check Redis
+docker exec -it redis redis-cli
+> KEYS rate_limit:*
+> ZCARD rate_limit:my-key:/api/v1/rag
+
+# Disable rate limiting
+export DOCGEN_RATE_LIMIT_ENABLED=false
+```
+
+### Database connection failed
+
+```bash
+# Check PostgreSQL
+docker ps | grep postgres
+docker logs doc-generator-postgres
+
+# Test connection
+psql -h localhost -p 5434 -U docgen -d docgen
+```
+
+### API Key authentication failing
+
+```bash
+# Check security is enabled
+curl http://localhost:8080/actuator/env | jq '.propertySources[] | select(.name | contains("applicationConfig"))'
+
+# Disable security for debugging
+export DOCGEN_SECURITY_ENABLED=false
+```
+
+See [CIRCUIT_BREAKER.md](CIRCUIT_BREAKER.md) for LLM resilience troubleshooting.
+
+## 📊 Monitoring
+
+### Circuit Breaker Dashboard
+
+```bash
+# Check state
+curl http://localhost:8080/actuator/health | jq '.components.llmCircuitBreaker'
+
+# Expected output (healthy):
+{
+  "status": "UP",
+  "details": {
+    "state": "CLOSED",
+    "failureRate": 0.0,
+    "numberOfBufferedCalls": 10
+  }
+}
+```
+
+### Rate Limiting Metrics
+
+```bash
+# Redis stats
+redis-cli INFO stats
+
+# Rate limit keys
+redis-cli KEYS "rate_limit:*"
+```
+
+### Prometheus Metrics
+
+Add to `prometheus.yml`:
+
+```yaml
+scrape_configs:
+  - job_name: 'doc-generator'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['localhost:8080']
+```
+
+Key metrics:
+- `resilience4j_circuitbreaker_state`
+- `resilience4j_retry_calls`
+- `resilience4j_bulkhead_available_concurrent_calls`
+- `http_server_requests_seconds` (endpoint latency)
+
+## 🏗️ Development
+
+### Project Structure
+
+```
+doc-generator/
+├── src/main/kotlin/com/bftcom/docgenerator/
+│   ├── api/              # REST controllers
+│   │   ├── apikey/       # API key management
+│   │   ├── audit/        # Audit log API
+│   │   ├── graph/        # Graph endpoints
+│   │   ├── ingest/       # Ingestion API
+│   │   └── rag/          # RAG Q&A API
+│   ├── config/           # Spring configuration
+│   │   ├── SecurityConfig.kt
+│   │   ├── RateLimitFilter.kt
+│   │   ├── ResilientLlmWrapper.kt
+│   │   └── ApiKeyAuthenticationFilter.kt
+│   └── ...
+├── contexts/             # Business logic modules
+│   ├── ai/               # LLM clients
+│   ├── graph/            # Graph building
+│   ├── rag/              # RAG pipeline
+│   ├── embedding/        # Vector embeddings
+│   └── ...
+├── kernel/
+│   ├── domain/           # Entities (Node, Edge, Chunk, etc.)
+│   ├── db/               # Repositories
+│   └── shared/           # Shared utilities
+└── src/main/resources/
+    ├── templates/        # Thymeleaf pages
+    ├── liquibase/        # DB migrations
+    └── application.yml   # Configuration
+```
+
+### Adding New Features
+
+1. Create domain entities in `kernel/domain`
+2. Add repository in `kernel/db`
+3. Create Liquibase migration in `kernel/domain/resources/liquibase/migration/`
+4. Implement business logic in `contexts/`
+5. Add REST controller in `src/main/kotlin/.../api/`
+6. Add tests
+7. Update documentation
+
+### Code Style
+
+- Kotlin 2.0.21
+- ktlint (IntelliJ default style)
+- Prefer immutability
+- Use data classes for DTOs
+- Document public APIs
+
+## 📖 Documentation
+
+- [README_TECHNICAL.md](README_TECHNICAL.md) - Technical architecture deep-dive
+- [CIRCUIT_BREAKER.md](CIRCUIT_BREAKER.md) - LLM resilience patterns
+- [RATE_LIMITING.md](RATE_LIMITING.md) - API rate limiting
+- [TESTING_GUIDE.md](TESTING_GUIDE.md) - Comprehensive test guide
+- [CROSS_APP_IMPLEMENTATION_SUMMARY.md](CROSS_APP_IMPLEMENTATION_SUMMARY.md) - Cross-app feature details
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License.
+
+## 🙋 Support
+
+- **Issues**: https://github.com/your-org/doc-generator/issues
+- **Discussions**: https://github.com/your-org/doc-generator/discussions
+- **Email**: support@yourcompany.com
+
+## 🎉 Acknowledgments
+
+- [Spring Boot](https://spring.io/projects/spring-boot)
+- [Ollama](https://ollama.ai/)
+- [Resilience4j](https://resilience4j.readme.io/)
+- [pgvector](https://github.com/pgvector/pgvector)
+- [Cytoscape.js](https://js.cytoscape.org/)
 
 ---
 
-**Версия документа**: 1.0  
-**Дата**: 2024  
-**Автор**: Команда разработки Doc-Generator
-
+**Made with ❤️ by the Doc Generator Team**

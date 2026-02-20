@@ -26,7 +26,7 @@ data class AppBrief(
 )
 
 @RestController
-@RequestMapping("/api/dashboard")
+@RequestMapping("/api/v1/dashboard")
 class DashboardApiController(
     private val statsRepo: DashboardStatsRepository,
     private val applicationRepo: ApplicationRepository,

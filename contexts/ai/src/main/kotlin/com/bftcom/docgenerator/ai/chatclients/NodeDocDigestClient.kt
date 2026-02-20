@@ -1,5 +1,6 @@
 package com.bftcom.docgenerator.ai.chatclients
 
+import com.bftcom.docgenerator.ai.resilience.ResilientExecutor
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component
 class NodeDocDigestClient(
     @param:Qualifier("coderChatClient")
     private val chat: ChatClient,
+    private val resilientExecutor: ResilientExecutor? = null,
 ) {
     private val systemPrompt =
         """
@@ -46,14 +48,23 @@ class NodeDocDigestClient(
                 appendLine("DOC_TECH:")
                 appendLine(docTech.trim())
             }
-        return chat
-            .prompt()
-            .system(systemPrompt)
-            .user(user)
-            .call()
-            .content()
-            .orEmpty()
-            .trim()
+
+        val operation = {
+            chat
+                .prompt()
+                .system(systemPrompt)
+                .user(user)
+                .call()
+                .content()
+                .orEmpty()
+                .trim()
+        }
+
+        return if (resilientExecutor != null) {
+            resilientExecutor.executeString("generate-digest:$fqn", operation)
+        } else {
+            operation()
+        }
     }
 }
 

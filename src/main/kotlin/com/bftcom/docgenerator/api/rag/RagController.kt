@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 @RestController
-@RequestMapping("/api/rag")
+@RequestMapping("/api/v1/rag")
 class RagController(
         private val ragService: RagService,
         private val docEvaluatorClient: DocEvaluatorClient,

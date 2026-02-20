@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 @RestController
-@RequestMapping("/api/ingest")
+@RequestMapping("/api/v1/ingest")
 class IngestApiController(
     private val orchestratorFactory: GitIngestOrchestratorFactory,
     private val applicationRepository: ApplicationRepository,

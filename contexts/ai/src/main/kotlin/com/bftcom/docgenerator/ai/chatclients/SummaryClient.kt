@@ -1,5 +1,6 @@
 package com.bftcom.docgenerator.ai.chatclients
 
+import com.bftcom.docgenerator.ai.resilience.ResilientExecutor
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component
 class SummaryClient(
     @param:Qualifier("coderChatClient")
     private val chat: ChatClient,
+    private val resilientExecutor: ResilientExecutor? = null,
 ) {
     private val systemPrompt =
         """
@@ -28,13 +30,22 @@ class SummaryClient(
         - Если текст документация — сохрани структуру и ключевые разделы
         """.trimIndent()
 
-    fun summarize(text: String): String =
-        chat
-            .prompt()
-            .system(systemPrompt)
-            .user("Создай краткое изложение следующего текста:\n\n$text")
-            .call()
-            .content()
-            .orEmpty()
-            .trim()
+    fun summarize(text: String): String {
+        val operation = {
+            chat
+                .prompt()
+                .system(systemPrompt)
+                .user("Создай краткое изложение следующего текста:\n\n$text")
+                .call()
+                .content()
+                .orEmpty()
+                .trim()
+        }
+
+        return if (resilientExecutor != null) {
+            resilientExecutor.executeString("summarize-text", operation)
+        } else {
+            operation()
+        }
+    }
 }

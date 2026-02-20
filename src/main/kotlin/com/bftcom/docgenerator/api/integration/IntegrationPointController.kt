@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController
  * REST API для работы с интеграционными точками.
  */
 @RestController
-@RequestMapping("/api/integration")
+@RequestMapping("/api/v1/integration")
 class IntegrationPointController(
     private val integrationPointService: IntegrationPointService,
 ) {
