@@ -1,0 +1,443 @@
+% =============================================================================
+% chapter3.tex — Глава 3. Реализация системы
+% =============================================================================
+
+\section{РЕАЛИЗАЦИЯ КЛЮЧЕВЫХ КОМПОНЕНТОВ СИСТЕМЫ}
+
+\subsection{Парсинг исходного кода с полным разрешением типов}
+
+\todo{Подробно описать реализацию KotlinGraphBuilder (contexts/graph/impl):
+
+Настройка KotlinCoreEnvironment:
+\begin{itemize}
+  \item Создание Disposable, CompilerConfiguration с classpath roots
+  \item Фильтрация файлов: рекурсивный обход, исключение .git/, build/, out/, node\_modules/, dependencies.kt
+  \item KtPsiFactory(project) для парсинга .kt файлов
+\end{itemize}
+
+Обход PSI-дерева (KotlinSourceWalker):
+\begin{itemize}
+  \item KtFile.declarations → KtClassOrObject: определение kind (class/interface/enum/record/object)
+  \item KtNamedFunction → METHOD узлы с сигнатурой и телом
+  \item KtProperty → FIELD узлы
+  \item Для каждого: FQN = pkgFqn + className + memberName
+  \item Суперклассы: decl.superTypeListEntries.mapNotNull \{...\}
+  \item Строки: LineSpan(firstLine, lastLine) через ktFile.viewProvider
+\end{itemize}
+
+Обработка конструкций Kotlin:
+\begin{itemize}
+  \item data class → kind=RECORD + constructorParams в meta
+  \item suspend fun → пометка в signature
+  \item object → kind=CLASS (singleton)
+  \item companion object → встраивание в родительский класс
+  \item generics → сохранение в signature (<T : Comparable<T>>)
+  \item lambda/SAM → анализ вызовов внутри лямбды
+\end{itemize}
+
+Сбор использований (RawUsage):
+\begin{itemize}
+  \item KtCallExpression → вызовы функций
+  \item KtDotQualifiedExpression → цепочки вызовов
+  \item Сохранение в meta[``usages''] как List<RawUsage> (calledFqn, callType, lineNo)
+\end{itemize}
+
+Привести ключевые фрагменты кода (processKtFile, processDeclaration).}
+
+\subsection{Обнаружение интеграционных точек}
+
+\subsubsection{HTTP-интеграции}
+
+\todo{Описать обнаружение через IntegrationEdgeLinker и HttpBytecodeAnalyzer:
+
+Источники PSI:
+\begin{itemize}
+  \item @RestController, @Controller + @RequestMapping/@GetMapping/@PostMapping/@PutMapping/@DeleteMapping/@PatchMapping → создание ENDPOINT-узла с FQN infra:http:METHOD:URL
+  \item WebClient.get()/post() в теле метода → создание ребра CALLS\_HTTP
+  \item RestTemplate.exchange()/getForObject() → CALLS\_HTTP
+\end{itemize}
+
+Источники ASM (BytecodeParser):
+\begin{itemize}
+  \item OkHttpClient, Apache HttpClient → обнаружение invoke* инструкций
+  \item FeignClient → аннотации на интерфейсе
+  \item Извлечение URL через StackInterpreter (анализ стековых инструкций)
+\end{itemize}
+
+Создание виртуальных ENDPOINT-узлов: meta.synthetic=true, kind=ENDPOINT.
+
+Примеры FQN: infra:http:GET:/api/users, infra:http:POST:/api/orders.}
+
+\subsubsection{Kafka-интеграции}
+
+\todo{Описать обнаружение Kafka-интеграций:
+
+PSI-анализ:
+\begin{itemize}
+  \item @KafkaListener(topics=[``order-events'']) → TOPIC-узел + CONSUMES ребро
+  \item KafkaTemplate.send(``order-events'', ...) → TOPIC-узел + PRODUCES ребро
+  \item @KafkaHandler → привязка к TOPIC через parent @KafkaListener
+\end{itemize}
+
+ASM-анализ:
+\begin{itemize}
+  \item KafkaProducer.send() → KafkaCallSite (topic, producerClass, method)
+  \item KafkaConsumer.subscribe() → KafkaCallSite
+\end{itemize}
+
+FQN: infra:kafka:topic:order-events, infra:kafka:topic:user-notifications.
+
+Виртуальные узлы: kind=TOPIC, meta.synthetic=true.}
+
+\subsubsection{Camel-интеграции}
+
+\todo{Описать обнаружение Apache Camel:
+
+PSI-анализ:
+\begin{itemize}
+  \item RouteBuilder.configure() → from(``direct:processOrder'').to(``kafka:result-topic'')
+  \item ProducerTemplate.sendBody(``direct:processOrder'', ...)
+\end{itemize}
+
+ASM-анализ:
+\begin{itemize}
+  \item CamelCallSite: uri, routeBuilderClass, method
+\end{itemize}
+
+Создание узлов и рёбер: ENDPOINT-узел с FQN infra:camel:uri:direct:processOrder, ребро CALLS\_CAMEL.}
+
+\subsection{Анализ зависимостей через байткод (ASM)}
+
+\todo{Описать LibraryBuilderImpl (contexts/library/impl):
+
+Архитектура BytecodeParser:
+\begin{itemize}
+  \item ClassReader: чтение .class из JAR
+  \item ClassVisitor: извлечение имени, модификаторов, аннотаций, суперкласса, интерфейсов
+  \item MethodVisitor: извлечение сигнатуры, аннотаций параметров, invoke* инструкций
+  \item StackInterpreter: отслеживание стековых операций для извлечения строковых аргументов (URL, topic name)
+\end{itemize}
+
+Фильтрация по whitelist:
+\begin{itemize}
+  \item Конфигурация: docgen.library.whitelist = com.bftcom, ru.bftcom, ru.supercode, rrbpm
+  \item isIntegrationRelevantClass: public + аннотации (@RestController, @Service, @Component) ИЛИ HTTP-клиенты ИЛИ Kafka-классы ИЛИ Camel RouteBuilder ИЛИ все интерфейсы
+  \item isIntegrationRelevantMember: public + mapping-аннотации ИЛИ методы с интеграционными вызовами
+\end{itemize}
+
+Результат: LibraryBuildResult → List<Library> (с координатами) + List<LibraryNode> (классы/методы из JAR) + BytecodeAnalysisResult (HttpCallSite, KafkaCallSite, CamelCallSite, CallGraph).
+
+Привести ключевые фрагменты кода.}
+
+\subsection{Двухступенчатая генерация документации}
+
+\subsubsection{Этап Coder: техническое описание}
+
+\todo{Описать OllamaCoderClient (contexts/ai/chatclients):
+
+Входные данные (CoderExplainRequest): sourceCode, fqn, signature, kind, hints (зависимости, аннотации).
+
+Системный промпт (полный текст на русском):
+<<Ты — строгий инженер-кодер. Объясняй код без домыслов, пунктами, лаконично.
+Структура: Purpose; Inputs; Outputs; Throws; SideEffects; Preconditions; Postconditions; Concurrency; I/O; Calls/CalledBy; Complexity; EdgeCases; Invariants.
+Запрещены предположения, если не следует из кода. Короткие формулировки.>>
+
+Параметры модели: model=qwen2.5-coder:14b, temperature=0.1, topP=0.9, seed=42. Таймаут: 60с.
+
+Интеграция с Resilience4j: ResilientExecutor оборачивает вызов (Circuit Breaker + Retry + Bulkhead).
+
+Привести пример: входной код метода → промпт → результат Coder.}
+
+\subsubsection{Этап Talker: человеко-ориентированное описание}
+
+\todo{Описать OllamaTalkerClient (contexts/ai/chatclients):
+
+Входные данные (TalkerRewriteRequest): docTech (результат Coder), kind, fqn.
+
+Правила системного промпта:
+\begin{itemize}
+  \item ТОЛЬКО русский язык (НЕТ англицизмов, имён из кода)
+  \item Простой язык для нетехнического читателя
+  \item 3--6 предложений максимум
+  \item НЕТ заголовков, преамбул, пустых строк в начале
+  \item НЕТ процесса размышления (фильтр: regex удаление <think>...</think>)
+\end{itemize}
+
+Параметры: model=qwen2.5:14b-instruct, temperature=0.3, topP=0.9, seed=42.
+
+Привести пример трансформации: техническое описание Coder → человеческое описание Talker.}
+
+\subsubsection{Валидация и цикл перегенерации}
+
+\todo{Описать LangGuards (contexts/chunking):
+
+Проверки качества:
+\begin{itemize}
+  \item Cyrillic ratio: процент кириллических символов в docPublic
+  \item Минимальная длина описания
+  \item Отсутствие <<мусорных>> паттернов (повторяющийся текст, код вместо описания)
+  \item Оценка quality (JSONB): метрики полноты, читаемости, адекватности
+\end{itemize}
+
+При неудовлетворительном результате: повторная генерация с модифицированным промптом (добавление подсказок о проблемах предыдущей итерации).
+
+explainQuality в NodeDoc: JSONB с полями score, issues[], suggestions[].}
+
+\subsection{Реализация RAG с графовым расширением}
+
+\todo{Описать RagServiceImpl и GraphRequestProcessor (contexts/rag/impl):
+
+FSM-архитектура: каждый шаг реализует интерфейс QueryStep:
+\begin{itemize}
+  \item execute(context: QueryProcessingContext) → StepResult
+  \item getTransitions(): Map<String, ProcessingStepType>
+\end{itemize}
+
+Реализации шагов (contexts/rag/impl/steps/):
+\begin{enumerate}
+  \item NormalizationStep — нормализация текста запроса
+  \item ExtractionStep — извлечение сущностей через LLM (className, methodName, packageName) + regex fallback для FQN-паттернов
+  \item ExactSearchStep — точный поиск по NodeRepository (findByFqn, findBySignature), до max-exact-nodes=5
+  \item GraphExpansionStep — обход графа: от найденных узлов по рёбрам CALLS\_CODE, DEPENDS\_ON, IMPLEMENTS, CONTAINS на глубину N, до max-neighbor-nodes=10, лимит символов max-graph-relations-chars=5000
+  \item RewritingStep — переформулировка запроса для улучшения поиска
+  \item ExpansionStep — обогащение синонимами из SynonymDictionary
+  \item VectorSearchStep — cosine similarity поиск в pgvector, top-5 результатов
+  \item RerankingStep — фильтрация и сортировка результатов по релевантности
+\end{enumerate}
+
+Выполнение FSM: цикл while (iterations < 20), переходы по transitionKey.
+
+Формирование промпта: сборка контекста (max-context-chars=30\,000) из найденных узлов, соседей, графовых связей, векторных результатов.
+
+LLM-вызов: Spring AI ChatClient с advisors (chat memory по sessionId). Таймаут: 30с.
+
+Ответ: RagResponse (answer, sources: List<RagSource>, metadata: RagQueryMetadata с шагами обработки, rewrittenQuery, expandedQueries).
+
+ResultFilterService: постфильтрация ответа.
+
+Привести диаграмму последовательности.}
+
+\subsection{Обеспечение отказоустойчивости LLM-вызовов}
+
+\todo{Описать Resilience4jConfig (src/main/kotlin/config/Resilience4jConfig.kt):
+
+Трёхуровневый паттерн отказоустойчивости:
+
+1. Circuit Breaker (для LLM-вызовов):
+\begin{itemize}
+  \item failureRateThreshold = 50\% (открытие при 50\% ошибок)
+  \item waitDurationInOpenState = 60s (ожидание перед half-open)
+  \item slidingWindowSize = 10 (последние 10 вызовов)
+  \item slidingWindowType = COUNT\_BASED
+  \item permittedNumberOfCallsInHalfOpenState = 5
+  \item slowCallDurationThreshold = 30s (вызов >30с = ошибка)
+  \item slowCallRateThreshold = 80\% (открытие при 80\% медленных)
+\end{itemize}
+
+Состояния: CLOSED → OPEN → HALF\_OPEN → CLOSED (или обратно в OPEN).
+
+2. Retry (экспоненциальный backoff):
+\begin{itemize}
+  \item maxAttempts = 3
+  \item waitDuration = 2s
+  \item intervalFunction: attempt * 2000ms → 2s, 4s, 8s
+  \item retryExceptions: IOException, TimeoutException, WebClientResponseException
+  \item ignoreExceptions: IllegalArgumentException
+\end{itemize}
+
+3. Bulkhead (ограничение параллелизма):
+\begin{itemize}
+  \item maxConcurrentCalls = 5
+  \item maxWaitDuration = 10s
+\end{itemize}
+
+Интерфейс ResilientExecutor: execute(operationName, fallback, operation), executeString(operationName, operation).
+
+Применение: OllamaCoderClient, OllamaTalkerClient, NodeDocDigestClient, SummaryClient — все оборачиваются через ResilientExecutor (опциональная инъекция).
+
+Мониторинг: Spring Actuator + Prometheus метрики (resilience4j.circuitbreaker.*, resilience4j.retry.*, resilience4j.bulkhead.*).}
+
+\subsection{Безопасность и аудит}
+
+\subsubsection{API-ключи и аутентификация}
+
+\todo{Описать ApiKeyAuthenticationFilter (src/main/kotlin/config):
+
+Алгоритм аутентификации:
+\begin{enumerate}
+  \item Извлечение заголовка X-API-Key из HTTP-запроса
+  \item Хеширование SHA-256 (ключ не хранится в открытом виде)
+  \item Запрос ApiKeyRepository.findByKeyHash(hash)
+  \item Валидация: isActive == true И (expiresAt == null ИЛИ expiresAt > now)
+  \item Асинхронное обновление lastUsedAt
+  \item Установка SecurityContext с именем ключа и scopes
+  \item При ошибке: 401 (отсутствует/невалидный), 403 (истёк)
+\end{enumerate}
+
+Сущность ApiKey: name, keyHash (SHA-256), scopes (List<String>: read\_graph, write\_ingest, admin, и др.), isActive, expiresAt, lastUsedAt.
+
+Публичные пути (без аутентификации): /, /dashboard, /graph, /chat, /health, /ingest, /static/**, /swagger/**, /actuator/**.
+
+Защищённые пути: /api/** — все требуют X-API-Key.
+
+Конфигурация: docgen.security.enabled = \$\{DOCGEN\_SECURITY\_ENABLED:false\} (отключено в dev, включено в prod).}
+
+\subsubsection{Rate limiting}
+
+\todo{Описать RateLimitFilter (src/main/kotlin/config):
+
+Трёхуровневая стратегия (per API key, Redis):
+
+Уровень 1 — Default (100 req/min): большинство API-эндпоинтов.
+
+Уровень 2 — High-Load (30 req/min): ресурсоёмкие операции:
+\begin{itemize}
+  \item /api/v1/rag/ask (LLM-вызов)
+  \item /api/v1/embedding/search (векторный поиск)
+  \item /api/v1/embedding/documents (массовая векторизация)
+\end{itemize}
+
+Уровень 3 — Mutation (10 req/min): операции записи:
+\begin{itemize}
+  \item /api/v1/ingest/reindex (полная переиндексация)
+  \item /api/v1/ingest/start (запуск индексации)
+  \item /api/v1/embedding/clear-postprocess (очистка)
+\end{itemize}
+
+Реализация: Redis Sorted Sets (ZSET), sliding window 60с. Для каждого запроса: ZADD (timestamp как score), ZREMRANGEBYSCORE (удаление старых), ZCARD (подсчёт).
+
+Ответ при превышении: HTTP 429 Too Many Requests, заголовки X-RateLimit-Limit, Retry-After: 60.
+
+Fail-open: при недоступности Redis — пропуск лимитирования (запросы проходят).
+
+Конфигурация: docgen.rate-limit.enabled = \$\{DOCGEN\_RATE\_LIMIT\_ENABLED:true\}.}
+
+\subsubsection{Журнал аудита}
+
+\todo{Описать AuditWebFilter (src/main/kotlin/config):
+
+Область: POST, PUT, DELETE, PATCH на /api/**.
+
+Логируемые поля: userId (имя API-ключа или <<anonymous>>), action (автоопределение: POST /ingest/start→INGEST\_START, POST /rag/ask→RAG\_ASK, DELETE /api-keys→API\_KEY\_REVOKE, и др.), resource (путь запроса), httpMethod, ipAddress, createdAt.
+
+Хранение: таблица doc\_generator.audit\_log (id BIGSERIAL, immutable — только INSERT).
+
+Асинхронная запись: non-blocking, boundedElastic scheduler, ошибки записи логируются, но не блокируют API-ответ.
+
+REST API для запросов аудита: GET /api/v1/audit-logs?action=\&userId=\&from=\&to=.}
+
+\subsection{Визуализация графа кода}
+
+\subsubsection{Single-App режим}
+
+\todo{Описать graph.html (src/main/resources/templates/graph.html, ~2050 строк):
+
+Библиотека: Cytoscape.js v3.28.1 (MIT), плагин cytoscape-navigator (minimap).
+
+Функционал:
+\begin{itemize}
+  \item Загрузка графа из REST API: GET /api/v1/graph/\{appId\}?kinds=\&edgeKinds=\&limit=\&depth=\&rootFqn=
+  \item Рендеринг: 24 типа узлов с уникальными цветами и формами, 24 типа рёбер с подписями
+  \item Фильтрация: чипы по NodeKind и EdgeKind, фильтр по пакету, скрытие orphan-узлов, слайдер глубины
+  \item 6 алгоритмов layout: COSE (по умолчанию), Breadthfirst, Circle, Concentric, Grid, Dagre
+  \item Поиск: autocomplete по FQN, навигация к узлу
+  \item Экспорт: PNG, JSON, share link
+  \item Детализация: панель с информацией об узле (FQN, kind, source code с подсветкой Highlight.js, связи)
+  \item Minimap: навигация по большим графам (cytoscape-navigator)
+  \item Full-screen режим, undo/redo, snap-to-grid
+  \item Тема: светлая/тёмная (toggle в common.js)
+\end{itemize}
+
+Стилизация: 24+ цветов для NodeKind (CLASS=\#4fc3f7, INTERFACE=\#81c784, METHOD=\#fff176, ENDPOINT=\#ff8a65, TOPIC=\#ba68c8, ...), формы (CLASS=round-rectangle, INTERFACE=diamond, METHOD=ellipse, ENDPOINT=hexagon, ...).}
+
+\subsubsection{Cross-App режим}
+
+\todo{Описать кросс-приложенческий режим:
+
+Переключение: radio-кнопки <<Single App>> / <<Cross-App>> в UI.
+
+Мультиселект приложений: dropdown с чекбоксами для выбора нескольких приложений.
+
+Фильтр по типу интеграции: чипы HTTP / KAFKA / CAMEL.
+
+REST API:
+\begin{itemize}
+  \item GET /api/graph/cross-app?applicationIds=1,2,3\&integrationTypes=HTTP,KAFKA
+  \item GET /api/graph/cross-app/applications — список доступных приложений
+\end{itemize}
+
+Визуализация:
+\begin{itemize}
+  \item APPLICATION-узлы: увеличенные, round-rectangle, синий цвет (\#42a5f5)
+  \item Интеграционные узлы: ENDPOINT (оранжевый, hexagon), TOPIC (фиолетовый, tag)
+  \item Layout: breadthfirst (иерархический)
+\end{itemize}
+
+JavaScript: loadCrossAppGraph(), toCrossAppCyElements(), showCrossAppNodeDetails().}
+
+\subsection{REST API: проектирование и реализация}
+
+\todo{Описать группы эндпоинтов (REST-контроллеры в src/main/kotlin/api/):
+
+\textbf{Ingestion} (/api/v1/ingest/):
+\begin{itemize}
+  \item POST /start/\{appId\} — запуск индексации приложения (IngestStartRequest)
+  \item POST /reindex/\{appId\} — полная переиндексация (timeout 600s)
+  \item GET /runs/\{runId\} — статус запуска (IngestRun)
+  \item GET /runs/\{runId\}/stream — стриминг событий через SSE (Server-Sent Events)
+  \item GET /runs/app/\{appId\} — история запусков приложения
+\end{itemize}
+
+\textbf{Graph} (/api/v1/graph/):
+\begin{itemize}
+  \item GET /\{appId\} — граф приложения (с фильтрами kinds, edgeKinds, limit, depth, rootFqn)
+  \item GET /cross-app — кросс-приложенческий граф
+  \item GET /cross-app/applications — список приложений
+\end{itemize}
+
+\textbf{Search/RAG} (аннотация @RateLimited):
+\begin{itemize}
+  \item POST /api/v1/rag/ask — RAG-запрос (30 req/60s, timeout 60s)
+  \item POST /api/v1/rag/ask-with-val — RAG с валидацией (20 req/60s, timeout 90s)
+  \item POST /api/v1/rag/ask/stream — стриминг ответа через SSE (30 req/60s)
+  \item GET /api/v1/rag/settings — настройки RAG (model, temperature, topP)
+  \item POST /api/v1/embedding/search — векторный поиск (100 req/60s)
+  \item POST /api/v1/embedding/documents — добавление документов (50 req/60s)
+  \item DELETE /api/v1/embedding/clear-postprocess — очистка (confirmation token)
+\end{itemize}
+
+\textbf{Integration Points} (/api/v1/integration/):
+\begin{itemize}
+  \item GET /methods/by-url — поиск методов по URL (query: url, libraryId)
+  \item GET /methods/by-kafka-topic — поиск по Kafka-топику
+  \item GET /methods/by-camel-uri — поиск по Camel URI
+  \item GET /method/summary — сводка интеграций метода
+  \item GET /parent-clients — родительские клиенты библиотеки
+\end{itemize}
+
+\textbf{Applications} (/api/v1/applications/):
+\begin{itemize}
+  \item CRUD операции для приложений
+  \item GET /api/v1/dashboard/stats — статистика (DashboardStatsRepository)
+\end{itemize}
+
+\textbf{API Keys} (/api/v1/api-keys/):
+\begin{itemize}
+  \item POST / — создание ключа (возвращает plain key один раз)
+  \item GET / — список ключей (без keyHash)
+  \item DELETE /\{id\} — отзыв ключа
+\end{itemize}
+
+\textbf{Audit} (/api/v1/audit-logs/):
+\begin{itemize}
+  \item GET / — запрос логов с фильтрами
+\end{itemize}
+
+\textbf{Monitoring} (Spring Actuator):
+\begin{itemize}
+  \item /actuator/health — состояние (DB, Redis, Ollama)
+  \item /actuator/prometheus — метрики Prometheus
+  \item /actuator/info — информация о приложении
+\end{itemize}
+
+Принципы: RESTful, версионирование /api/v1/, JSONB ответы, пагинация (page, size), фильтрация через query params.}

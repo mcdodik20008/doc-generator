@@ -1,0 +1,275 @@
+% =============================================================================
+% appendix.tex — Приложения
+% =============================================================================
+
+\appendix
+\renewcommand{\thesection}{\Asbuk{section}}
+
+\section*{ПРИЛОЖЕНИЯ}
+\addcontentsline{toc}{section}{ПРИЛОЖЕНИЯ}
+
+\subsection*{Приложение А. Схема базы данных}
+\addcontentsline{toc}{subsection}{Приложение А. Схема базы данных}
+
+\todo{ER-диаграмма (PostgreSQL 16 + pgvector, 23 SQL-миграции Liquibase):
+
+Основные таблицы:
+\begin{enumerate}
+  \item \textbf{application} — реестр приложений: id, key (unique), name, description, repo\_url, repo\_provider (github|gitlab|bitbucket), repo\_owner, repo\_name, monorepo\_path, default\_branch, last\_commit\_sha, last\_indexed\_at, last\_index\_status (success|failed|partial|running), owners (JSONB: List<OwnerRef>), contacts (JSONB: List<ContactRef>), tags (text[]), languages (text[]), embedding\_model, embedding\_dim (default 1024), ann\_index\_params (JSONB: method=ivfflat, lists=100), rag\_prefs (JSONB: priority, reranker), retention\_days, pii\_policy (JSONB), metadata (JSONB)
+  \item \textbf{node} — узлы графа: id, application\_id (FK), fqn, kind (NodeKind enum), lang (Lang enum), parent\_id (FK, самореференция), file\_path, line\_start, line\_end, source\_code (TEXT), doc\_comment (TEXT), signature, code\_hash, meta (JSONB)
+  \item \textbf{edge} — рёбра графа: src\_id (FK), dst\_id (FK), kind (EdgeKind enum) — составной PK; evidence (TEXT), confidence (FLOAT), relation\_strength (FLOAT)
+  \item \textbf{chunk} — RAG-чанки: id (UUID), application\_id (FK), node\_id (FK), source, kind, content (TEXT), content\_hash, embedding (vector(1024)), embed\_model, metadata (JSONB)
+  \item \textbf{node\_doc} — каноническая документация: node\_id (PK), locale, summary, details, examples, quality (JSONB), source\_kind, model\_meta (JSONB)
+  \item \textbf{library} — внешние JAR: id, coordinate (unique), group\_id, artifact\_id, version, kind (framework|library|language|company|external)
+  \item \textbf{library\_node} — узлы из JAR: id, library\_id (FK), fqn, kind, parent\_id (FK)
+  \item \textbf{node\_library\_node\_edge} — связи между узлами кода и узлами из библиотек
+  \item \textbf{ingest\_run} — запуски индексации: id, application\_id (FK), status, started\_at, finished\_at, commit\_sha
+  \item \textbf{ingest\_step} — шаги индексации: id, run\_id (FK), type (IngestStepType enum), status, started\_at, finished\_at
+  \item \textbf{ingest\_event} — события: id, step\_id (FK), level (INFO|WARN|ERROR), message, created\_at
+  \item \textbf{api\_key} — API-ключи: id, name, key\_hash (SHA-256), scopes (text[]), is\_active, expires\_at, last\_used\_at
+  \item \textbf{audit\_log} — журнал аудита: id, user\_id, action, resource, http\_method, request\_body, ip\_address, created\_at
+  \item \textbf{ai\_documents} — Spring AI pgvector store: id, embedding (vector), metadata (JSONB), content
+  \item \textbf{ai\_chat\_memory} — Spring AI chat memory: id, conversation\_id, messages (JSONB)
+  \item \textbf{synonym\_dictionary} — словарь синонимов: id, node\_id (FK), synonyms (text[]), status
+\end{enumerate}
+
+Индексы: trigram GIN на fqn (fuzzy search), tsvector на doc\_comment/summary/details (полнотекстовый поиск RU+EN), HNSW/IVFFlat на vector(1024) (ANN-поиск), BRIN на created\_at (временные запросы).
+
+Расширения: pgvector, pg\_trgm, unaccent.}
+
+\subsection*{Приложение Б. Диаграмма архитектуры системы}
+\addcontentsline{toc}{subsection}{Приложение Б. Диаграмма архитектуры системы}
+
+\todo{Диаграмма компонентов (11 модулей):
+
+\begin{verbatim}
+                     +-------------------+
+                     |   Spring Boot App |
+                     |   (src/main)      |
+                     |  Controllers, API |
+                     |  Security, Config |
+                     +--------+----------+
+                              |
+          +-------------------+-------------------+
+          |                                       |
+   +------+------+                    +-----------+-----------+
+   |   kernel/   |                    |      contexts/        |
+   | domain(JPA) |                    |                       |
+   | db (Repos)  |<---api/impl-------+ git    | graph        |
+   | shared      |                    | chunking | embedding  |
+   +---------+---+                    | ai     | rag          |
+             |                        | library | postprocess |
+             v                        +-----------+-----------+
+   +-------------------+                        |
+   | PostgreSQL 16     |                        v
+   | + pgvector        |              +-------------------+
+   +-------------------+              |   Ollama (LLM)    |
+                                      |   qwen2.5-coder   |
+   +-------------------+              |   qwen2.5-instruct|
+   | Redis             |              |   bge-m3 (embed)  |
+   | (rate limiting)   |              +-------------------+
+   +-------------------+
+\end{verbatim}
+
+Docker Compose: 4 сервиса (db, ollama, evaluator, app).
+
+Конвейер обработки (7 этапов):
+GIT clone/pull → PSI-парсинг → GraphLinker (7 фаз) → LibraryBuilder (ASM) → ChunkBuildOrchestrator → EmbeddingStore → NodeDocGenerator (Coder→Talker→Digest)}
+
+\subsection*{Приложение В. Перечисление типов узлов и связей}
+\addcontentsline{toc}{subsection}{Приложение В. Перечисление типов узлов и связей}
+
+\todo{Полная таблица NodeKind (24 типа):
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+Тип & Категория & Описание \\
+\hline
+REPO & Код/структура & Корневой узел репозитория \\
+MODULE & Код/структура & Gradle-модуль проекта \\
+PACKAGE & Код/структура & Kotlin/Java пакет \\
+CLASS & Код/структура & Класс (включая object) \\
+INTERFACE & Код/структура & Интерфейс \\
+ENUM & Код/структура & Перечисление \\
+RECORD & Код/структура & data class \\
+METHOD & Код/структура & Метод/функция \\
+FIELD & Код/структура & Свойство/поле \\
+EXCEPTION & Код/структура & Класс исключения \\
+TEST & Код/структура & Тестовый класс/метод \\
+MAPPER & Код/структура & Маппер (MapStruct и др.) \\
+\hline
+SERVICE & Сервисный слой & Логическая сервисная единица \\
+ENDPOINT & Сервисный слой & REST/gRPC/WS входная точка \\
+CLIENT & Сервисный слой & HTTP/WebClient/Feign/gRPC-клиент \\
+TOPIC & Сервисный слой & Kafka/Rabbit тема/очередь \\
+JOB & Сервисный слой & Scheduler/Worker/Batch \\
+\hline
+DB\_TABLE & Данные/инфра & Таблица БД \\
+DB\_VIEW & Данные/инфра & Представление БД \\
+DB\_QUERY & Данные/инфра & Запрос (MyBatis/JPA/SQL) \\
+SCHEMA & Данные/инфра & Контракт данных (Avro/JSON Schema) \\
+CONFIG & Данные/инфра & Параметр конфигурации \\
+MIGRATION & Данные/инфра & Liquibase/Flyway миграция \\
+ANNOTATION & Данные/инфра & Статическая аннотация \\
+\hline
+\end{tabular}
+\end{center}
+
+Полная таблица EdgeKind (24 типа):
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+Тип & Категория & Пример \\
+\hline
+CONTAINS & Статика/ООП & REPO→MODULE, CLASS→METHOD \\
+DEPENDS\_ON & Статика/ООП & CLASS→CLASS (импорт) \\
+IMPLEMENTS & Статика/ООП & CLASS→INTERFACE \\
+INHERITS & Статика/ООП & CLASS→CLASS (наследование) \\
+EXTENDS & Статика/ООП & INTERFACE→INTERFACE \\
+OVERRIDES & Статика/ООП & METHOD→METHOD \\
+ANNOTATED\_WITH & Статика/ООП & CLASS→ANNOTATION \\
+\hline
+CALLS & Вызовы & (deprecated, заменён на CALLS\_CODE) \\
+CALLS\_CODE & Вызовы & METHOD→METHOD \\
+THROWS & Вызовы & METHOD→EXCEPTION \\
+LOCKS & Вызовы & METHOD→RESOURCE \\
+\hline
+CALLS\_HTTP & Интеграции & CLIENT→ENDPOINT (HTTP) \\
+CALLS\_CAMEL & Интеграции & SERVICE→ENDPOINT (Camel) \\
+CALLS\_GRPC & Интеграции & CLIENT→ENDPOINT (gRPC) \\
+PRODUCES & Интеграции & METHOD→TOPIC \\
+CONSUMES & Интеграции & JOB→TOPIC \\
+QUERIES & Интеграции & METHOD→DB\_QUERY \\
+READS & Интеграции & SERVICE→DB\_TABLE \\
+WRITES & Интеграции & SERVICE→DB\_TABLE \\
+CONTRACTS\_WITH & Интеграции & ENDPOINT↔SCHEMA \\
+CONFIGURES & Интеграции & CONFIG→SERVICE \\
+CIRCUIT\_BREAKER\_TO & Отказоуст. & CLIENT→SERVICE \\
+RETRIES\_TO & Отказоуст. & CLIENT→SERVICE \\
+TIMEOUTS\_TO & Отказоуст. & CONFIG→SERVICE \\
+\hline
+\end{tabular}
+\end{center}}
+
+\subsection*{Приложение Г. Примеры сгенерированной документации}
+\addcontentsline{toc}{subsection}{Приложение Г. Примеры сгенерированной документации}
+
+\todo{Пример 1: Coder → Talker → Digest
+
+Входной код (Kotlin):
+\begin{verbatim}
+@Service
+class OrderService(
+    private val orderRepository: OrderRepository,
+    private val kafkaTemplate: KafkaTemplate<String, OrderEvent>,
+) {
+    fun createOrder(request: CreateOrderRequest): Order {
+        val order = Order(/* ... */)
+        orderRepository.save(order)
+        kafkaTemplate.send("order-events", OrderCreatedEvent(order.id))
+        return order
+    }
+}
+\end{verbatim}
+
+Результат Coder (docTech):
+\begin{verbatim}
+Purpose: Сервис управления заказами
+Inputs: CreateOrderRequest (данные нового заказа)
+Outputs: Order (созданный заказ)
+SideEffects:
+  - Сохранение в БД через OrderRepository
+  - Отправка OrderCreatedEvent в Kafka topic "order-events"
+Calls: OrderRepository.save, KafkaTemplate.send
+\end{verbatim}
+
+Результат Talker (docPublic):
+<<Данный компонент отвечает за создание новых заказов в системе. При получении запроса на создание заказа, он сохраняет его в базу данных и отправляет уведомление о новом заказе в систему обмена сообщениями для дальнейшей обработки другими сервисами.>>
+
+Пример 2: RAG-запрос
+
+Запрос: <<Какие сервисы используют Kafka для обмена данными о заказах?>>
+
+Шаги обработки:
+1. EXTRACTION → entities: [OrderService, KafkaTemplate, order-events]
+2. EXACT\_SEARCH → найден: OrderService (FQN)
+3. GRAPH\_EXPANSION → связи: OrderService –PRODUCES→ order-events, PaymentService –CONSUMES→ order-events
+4. VECTOR\_SEARCH → контекст: OrderCreatedEvent, PaymentProcessor
+5. RERANKING → top-3 релевантных чанка
+
+Ответ: <<В системе обмен данными о заказах через Kafka осуществляют два сервиса: OrderService (отправляет события OrderCreatedEvent в топик order-events) и PaymentService (получает эти события для обработки платежей).>>
+
+Пример 3: скриншот визуализации графа (graph.html)
+\begin{itemize}
+  \item Single-App: граф с узлами CLASS, METHOD, ENDPOINT, TOPIC и рёбрами CALLS\_CODE, CALLS\_HTTP, PRODUCES
+  \item Cross-App: два APPLICATION-узла, соединённых через ENDPOINT и TOPIC
+\end{itemize}}
+
+\subsection*{Приложение Д. Спецификация REST API}
+\addcontentsline{toc}{subsection}{Приложение Д. Спецификация REST API}
+
+\todo{Таблица эндпоинтов:
+
+\textbf{Группа Ingestion} (/api/v1/ingest/):
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+Метод & URL & Описание \\
+\hline
+POST & /start & Запуск индексации приложения \\
+POST & /reindex & Полная переиндексация \\
+GET & /status/\{appId\} & Статус текущей индексации \\
+GET & /runs/\{appId\} & История запусков \\
+GET & /events/\{runId\} & События запуска \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Группа Graph} (/api/v1/graph/):
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+GET & /\{appId\} & Граф приложения (kinds, edgeKinds, limit, depth) \\
+GET & /cross-app & Кросс-приложенческий граф \\
+GET & /cross-app/applications & Список приложений \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Группа Search/RAG}:
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+POST & /api/v1/rag/ask & RAG-запрос (query, sessionId, applicationId) \\
+POST & /api/v1/embedding/search & Векторный поиск (query, topK) \\
+POST & /api/v1/embedding/documents & Добавление документов \\
+DELETE & /api/v1/embedding/clear-postprocess & Очистка \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Группа API Keys} (/api/v1/api-keys/):
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+POST & / & Создание ключа \\
+GET & / & Список ключей \\
+DELETE & /\{id\} & Отзыв ключа \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Группа Monitoring}:
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+GET & /actuator/health & Состояние (DB, Redis, Ollama) \\
+GET & /actuator/prometheus & Метрики Prometheus \\
+GET & /actuator/info & Информация о приложении \\
+\hline
+\end{tabular}
+\end{center}
+
+Rate limiting: Default=100 req/min, High-Load=30 req/min (/rag/ask, /embedding/search), Mutation=10 req/min (/ingest/start, /ingest/reindex).}

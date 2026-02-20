@@ -1,0 +1,323 @@
+% =============================================================================
+% chapter2.tex — Глава 2. Проектирование архитектуры системы
+% =============================================================================
+
+\section{ПРОЕКТИРОВАНИЕ АРХИТЕКТУРЫ СИСТЕМЫ}
+
+\subsection{Общая архитектура: модульный монолит на основе DDD}
+
+\todo{Описать выбор модульного монолита vs микросервисы (единый процесс, упрощённая отладка, отсутствие сетевого overhead при PSI-парсинге). Принципы DDD: bounded contexts, разделение api/impl. Примечание: 6 контекстов имеют разделение api/impl (chunking, embedding, graph, git, library, rag), 2 контекста --- single module (ai, postprocess).
+
+Точка входа: DocGeneratorApplication.kt (@EnableScheduling, @EnableAsync, @SpringBootApplication, @ConfigurationPropertiesScan).
+
+Диаграмма 11 модулей:
+\begin{itemize}
+  \item \textbf{kernel/domain}~--- JPA-сущности (Node, Edge, Chunk, Application, Library, LibraryNode, NodeDoc, ApiKey, AuditLog, IngestRun/Step/Event), перечисления (NodeKind, EdgeKind, Lang), DTO (CrossAppGraphDto, GraphResponse, GNode, GEdge)
+  \item \textbf{kernel/db}~--- 16 Spring Data репозиториев (NodeRepository, EdgeRepository, ChunkRepository, ApplicationRepository, LibraryRepository, LibraryNodeRepository, NodeDocRepository, ApiKeyRepository, AuditLogRepository, IngestRunRepository, IngestStepRepository, IngestEventRepository, ChunkGraphRepository, DashboardStatsRepository, NodeLibraryNodeEdgeRepository, SynonymDictionaryRepository)
+  \item \textbf{kernel/shared}~--- ObjectMapperConfig, SharedConstants, NodeMeta, KDocMeta, RawUsage, сериализаторы
+  \item \textbf{contexts/git}~--- клонирование репозиториев (GitHub, GitLab), оркестрация индексации
+  \item \textbf{contexts/graph}~--- PSI-парсинг Kotlin, построение графа, 7 фаз линковки рёбер
+  \item \textbf{contexts/chunking}~--- семантическое чанкование (PerNodeChunkStrategy), генерация документации (NodeDocGenerator: Coder→Talker→Digest)
+  \item \textbf{contexts/embedding}~--- векторизация (bge-m3, 1024-dim), pgvector store, семантический поиск
+  \item \textbf{contexts/ai}~--- LLM-клиенты (OllamaCoderClient, OllamaTalkerClient, NodeDocDigestClient, SummaryClient), промпты (NodeDocPromptRegistry), отказоустойчивость (ResilientExecutor)
+  \item \textbf{contexts/rag}~--- RAG-система: 8 шагов обработки (GraphRequestProcessor), FSM, chat memory, ResultFilterService
+  \item \textbf{contexts/library}~--- ASM-анализ байткода JAR, обнаружение HTTP/Kafka/Camel интеграций, LibraryBuilder, BytecodeParser, HttpBytecodeAnalyzer
+  \item \textbf{contexts/postprocess}~--- пост-обработка чанков: EmbeddingHandler, HashTokensHandler, HandlerChainOrchestrator, MutationMerger
+\end{itemize}
+
+Преимущества: каждый контекст имеет api/ (интерфейсы, DTO) и impl/ (реализация), зависимости только через api-модули.}
+
+\subsection{Доменная модель: граф кода}
+
+\subsubsection{Узлы графа (Node)}
+
+\todo{Описать сущность Node (таблица \texttt{doc\_generator.node}):
+
+Поля: id (BIGSERIAL PK), application\_id (FK → application), fqn (VARCHAR, unique per app), kind (enum NodeKind), lang (enum Lang), parent\_id (FK → node, самореференция), file\_path (VARCHAR), line\_start/line\_end (INT), source\_code (TEXT), doc\_comment (TEXT), signature (TEXT), code\_hash (VARCHAR), meta (JSONB~--- хранит: synthetic, annotations, supertypes, usages, constructorParams, и др.).
+
+Перечислить 24 типа NodeKind с обоснованием:
+\begin{enumerate}
+  \item Код/структура (12): REPO, MODULE, PACKAGE, CLASS, INTERFACE, ENUM, RECORD, METHOD, FIELD, EXCEPTION, TEST, MAPPER
+  \item Сервисный слой (5): SERVICE, ENDPOINT, CLIENT, TOPIC, JOB
+  \item Данные и инфраструктура (7): DB\_TABLE, DB\_VIEW, DB\_QUERY, SCHEMA, CONFIG, MIGRATION, ANNOTATION
+\end{enumerate}
+
+Индексы: application\_id+kind, application\_id+lang, trigram GIN на fqn (для fuzzy search), tsvector на doc\_comment (для полнотекстового поиска на русском и английском).
+
+Привести ER-диаграмму с полями и связями.}
+
+\subsubsection{Связи графа (Edge)}
+
+\todo{Описать сущность Edge (таблица \texttt{doc\_generator.edge}):
+
+Составной первичный ключ: EdgeId(src: Long, dst: Long, kind: EdgeKind).
+
+Поля: evidence (TEXT~--- текстовое обоснование связи), confidence (FLOAT~--- степень уверенности 0.0--1.0), relation\_strength (FLOAT~--- сила связи).
+
+Перечислить 24 типа EdgeKind по категориям:
+\begin{enumerate}
+  \item Статика и ООП (7): CONTAINS (REPO→MODULE, MODULE→PACKAGE, CLASS→METHOD/FIELD), DEPENDS\_ON (импорт/библиотека), IMPLEMENTS (CLASS→INTERFACE), INHERITS, EXTENDS (CLASS→CLASS), OVERRIDES (METHOD→METHOD), ANNOTATED\_WITH (→ ANNOTATION-узел)
+  \item Вызовы в коде (4): CALLS (deprecated), CALLS\_CODE (METHOD→METHOD), THROWS (METHOD→EXCEPTION), LOCKS (METHOD→RESOURCE)
+  \item Сетевые и интеграционные (13): CALLS\_HTTP (→ENDPOINT, HTTP/GraphQL/WS), CALLS\_CAMEL (Apache Camel), CALLS\_GRPC (gRPC), PRODUCES (→TOPIC), CONSUMES (→TOPIC), QUERIES (→DB\_QUERY), READS (→DB\_TABLE/DB\_VIEW), WRITES (→DB\_TABLE), CONTRACTS\_WITH (↔SCHEMA), CONFIGURES (CONFIG→SERVICE), CIRCUIT\_BREAKER\_TO, RETRIES\_TO, TIMEOUTS\_TO
+\end{enumerate}
+
+Привести диаграмму с примерами: METHOD –CALLS\_CODE→ METHOD –CALLS\_HTTP→ ENDPOINT –PRODUCES→ TOPIC.}
+
+\subsubsection{Чанки (Chunk) и векторные представления}
+
+\todo{Описать сущность Chunk (таблица \texttt{doc\_generator.chunk}):
+
+Поля: id (UUID PK), application\_id (FK), node\_id (FK), source (VARCHAR~--- откуда взят: code, doc\_comment, explain), kind (VARCHAR), content (TEXT), content\_hash (VARCHAR~--- SHA-256 для дедупликации), embedding (vector(1024)~--- pgvector), embed\_model (VARCHAR~--- имя модели, напр. bge-m3), metadata (JSONB).
+
+Стратегия <<один узел --- один чанк>> (PerNodeChunkStrategy): каждый узел графа порождает один или несколько чанков, содержащих исходный код, KDoc-комментарий и сгенерированное описание. Обоснование: сохраняет связь chunk↔node, позволяет при RAG-запросе переходить от чанка к графу и обратно.
+
+Дополнительная сущность NodeDoc (таблица \texttt{doc\_generator.node\_doc}): node\_id (PK), locale, summary, details, examples, quality (JSONB), source\_kind, model\_meta (JSONB~--- prompt\_id, deps\_missing, source\_hashes).
+
+Хранение эмбеддингов: PostgreSQL + pgvector, тип vector(1024), HNSW-индекс, метрика COSINE\_DISTANCE, IVFFlat-индекс (lists=100) для ANN-поиска.}
+
+\subsection{Конвейер обработки данных (Pipeline)}
+
+\subsubsection{Клонирование репозитория и резолвинг classpath}
+
+\todo{Описать GitCheckoutService (интерфейс в contexts/git/api):
+
+Две реализации:
+\begin{itemize}
+  \item GitHubCheckoutService: JGit, аутентификация через username/password или OAuth2 token, операции CLONE/PULL/NOOP, возврат GitPullSummary (repoUrl, branch, appKey, localPath, beforeHead/afterHead SHA-1, fetchedAt)
+  \item GitLabCheckoutService: JGit, потокобезопасность через ConcurrentHashMap<appKey, lock>, hard reset к origin/branch для разрешения конфликтов, автоматический re-clone при невалидном репозитории, приоритет аутентификации: token (oauth2) → username/password → default
+\end{itemize}
+
+Резолвинг classpath: генерация Gradle init-script для извлечения runtimeClasspath из build.gradle.kts. Classpath критичен для PSI-парсинга~--- без него KotlinCoreEnvironment не может разрешить типы из зависимостей (Spring, Jackson, и др.), что приводит к потере информации о вызовах и наследовании.
+
+Конфигурация: basePath (./data/repos/github или ./data/repos/gitlab), URL Git-сервера, токены через переменные окружения.}
+
+\subsubsection{Построение графа кода (PSI-парсинг Kotlin)}
+
+\todo{Описать KotlinGraphBuilder (contexts/graph/impl):
+
+Двухфазная архитектура:
+
+Фаза 1~--- создание узлов (KotlinSourceWalker + KotlinToDomainVisitor):
+\begin{enumerate}
+  \item Создание KotlinCoreEnvironment с classpath roots
+  \item Обход .kt файлов (исключения: .git/, build/, out/, node\_modules/, dependencies.kt)
+  \item Для каждого файла: извлечение package FQN, парсинг импортов
+  \item Парсинг деклараций через KtPsiFactory: KtClassOrObject (class/interface/enum/object/data class), KtNamedFunction, KtProperty
+  \item Вычисление FQN: pkgFqn + className + memberName
+  \item Определение kind: KtObjectDeclaration→object, isEnum()→enum, isInterface()→interface, isData()→record, else→class
+  \item Извлечение метаданных: supertypes, annotations, line span (LineSpan), source code, doc comment, signature
+  \item Фильтрация шума: listOf, map, of, timer, start, stop, sequenceOf, arrayOf, mutableListOf
+  \item Статистика: created, updated, skipped, total
+\end{enumerate}
+
+Фаза 2~--- линковка (GraphLinker, см.~\ref{sec:linker}).
+
+Привести алгоритм в псевдокоде. Защита от OOM: docgen.graph.max-nodes = 100\,000.}
+
+\subsubsection{Линковка связей (7 фаз)}
+\label{sec:linker}
+
+\todo{Описать GraphLinkerImpl (contexts/graph/impl/linker/GraphLinkerImpl.kt):
+
+Паттерн Strategy: 7 специализированных линкеров.
+
+Фаза 1 — Структурная линковка (последовательная):
+\begin{itemize}
+  \item StructuralEdgeLinker.linkContains(): создание рёбер CONTAINS для иерархии (REPO→MODULE→PACKAGE→CLASS→METHOD/FIELD)
+\end{itemize}
+
+Фаза 2 — Параллельная линковка узлов (Fork/Join pool, макс. 8 потоков, таймаут 10 мин):
+Для каждого узла последовательно:
+\begin{enumerate}
+  \item InheritanceEdgeLinker — IMPLEMENTS, INHERITS, EXTENDS (только TYPE-узлы)
+  \item AnnotationEdgeLinker — ANNOTATED\_WITH (все узлы)
+  \item SignatureDependencyLinker — DEPENDS\_ON по сигнатуре (FUNCTION-узлы)
+  \item CallEdgeLinker — CALLS\_CODE (FUNCTION-узлы, на основе RawUsage из meta)
+  \item IntegrationEdgeLinker — CALLS\_HTTP, CALLS\_CAMEL, PRODUCES, CONSUMES (создание виртуальных ENDPOINT/TOPIC узлов с meta.synthetic=true)
+  \item ThrowEdgeLinker — THROWS (FUNCTION-узлы)
+\end{enumerate}
+
+Фаза 3 — Обновление индекса (если созданы новые синтетические узлы ENDPOINT/TOPIC).
+
+Фаза 4 — Персистенция (upsertEdges + upsertLibraryNodeEdges).
+
+Статистика: LinkingStats \{totalNodes, totalEdges, newIntegrationNodes, libraryNodeEdges, callsErrors, structuralLinkingDuration, parallelLinkingDuration, indexUpdateDuration, persistenceDuration, totalDuration, memoryUsedMb\}.}
+
+\subsubsection{Анализ библиотек через байткод (ASM)}
+
+\todo{Описать LibraryBuilderImpl (contexts/library/impl):
+
+Трёхуровневая архитектура:
+
+Уровень 1 — Извлечение координат:
+LibraryCoordinateParser: извлечение Maven-координат из META-INF/pom.properties внутри JAR. Формат: groupId:artifactId:version.
+
+Уровень 2 — Парсинг байткода (ASM):
+BytecodeParser: чтение .class файлов, ClassReader → ClassVisitor → MethodVisitor. Извлечение: классы, интерфейсы, enum (с модификаторами, аннотациями), методы (с сигнатурами), поля. Результат: List<RawLibraryNode>.
+
+Уровень 3 — Анализ интеграций:
+HttpBytecodeAnalyzer: анализ байткода на паттерны интеграций. Обнаружение: HTTP-вызовы (URL, метод), Retry-механизмы, Timeout-конфигурации, Circuit Breaker, Kafka-топики, Camel URI.
+
+Фильтрация: whitelist = com.bftcom, ru.bftcom, ru.supercode, rrbpm. Только классы с интеграционными аннотациями (@RestController, @Service, @KafkaListener) или HTTP-клиенты (WebClient, RestTemplate, OkHttp, FeignClient).
+
+Определение типа библиотеки: org.springframework.*→framework, com.fasterxml.jackson.*→library, org.jetbrains.kotlin.*→language, whitelisted→company, else→external.}
+
+\subsubsection{Семантическое чанкование}
+
+\todo{Описать ChunkBuildOrchestratorImpl (contexts/chunking/impl):
+
+Конвейер:
+\begin{enumerate}
+  \item Загрузка узлов постранично (batchSize: 50 min, MAX\_PAGES: 10\,000)
+  \item Фильтрация по includeKinds (если указано)
+  \item Пакетная загрузка рёбер (предотвращение N+1)
+  \item Для каждого узла: strategy.buildChunks(node, edges) → List<ChunkPlan>
+  \item Буферизация планов (макс. 1\,000 перед flush)
+  \item chunkWriter.savePlan(plans) — персистенция
+  \item Метрики: processedNodes, writtenChunks, skippedChunks, rate (nodes/sec)
+\end{enumerate}
+
+Стратегия PerNodeChunkStrategy: один узел → один чанк, содержащий контекст (code, docComment, signature, edges).
+
+Dry-run режим: выполнение без записи в БД (для тестирования).}
+
+\subsubsection{Генерация векторных представлений (Embeddings)}
+
+\todo{Описать EmbeddingStoreService и EmbeddingSearchService (contexts/embedding):
+
+Интерфейс EmbeddingClient: modelName, dim, embed(text): FloatArray. Реализация: ProxyEmbeddingClient — проксирует к Spring AI EmbeddingModel, валидирует размерность.
+
+Модель: bge-m3 (по умолчанию) или mxbai-embed-large, 1024-мерный вектор.
+
+Хранение: PostgreSQL + pgvector, таблица ai\_documents, схема doc\_generator, HNSW-индекс, метрика COSINE\_DISTANCE.
+
+API:
+\begin{itemize}
+  \item addDocument(id, content, metadata) — векторизация и сохранение
+  \item addDocumentWithEmbedding(id, content, embedding, metadata) — с предвычисленным вектором
+  \item deleteDocument(id) — удаление из vector store
+  \item searchByText(query, topK) — семантический поиск, возвращает SearchResult (id, content, metadata, similarity)
+\end{itemize}
+
+Конфигурация: num-ctx=8192 (контекстное окно для эмбеддинга).}
+
+\subsubsection{Многоступенчатая генерация документации (Coder → Talker → Digest)}
+
+\todo{Описать NodeDocGenerator (contexts/chunking/impl/nodedoc):
+
+Трёхступенчатый подход:
+
+Этап 1 — Coder (техническое объяснение):
+\begin{itemize}
+  \item Класс: OllamaCoderClient
+  \item Модель: qwen2.5-coder:14b (конфиг. через CODER\_MODEL)
+  \item Параметры: temperature=0.1 (детерминистичный), topP=0.9, seed=42 (воспроизводимость)
+  \item Системный промпт: <<Ты — строгий инженер-кодер. Объясняй код без домыслов, пунктами, лаконично.>> Структура: Purpose, Inputs, Outputs, Throws, SideEffects, Preconditions, Postconditions, Concurrency, I/O, Calls/CalledBy, Complexity, EdgeCases, Invariants
+  \item Таймаут: 60 секунд
+  \item Выход: docTech (техническое описание)
+\end{itemize}
+
+Этап 2 — Talker (человеко-ориентированное описание):
+\begin{itemize}
+  \item Класс: OllamaTalkerClient
+  \item Модель: qwen2.5:14b-instruct (конфиг. через TALKER\_MODEL)
+  \item Параметры: temperature=0.3, topP=0.9, seed=42
+  \item Правила: ТОЛЬКО русский язык, НЕТ заголовков/преамбул, простой язык для нетехнического читателя, 3--6 предложений
+  \item Фильтр: удаление <think>.*?</think> блоков (regex)
+  \item Выход: docPublic (человекочитаемое описание)
+\end{itemize}
+
+Этап 3 — Digest (краткая сводка):
+\begin{itemize}
+  \item Класс: NodeDocDigestClient
+  \item Вход: node.kind, node.fqn, docTech, зависимости
+  \item Выход: docDigest (конденсированная сводка)
+\end{itemize}
+
+Реестр промптов: NodeDocPromptRegistry выбирает системный промпт на основе NodeDocContextProfile (kind, hasKdoc, hasCode, depsCount, childrenCount).
+
+Метаданные генерации: prompt\_id, deps\_missing, included context, source\_hashes (code\_hash, doc\_comment\_hash SHA-256).}
+
+\subsection{Подсистема RAG: графовое расширение контекста}
+
+\todo{Описать RagServiceImpl (contexts/rag/impl):
+
+Интерфейс: ask(query, sessionId, applicationId) → RagResponse, prepareContext(query, sessionId, applicationId) → RagPreparedContext.
+
+FSM-архитектура (GraphRequestProcessor): конечный автомат с 10 типами шагов:
+
+\begin{enumerate}
+  \item NORMALIZATION — подготовка запроса (очистка, нормализация)
+  \item EXTRACTION — анализ сущностей (LLM-извлечение className/methodName + regex fallback)
+  \item EXACT\_SEARCH — поиск по FQN/сигнатуре (NodeRepository.findByFqn)
+  \item GRAPH\_EXPANSION — сбор связей кода (обход рёбер CALLS\_CODE, DEPENDS\_ON, IMPLEMENTS на глубину N, макс. 10 соседних узлов)
+  \item REWRITING — уточнение формулировки запроса
+  \item EXPANSION — обогащение синонимами (SynonymDictionary)
+  \item VECTOR\_SEARCH — семантический поиск (cosine similarity в pgvector, top-5)
+  \item RERANKING — отбор лучших чанков (фильтрация и сортировка по релевантности)
+  \item COMPLETED — ответ сформирован
+  \item FAILED — информации недостаточно
+\end{enumerate}
+
+Выполнение FSM: while (iterations < MAX\_ITERATIONS=20), таймаут на шаг: 30с.
+
+Формирование контекста для LLM:
+\begin{itemize}
+  \item <<ТОЧНО НАЙДЕННЫЕ УЗЛЫ>> — до max-exact-nodes=5
+  \item <<СОСЕДНИЕ УЗЛЫ>> — до max-neighbor-nodes=10
+  \item <<СВЯЗИ В ГРАФЕ>> — до max-graph-relations-chars=5000
+  \item <<РЕЗУЛЬТАТЫ ВЕКТОРНОГО ПОИСКА>> — top-5
+\end{itemize}
+
+Общий лимит контекста: max-context-chars=30\,000. Таймаут LLM: 30с. Общий таймаут: 45с.
+
+Chat memory: Spring AI, сохранение по sessionId.
+
+Привести диаграмму последовательности FSM.}
+
+\subsection{Кросс-приложенческий анализ интеграций}
+
+\todo{Описать CrossAppGraphServiceImpl (contexts/graph/impl):
+
+Алгоритм:
+\begin{enumerate}
+  \item Загрузка приложений (фильтрация по applicationIds или все)
+  \item Поиск ENDPOINT/TOPIC узлов с meta.synthetic=true
+  \item Группировка по FQN (один и тот же эндпоинт в разных приложениях)
+  \item Создание кросс-приложенческих узлов: APPLICATION (из приложений), INTEGRATION (точки интеграции)
+  \item Поиск входящих/исходящих рёбер: methods → integration points, topics → consumers
+  \item Агрегация по app+integration+kind
+  \item Возврат: CrossAppGraphResponse (nodes, edges, statistics)
+\end{enumerate}
+
+Паттерны FQN:
+\begin{itemize}
+  \item HTTP: infra:http:GET:https://api.example.com/users → label <<GET /users>>
+  \item Kafka: infra:kafka:topic:user-events → label <<user-events>>
+  \item Camel: infra:camel:uri:direct:processOrder → label <<direct:processOrder>>
+\end{itemize}
+
+Статистика: CrossAppStatistics (applicationCount, httpEndpoints, kafkaTopics, camelRoutes, totalEdges).
+
+Фильтрация по IntegrationType enum: HTTP, KAFKA, CAMEL.}
+
+\subsection{Выбор технологического стека и его обоснование}
+
+\todo{Описать и обосновать (таблица с критериями выбора):
+
+\begin{itemize}
+  \item \textbf{Kotlin 2.0.21 + Spring Boot 3.5.6 + Java 21} — типобезопасность, null-safety, корутины, совместимость с PSI Kotlin Compiler, WebFlux для реактивных эндпоинтов (SSE-стриминг RAG-ответов и событий индексации)
+  \item \textbf{PostgreSQL 16 + pgvector} — ACID, JSONB для метаданных, pgvector для ANN-поиска, HNSW-индекс, единая БД (без отдельного Elasticsearch/Pinecone)
+  \item \textbf{Ollama} (локальный LLM) — конфиденциальность корпоративного кода (код не уходит в облако), нулевая стоимость inference, совместимость с OpenAI API
+  \item \textbf{Модели: Qwen 2.5} — Coder (qwen2.5-coder:14b, temp=0.1), Talker (qwen2.5:14b-instruct, temp=0.3), Embedding (bge-m3, 1024-dim)
+  \item \textbf{Redis} — rate limiting (sorted sets, sliding window), кеширование
+  \item \textbf{Resilience4j} — Circuit Breaker (50\% failure → open 60s), Retry (3 попытки, exponential 2s-4s-8s), Bulkhead (макс. 5 параллельных LLM-вызовов)
+  \item \textbf{Cytoscape.js 3.28.1} — визуализация графа в браузере, 6 алгоритмов layout (COSE, Breadthfirst, Circle, Concentric, Grid, Dagre)
+  \item \textbf{Liquibase} — 23 миграции SQL, version-controlled schema
+  \item \textbf{Docker Compose} — 4 сервиса: db (pgvector:pg16), ollama, evaluator, app
+  \item \textbf{JGit} — программный доступ к Git (clone, fetch, pull, reset)
+  \item \textbf{ASM} — анализ байткода JVM (ClassReader, ClassVisitor, MethodVisitor)
+  \item \textbf{Spring AI} — абстракция над LLM (chat client, embedding model, pgvector store, chat memory)
+\end{itemize}
+
+Обоснование выбора локальных LLM: в корпоративной среде отправка исходного кода во внешние API (OpenAI, Anthropic) недопустима по политике ИБ; Ollama позволяет развернуть LLM на собственном сервере; стоимость inference = 0 (после затрат на GPU-сервер).}

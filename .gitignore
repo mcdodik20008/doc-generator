@@ -59,3 +59,5 @@ improvements-ui.md
 ### Misc ###
 nul
 sample-project/
+/sample-project/.gradle/
+/sample-project/build/

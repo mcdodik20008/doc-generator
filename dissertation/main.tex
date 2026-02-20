@@ -1,0 +1,54 @@
+% =============================================================================
+% main.tex — Главный файл диссертации
+% Компиляция: xelatex -> biber -> xelatex -> xelatex
+% =============================================================================
+\documentclass[14pt,a4paper,oneside]{extarticle}
+
+% --- Преамбула ---
+\input{preamble}
+
+% =============================================================================
+\begin{document}
+
+% --- Титульный лист ---
+\input{titlepage}
+
+% --- Оглавление ---
+\newpage
+\tableofcontents
+
+% --- Введение ---
+\newpage
+\input{introduction}
+
+% --- Глава 1 ---
+\newpage
+\input{chapter1}
+
+% --- Глава 2 ---
+\newpage
+\input{chapter2}
+
+% --- Глава 3 ---
+\newpage
+\input{chapter3}
+
+% --- Глава 4 ---
+\newpage
+\input{chapter4}
+
+% --- Заключение ---
+\newpage
+\input{conclusion}
+
+% --- Список литературы ---
+\newpage
+\phantomsection
+\addcontentsline{toc}{section}{СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ}
+\printbibliography[title={СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ}]
+
+% --- Приложения ---
+\newpage
+\input{appendix}
+
+\end{document}
