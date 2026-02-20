@@ -14,7 +14,7 @@ AI-powered documentation generator for software projects. Automatically analyzes
 - **Dependency Graph**: Builds interactive visualization of code dependencies
 - **LLM-Powered Documentation**: Generates human-readable docs using Ollama/OpenAI
 - **Semantic Search**: RAG-based Q&A system with pgvector embeddings
-- **Cross-Application Integration**: Visualizes integrations between multiple apps
+- **Cross-Application Integration**: Visualizes integrations and detects HTTP/Kafka/Camel dependencies
 
 ### Production-Ready Features (P0) ✨
 
@@ -306,6 +306,22 @@ GET    /api/v1/graph/cross-app            Cross-application graph
 POST   /api/v1/embedding/search           Semantic search
 ```
 
+### Analysis & Metrics
+
+```
+GET    /api/v1/analysis/impact            Evaluate change impact of a component
+```
+
+### Integration Points
+
+```
+GET    /api/v1/integration/methods/by-url         Find methods calling a specific URL
+GET    /api/v1/integration/methods/by-kafka-topic Find methods using a Kafka topic
+GET    /api/v1/integration/methods/by-camel-uri   Find methods using a Camel URI
+GET    /api/v1/integration/method/summary         Get integration summary for a method
+GET    /api/v1/integration/parent-clients         Find parent clients in a library
+```
+
 ### RAG (Q&A)
 
 ```
@@ -381,8 +397,15 @@ Open http://localhost:8080/graph and select your application.
 
 ### 5. Cross-Application Integrations
 
+Visualizing integratons between apps:
 ```bash
 curl "http://localhost:8080/api/v1/graph/cross-app?applicationIds=1,2,3&types=HTTP,KAFKA" \
+  -H "X-API-Key: $API_KEY"
+```
+
+Finding exact methods using a Kafka topic:
+```bash
+curl "http://localhost:8080/api/v1/integration/methods/by-kafka-topic?topic=orders-events" \
   -H "X-API-Key: $API_KEY"
 ```
 

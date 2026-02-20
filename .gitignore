@@ -61,3 +61,5 @@ nul
 sample-project/
 /sample-project/.gradle/
 /sample-project/build/
+/sample-project/build/
+/sample-project/build/

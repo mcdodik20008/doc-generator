@@ -33,7 +33,9 @@
       "Bash(git init:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(py:*)",
+      "Bash(where:*)"
     ]
   }
 }
