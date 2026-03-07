@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component
  * - OPEN: Circuit is open due to failures, calls are rejected
  * - HALF_OPEN: Testing if service recovered by allowing limited calls
  */
-@Component("llmCircuitBreaker")
+@Component
 class CircuitBreakerHealthIndicator(
     private val resilientLlmWrapper: ResilientLlmWrapper,
 ) : HealthIndicator {

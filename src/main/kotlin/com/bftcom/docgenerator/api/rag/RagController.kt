@@ -6,6 +6,7 @@ import com.bftcom.docgenerator.api.rag.client.DocEvaluatorClient
 import com.bftcom.docgenerator.api.rag.dto.RagRequest
 import com.bftcom.docgenerator.api.rag.dto.ValidatedRagResponse
 import com.bftcom.docgenerator.db.NodeRepository
+import com.bftcom.docgenerator.rag.api.RagResponse
 import com.bftcom.docgenerator.rag.api.RagService
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.validation.Valid
@@ -45,7 +46,7 @@ class RagController(
     /**
      * Фильтрует сообщения об ошибках, удаляя чувствительные данные перед отправкой клиенту
      */
-    private fun sanitizeErrorMessage(exception: Exception): String {
+    private fun sanitizeErrorMessage(exception: Throwable): String {
         return when (exception) {
             is IllegalArgumentException,
             is IllegalStateException -> exception.message ?: "Invalid request"
