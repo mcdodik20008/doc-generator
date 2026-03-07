@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     GIGACHAT_CREDENTIALS: str | None = None
     GIGACHAT_VERIFY_SSL: bool = True  # Добавлено для контроля проверки SSL
     GEMINI_API_KEY: str | None = None
+    GEMINI_MODEL: str = "gemini-1.5-flash"  # Модель по умолчанию для Gemini
     QWEN_API_KEY: str | None = None  # Добавлено для QwenJudge
     QWEN_MODEL: str = "qwen-turbo"  # Модель по умолчанию для Qwen
 
@@ -41,11 +42,12 @@ class Settings(BaseSettings):
     CODEBERT_MODEL_NAME: str = "microsoft/codebert-base"
 
     # --- Weights (Настройка баланса) ---
-    WEIGHT_SEMANTIC: float = 0.2
-    WEIGHT_COVERAGE: float = 0.2
+    WEIGHT_SEMANTIC: float = 0.15
+    WEIGHT_COVERAGE: float = 0.15
+    WEIGHT_READABILITY: float = 0.1
     WEIGHT_LLM: float = 0.6
 
-    @field_validator('WEIGHT_SEMANTIC', 'WEIGHT_COVERAGE', 'WEIGHT_LLM')
+    @field_validator('WEIGHT_SEMANTIC', 'WEIGHT_COVERAGE', 'WEIGHT_READABILITY', 'WEIGHT_LLM')
     @classmethod
     def validate_weight_non_negative(cls, v: float, info) -> float:
         """Проверяет что вес неотрицательный"""
@@ -55,15 +57,17 @@ class Settings(BaseSettings):
 
     def model_post_init(self, __context) -> None:
         """Проверяет что сумма всех весов = 1.0"""
-        total = self.WEIGHT_SEMANTIC + self.WEIGHT_COVERAGE + self.WEIGHT_LLM
+        total = self.WEIGHT_SEMANTIC + self.WEIGHT_COVERAGE + self.WEIGHT_READABILITY + self.WEIGHT_LLM
         if not (0.99 <= total <= 1.01):  # Допускаем небольшую погрешность
             raise ValueError(
                 f'Sum of weights must equal 1.0, got {total:.4f} '
-                f'(SEMANTIC={self.WEIGHT_SEMANTIC}, COVERAGE={self.WEIGHT_COVERAGE}, LLM={self.WEIGHT_LLM})'
+                f'(SEMANTIC={self.WEIGHT_SEMANTIC}, COVERAGE={self.WEIGHT_COVERAGE}, '
+                f'READABILITY={self.WEIGHT_READABILITY}, LLM={self.WEIGHT_LLM})'
             )
 
     # --- Advanced Settings ---
     SELF_CONSISTENCY_ROUNDS: int = 1
+    RATE_LIMIT_PER_MINUTE: int = 30  # Лимит запросов к /evaluate в минуту
 
     @field_validator('SELF_CONSISTENCY_ROUNDS')
     @classmethod

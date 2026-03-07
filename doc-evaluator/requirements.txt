@@ -12,6 +12,7 @@ gigachat
 google-generativeai
 openai  # Используется и для ChatGPT, и для локальной Ollama
 aiohttp # Для асинхронных запросов
+slowapi # Rate limiting для FastAPI
 pydantic-settings==2.1.0
 dashscope
 

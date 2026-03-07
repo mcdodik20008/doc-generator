@@ -8,6 +8,7 @@ class LlmScores(BaseModel):
     gigachat: float | None = None
     gemini: float | None = None
     ollama: float | None = None
+    qwen: float | None = None
 
 class EvaluateResponse(BaseModel):
     # Локальные метрики

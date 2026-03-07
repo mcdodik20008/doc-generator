@@ -5,4 +5,5 @@ data class LlmScores(
         val gigachat: Double? = null,
         val gemini: Double? = null,
         val ollama: Double? = null,
+        val qwen: Double? = null,
 )

@@ -7,6 +7,7 @@ from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+
 class LocalMetricsService:
     # Константы для расчета метрик
     MAX_SCORE = 10.0  # Максимальный балл для всех метрик
@@ -26,23 +27,23 @@ class LocalMetricsService:
     # NOTE: covers C-like languages (Java, Kotlin, JS, Python); extend for Lisp-like if needed
     IDENTIFIER_PATTERN = r'\b[a-zA-Z_][a-zA-Z0-9_]*\b'
 
-    _instance = None  # 1. Храним единственный экземпляр здесь
-    _lock = threading.Lock()  # Для thread-safe инициализации
+    _instance = None
+    _lock = threading.Lock()
 
     def __init__(self):
         settings = get_settings()
         model_name = settings.CODEBERT_MODEL_NAME
-        logger.info(f"Loading CodeBERT model '{model_name}'... (CPU)")
+        logger.info("Loading CodeBERT model '%s'... (CPU)", model_name)
         try:
             self.embedder = SentenceTransformer(model_name)
-            logger.info(f"CodeBERT model '{model_name}' loaded successfully")
+            logger.info("CodeBERT model '%s' loaded successfully", model_name)
         except OSError as e:
-            logger.error(f"Failed to load model - network or disk issue: {e}")
+            logger.error("Failed to load model - network or disk issue: %s", e)
             raise RuntimeError(
                 "Failed to load CodeBERT model. Please check network connectivity and disk space."
             ) from e
         except Exception as e:
-            logger.error(f"Unexpected error loading model: {e}")
+            logger.error("Unexpected error loading model: %s", e)
             raise RuntimeError(
                 "Failed to initialize LocalMetricsService due to model loading error"
             ) from e
@@ -51,20 +52,14 @@ class LocalMetricsService:
     def get_instance(cls):
         """
         Паттерн Singleton с thread-safe инициализацией (double-checked locking).
-        Если экземпляр уже есть - возвращаем его.
-        Если нет - создаем (и в этот момент грузится модель).
         """
-        # Первая проверка без блокировки для производительности
         if cls._instance is None:
-            # Блокировка только при первой инициализации
             with cls._lock:
-                # Вторая проверка внутри блокировки на случай если другой поток уже создал экземпляр
                 if cls._instance is None:
                     cls._instance = cls()
         return cls._instance
 
     def calculate_semantic_similarity(self, code: str, doc: str) -> float:
-        # Валидация входных параметров
         if not code or not doc or not code.strip() or not doc.strip():
             logger.warning("Empty or blank code/doc provided to calculate_semantic_similarity")
             return 0.0
@@ -74,11 +69,10 @@ class LocalMetricsService:
             score = util.cos_sim(embeddings[0], embeddings[1]).item()
             return max(0.0, min(1.0, score)) * self.MAX_SCORE
         except Exception as e:
-            logger.error(f"Failed to calculate semantic similarity: {e}")
+            logger.error("Failed to calculate semantic similarity: %s", e)
             return 0.0
 
     def calculate_coverage(self, code: str, doc: str) -> float:
-        # Валидация входных параметров
         if not code or not doc or not code.strip() or not doc.strip():
             logger.warning("Empty or blank code/doc provided to calculate_coverage")
             return 0.0
@@ -95,11 +89,10 @@ class LocalMetricsService:
             found = sum(1 for t in keywords if t.lower() in doc_lower)
             return (found / len(keywords)) * self.MAX_SCORE
         except Exception as e:
-            logger.error(f"Failed to calculate coverage: {e}")
+            logger.error("Failed to calculate coverage: %s", e)
             return 0.0
 
     def calculate_readability(self, doc: str) -> float:
-        # Валидация входных параметров
         if not doc or not doc.strip():
             logger.warning("Empty or blank doc provided to calculate_readability")
             return self.DEFAULT_READABILITY_SCORE
@@ -109,5 +102,5 @@ class LocalMetricsService:
             score = textstat.flesch_reading_ease(doc)
             return max(0.0, min(100.0, score)) / self.READABILITY_SCALE_FACTOR
         except Exception as e:
-            logger.warning(f"Failed to calculate readability score: {e}")
+            logger.warning("Failed to calculate readability score: %s", e)
             return self.DEFAULT_READABILITY_SCORE

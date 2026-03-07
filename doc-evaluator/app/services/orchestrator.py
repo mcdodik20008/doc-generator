@@ -3,10 +3,9 @@ import logging
 import statistics
 from app.schemas.evaluation import EvaluateRequest, EvaluateResponse, LlmScores
 from app.services.local_metrics import LocalMetricsService
-from app.services.llm_judges import GigaChatJudge, GeminiJudge, OllamaJudge
+from app.services.llm_judges import GigaChatJudge, GeminiJudge, OllamaJudge, QwenJudge
 from app.core.config import get_settings
 
-settings = get_settings()
 logger = logging.getLogger(__name__)
 
 # Константы для генерации температур в self-consistency rounds
@@ -14,18 +13,20 @@ MIN_TEMPERATURE = 0.1  # Минимальная температура для LL
 TEMPERATURE_STEP = 0.2  # Шаг увеличения температуры между раундами
 # Максимальная температура определяется как MIN_TEMPERATURE + (rounds - 1) * TEMPERATURE_STEP
 
-# Константы для fallback расчета итоговой оценки
-FALLBACK_LOCAL_WEIGHTS = 0.5  # Вес каждой локальной метрики при отсутствии LLM (sem_score + coverage_score) / 2
+# Количество локальных метрик для fallback расчёта
+LOCAL_METRICS_COUNT = 3  # semantic, coverage, readability
 
 class EvaluationOrchestrator:
     def __init__(self):
+        self._settings = get_settings()
         # Инициализируем локальные метрики (загрузятся при первом вызове, если еще не загружены)
         self.local = LocalMetricsService.get_instance()
         # Инициализируем судей
         self.judges = [
             ("gigachat", GigaChatJudge()),
             ("gemini", GeminiJudge()),
-            ("ollama", OllamaJudge())
+            ("ollama", OllamaJudge()),
+            ("qwen", QwenJudge()),
         ]
 
     async def evaluate(self, request: EvaluateRequest) -> EvaluateResponse:
@@ -39,7 +40,7 @@ class EvaluationOrchestrator:
 
         # 2. LLM метрики (IO bound - запускаем параллельно)
         # Self-Consistency: запускаем N раундов с разной температурой
-        rounds = settings.SELF_CONSISTENCY_ROUNDS
+        rounds = self._settings.SELF_CONSISTENCY_ROUNDS
         all_tasks = []
 
         # Генерируем температуры с шагом TEMPERATURE_STEP
@@ -104,15 +105,16 @@ class EvaluationOrchestrator:
         # Среднее по всем LLM
         avg_llm_score = sum(all_valid_scores) / len(all_valid_scores) if all_valid_scores else 0.0
 
-        # Если LLM недоступны, откатываемся только на локальные веса
+        # Если LLM недоступны, откатываемся только на локальные метрики
         if not all_valid_scores:
-            final = (sem_score + coverage_score) / 2
-            confidence = 0.0 # Нет LLM - нет уверенности в их оценке
+            final = (sem_score + coverage_score + readability_score) / LOCAL_METRICS_COUNT
+            confidence = 0.0  # Нет LLM — нет уверенности в их оценке
         else:
             final = (
-                    (sem_score * settings.WEIGHT_SEMANTIC) +
-                    (coverage_score * settings.WEIGHT_COVERAGE) +
-                    (avg_llm_score * settings.WEIGHT_LLM)
+                    (sem_score * self._settings.WEIGHT_SEMANTIC) +
+                    (coverage_score * self._settings.WEIGHT_COVERAGE) +
+                    (readability_score * self._settings.WEIGHT_READABILITY) +
+                    (avg_llm_score * self._settings.WEIGHT_LLM)
             )
 
         return EvaluateResponse(
@@ -122,7 +124,8 @@ class EvaluationOrchestrator:
             llm_scores=LlmScores(
                 gigachat=final_llm_scores_map.get("gigachat"),
                 gemini=final_llm_scores_map.get("gemini"),
-                ollama=final_llm_scores_map.get("ollama")
+                ollama=final_llm_scores_map.get("ollama"),
+                qwen=final_llm_scores_map.get("qwen"),
             ),
             final_score=round(final, 2),
             score_variance=round(variance, 2),

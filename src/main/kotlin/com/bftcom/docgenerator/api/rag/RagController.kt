@@ -3,14 +3,13 @@ package com.bftcom.docgenerator.api.rag
 import com.bftcom.docgenerator.ai.props.AiClientsProperties
 import com.bftcom.docgenerator.api.common.RateLimited
 import com.bftcom.docgenerator.api.rag.client.DocEvaluatorClient
-import com.bftcom.docgenerator.api.rag.dto.EvaluationResult
 import com.bftcom.docgenerator.api.rag.dto.RagRequest
 import com.bftcom.docgenerator.api.rag.dto.ValidatedRagResponse
 import com.bftcom.docgenerator.db.NodeRepository
-import com.bftcom.docgenerator.rag.api.RagResponse
 import com.bftcom.docgenerator.rag.api.RagService
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.validation.Valid
+import java.time.Duration
 import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.chat.memory.ChatMemory.DEFAULT_CONVERSATION_ID
@@ -29,6 +28,7 @@ import reactor.core.scheduler.Schedulers
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+
 
 @RestController
 @RequestMapping("/api/v1/rag")
@@ -81,74 +81,54 @@ class RagController(
 
     @PostMapping("/ask-with-val")
     @RateLimited(maxRequests = 20, windowSeconds = 60)
-    fun askWithValidation(@RequestBody @Valid request: RagRequest): ValidatedRagResponse {
+    fun askWithValidation(@RequestBody @Valid request: RagRequest): Mono<ValidatedRagResponse> {
         log.info("RAG validation request received: sessionId=${request.sessionId}, query_length=${request.query.length}")
-        // Получаем RAG ответ
-        val ragResponse = try {
+
+        return Mono.fromCallable {
             ragService.ask(request.query, request.sessionId, request.applicationId)
-        } catch (e: Exception) {
-            log.error("RAG request failed during validation flow for sessionId=${request.sessionId}: ${e.message}", e)
-            throw IllegalStateException(sanitizeErrorMessage(e), e)
         }
+            .subscribeOn(Schedulers.boundedElastic())
+            .flatMap { ragResponse ->
+                val firstSource = ragResponse.sources.firstOrNull()
+                    ?: return@flatMap Mono.just(
+                        ValidatedRagResponse(null, ragResponse, "No sources in RAG response")
+                    )
 
-        // Пытаемся провалидировать ответ
-        var validation: EvaluationResult? = null
-        var validationError: String? = null
-
-        try {
-            // Получаем первый source (если есть) для валидации
-            val firstSource = ragResponse.sources.firstOrNull()
-
-            if (firstSource != null) {
-                // Пытаемся получить node по ID
                 val nodeId = firstSource.id.toLongOrNull()
+                    ?: return@flatMap Mono.just(
+                        ValidatedRagResponse(null, ragResponse, "Invalid node ID in source")
+                    )
 
-                if (nodeId != null) {
-                    val node = nodeRepository.findById(nodeId).orElse(null)
-
-                    // Используем safe call и let для безопасной обработки nullable значений
-                    val sourceCode = node?.sourceCode
-                    if (sourceCode != null && sourceCode.isNotBlank()) {
-                        // Валидируем: sourceCode как code_snippet, answer как generated_doc
-                        validation = try {
-                            CompletableFuture.supplyAsync {
-                                docEvaluatorClient.evaluate(
-                                    codeSnippet = sourceCode,
-                                    generatedDoc = ragResponse.answer
-                                )
-                            }.orTimeout(ASK_WITH_VAL_TIMEOUT_SECONDS, TimeUnit.SECONDS).get()
-                        } catch (e: TimeoutException) {
-                            log.error("Doc evaluator call timed out")
-                            null
-                        } catch (e: Exception) {
-                            log.error("Doc evaluator call failed: ${e.message}", e)
-                            null
-                        }
-
-                        if (validation == null) {
-                            validationError = "Doc-evaluator service unavailable or returned error"
-                        }
-                    } else {
-                        validationError = "Node has no source code"
-                    }
-                } else {
-                    validationError = "Invalid node ID in source"
+                val node = nodeRepository.findById(nodeId).orElse(null)
+                val sourceCode = node?.sourceCode
+                if (sourceCode.isNullOrBlank()) {
+                    return@flatMap Mono.just(
+                        ValidatedRagResponse(null, ragResponse, "Node has no source code")
+                    )
                 }
-            } else {
-                validationError = "No sources in RAG response"
-            }
-        } catch (e: Exception) {
-            // Логируем полную ошибку с stack trace для отладки
-            log.error("Validation failed for query: ${request.query.take(50)}...", e)
-            // Возвращаем клиенту безопасное сообщение без чувствительных данных
-            validationError = "Validation failed: ${sanitizeErrorMessage(e)}"
-        }
 
-        return ValidatedRagResponse(
-                validation = validation,
-                ragResponse = ragResponse,
-                validationError = validationError
-        )
+                docEvaluatorClient.evaluateAsync(
+                    codeSnippet = sourceCode,
+                    generatedDoc = ragResponse.answer
+                )
+                    .map { evaluation ->
+                        ValidatedRagResponse(evaluation, ragResponse, null)
+                    }
+                    .defaultIfEmpty(
+                        ValidatedRagResponse(null, ragResponse, "Doc-evaluator service unavailable or returned error")
+                    )
+                    .timeout(Duration.ofSeconds(ASK_WITH_VAL_TIMEOUT_SECONDS))
+                    .onErrorResume { e ->
+                        log.error("Doc evaluator call failed: {}", e.message, e)
+                        Mono.just(
+                            ValidatedRagResponse(null, ragResponse, "Doc-evaluator service unavailable or returned error")
+                        )
+                    }
+            }
+            .onErrorResume { e ->
+                log.error("RAG request failed during validation flow for sessionId=${request.sessionId}: ${e.message}", e)
+                Mono.error(IllegalStateException(sanitizeErrorMessage(e), e))
+            }
     }
 
     @PostMapping("/ask/stream", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])

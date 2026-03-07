@@ -1,55 +1,96 @@
 import pytest
 from app.services.local_metrics import LocalMetricsService
 
-# Поскольку LocalMetricsService загружает модели в __init__, 
-# мы можем либо замокать модели, либо протестировать реальную загрузку (долго).
-# Для юнит-тестов лучше замокать модели.
-# Но здесь мы хотим проверить логику calculate_coverage и calculate_readability,
-# которые не зависят от тяжелых моделей (кроме calculate_semantic_similarity).
 
 @pytest.fixture
 def local_service(monkeypatch):
-    # Патчим __init__, чтобы не грузить модели
+    """Создаёт LocalMetricsService без загрузки CodeBERT модели"""
     monkeypatch.setattr(LocalMetricsService, "__init__", lambda self: None)
-    # Создаем экземпляр без вызова реального __init__
     service = LocalMetricsService.__new__(LocalMetricsService)
-    # Инициализируем нужные поля, если надо (для coverage и readability не надо)
-    # Для semantic_similarity нужны embedder и cross_encoder, их замокаем отдельно если будем тестить
     return service
+
+
+# --- calculate_coverage ---
 
 def test_calculate_coverage(local_service):
     code = "def hello_world(): print('hello')"
     doc = "This function prints hello world"
-    
-    # tokens: hello_world, print, hello
-    # keywords: hello, world (len>3, not in exclude) -> hello, world?
-    # wait, 'hello_world' -> split? No, regex is \b[a-zA-Z_][a-zA-Z0-9_]*\b
+
     # tokens: def, hello_world, print, hello
-    # keywords: hello_world, print, hello (def excluded? no, but len=3 excluded? yes len>3)
-    # 'def' len=3 -> excluded
-    # 'print' len=5 -> included
-    # 'hello' len=5 -> included
-    # 'hello_world' len=11 -> included
-    
-    # doc: "This function prints hello world"
-    # 'print' in doc? 'prints' contains 'print' -> yes
-    # 'hello' in doc? yes
-    # 'hello_world' in doc? no
-    
-    # expected: 2/3 found -> ~6.66
-    
+    # keywords (len>3, not stopword): hello_world, print, hello
+    # doc contains: 'print' (via 'prints'), 'hello' — yes; 'hello_world' — no
+    # expected: 2/3 ≈ 6.67
+
     score = local_service.calculate_coverage(code, doc)
     assert 0 <= score <= 10
-    assert score > 0 # Should find something
+    assert score > 0
 
-def test_calculate_coverage_empty(local_service):
+
+def test_calculate_coverage_empty_keywords(local_service):
     code = "a = 1"
     doc = "nothing"
-    # no keywords > 3 chars
+    # no keywords > 3 chars → return MAX_SCORE
     score = local_service.calculate_coverage(code, doc)
-    assert score == 10.0 # If no keywords, return 10.0
+    assert score == 10.0
 
-def test_calculate_readability(local_service):
-    doc = "Simple text. Very easy."
+
+def test_calculate_coverage_full_match(local_service):
+    code = "def process_data(input_list): return sorted(input_list)"
+    doc = "process_data takes an input_list and returns sorted input_list"
+    score = local_service.calculate_coverage(code, doc)
+    assert score > 5.0  # Должно быть хорошее покрытие
+
+
+def test_calculate_coverage_no_match(local_service):
+    code = "def calculate_fibonacci(number): pass"
+    doc = "This is completely unrelated text about weather"
+    score = local_service.calculate_coverage(code, doc)
+    assert score < 5.0  # Мало пересечений
+
+
+def test_calculate_coverage_empty_code(local_service):
+    score = local_service.calculate_coverage("", "some doc")
+    assert score == 0.0
+
+
+def test_calculate_coverage_empty_doc(local_service):
+    score = local_service.calculate_coverage("def foo(): pass", "")
+    assert score == 0.0
+
+
+def test_calculate_coverage_blank_strings(local_service):
+    score = local_service.calculate_coverage("   ", "   ")
+    assert score == 0.0
+
+
+def test_calculate_coverage_kotlin_stopwords_filtered(local_service):
+    code = "val myVariable = if (true) return else override"
+    doc = "nothing relevant"
+    # keywords after filtering stopwords (val, if, return, else, override): only myVariable, true
+    score = local_service.calculate_coverage(code, doc)
+    assert 0 <= score <= 10
+
+
+# --- calculate_readability ---
+
+def test_calculate_readability_simple(local_service):
+    doc = "Simple text. Very easy to read."
     score = local_service.calculate_readability(doc)
     assert 0 <= score <= 10
+
+
+def test_calculate_readability_complex(local_service):
+    doc = ("The implementation utilizes sophisticated algorithmic paradigms "
+           "to facilitate the orchestration of distributed computational resources.")
+    score = local_service.calculate_readability(doc)
+    assert 0 <= score <= 10
+
+
+def test_calculate_readability_empty(local_service):
+    score = local_service.calculate_readability("")
+    assert score == LocalMetricsService.DEFAULT_READABILITY_SCORE
+
+
+def test_calculate_readability_blank(local_service):
+    score = local_service.calculate_readability("   ")
+    assert score == LocalMetricsService.DEFAULT_READABILITY_SCORE
