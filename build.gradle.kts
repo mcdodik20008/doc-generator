@@ -96,7 +96,7 @@ dependencies {
     implementation("org.apache.httpcomponents.client5:httpclient5:5.3.1")
 
     // ===== DB / Migrations =====
-    implementation("io.hypersistence:hypersistence-utils-hibernate-62:3.7.2")
+//    implementation("io.hypersistence:hypersistence-utils-hibernate-62:3.7.2")
     implementation("org.postgresql:postgresql")
     implementation("org.liquibase:liquibase-core")
 

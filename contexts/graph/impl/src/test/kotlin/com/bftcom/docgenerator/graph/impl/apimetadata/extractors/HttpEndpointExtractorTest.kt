@@ -57,7 +57,7 @@ class HttpEndpointExtractorTest {
     @Test
     fun `extractFunctionMetadata extracts path from annotation`() {
         val function = createRawFunction(
-            annotationsRepr = setOf("""org.springframework.web.bind.annotation.GetMapping("/api/v1/users")""")
+            annotationsRepr = setOf("""org.springframework.web.bind.annotation.GetMapping("/api/users")""")
         )
         val ctx = createContext()
 
@@ -65,7 +65,7 @@ class HttpEndpointExtractorTest {
 
         assertThat(result).isInstanceOf(ApiMetadata.HttpEndpoint::class.java)
         val httpEndpoint = result as ApiMetadata.HttpEndpoint
-        assertThat(httpEndpoint.path).isEqualTo("/api/v1/users")
+        assertThat(httpEndpoint.path).isEqualTo("/api/users")
     }
 
         @Test
@@ -88,7 +88,7 @@ class HttpEndpointExtractorTest {
             annotationsRepr = setOf("""org.springframework.web.bind.annotation.GetMapping("/users")""")
         )
         val ownerType = createRawType(
-            annotationsRepr = listOf("""org.springframework.web.bind.annotation.RequestMapping("/api/v1")""")
+            annotationsRepr = listOf("""org.springframework.web.bind.annotation.RequestMapping("/api")""")
         )
         val ctx = createContext()
 
@@ -96,7 +96,7 @@ class HttpEndpointExtractorTest {
 
         assertThat(result).isInstanceOf(ApiMetadata.HttpEndpoint::class.java)
         val httpEndpoint = result as ApiMetadata.HttpEndpoint
-        assertThat(httpEndpoint.basePath).isEqualTo("/api/v1")
+        assertThat(httpEndpoint.basePath).isEqualTo("/api")
         assertThat(httpEndpoint.path).isEqualTo("/users")
     }
 
@@ -115,7 +115,7 @@ class HttpEndpointExtractorTest {
     @Test
     fun `extractTypeMetadata returns HttpEndpoint for RequestMapping on class`() {
         val type = createRawType(
-            annotationsRepr = listOf("""org.springframework.web.bind.annotation.RequestMapping("/api/v1")""")
+            annotationsRepr = listOf("""org.springframework.web.bind.annotation.RequestMapping("/api")""")
         )
         val ctx = createContext()
 
@@ -124,8 +124,8 @@ class HttpEndpointExtractorTest {
         assertThat(result).isInstanceOf(ApiMetadata.HttpEndpoint::class.java)
         val httpEndpoint = result as ApiMetadata.HttpEndpoint
         assertThat(httpEndpoint.method).isEqualTo("*")
-        assertThat(httpEndpoint.path).isEqualTo("/api/v1")
-        assertThat(httpEndpoint.basePath).isEqualTo("/api/v1")
+        assertThat(httpEndpoint.path).isEqualTo("/api")
+        assertThat(httpEndpoint.basePath).isEqualTo("/api")
     }
 
     @Test

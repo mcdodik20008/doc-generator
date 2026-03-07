@@ -83,7 +83,7 @@ class NodeDocFillerScheduler(
     private fun processBatch(label: String, loader: () -> List<Node>): Int {
         val batch = tx.execute { loader() } ?: return 0
         if (batch.isEmpty()) return 0
-        log.info("nodedoc: generating {} items for {}", batch.size, label)
+//        log.info("nodedoc: generating {} items for {}", batch.size, label)
         
         val toStore = mutableListOf<Pair<Long, NodeDocGenerator.GeneratedDoc>>()
         val skipped = mutableListOf<Pair<Long, String>>()
@@ -123,7 +123,7 @@ class NodeDocFillerScheduler(
         
         // Log batch summary instead of individual logs
         if (skipped.isNotEmpty() && log.isDebugEnabled) {
-            log.debug("nodedoc: skipped {} items for {}: {}", skipped.size, label, skipped.take(5).joinToString())
+//            log.debug("nodedoc: skipped {} items for {}: {}", skipped.size, label, skipped.take(5).joinToString())
         }
         
         val success = toStore.size

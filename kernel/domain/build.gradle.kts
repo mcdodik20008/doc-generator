@@ -18,7 +18,7 @@ dependencies {
     compileOnly("jakarta.persistence:jakarta.persistence-api:3.1.0")
     compileOnly("org.springframework.data:spring-data-commons:3.3.4")
     compileOnly("org.hibernate.orm:hibernate-core:6.4.2.Final")
-    compileOnly("io.hypersistence:hypersistence-utils-hibernate-62:3.7.2")
+//    compileOnly("io.hypersistence:hypersistence-utils-hibernate-62:3.7.2")
 
     testImplementation(kotlin("test"))
 }

@@ -28,7 +28,7 @@ data class AuditLogSearchResult(
 )
 
 @RestController
-@RequestMapping("/api/v1/audit-logs")
+@RequestMapping("/api/audit-logs")
 class AuditLogController(
     private val auditLogRepository: AuditLogRepository,
 ) {

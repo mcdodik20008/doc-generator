@@ -17,7 +17,7 @@ class ApiMetadataSerializerTest {
         val metadata = ApiMetadata.HttpEndpoint(
             method = "GET",
             path = "/api/users",
-            basePath = "/api/v1",
+            basePath = "/api",
             consumes = listOf("application/json"),
             produces = listOf("application/json"),
             headers = mapOf("Authorization" to "Bearer token"),
@@ -29,7 +29,7 @@ class ApiMetadataSerializerTest {
         assertThat(result!!["@type"]).isEqualTo("HttpEndpoint")
         assertThat(result["method"]).isEqualTo("GET")
         assertThat(result["path"]).isEqualTo("/api/users")
-        assertThat(result["basePath"]).isEqualTo("/api/v1")
+        assertThat(result["basePath"]).isEqualTo("/api")
         assertThat(result["consumes"]).isEqualTo(listOf("application/json"))
         assertThat(result["produces"]).isEqualTo(listOf("application/json"))
         assertThat(result["headers"]).isEqualTo(mapOf("Authorization" to "Bearer token"))

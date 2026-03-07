@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController
 
 /** REST API для модулей аналитики. */
 @RestController
-@RequestMapping("/api/v1/analysis")
+@RequestMapping("/api/analysis")
 class AnalysisController(private val changeImpactService: ChangeImpactService) {
     /**
      * Оценка последствий изменений компонента. Возвращает список всех узлов, зависящих от

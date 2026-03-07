@@ -48,7 +48,7 @@ object AnnotationParser {
 
     /**
      * Извлечь массив строк из параметра, поддерживая несколько вариантов имен.
-     * @GetMapping(path = ["/api", "/v1"]) -> ["/api", "/v1"]
+     * @GetMapping(path = ["/api", ""]) -> ["/api", ""]
      */
     fun getStringArrayValue(
         annotation: KtAnnotationEntry,

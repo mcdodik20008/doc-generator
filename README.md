@@ -53,7 +53,7 @@ See [CIRCUIT_BREAKER.md](CIRCUIT_BREAKER.md) and [RATE_LIMITING.md](RATE_LIMITIN
          │
          ▼
 ┌─────────────────┐
-│   REST API      │  /api/v1/*
+│   REST API      │  /api/*
 │   Controllers   │  ├─ /ingest      (Ingestion pipeline)
 │                 │  ├─ /graph       (Dependency graph)
 │                 │  ├─ /rag         (Q&A system)
@@ -149,7 +149,7 @@ docker exec -it ollama ollama pull bge-m3
 ### 5. Create API Key
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/api-keys \
+curl -X POST http://localhost:8080/api/api-keys \
   -H "Content-Type: application/json" \
   -d '{
     "name": "my-first-key",
@@ -175,11 +175,11 @@ Response:
 export API_KEY="dg_a1b2c3d4e5f6..."
 
 # Ingest a project
-curl -X POST "http://localhost:8080/api/v1/ingest/reindex/1" \
+curl -X POST "http://localhost:8080/api/ingest/reindex/1" \
   -H "X-API-Key: $API_KEY"
 
 # Query documentation
-curl -X POST "http://localhost:8080/api/v1/rag/ask" \
+curl -X POST "http://localhost:8080/api/rag/ask" \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -252,12 +252,12 @@ Key sections:
 
 ```bash
 # Development key (no expiration)
-curl -X POST http://localhost:8080/api/v1/api-keys \
+curl -X POST http://localhost:8080/api/api-keys \
   -H "Content-Type: application/json" \
   -d '{"name": "dev-key", "scopes": ["read", "write"]}'
 
 # Production key (30 days)
-curl -X POST http://localhost:8080/api/v1/api-keys \
+curl -X POST http://localhost:8080/api/api-keys \
   -H "Content-Type: application/json" \
   -d '{
     "name": "prod-integration",
@@ -269,13 +269,13 @@ curl -X POST http://localhost:8080/api/v1/api-keys \
 ### Listing Keys
 
 ```bash
-curl http://localhost:8080/api/v1/api-keys
+curl http://localhost:8080/api/api-keys
 ```
 
 ### Revoking Keys
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/api-keys/1
+curl -X DELETE http://localhost:8080/api/api-keys/1
 ```
 
 ### Scopes
@@ -293,49 +293,49 @@ See [TESTING_GUIDE.md](TESTING_GUIDE.md) for detailed testing procedures.
 ### Ingestion
 
 ```
-POST   /api/v1/ingest/reindex/{appId}     Reindex application
-GET    /api/v1/dashboard/applications     List applications
-GET    /api/v1/dashboard/stats            Dashboard statistics
+POST   /api/ingest/reindex/{appId}     Reindex application
+GET    /api/dashboard/applications     List applications
+GET    /api/dashboard/stats            Dashboard statistics
 ```
 
 ### Graph & Search
 
 ```
-GET    /api/v1/graph/chunks               Get chunk graph
-GET    /api/v1/graph/cross-app            Cross-application graph
-POST   /api/v1/embedding/search           Semantic search
+GET    /api/graph/chunks               Get chunk graph
+GET    /api/graph/cross-app            Cross-application graph
+POST   /api/embedding/search           Semantic search
 ```
 
 ### Analysis & Metrics
 
 ```
-GET    /api/v1/analysis/impact            Evaluate change impact of a component
+GET    /api/analysis/impact            Evaluate change impact of a component
 ```
 
 ### Integration Points
 
 ```
-GET    /api/v1/integration/methods/by-url         Find methods calling a specific URL
-GET    /api/v1/integration/methods/by-kafka-topic Find methods using a Kafka topic
-GET    /api/v1/integration/methods/by-camel-uri   Find methods using a Camel URI
-GET    /api/v1/integration/method/summary         Get integration summary for a method
-GET    /api/v1/integration/parent-clients         Find parent clients in a library
+GET    /api/integration/methods/by-url         Find methods calling a specific URL
+GET    /api/integration/methods/by-kafka-topic Find methods using a Kafka topic
+GET    /api/integration/methods/by-camel-uri   Find methods using a Camel URI
+GET    /api/integration/method/summary         Get integration summary for a method
+GET    /api/integration/parent-clients         Find parent clients in a library
 ```
 
 ### RAG (Q&A)
 
 ```
-POST   /api/v1/rag/ask                    Ask question about code
+POST   /api/rag/ask                    Ask question about code
 ```
 
 ### Management
 
 ```
-GET    /api/v1/api-keys                   List API keys
-POST   /api/v1/api-keys                   Create API key
-DELETE /api/v1/api-keys/{id}              Revoke API key
+GET    /api/api-keys                   List API keys
+POST   /api/api-keys                   Create API key
+DELETE /api/api-keys/{id}              Revoke API key
 
-GET    /api/v1/audit-logs                 Search audit logs
+GET    /api/audit-logs                 Search audit logs
        ?user=alice&action=INGEST_START&from=2026-02-01T00:00:00Z
 ```
 
@@ -361,13 +361,13 @@ val app = Application(
 applicationRepository.save(app)
 
 // Trigger ingestion
-POST /api/v1/ingest/reindex/1
+POST /api/ingest/reindex/1
 ```
 
 ### 2. Ask Questions
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/rag/ask \
+curl -X POST http://localhost:8080/api/rag/ask \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -381,7 +381,7 @@ curl -X POST http://localhost:8080/api/v1/rag/ask \
 ### 3. Search Code
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/embedding/search \
+curl -X POST http://localhost:8080/api/embedding/search \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -399,13 +399,13 @@ Open http://localhost:8080/graph and select your application.
 
 Visualizing integratons between apps:
 ```bash
-curl "http://localhost:8080/api/v1/graph/cross-app?applicationIds=1,2,3&types=HTTP,KAFKA" \
+curl "http://localhost:8080/api/graph/cross-app?applicationIds=1,2,3&types=HTTP,KAFKA" \
   -H "X-API-Key: $API_KEY"
 ```
 
 Finding exact methods using a Kafka topic:
 ```bash
-curl "http://localhost:8080/api/v1/integration/methods/by-kafka-topic?topic=orders-events" \
+curl "http://localhost:8080/api/integration/methods/by-kafka-topic?topic=orders-events" \
   -H "X-API-Key: $API_KEY"
 ```
 
@@ -449,7 +449,7 @@ curl http://localhost:8080/actuator/health | jq '.components.llmCircuitBreaker'
 # Check Redis
 docker exec -it redis redis-cli
 > KEYS rate_limit:*
-> ZCARD rate_limit:my-key:/api/v1/rag
+> ZCARD rate_limit:my-key:/api/rag
 
 # Disable rate limiting
 export DOCGEN_RATE_LIMIT_ENABLED=false

@@ -1,13 +1,15 @@
 package com.bftcom.docgenerator.domain.apikey
 
-import io.hypersistence.utils.hibernate.type.array.StringArrayType
+//import io.hypersistence.utils.hibernate.type.array.StringArrayType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.Type
+import org.hibernate.type.SqlTypes
 import java.time.OffsetDateTime
 
 @Entity
@@ -23,7 +25,7 @@ class ApiKey(
     @Column(name = "key_hash", nullable = false, unique = true)
     var keyHash: String,
 
-    @Type(StringArrayType::class)
+    @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "scopes", columnDefinition = "text[]")
     var scopes: Array<String> = emptyArray(),
 

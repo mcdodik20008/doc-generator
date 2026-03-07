@@ -43,7 +43,7 @@ data class CreateApiKeyResponse(
 )
 
 @RestController
-@RequestMapping("/api/v1/api-keys")
+@RequestMapping("/api/api-keys")
 class ApiKeyController(
     private val apiKeyRepository: ApiKeyRepository,
     private val authFilter: ApiKeyAuthenticationFilter,

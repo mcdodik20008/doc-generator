@@ -26,5 +26,12 @@ services:
     volumes:
       - ollama_data:/root/.ollama
 
+  redis:
+    image: redis:7-alpine
+    container_name: docgen-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
 volumes:
   ollama_data:

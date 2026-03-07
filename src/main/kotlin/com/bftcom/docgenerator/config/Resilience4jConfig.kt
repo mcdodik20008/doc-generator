@@ -59,7 +59,7 @@ class Resilience4jConfig {
     fun llmRetryRegistry(): RetryRegistry {
         val config = RetryConfig.custom<Any>()
             .maxAttempts(3)
-            .waitDuration(Duration.ofSeconds(2))
+//            .waitDuration(Duration.ofSeconds(2))
             // Exponential backoff: 2s, 4s, 8s
             .intervalFunction { attempt -> (attempt * 2000).toLong() }
             .retryExceptions(

@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController
  * REST контроллер для cross-app графов.
  */
 @RestController
-@RequestMapping("/api/v1/graph/cross-app")
+@RequestMapping("/api/graph/cross-app")
 class CrossAppGraphController(
     private val crossAppGraphService: CrossAppGraphService,
     private val applicationRepo: ApplicationRepository,

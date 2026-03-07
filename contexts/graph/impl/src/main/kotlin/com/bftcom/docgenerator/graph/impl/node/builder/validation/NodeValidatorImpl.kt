@@ -14,12 +14,18 @@ class NodeValidatorImpl : NodeValidator {
 
     companion object {
         private const val MAX_FQN_LENGTH = 1000
+
         // Поддерживает:
         // - Базовый формат: package.ClassName или package.ClassName.method
         // - Формат функций: package.ClassName.method(Type1,Type2) или package.method(Type1,Type2)
         // - Nullable типы в параметрах: String?, LocalDate?
         // - Лямбда-типы: () -> Type, (Type) -> Type, suspend (param: Type) -> Type
-        private val FQN_PATTERN = Regex("^[a-zA-Z_][a-zA-Z0-9_.]*(?:\\([a-zA-Z0-9_,. ?() >\\-:]*\\))?$")
+//        private val FQN_PATTERN = Regex("^[a-zA-Z_][a-zA-Z0-9_.]*(?:\\([a-zA-Z0-9_,. ?() >\\-:]*\\))?$")
+//        private val FQN_PATTERN = Regex("^[\\p{L}_][\\p{L}\\p{N}_. ]*(?:\\([\\p{L}\\p{N}_,. ?() >\\-:]*\\))?$")
+        private val FQN_PATTERN = Regex(
+            "^[\\p{L}_][\\p{L}\\p{N}_. ,\\-`()]*" + // Основная часть FQN
+                    "(?:\\([\\p{L}\\p{N}_,. ?() >\\-:]*\\))?$" // Параметры функции
+        )
     }
 
     override fun validate(
@@ -59,7 +65,7 @@ class NodeValidatorImpl : NodeValidator {
                 require(it.fqn != fqn) {
                     "Node cannot be its own parent: fqn=$fqn"
                 }
-                
+
                 // Примечание: не проверяем it.id != null, так как родитель может быть
                 // только что создан в текущей транзакции и еще не иметь id.
                 // JPA/Hibernate сам обработает связи при сохранении.

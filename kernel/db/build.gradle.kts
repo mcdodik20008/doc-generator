@@ -24,7 +24,7 @@ dependencies {
     api("org.springframework.boot:spring-boot-starter-data-jpa")
 
     // Поддержка JSONB
-    implementation("io.hypersistence:hypersistence-utils-hibernate-62:3.7.2")
+//    implementation("io.hypersistence:hypersistence-utils-hibernate-62:3.7.2")
 
     // Рефлексия Kotlin (Критично для работы JPA с Data-классами)
     implementation("org.jetbrains.kotlin:kotlin-reflect")

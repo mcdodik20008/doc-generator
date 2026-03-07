@@ -44,16 +44,16 @@ class RateLimitFilter(
 
         // High-load endpoints (CPU/memory intensive)
         private val HIGH_LOAD_PATHS = setOf(
-            "/api/v1/rag/ask",
-            "/api/v1/embedding/search",
-            "/api/v1/embedding/documents"
+            "/api/rag/ask",
+            "/api/embedding/search",
+            "/api/embedding/documents"
         )
 
         // Mutation endpoints (write operations)
         private val MUTATION_PATHS = setOf(
-            "/api/v1/ingest/reindex",
-            "/api/v1/ingest/start",
-            "/api/v1/embedding/clear-postprocess"
+            "/api/ingest/reindex",
+            "/api/ingest/start",
+            "/api/embedding/clear-postprocess"
         )
     }
 

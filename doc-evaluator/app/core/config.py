@@ -4,7 +4,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     # --- App Settings ---
-    API_V1_STR: str = "/api/v1"
+    API_V1_STR: str = "/api"
     PROJECT_NAME: str = "Doc Evaluator Service"
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000

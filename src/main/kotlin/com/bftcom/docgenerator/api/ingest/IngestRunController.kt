@@ -18,7 +18,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
 @RestController
-@RequestMapping("/api/v1/ingest")
+@RequestMapping("/api/ingest")
 class IngestRunController(
     private val orchestrator: IngestRunOrchestrator,
     private val sseManager: IngestSseManager,

@@ -27,7 +27,7 @@ class AuditLog(
     @Column(nullable = false)
     var action: String,
 
-    /** Request path, e.g. "/api/v1/ingest/start/5" */
+    /** Request path, e.g. "/api/ingest/start/5" */
     @Column(nullable = false)
     var resource: String,
 
