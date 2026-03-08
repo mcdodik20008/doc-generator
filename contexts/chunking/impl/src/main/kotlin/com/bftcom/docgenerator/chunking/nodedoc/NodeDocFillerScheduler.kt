@@ -1,7 +1,6 @@
 package com.bftcom.docgenerator.chunking.nodedoc
 
 import com.bftcom.docgenerator.db.NodeRepository
-import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
@@ -46,7 +45,8 @@ class NodeDocFillerScheduler(
     private val skipCounts = ConcurrentHashMap<Long, Int>()
     private val appNodeCounts = ConcurrentHashMap<Long, Long>()
     private val appNodeCountsAccessTime = ConcurrentHashMap<Long, AtomicLong>()
-    
+    private val kindOffsets = ConcurrentHashMap<String, Int>()
+
     @Value("\${docgen.nodedoc.cache.ttl-ms:3600000}")
     private var cacheTtlMs: Long = 3600000 // 1 hour default
 
@@ -60,35 +60,47 @@ class NodeDocFillerScheduler(
 
     @Scheduled(fixedDelayString = "\${docgen.nodedoc.poll-ms:5000}")
     fun poll() {
-        // bottom-up order
+        // bottom-up order: METHOD → LEAF → TYPE → PACKAGE → MODULE/REPO
         val methodsSelected =
-            processBatch("METHOD") {
+            processBatch("METHOD") { offset ->
                 if (randomMethods) {
                     nodeRepo.lockNextMethodsWithoutDocRandom(locale, batchSize)
                 } else {
-                    nodeRepo.lockNextMethodsWithoutDoc(locale, batchSize)
+                    nodeRepo.lockNextMethodsWithoutDoc(locale, batchSize, offset)
                 }
             }
         if (methodsSelected > 0) return
 
-        val typesSelected = processBatch("TYPE") { nodeRepo.lockNextTypesWithoutDoc(locale, batchSize) }
+        val leafSelected =
+            processBatch("LEAF") { offset ->
+                nodeRepo.lockNextLeafNodesWithoutDoc(locale, batchSize, offset)
+            }
+        if (leafSelected > 0) return
+
+        val typesSelected = processBatch("TYPE") { offset -> nodeRepo.lockNextTypesWithoutDoc(locale, batchSize, offset) }
         if (typesSelected > 0) return
 
-        val packagesSelected = processBatch("PACKAGE") { nodeRepo.lockNextPackagesWithoutDoc(locale, batchSize) }
+        val packagesSelected = processBatch("PACKAGE") { offset -> nodeRepo.lockNextPackagesWithoutDoc(locale, batchSize, offset) }
         if (packagesSelected > 0) return
 
-        processBatch("MODULE/REPO") { nodeRepo.lockNextModulesAndReposWithoutDoc(locale, batchSize) }
+        processBatch("MODULE/REPO") { offset -> nodeRepo.lockNextModulesAndReposWithoutDoc(locale, batchSize, offset) }
     }
 
-    private fun processBatch(label: String, loader: () -> List<Node>): Int {
-        val batch = tx.execute { loader() } ?: return 0
-        if (batch.isEmpty()) return 0
-//        log.info("nodedoc: generating {} items for {}", batch.size, label)
-        
+    internal fun processBatch(label: String, loader: (Int) -> List<Node>): Int {
+        val currentOffset = kindOffsets.getOrDefault(label, 0)
+        val batch = tx.execute { loader(currentOffset) } ?: return 0
+        if (batch.isEmpty()) {
+            // Reached the end — reset offset to start over
+            if (currentOffset > 0) {
+                kindOffsets[label] = 0
+            }
+            return 0
+        }
+
         val toStore = mutableListOf<Pair<Long, NodeDocGenerator.GeneratedDoc>>()
         val skipped = mutableListOf<Pair<Long, String>>()
         var failed = 0
-        
+
         for (n in batch) {
             val nodeId = n.id ?: continue
             try {
@@ -111,7 +123,7 @@ class NodeDocFillerScheduler(
                 log.warn("nodedoc: failed for nodeId={} fqn={}: {}", nodeId, n.fqn, t.message, t)
             }
         }
-        
+
         // Batch store all generated docs in a single transaction
         if (toStore.isNotEmpty()) {
             tx.execute {
@@ -120,28 +132,30 @@ class NodeDocFillerScheduler(
                 }
             }
         }
-        
-        // Log batch summary instead of individual logs
-        if (skipped.isNotEmpty() && log.isDebugEnabled) {
-//            log.debug("nodedoc: skipped {} items for {}: {}", skipped.size, label, skipped.take(5).joinToString())
-        }
-        
+
+        // Offset management: advance on all-skip, reset on any success
         val success = toStore.size
+        if (success > 0) {
+            kindOffsets[label] = 0
+        } else if (batch.isNotEmpty()) {
+            kindOffsets[label] = currentOffset + batchSize
+        }
+
         if (success > 0 || skipped.isNotEmpty() || failed > 0) {
             log.info(
-                "nodedoc: batch {} completed - success={}, skipped={}, failed={}",
+                "nodedoc: batch {} completed - success={}, skipped={}, failed={}, offset={}",
                 label,
                 success,
                 skipped.size,
                 failed,
+                currentOffset,
             )
         }
-        
+
         return batch.size
     }
 
     private fun shouldAllowMissingDeps(node: Node): Boolean {
-        if (node.kind != NodeKind.METHOD) return false
         val nodeId = node.id ?: return false
         val currentSkips = skipCounts[nodeId] ?: 0
         val maxSkips = maxSkipsFor(node)
@@ -151,11 +165,11 @@ class NodeDocFillerScheduler(
     private fun maxSkipsFor(node: Node): Int {
         val appId = node.application.id ?: return skipMin
         val now = System.currentTimeMillis()
-        
+
         val accessTime = appNodeCountsAccessTime.getOrPut(appId) { AtomicLong(now) }
         val cachedValue = appNodeCounts[appId]
         val age = now - accessTime.get()
-        
+
         val totalNodes = if (cachedValue == null || age > cacheTtlMs) {
             // Refresh cache
             val fresh = nodeRepo.countByApplicationId(appId)
@@ -167,9 +181,8 @@ class NodeDocFillerScheduler(
             accessTime.set(now)
             cachedValue
         }
-        
+
         val byFactor = ceil(totalNodes * skipFactor).toInt()
         return max(skipMin, min(skipMax, byFactor))
     }
 }
-

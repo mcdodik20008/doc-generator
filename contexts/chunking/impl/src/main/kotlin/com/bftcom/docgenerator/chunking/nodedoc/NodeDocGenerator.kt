@@ -106,12 +106,25 @@ class NodeDocGenerator(
             NodeKind.INTERFACE,
             NodeKind.ENUM,
             NodeKind.RECORD,
-            NodeKind.PACKAGE,
+            ->
+                // Wait for METHOD and FIELD children (both are processed before TYPE)
+                built.missingChildKinds.any { it == NodeKind.METHOD || it == NodeKind.FIELD }
+            NodeKind.PACKAGE ->
+                // Only wait for TYPE children that the scheduler actually processes
+                built.missingChildKinds.any { it in PROCESSED_TYPE_KINDS }
             NodeKind.MODULE,
             NodeKind.REPO,
-            -> true
+            ->
+                // Only wait for PACKAGE children
+                built.missingChildKinds.contains(NodeKind.PACKAGE)
             else -> false
         }
+    }
+
+    companion object {
+        private val PROCESSED_TYPE_KINDS = setOf(
+            NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM, NodeKind.RECORD,
+        )
     }
 }
 

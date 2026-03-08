@@ -132,19 +132,21 @@ interface NodeRepository : JpaRepository<Node, Long> {
             FROM doc_generator.node n
             WHERE n.kind = 'METHOD'
               AND NOT EXISTS (
-                  SELECT 1 
-                  FROM doc_generator.node_doc d 
+                  SELECT 1
+                  FROM doc_generator.node_doc d
                   WHERE d.node_id = n.id AND d.locale = :locale
               )
             ORDER BY n.id
             LIMIT :limit
+            OFFSET :offset
             FOR UPDATE of n SKIP LOCKED
         """,
         nativeQuery = true
     )
     fun lockNextMethodsWithoutDoc(
         @Param("locale") locale: String,
-        @Param("limit") limit: Int
+        @Param("limit") limit: Int,
+        @Param("offset") offset: Int = 0,
     ): List<Node>
 
     @Query(
@@ -178,6 +180,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
               AND d.node_id IS NULL
             ORDER BY n.id
             LIMIT :limit
+            OFFSET :offset
             FOR UPDATE of n SKIP LOCKED
         """,
         nativeQuery = true,
@@ -185,6 +188,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
     fun lockNextTypesWithoutDoc(
         @Param("locale") locale: String,
         @Param("limit") limit: Int,
+        @Param("offset") offset: Int = 0,
     ): List<Node>
 
     @Query(
@@ -197,13 +201,15 @@ interface NodeRepository : JpaRepository<Node, Long> {
               AND d.node_id IS NULL
             ORDER BY n.id
             LIMIT :limit
-            FOR UPDATE of n SKIP LOCKED        
+            OFFSET :offset
+            FOR UPDATE of n SKIP LOCKED
         """,
         nativeQuery = true,
     )
     fun lockNextPackagesWithoutDoc(
         @Param("locale") locale: String,
         @Param("limit") limit: Int,
+        @Param("offset") offset: Int = 0,
     ): List<Node>
 
     @Query(
@@ -216,6 +222,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
               AND d.node_id IS NULL
             ORDER BY n.id
             LIMIT :limit
+            OFFSET :offset
             FOR UPDATE of n SKIP LOCKED
         """,
         nativeQuery = true,
@@ -223,5 +230,27 @@ interface NodeRepository : JpaRepository<Node, Long> {
     fun lockNextModulesAndReposWithoutDoc(
         @Param("locale") locale: String,
         @Param("limit") limit: Int,
+        @Param("offset") offset: Int = 0,
+    ): List<Node>
+
+    @Query(
+        value = """
+            SELECT n.*
+            FROM doc_generator.node n
+            LEFT JOIN doc_generator.node_doc d
+              ON d.node_id = n.id AND d.locale = :locale
+            WHERE n.kind NOT IN ('METHOD','CLASS','INTERFACE','ENUM','RECORD','PACKAGE','MODULE','REPO')
+              AND d.node_id IS NULL
+            ORDER BY n.id
+            LIMIT :limit
+            OFFSET :offset
+            FOR UPDATE of n SKIP LOCKED
+        """,
+        nativeQuery = true,
+    )
+    fun lockNextLeafNodesWithoutDoc(
+        @Param("locale") locale: String,
+        @Param("limit") limit: Int,
+        @Param("offset") offset: Int = 0,
     ): List<Node>
 }
