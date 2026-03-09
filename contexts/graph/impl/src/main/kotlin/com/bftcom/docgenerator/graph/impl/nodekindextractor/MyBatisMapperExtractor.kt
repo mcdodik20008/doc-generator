@@ -6,8 +6,10 @@ import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindExtractor
 import com.bftcom.docgenerator.graph.impl.util.NkxUtil
+import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 
+@Order(10)
 @Component
 class MyBatisMapperExtractor : NodeKindExtractor {
     override fun id() = "mybatis-mapper"

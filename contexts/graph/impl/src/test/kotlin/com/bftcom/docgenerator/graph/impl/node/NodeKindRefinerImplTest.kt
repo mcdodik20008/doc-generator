@@ -9,6 +9,9 @@ import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.bftcom.docgenerator.graph.api.model.rawdecl.SrcLang
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindExtractor
+import com.bftcom.docgenerator.graph.impl.nodekindextractor.ConfigExtractor
+import com.bftcom.docgenerator.graph.impl.nodekindextractor.MyBatisMapperExtractor
+import com.bftcom.docgenerator.graph.impl.nodekindextractor.TestClassExtractor
 import io.mockk.every
 import io.mockk.mockk
 import org.assertj.core.api.Assertions.assertThat
@@ -99,6 +102,68 @@ class NodeKindRefinerImplTest {
 
         val kind = NodeKindRefinerImpl(listOf(e1, e2)).forField(base, raw, fileUnit = null)
         assertThat(kind).isEqualTo(NodeKind.FIELD)
+    }
+
+    @Test
+    fun `forType - TestClassExtractor wins over MyBatisMapperExtractor for test in mappers package`() {
+        // RawInboxMapperTest in package ...service.mappers should be TEST, not MAPPER.
+        // @Order(0) on TestClassExtractor ensures it runs before @Order(10) MapperExtractor.
+        val testExtractor = TestClassExtractor()
+        val mapperExtractor = MyBatisMapperExtractor()
+
+        // Test first — matches Spring @Order(0) before @Order(10) injection order
+        val refiner = NodeKindRefinerImpl(listOf(testExtractor, mapperExtractor))
+
+        val raw = RawType(
+            lang = SrcLang.kotlin,
+            filePath = "RawInboxMapperTest.kt",
+            pkgFqn = "com.example.service.mappers",
+            simpleName = "RawInboxMapperTest",
+            kindRepr = "class",
+            supertypesRepr = emptyList(),
+            annotationsRepr = emptyList(),
+            span = null,
+            text = null,
+        )
+        val file = RawFileUnit(
+            lang = SrcLang.kotlin,
+            filePath = "RawInboxMapperTest.kt",
+            pkgFqn = "com.example.service.mappers",
+            imports = listOf("org.junit.jupiter.api.Test"),
+        )
+
+        val kind = refiner.forType(NodeKind.CLASS, raw, fileUnit = file)
+        assertThat(kind).isEqualTo(NodeKind.TEST)
+    }
+
+    @Test
+    fun `forType - TestClassExtractor wins over ConfigExtractor for test in config package`() {
+        val testExtractor = TestClassExtractor()
+        val configExtractor = ConfigExtractor()
+
+        // Test first — matches Spring @Order(0) before @Order(10) injection order
+        val refiner = NodeKindRefinerImpl(listOf(testExtractor, configExtractor))
+
+        val raw = RawType(
+            lang = SrcLang.kotlin,
+            filePath = "ConfigurationTest.kt",
+            pkgFqn = "com.example.config",
+            simpleName = "ConfigurationTest",
+            kindRepr = "class",
+            supertypesRepr = emptyList(),
+            annotationsRepr = emptyList(),
+            span = null,
+            text = null,
+        )
+        val file = RawFileUnit(
+            lang = SrcLang.kotlin,
+            filePath = "ConfigurationTest.kt",
+            pkgFqn = "com.example.config",
+            imports = listOf("org.junit.jupiter.api.Test"),
+        )
+
+        val kind = refiner.forType(NodeKind.CLASS, raw, fileUnit = file)
+        assertThat(kind).isEqualTo(NodeKind.TEST)
     }
 }
 

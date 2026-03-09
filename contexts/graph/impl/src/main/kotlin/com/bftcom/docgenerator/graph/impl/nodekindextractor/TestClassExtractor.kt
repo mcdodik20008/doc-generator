@@ -6,8 +6,10 @@ import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindExtractor
 import com.bftcom.docgenerator.graph.impl.util.NkxUtil
+import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 
+@Order(0)
 @Component
 class TestClassExtractor : NodeKindExtractor {
     override fun id() = "test-class"

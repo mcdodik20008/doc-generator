@@ -11,6 +11,16 @@ import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindExtractor
 import org.springframework.stereotype.Component
 
+// Extractor priority (Spring @Order):
+//   0  — TestClassExtractor (tests always win)
+//  10  — all other extractors (first-match-wins among them)
+//
+// Within each extractor, signal strength:
+//   1. Annotations (@Service, @Mapper, @Repository, etc.) — strongest
+//   2. Supertypes (extends Exception, JavaMigration, etc.) — strong
+//   3. Imports (junit, kafka, grpc, etc.) — medium
+//   4. Package name heuristics (.service, .mapper, etc.) — weakest
+//   5. Class name suffix (ends with Service, Mapper, etc.) — weakest
 @Component
 class NodeKindRefinerImpl(
     private val extractors: List<NodeKindExtractor>,
