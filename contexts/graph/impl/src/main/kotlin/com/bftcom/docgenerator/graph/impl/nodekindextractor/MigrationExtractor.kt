@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component
 class MigrationExtractor : NodeKindExtractor {
     override fun id() = "migration-class"
 
-    override fun supports(lang: Lang) = (lang == Lang.kotlin)
+    override fun supports(lang: Lang) = (lang == Lang.kotlin || lang == Lang.java)
 
     override fun refineType(
         base: NodeKind,
@@ -35,7 +35,7 @@ class MigrationExtractor : NodeKindExtractor {
         }
 
         // эвристики
-        if (pkg.contains(".migration") || NkxUtil.nameEnds(n, "Migration")) {
+        if (NkxUtil.pkgHasSegment(pkg, "migration") || NkxUtil.nameEnds(n, "Migration")) {
             return NodeKind.MIGRATION
         }
 

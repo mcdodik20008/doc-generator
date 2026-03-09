@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component
 class SpringBootApplicationExtractor : NodeKindExtractor {
     override fun id() = "spring-boot-application"
 
-    override fun supports(lang: Lang) = (lang == Lang.kotlin)
+    override fun supports(lang: Lang) = (lang == Lang.kotlin || lang == Lang.java)
 
     override fun refineType(
         base: NodeKind,

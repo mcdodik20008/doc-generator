@@ -17,9 +17,9 @@ class ExceptionTypeExtractorTest {
     }
 
     @Test
-    fun `supports returns true only for kotlin`() {
+    fun `supports returns true for kotlin and java`() {
         assertThat(extractor.supports(Lang.kotlin)).isTrue()
-        assertThat(extractor.supports(Lang.java)).isFalse()
+        assertThat(extractor.supports(Lang.java)).isTrue()
         assertThat(extractor.supports(Lang.sql)).isFalse()
     }
 
@@ -72,7 +72,7 @@ class ExceptionTypeExtractorTest {
     }
 
     @Test
-    fun `refineType returns EXCEPTION for name ending with Error`() {
+    fun `refineType returns null for name ending with Error without Exception supertype`() {
         val raw = createRawType(
             simpleName = "MyError"
         )
@@ -80,7 +80,7 @@ class ExceptionTypeExtractorTest {
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
 
-        assertThat(result).isEqualTo(NodeKind.EXCEPTION)
+        assertThat(result).isNull()
     }
 
     @Test
@@ -142,6 +142,19 @@ class ExceptionTypeExtractorTest {
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
 
         assertThat(result).isNull()
+    }
+
+    @Test
+    fun `refineType returns EXCEPTION for Error suffix with Exception supertype`() {
+        val raw = createRawType(
+            simpleName = "ValidationError",
+            supertypesRepr = listOf("java.lang.RuntimeException")
+        )
+        val ctx = createContext()
+
+        val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
+
+        assertThat(result).isEqualTo(NodeKind.EXCEPTION)
     }
 
     @Test

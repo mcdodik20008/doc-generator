@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component
 class SchemaModelExtractor : NodeKindExtractor {
     override fun id() = "schema-model"
 
-    override fun supports(lang: Lang) = (lang == Lang.kotlin)
+    override fun supports(lang: Lang) = (lang == Lang.kotlin || lang == Lang.java)
 
     override fun refineType(
         base: NodeKind,
@@ -38,7 +38,7 @@ class SchemaModelExtractor : NodeKindExtractor {
             return NodeKind.SCHEMA
         }
 
-        if (pkg.contains(".schema")) {
+        if (NkxUtil.pkgHasSegment(pkg, "schema")) {
             return NodeKind.SCHEMA
         }
         return null

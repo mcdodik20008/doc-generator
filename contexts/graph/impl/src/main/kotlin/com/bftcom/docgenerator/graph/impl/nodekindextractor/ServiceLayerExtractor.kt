@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component
 class ServiceLayerExtractor : NodeKindExtractor {
     override fun id() = "service-layer"
 
-    override fun supports(lang: Lang) = (lang == Lang.kotlin)
+    override fun supports(lang: Lang) = (lang == Lang.kotlin || lang == Lang.java)
 
     override fun refineType(
         base: NodeKind,
@@ -29,11 +29,11 @@ class ServiceLayerExtractor : NodeKindExtractor {
             return NodeKind.SERVICE
         }
         // Иногда сервисы помечают просто @Component + package ...service
-        if (NkxUtil.hasAnyAnn(a, "Component") && pkg.contains(".service")) {
+        if (NkxUtil.hasAnyAnn(a, "Component") && NkxUtil.pkgHasSegment(pkg, "service")) {
             return NodeKind.SERVICE
         }
         // Нейминг
-        if (pkg.contains(".service") && NkxUtil.nameEnds(n, "Service")) {
+        if (NkxUtil.pkgHasSegment(pkg, "service") && NkxUtil.nameEnds(n, "Service")) {
             return NodeKind.SERVICE
         }
 

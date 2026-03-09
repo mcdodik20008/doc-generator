@@ -19,9 +19,9 @@ class ConfigExtractorTest {
     }
 
     @Test
-    fun `supports returns true only for kotlin`() {
+    fun `supports returns true for kotlin and java`() {
         assertThat(extractor.supports(Lang.kotlin)).isTrue
-        assertThat(extractor.supports(Lang.java)).isFalse
+        assertThat(extractor.supports(Lang.java)).isTrue
         assertThat(extractor.supports(Lang.sql)).isFalse
     }
 
@@ -52,8 +52,7 @@ class ConfigExtractorTest {
     @ParameterizedTest
     @CsvSource(
         "AppConfig, com.example",
-        "MyConfiguration, com.example",
-        "DatabaseProperties, com.example"
+        "MyConfiguration, com.example"
     )
     fun `refineType returns CONFIG for classes with config naming`(className: String, pkg: String) {
         val raw = createRawType(
@@ -85,6 +84,19 @@ class ConfigExtractorTest {
         val raw = createRawType(
             simpleName = "RegularClass",
             pkgFqn = "com.example.service"
+        )
+        val ctx = createContext()
+
+        val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
+
+        assertThat(result).isNull()
+    }
+
+    @Test
+    fun `refineType returns null for Properties suffix without config package`() {
+        val raw = createRawType(
+            simpleName = "UserProperties",
+            pkgFqn = "com.example.dto"
         )
         val ctx = createContext()
 

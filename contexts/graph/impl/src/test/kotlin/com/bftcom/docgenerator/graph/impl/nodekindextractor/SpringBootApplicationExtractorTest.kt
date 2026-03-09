@@ -17,9 +17,9 @@ class SpringBootApplicationExtractorTest {
     }
 
     @Test
-    fun `supports returns true only for kotlin`() {
+    fun `supports returns true for kotlin and java`() {
         assertThat(extractor.supports(Lang.kotlin)).isTrue()
-        assertThat(extractor.supports(Lang.java)).isFalse()
+        assertThat(extractor.supports(Lang.java)).isTrue()
         assertThat(extractor.supports(Lang.sql)).isFalse()
     }
 

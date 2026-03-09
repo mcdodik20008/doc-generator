@@ -1,5 +1,14 @@
 package com.bftcom.docgenerator.graph.impl.util
 
+import com.bftcom.docgenerator.domain.enums.Lang
+import com.bftcom.docgenerator.graph.api.model.rawdecl.SrcLang
+
+fun SrcLang.toLang(): Lang = when (this) {
+    SrcLang.kotlin, SrcLang.kts -> Lang.kotlin
+    SrcLang.java -> Lang.java
+    SrcLang.unknown -> Lang.other
+}
+
 internal object NkxUtil {
     fun anns(raw: List<String>) = raw.map { it.substringAfterLast('.').lowercase() }.toSet()
 
@@ -35,4 +44,12 @@ internal object NkxUtil {
         n: String,
         vararg subs: String,
     ) = subs.any { n.contains(it, ignoreCase = true) }
+
+    fun pkgHasSegment(
+        pkg: String,
+        vararg segments: String,
+    ): Boolean {
+        val parts = pkg.split('.')
+        return segments.any { seg -> parts.any { it.equals(seg, ignoreCase = true) } }
+    }
 }

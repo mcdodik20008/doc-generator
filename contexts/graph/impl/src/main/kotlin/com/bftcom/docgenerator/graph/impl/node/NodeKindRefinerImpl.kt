@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.graph.impl.node
 
-import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawDecl
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawField
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFileUnit
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
@@ -9,6 +9,7 @@ import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindExtractor
+import com.bftcom.docgenerator.graph.impl.util.toLang
 import org.springframework.stereotype.Component
 
 // Extractor priority (Spring @Order):
@@ -31,7 +32,7 @@ class NodeKindRefinerImpl(
         fileUnit: RawFileUnit?,
     ): NodeKind {
         if (extractors.isEmpty()) return base
-        val ctx = NodeKindContext(lang = Lang.kotlin, file = fileUnit, imports = fileUnit?.imports)
+        val ctx = buildCtx(raw, fileUnit)
         return extractors
             .asSequence()
             .filter { it.supports(ctx.lang) }
@@ -45,7 +46,7 @@ class NodeKindRefinerImpl(
         fileUnit: RawFileUnit?,
     ): NodeKind {
         if (extractors.isEmpty()) return base
-        val ctx = NodeKindContext(lang = Lang.kotlin, file = fileUnit, imports = fileUnit?.imports)
+        val ctx = buildCtx(raw, fileUnit)
         return extractors
             .asSequence()
             .filter { it.supports(ctx.lang) }
@@ -59,11 +60,14 @@ class NodeKindRefinerImpl(
         fileUnit: RawFileUnit?,
     ): NodeKind {
         if (extractors.isEmpty()) return base
-        val ctx = NodeKindContext(lang = Lang.kotlin, file = fileUnit, imports = fileUnit?.imports)
+        val ctx = buildCtx(raw, fileUnit)
         return extractors
             .asSequence()
             .filter { it.supports(ctx.lang) }
             .mapNotNull { it.refineField(base, raw, ctx) }
             .firstOrNull() ?: base
     }
+
+    private fun buildCtx(raw: RawDecl, fileUnit: RawFileUnit?): NodeKindContext =
+        NodeKindContext(lang = raw.lang.toLang(), file = fileUnit, imports = fileUnit?.imports)
 }

@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component
 class ClientExtractor : NodeKindExtractor {
     override fun id() = "client-class"
 
-    override fun supports(lang: Lang) = (lang == Lang.kotlin)
+    override fun supports(lang: Lang) = (lang == Lang.kotlin || lang == Lang.java)
 
     override fun refineType(
         base: NodeKind,
@@ -22,7 +22,6 @@ class ClientExtractor : NodeKindExtractor {
         ctx: NodeKindContext,
     ): NodeKind? {
         val a = NkxUtil.anns(raw.annotationsRepr)
-        val s = NkxUtil.supers(raw.supertypesRepr)
         val imps = NkxUtil.imps(ctx.imports)
 
         // Feign

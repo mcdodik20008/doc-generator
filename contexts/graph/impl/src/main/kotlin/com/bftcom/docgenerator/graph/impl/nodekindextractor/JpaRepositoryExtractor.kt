@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component
 class JpaRepositoryExtractor : NodeKindExtractor {
     override fun id() = "jpa-repository"
 
-    override fun supports(lang: Lang) = (lang == Lang.kotlin)
+    override fun supports(lang: Lang) = (lang == Lang.kotlin || lang == Lang.java)
 
     override fun refineType(
         base: NodeKind,
@@ -30,7 +30,7 @@ class JpaRepositoryExtractor : NodeKindExtractor {
             return NodeKind.DB_QUERY
         }
         if (NkxUtil.superContains(s, "JpaRepository", "CrudRepository", "PagingAndSortingRepository")) return NodeKind.DB_QUERY
-        if (pkg.contains(".repository") || NkxUtil.nameEnds(n, "Repository", "Dao")) {
+        if (NkxUtil.pkgHasSegment(pkg, "repository") || NkxUtil.nameEnds(n, "Repository", "Dao")) {
             return NodeKind.DB_QUERY
         }
 

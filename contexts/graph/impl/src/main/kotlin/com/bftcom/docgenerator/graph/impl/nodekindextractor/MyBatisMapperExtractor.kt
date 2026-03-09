@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component
 class MyBatisMapperExtractor : NodeKindExtractor {
     override fun id() = "mybatis-mapper"
 
-    override fun supports(lang: Lang) = (lang == Lang.kotlin)
+    override fun supports(lang: Lang) = (lang == Lang.kotlin || lang == Lang.java)
 
     override fun refineType(
         base: NodeKind,
@@ -27,7 +27,7 @@ class MyBatisMapperExtractor : NodeKindExtractor {
         if (NkxUtil.hasAnyAnn(a, "Mapper")) {
             return NodeKind.MAPPER
         }
-        if (pkg.contains(".mapper") || NkxUtil.nameEnds(n, "Mapper")) {
+        if (NkxUtil.pkgHasSegment(pkg, "mapper") || NkxUtil.nameEnds(n, "Mapper")) {
             return NodeKind.MAPPER
         }
         return null

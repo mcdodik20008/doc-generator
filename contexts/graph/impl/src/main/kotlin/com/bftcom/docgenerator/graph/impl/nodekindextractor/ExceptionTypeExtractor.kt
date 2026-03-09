@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component
 class ExceptionTypeExtractor : NodeKindExtractor {
     override fun id() = "exception-type"
 
-    override fun supports(lang: Lang) = (lang == Lang.kotlin)
+    override fun supports(lang: Lang) = (lang == Lang.kotlin || lang == Lang.java)
 
     override fun refineType(
         base: NodeKind,
@@ -26,7 +26,7 @@ class ExceptionTypeExtractor : NodeKindExtractor {
         if (NkxUtil.superContains(s, "Throwable", "Exception", "RuntimeException")) {
             return NodeKind.EXCEPTION
         }
-        if (NkxUtil.nameEnds(n, "Exception", "Error")) {
+        if (NkxUtil.nameEnds(n, "Exception")) {
             return NodeKind.EXCEPTION
         }
         return null

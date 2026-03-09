@@ -2,6 +2,7 @@ package com.bftcom.docgenerator.graph.impl.nodekindextractor
 
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.bftcom.docgenerator.graph.api.model.rawdecl.SrcLang
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
@@ -19,9 +20,9 @@ class JobWorkerExtractorTest {
     }
 
     @Test
-    fun `supports returns true only for kotlin`() {
+    fun `supports returns true for kotlin and java`() {
         assertThat(extractor.supports(Lang.kotlin)).isTrue
-        assertThat(extractor.supports(Lang.java)).isFalse
+        assertThat(extractor.supports(Lang.java)).isTrue
     }
 
     @ParameterizedTest
@@ -66,10 +67,9 @@ class JobWorkerExtractorTest {
     @CsvSource(
         "PaymentJob",
         "OrderWorker",
-        "EmailTask",
         "ReportScheduler"
     )
-    fun `refineType returns JOB for classes ending with Job, Worker, Task, or Scheduler`(className: String) {
+    fun `refineType returns JOB for classes ending with Job, Worker, or Scheduler`(className: String) {
         val raw = createRawType(simpleName = className)
         val ctx = createContext()
 
@@ -111,6 +111,60 @@ class JobWorkerExtractorTest {
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
 
+        assertThat(result).isNull()
+    }
+
+    @Test
+    fun `refineType returns null for Task suffix without job package`() {
+        val raw = createRawType(simpleName = "ImportTask", pkgFqn = "com.example.dto")
+        val ctx = createContext()
+
+        val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
+
+        assertThat(result).isNull()
+    }
+
+    @Test
+    fun `refineFunction returns JOB for @Scheduled method`() {
+        val raw = RawFunction(
+            lang = SrcLang.kotlin,
+            filePath = "A.kt",
+            pkgFqn = "com.example",
+            ownerFqn = "com.example.SomeService",
+            name = "cleanup",
+            signatureRepr = "fun cleanup()",
+            paramNames = emptyList(),
+            annotationsRepr = setOf("org.springframework.scheduling.annotation.Scheduled"),
+            rawUsages = emptyList(),
+            throwsRepr = null,
+            kdoc = null,
+            span = null,
+            text = null,
+        )
+        val ctx = createContext()
+        val result = extractor.refineFunction(NodeKind.METHOD, raw, ctx)
+        assertThat(result).isEqualTo(NodeKind.JOB)
+    }
+
+    @Test
+    fun `refineFunction returns null for method without @Scheduled`() {
+        val raw = RawFunction(
+            lang = SrcLang.kotlin,
+            filePath = "A.kt",
+            pkgFqn = "com.example",
+            ownerFqn = "com.example.SomeService",
+            name = "doWork",
+            signatureRepr = "fun doWork()",
+            paramNames = emptyList(),
+            annotationsRepr = emptySet(),
+            rawUsages = emptyList(),
+            throwsRepr = null,
+            kdoc = null,
+            span = null,
+            text = null,
+        )
+        val ctx = createContext()
+        val result = extractor.refineFunction(NodeKind.METHOD, raw, ctx)
         assertThat(result).isNull()
     }
 

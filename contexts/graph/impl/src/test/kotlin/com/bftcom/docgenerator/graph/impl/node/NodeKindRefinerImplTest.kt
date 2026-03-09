@@ -10,6 +10,9 @@ import com.bftcom.docgenerator.graph.api.model.rawdecl.SrcLang
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindExtractor
 import com.bftcom.docgenerator.graph.impl.nodekindextractor.ConfigExtractor
+import com.bftcom.docgenerator.graph.impl.nodekindextractor.EndpointClassExtractor
+import com.bftcom.docgenerator.graph.impl.nodekindextractor.ExceptionTypeExtractor
+import com.bftcom.docgenerator.graph.impl.nodekindextractor.JobWorkerExtractor
 import com.bftcom.docgenerator.graph.impl.nodekindextractor.MyBatisMapperExtractor
 import com.bftcom.docgenerator.graph.impl.nodekindextractor.TestClassExtractor
 import io.mockk.every
@@ -164,6 +167,162 @@ class NodeKindRefinerImplTest {
 
         val kind = refiner.forType(NodeKind.CLASS, raw, fileUnit = file)
         assertThat(kind).isEqualTo(NodeKind.TEST)
+    }
+
+    @Test
+    fun `forFunction - refineFunction with @Test annotation returns TEST`() {
+        val refiner = NodeKindRefinerImpl(listOf(TestClassExtractor()))
+        val raw = RawFunction(
+            lang = SrcLang.kotlin,
+            filePath = "A.kt",
+            pkgFqn = "com.example",
+            ownerFqn = "com.example.SomeTest",
+            name = "shouldWork",
+            signatureRepr = "fun shouldWork()",
+            paramNames = emptyList(),
+            annotationsRepr = setOf("org.junit.jupiter.api.Test"),
+            rawUsages = emptyList(),
+            throwsRepr = null,
+            kdoc = null,
+            span = null,
+            text = null,
+        )
+        val kind = refiner.forFunction(NodeKind.METHOD, raw, fileUnit = null)
+        assertThat(kind).isEqualTo(NodeKind.TEST)
+    }
+
+    @Test
+    fun `forFunction - refineFunction with @GetMapping returns ENDPOINT`() {
+        val refiner = NodeKindRefinerImpl(listOf(EndpointClassExtractor()))
+        val raw = RawFunction(
+            lang = SrcLang.kotlin,
+            filePath = "A.kt",
+            pkgFqn = "com.example",
+            ownerFqn = "com.example.SomeController",
+            name = "getUser",
+            signatureRepr = "fun getUser()",
+            paramNames = emptyList(),
+            annotationsRepr = setOf("org.springframework.web.bind.annotation.GetMapping"),
+            rawUsages = emptyList(),
+            throwsRepr = null,
+            kdoc = null,
+            span = null,
+            text = null,
+        )
+        val kind = refiner.forFunction(NodeKind.METHOD, raw, fileUnit = null)
+        assertThat(kind).isEqualTo(NodeKind.ENDPOINT)
+    }
+
+    @Test
+    fun `forFunction - refineFunction with @Scheduled returns JOB`() {
+        val refiner = NodeKindRefinerImpl(listOf(JobWorkerExtractor()))
+        val raw = RawFunction(
+            lang = SrcLang.kotlin,
+            filePath = "A.kt",
+            pkgFqn = "com.example",
+            ownerFqn = "com.example.SomeService",
+            name = "cleanup",
+            signatureRepr = "fun cleanup()",
+            paramNames = emptyList(),
+            annotationsRepr = setOf("org.springframework.scheduling.annotation.Scheduled"),
+            rawUsages = emptyList(),
+            throwsRepr = null,
+            kdoc = null,
+            span = null,
+            text = null,
+        )
+        val kind = refiner.forFunction(NodeKind.METHOD, raw, fileUnit = null)
+        assertThat(kind).isEqualTo(NodeKind.JOB)
+    }
+
+    @Test
+    fun `forType - package segment matching - mappers does not match mapper`() {
+        val refiner = NodeKindRefinerImpl(listOf(MyBatisMapperExtractor()))
+        val raw = RawType(
+            lang = SrcLang.kotlin,
+            filePath = "A.kt",
+            pkgFqn = "com.example.mappers",
+            simpleName = "SomeConverter",
+            kindRepr = "class",
+            supertypesRepr = emptyList(),
+            annotationsRepr = emptyList(),
+            span = null,
+            text = null,
+        )
+        val kind = refiner.forType(NodeKind.CLASS, raw, fileUnit = null)
+        assertThat(kind).isEqualTo(NodeKind.CLASS)
+    }
+
+    @Test
+    fun `forType - ImportTask NOT in job package stays CLASS`() {
+        val refiner = NodeKindRefinerImpl(listOf(JobWorkerExtractor()))
+        val raw = RawType(
+            lang = SrcLang.kotlin,
+            filePath = "A.kt",
+            pkgFqn = "com.example.dto",
+            simpleName = "ImportTask",
+            kindRepr = "class",
+            supertypesRepr = emptyList(),
+            annotationsRepr = emptyList(),
+            span = null,
+            text = null,
+        )
+        val kind = refiner.forType(NodeKind.CLASS, raw, fileUnit = null)
+        assertThat(kind).isEqualTo(NodeKind.CLASS)
+    }
+
+    @Test
+    fun `forType - ValidationError without Exception supertype stays CLASS`() {
+        val refiner = NodeKindRefinerImpl(listOf(ExceptionTypeExtractor()))
+        val raw = RawType(
+            lang = SrcLang.kotlin,
+            filePath = "A.kt",
+            pkgFqn = "com.example.dto",
+            simpleName = "ValidationError",
+            kindRepr = "class",
+            supertypesRepr = emptyList(),
+            annotationsRepr = emptyList(),
+            span = null,
+            text = null,
+        )
+        val kind = refiner.forType(NodeKind.CLASS, raw, fileUnit = null)
+        assertThat(kind).isEqualTo(NodeKind.CLASS)
+    }
+
+    @Test
+    fun `forType - Java source file uses correct lang`() {
+        val refiner = NodeKindRefinerImpl(listOf(TestClassExtractor()))
+        val raw = RawType(
+            lang = SrcLang.java,
+            filePath = "A.java",
+            pkgFqn = "com.example",
+            simpleName = "UserServiceTest",
+            kindRepr = "class",
+            supertypesRepr = emptyList(),
+            annotationsRepr = emptyList(),
+            span = null,
+            text = null,
+        )
+        val kind = refiner.forType(NodeKind.CLASS, raw, fileUnit = null)
+        assertThat(kind).isEqualTo(NodeKind.TEST)
+    }
+
+    @Test
+    fun `forType - UserProperties without config package stays CLASS`() {
+        val refiner = NodeKindRefinerImpl(listOf(ConfigExtractor()))
+        val raw = RawType(
+            lang = SrcLang.kotlin,
+            filePath = "A.kt",
+            pkgFqn = "com.example.dto",
+            simpleName = "UserProperties",
+            kindRepr = "class",
+            supertypesRepr = emptyList(),
+            annotationsRepr = emptyList(),
+            span = null,
+            text = null,
+        )
+        val kind = refiner.forType(NodeKind.CLASS, raw, fileUnit = null)
+        assertThat(kind).isEqualTo(NodeKind.CLASS)
     }
 }
 

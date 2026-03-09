@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component
 class ConfigExtractor : NodeKindExtractor {
     override fun id() = "config-class"
 
-    override fun supports(lang: Lang) = (lang == Lang.kotlin)
+    override fun supports(lang: Lang) = (lang == Lang.kotlin || lang == Lang.java)
 
     override fun refineType(
         base: NodeKind,
@@ -34,7 +34,7 @@ class ConfigExtractor : NodeKindExtractor {
             return NodeKind.CONFIG
         }
         // package-эвристики/нейминг
-        if (pkg.contains(".config") || NkxUtil.nameEnds(n, "Config", "Configuration", "Properties")) {
+        if (NkxUtil.pkgHasSegment(pkg, "config") || NkxUtil.nameEnds(n, "Config", "Configuration")) {
             return NodeKind.CONFIG
         }
 
