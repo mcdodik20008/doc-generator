@@ -41,7 +41,8 @@
       "Bash(ai \")",
       "Bash(./gradlew.bat build:*)",
       "Bash(./gradlew.bat test:*)",
-      "Bash(./gradlew.bat:*)"
+      "Bash(./gradlew.bat:*)",
+      "Bash(.\\\\gradlew.bat build:*)"
     ]
   }
 }

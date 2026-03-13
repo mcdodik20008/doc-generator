@@ -403,6 +403,77 @@ if (stepStatus == FAILED && retryCount < MAX_RETRIES) {
 
 3. Откройте DevTools → Network → смотрите SSE поток
 
+**ВАЖНО (исправлено 2026-03-14)**: Step события должны стримиться **параллельно** с подготовкой контекста, а не **после**:
+
+```kotlin
+// ❌ НЕПРАВИЛЬНО - step события стримятся ПОСЛЕ завершения preparedMono
+preparedMono.flatMapMany { prepared ->
+    stepEvents.concatWith(...)  // <- К этому моменту stepSink уже закрыт!
+}
+
+// ✅ ПРАВИЛЬНО - используем Flux.merge для параллельного стриминга
+Flux.merge(stepEvents, contentFlux)  // <- Step события начинают стримиться сразу
+```
+
+### Шаги показывают 0ms
+
+Проблема: метрики времени не передаются в metadata.
+
+**Решение**: Убедитесь что `durationMs` добавляется в metadata при COMPLETED статусе:
+
+```kotlin
+stepCallback?.onStepUpdate(
+    StepEvent(
+        stepType = currentStep,
+        status = StepEventStatus.COMPLETED,
+        description = "...",
+        metadata = mapOf("durationMs" to duration)  // <- Обязательно!
+    )
+)
+```
+
+### LLM возвращает пустой ответ после долгого ожидания
+
+**Признаки**:
+- Логи показывают: `chars=0, preview=<empty>, tokens[prompt=0, completion=0, total=0]`
+- Запрос висит 15-20 минут
+- В UI ничего не отображается
+
+**Причины**:
+1. Ollama зависла или упала
+2. Сетевой timeout на стороне Ollama
+3. Модель не может сгенерировать ответ (слишком длинный контекст)
+
+**Решение**:
+
+1. Добавлен **таймаут на LLM стриминг** (180 секунд):
+   ```kotlin
+   val tokenStream = promptSpec
+       .stream()
+       .content()
+       .timeout(Duration.ofSeconds(180))
+       .onErrorResume { e ->
+           Flux.just("⚠️ Ошибка генерации ответа: ${e.message}")
+       }
+   ```
+
+2. Добавлен **таймаут на подготовку контекста** (150 секунд):
+   ```kotlin
+   val preparedMono = Mono.fromCallable { ... }
+       .timeout(Duration.ofSeconds(150))
+   ```
+
+3. Проверьте Ollama:
+   ```bash
+   curl http://localhost:11434/api/tags  # Список моделей
+   docker logs ollama  # Логи контейнера (если в Docker)
+   ```
+
+4. Уменьшите контекст (см. RAG_OPTIMIZATION.md):
+   ```yaml
+   docgen.rag.max-context-chars: 12000  # было 30000
+   ```
+
 ### Шаги зависают на STARTED
 
 Скорее всего таймаут слишком короткий. Увеличьте:

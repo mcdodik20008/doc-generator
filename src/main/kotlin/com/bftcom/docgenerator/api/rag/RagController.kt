@@ -139,11 +139,13 @@ class RagController(
 
         // Создаем sink для step событий
         val stepSink = reactor.core.publisher.Sinks.many().multicast().onBackpressureBuffer<com.bftcom.docgenerator.rag.api.StepEvent>()
-        val stepFlux = stepSink.asFlux()
 
         // Создаем callback для отправки step событий в sink
         val stepCallback = com.bftcom.docgenerator.rag.api.StepProgressCallback { event ->
-            stepSink.tryEmitNext(event)
+            val emitResult = stepSink.tryEmitNext(event)
+            if (emitResult.isFailure) {
+                log.warn("Failed to emit step event: $emitResult")
+            }
         }
 
         // Запускаем подготовку контекста асинхронно с callback
@@ -151,13 +153,19 @@ class RagController(
             ragService.prepareContextWithProgress(request.query, request.sessionId, request.applicationId, stepCallback)
         }
             .subscribeOn(Schedulers.boundedElastic())
+            .timeout(Duration.ofSeconds(150))  // Таймаут на весь процесс подготовки
+            .doOnError { e ->
+                log.error("Context preparation failed: ${e.message}", e)
+                stepSink.tryEmitError(e)
+            }
             .doFinally {
                 // Закрываем sink после завершения
                 stepSink.tryEmitComplete()
             }
+            .cache()  // Кэшируем результат для повторного использования
 
         // Преобразуем step события в SSE
-        val stepEvents = stepFlux.map { stepEvent ->
+        val stepEvents = stepSink.asFlux().map { stepEvent ->
             ServerSentEvent.builder<String>()
                 .event("step")
                 .data(objectMapper.writeValueAsString(mapOf(
@@ -170,65 +178,72 @@ class RagController(
                 .build()
         }
 
-        return preparedMono.flatMapMany { prepared ->
-                val sourcesEvent = ServerSentEvent.builder<String>()
-                    .event("sources")
-                    .data(objectMapper.writeValueAsString(prepared.sources))
-                    .build()
-                val metadataEvent = ServerSentEvent.builder<String>()
-                    .event("metadata")
-                    .data(objectMapper.writeValueAsString(prepared.metadata))
-                    .build()
-                val doneEvent = ServerSentEvent.builder<String>()
-                    .event("done")
-                    .data("")
-                    .build()
+        // КРИТИЧНО: Подписываемся на preparedMono сразу, чтобы начать эмитить step события
+        val contentFlux = preparedMono.flatMapMany { prepared ->
+            val sourcesEvent = ServerSentEvent.builder<String>()
+                .event("sources")
+                .data(objectMapper.writeValueAsString(prepared.sources))
+                .build()
+            val metadataEvent = ServerSentEvent.builder<String>()
+                .event("metadata")
+                .data(objectMapper.writeValueAsString(prepared.metadata))
+                .build()
+            val doneEvent = ServerSentEvent.builder<String>()
+                .event("done")
+                .data("")
+                .build()
 
-                val prompt = prepared.prompt
-                if (prompt == null) {
-                    val fallbackToken = ServerSentEvent.builder<String>()
-                        .event("token")
-                        .data(prepared.fallbackAnswer ?: "Не удалось получить ответ.")
-                        .build()
-                    Flux.just(sourcesEvent, metadataEvent, fallbackToken, doneEvent)
-                } else {
-                    val promptSpec = chatClient
-                        .prompt()
-                        .user(prompt)
-                        .advisors { spec ->
-                            spec.param(DEFAULT_CONVERSATION_ID, prepared.sessionId)
-                        }
-
-                    val hasCustomOptions = request.temperature != null || request.maxTokens != null
-                    if (hasCustomOptions) {
-                        val optionsBuilder = OpenAiChatOptions.builder()
-                        request.temperature?.let { optionsBuilder.temperature(it) }
-                        request.maxTokens?.let { optionsBuilder.maxTokens(it) }
-                        promptSpec.options(optionsBuilder.build())
+            val prompt = prepared.prompt
+            if (prompt == null) {
+                val fallbackToken = ServerSentEvent.builder<String>()
+                    .event("token")
+                    .data(prepared.fallbackAnswer ?: "Не удалось получить ответ.")
+                    .build()
+                Flux.just(sourcesEvent, metadataEvent, fallbackToken, doneEvent)
+            } else {
+                val promptSpec = chatClient
+                    .prompt()
+                    .user(prompt)
+                    .advisors { spec ->
+                        spec.param(DEFAULT_CONVERSATION_ID, prepared.sessionId)
                     }
 
-                    val tokenStream = promptSpec
-                        .stream()
-                        .content()
-                        .map { chunk ->
-                            ServerSentEvent.builder<String>()
-                                .event("token")
-                                .data(chunk)
-                                .build()
-                        }
-
-                    // Объединяем step события с основным потоком
-                    stepEvents
-                        .concatWith(Flux.just(sourcesEvent, metadataEvent))
-                        .concatWith(tokenStream)
-                        .concatWith(Mono.just(doneEvent))
+                val hasCustomOptions = request.temperature != null || request.maxTokens != null
+                if (hasCustomOptions) {
+                    val optionsBuilder = OpenAiChatOptions.builder()
+                    request.temperature?.let { optionsBuilder.temperature(it) }
+                    request.maxTokens?.let { optionsBuilder.maxTokens(it) }
+                    promptSpec.options(optionsBuilder.build())
                 }
+
+                val tokenStream = promptSpec
+                    .stream()
+                    .content()
+                    .timeout(Duration.ofSeconds(180))  // Таймаут на LLM стриминг
+                    .onErrorResume { e ->
+                        log.error("LLM streaming failed: ${e.message}", e)
+                        Flux.just("⚠️ Ошибка генерации ответа: ${e.message}")
+                    }
+                    .map { chunk ->
+                        ServerSentEvent.builder<String>()
+                            .event("token")
+                            .data(chunk)
+                            .build()
+                    }
+
+                Flux.just(sourcesEvent, metadataEvent)
+                    .concatWith(tokenStream)
+                    .concatWith(Mono.just(doneEvent))
             }
+        }
+
+        // Объединяем step события и контент используя merge (параллельно)
+        return Flux.merge(stepEvents, contentFlux)
             .onErrorResume { e ->
                 log.error("SSE stream error: ${e.message}", e)
                 val errorEvent = ServerSentEvent.builder<String>()
                     .event("error")
-                    .data(sanitizeErrorMessage(e as? Exception ?: RuntimeException(e)))
+                    .data(objectMapper.writeValueAsString(mapOf("message" to sanitizeErrorMessage(e as? Exception ?: RuntimeException(e)))))
                     .build()
                 Flux.just(errorEvent)
             }
