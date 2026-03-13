@@ -26,12 +26,12 @@ CREATE INDEX IF NOT EXISTS idx_users_enabled
 -- ============================================================
 -- Начальные данные: создаем администратора по умолчанию
 -- username: admin
--- password: admin (BCrypt hash with strength 10)
+-- password: admin123!@# (BCrypt hash with strength 10)
 -- ============================================================
 INSERT INTO doc_generator.users (username, password_hash, email, enabled, roles, created_at)
 VALUES (
     'admin',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', -- BCrypt hash для "admin"
+    '$2a$10$01F8E1tDlM0/hhp2/DuH.eA8ATJ93ZG/MLxdnC6rYhHU4gr8L231e', -- BCrypt hash для "admin123!@#"
     'admin@docgen.local',
     true,
     '{ADMIN,USER}',
