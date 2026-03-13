@@ -35,7 +35,12 @@
       "Bash(git commit:*)",
       "Bash(git config:*)",
       "Bash(py:*)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Bash(git -C \"D:\\\\backupE\\\\projectWork\\\\bft\\\\doc-generator\" log --oneline -10)",
+      "Bash(embedding)",
+      "Bash(ai \")",
+      "Bash(./gradlew.bat build:*)",
+      "Bash(./gradlew.bat test:*)"
     ]
   }
 }
