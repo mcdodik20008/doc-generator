@@ -1218,7 +1218,22 @@
         .live-step .step-icon.success { color: var(--green); }
         .live-step .step-icon.failed { color: var(--red); }
         .live-step .step-icon.skipped { color: var(--yellow); }
+        .live-step .step-icon.started { color: var(--accent); }
+        .live-step .step-icon.in_progress { color: var(--accent); }
+        .live-step .step-icon.completed { color: var(--green); }
         .live-step .step-name { color: var(--text); font-weight: 500; }
+        .live-step.active { background: rgba(99, 102, 241, 0.1); }
+        .live-step .spinner {
+            width: 12px;
+            height: 12px;
+            border: 2px solid var(--accent);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
         .live-step .step-duration {
             margin-left: auto;
             color: var(--text-muted);
@@ -2301,17 +2316,22 @@
 
                 for (const evt of parsed.events) {
                     switch (evt.event) {
+                        case 'step':
+                            try {
+                                const stepData = JSON.parse(evt.data);
+                                updateLiveStep(stepData);
+                            } catch (e) {
+                                console.error('Failed to parse step data:', e);
+                            }
+                            break;
                         case 'sources':
                             try { sources = JSON.parse(evt.data); } catch {}
                             updateTypingText('Sources found, generating...');
                             break;
                         case 'metadata':
                             try { metadata = JSON.parse(evt.data); } catch {}
-                            if (metadata.processingSteps && metadata.processingSteps.length > 0) {
-                                showLiveSteps(metadata.processingSteps);
-                            } else {
-                                updateTypingText('Generating response...');
-                            }
+                            // Metadata приходит после всех step событий, можно просто обновить typing
+                            updateTypingText('Generating response...');
                             break;
                         case 'token':
                             removeLoading();
@@ -3002,6 +3022,84 @@
     }
 
     // ======== Live Steps Animation ========
+    // Mapping step types to human-readable names
+    const STEP_NAMES = {
+        'NORMALIZATION': 'Нормализация запроса',
+        'EXTRACTION': 'Извлечение сущностей',
+        'EXACT_SEARCH': 'Точный поиск',
+        'REWRITING': 'Переформулирование',
+        'EXPANSION': 'Расширение запроса',
+        'VECTOR_SEARCH': 'Векторный поиск',
+        'GRAPH_EXPANSION': 'Построение графа',
+        'RERANKING': 'Ранжирование',
+        'COMPLETED': 'Готово',
+        'FAILED': 'Ошибка'
+    };
+
+    function updateLiveStep(stepData) {
+        removeTypingIndicator();
+        const container = document.getElementById('messagesContainer');
+
+        // Ensure live steps container exists
+        let stepsContainer = document.getElementById('liveStepsContainer');
+        if (!stepsContainer) {
+            stepsContainer = document.createElement('div');
+            stepsContainer.className = 'live-steps-container';
+            stepsContainer.id = 'liveStepsContainer';
+            container.appendChild(stepsContainer);
+        }
+
+        const stepType = stepData.type;
+        const stepStatus = stepData.status?.toLowerCase() || 'started';
+        const stepId = `step-${stepType}`;
+
+        // Find or create step element
+        let stepEl = document.getElementById(stepId);
+
+        if (!stepEl) {
+            stepEl = document.createElement('div');
+            stepEl.className = 'live-step';
+            stepEl.id = stepId;
+            stepsContainer.appendChild(stepEl);
+        }
+
+        // Update step content based on status
+        let icon, iconClass;
+        if (stepStatus === 'started' || stepStatus === 'in_progress') {
+            icon = '<div class="spinner"></div>';
+            iconClass = stepStatus;
+            stepEl.classList.add('active');
+        } else if (stepStatus === 'completed') {
+            icon = '&#10003;';
+            iconClass = 'completed';
+            stepEl.classList.remove('active');
+        } else if (stepStatus === 'failed') {
+            icon = '&#10007;';
+            iconClass = 'failed';
+            stepEl.classList.remove('active');
+        } else {
+            icon = '&#8212;';
+            iconClass = 'skipped';
+            stepEl.classList.remove('active');
+        }
+
+        const stepName = STEP_NAMES[stepType] || stepType;
+        const description = stepData.description || '';
+        const duration = stepData.metadata?.durationMs;
+
+        stepEl.innerHTML = `
+            <span class="step-icon ${iconClass}">${icon}</span>
+            <span class="step-name">${esc(stepName)}</span>
+            ${duration ? `<span class="step-duration">${duration}ms</span>` : ''}
+        `;
+
+        if (description && stepStatus !== 'completed') {
+            stepEl.title = description;
+        }
+
+        scrollToBottom();
+    }
+
     function showLiveSteps(steps) {
         removeTypingIndicator();
         const container = document.getElementById('messagesContainer');

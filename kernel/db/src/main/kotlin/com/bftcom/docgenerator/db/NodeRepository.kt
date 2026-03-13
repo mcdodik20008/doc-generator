@@ -109,7 +109,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
      */
     @Query(
         """
-        SELECT n FROM Node n 
+        SELECT n FROM Node n
         WHERE n.application.id = :applicationId
         AND n.kind IN :classKinds
         AND (n.name = :className OR n.fqn LIKE CONCAT('%', :className, '%'))
@@ -120,6 +120,68 @@ interface NodeRepository : JpaRepository<Node, Long> {
         @Param("applicationId") applicationId: Long,
         @Param("className") className: String,
         @Param("classKinds") classKinds: Set<NodeKind>,
+    ): List<Node>
+
+    /**
+     * Находит узлы по имени класса (без учета регистра).
+     * Используется в RAG для более гибкого поиска.
+     */
+    @Query(
+        """
+        SELECT n FROM Node n
+        WHERE n.application.id = :applicationId
+        AND n.kind IN :classKinds
+        AND (LOWER(n.name) = LOWER(:className) OR LOWER(n.fqn) LIKE LOWER(CONCAT('%', :className, '%')))
+        ORDER BY n.fqn
+        """
+    )
+    fun findByApplicationIdAndClassNameIgnoreCase(
+        @Param("applicationId") applicationId: Long,
+        @Param("className") className: String,
+        @Param("classKinds") classKinds: Set<NodeKind>,
+    ): List<Node>
+
+    /**
+     * Находит узлы по имени класса и метода (без учета регистра).
+     * Используется в RAG для более гибкого поиска.
+     */
+    @Query(
+        """
+        SELECT n FROM Node n
+        WHERE n.application.id = :applicationId
+        AND n.kind = :methodKind
+        AND LOWER(n.name) = LOWER(:methodName)
+        AND n.parent IS NOT NULL
+        AND (LOWER(n.parent.name) = LOWER(:className) OR LOWER(n.parent.fqn) LIKE LOWER(CONCAT('%', :className, '%')))
+        ORDER BY n.fqn
+        """
+    )
+    fun findByApplicationIdAndClassNameAndMethodNameIgnoreCase(
+        @Param("applicationId") applicationId: Long,
+        @Param("className") className: String,
+        @Param("methodName") methodName: String,
+        @Param("methodKind") methodKind: NodeKind,
+        pageable: Pageable = Pageable.ofSize(1000),
+    ): List<Node>
+
+    /**
+     * Находит узлы по имени метода (без учета регистра).
+     * Используется в RAG для более гибкого поиска.
+     */
+    @Query(
+        """
+        SELECT n FROM Node n
+        WHERE n.application.id = :applicationId
+        AND n.kind = :methodKind
+        AND LOWER(n.name) = LOWER(:methodName)
+        ORDER BY n.fqn
+        """
+    )
+    fun findByApplicationIdAndMethodNameIgnoreCase(
+        @Param("applicationId") applicationId: Long,
+        @Param("methodName") methodName: String,
+        @Param("methodKind") methodKind: NodeKind,
+        pageable: Pageable = Pageable.ofSize(1000),
     ): List<Node>
 
     fun findAllByParentId(parentId: Long): List<Node>

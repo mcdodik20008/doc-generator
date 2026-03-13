@@ -93,7 +93,8 @@ class ExactSearchStep(
         if (className != null && methodName != null) {
             for (app in applications) {
                 val appId = app.id ?: continue
-                val nodes = nodeRepository.findByApplicationIdAndClassNameAndMethodName(
+                // Используем case-insensitive поиск для лучшего UX
+                val nodes = nodeRepository.findByApplicationIdAndClassNameAndMethodNameIgnoreCase(
                     applicationId = appId,
                     className = className,
                     methodName = methodName,
@@ -104,7 +105,8 @@ class ExactSearchStep(
         } else if (className != null) {
             for (app in applications) {
                 val appId = app.id ?: continue
-                val nodes = nodeRepository.findByApplicationIdAndClassName(
+                // Используем case-insensitive поиск для лучшего UX
+                val nodes = nodeRepository.findByApplicationIdAndClassNameIgnoreCase(
                     applicationId = appId,
                     className = className,
                     classKinds = setOf(NodeKind.CLASS, NodeKind.INTERFACE),
@@ -114,7 +116,8 @@ class ExactSearchStep(
         } else if (methodName != null) {
             for (app in applications) {
                 val appId = app.id ?: continue
-                val nodes = nodeRepository.findByApplicationIdAndMethodName(
+                // Используем case-insensitive поиск для лучшего UX
+                val nodes = nodeRepository.findByApplicationIdAndMethodNameIgnoreCase(
                     applicationId = appId,
                     methodName = methodName,
                     methodKind = NodeKind.METHOD,

@@ -137,11 +137,40 @@ class RagController(
     fun askStream(@RequestBody @Valid request: RagRequest): Flux<ServerSentEvent<String>> {
         log.info("RAG stream request received: sessionId=${request.sessionId}, query_length=${request.query.length}")
 
-        return Mono.fromCallable {
-            ragService.prepareContext(request.query, request.sessionId, request.applicationId)
+        // Создаем sink для step событий
+        val stepSink = reactor.core.publisher.Sinks.many().multicast().onBackpressureBuffer<com.bftcom.docgenerator.rag.api.StepEvent>()
+        val stepFlux = stepSink.asFlux()
+
+        // Создаем callback для отправки step событий в sink
+        val stepCallback = com.bftcom.docgenerator.rag.api.StepProgressCallback { event ->
+            stepSink.tryEmitNext(event)
+        }
+
+        // Запускаем подготовку контекста асинхронно с callback
+        val preparedMono = Mono.fromCallable {
+            ragService.prepareContextWithProgress(request.query, request.sessionId, request.applicationId, stepCallback)
         }
             .subscribeOn(Schedulers.boundedElastic())
-            .flatMapMany { prepared ->
+            .doFinally {
+                // Закрываем sink после завершения
+                stepSink.tryEmitComplete()
+            }
+
+        // Преобразуем step события в SSE
+        val stepEvents = stepFlux.map { stepEvent ->
+            ServerSentEvent.builder<String>()
+                .event("step")
+                .data(objectMapper.writeValueAsString(mapOf(
+                    "type" to stepEvent.stepType.name,
+                    "status" to stepEvent.status.name,
+                    "description" to stepEvent.description,
+                    "metadata" to stepEvent.metadata,
+                    "timestamp" to stepEvent.timestamp
+                )))
+                .build()
+        }
+
+        return preparedMono.flatMapMany { prepared ->
                 val sourcesEvent = ServerSentEvent.builder<String>()
                     .event("sources")
                     .data(objectMapper.writeValueAsString(prepared.sources))
@@ -188,7 +217,9 @@ class RagController(
                                 .build()
                         }
 
-                    Flux.just(sourcesEvent, metadataEvent)
+                    // Объединяем step события с основным потоком
+                    stepEvents
+                        .concatWith(Flux.just(sourcesEvent, metadataEvent))
                         .concatWith(tokenStream)
                         .concatWith(Mono.just(doneEvent))
                 }

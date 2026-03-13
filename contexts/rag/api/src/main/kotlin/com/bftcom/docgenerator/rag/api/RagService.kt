@@ -3,6 +3,22 @@ package com.bftcom.docgenerator.rag.api
 interface RagService {
     fun ask(query: String, sessionId: String, applicationId: Long? = null): RagResponse
     fun prepareContext(query: String, sessionId: String, applicationId: Long? = null): RagPreparedContext
+
+    /**
+     * Подготавливает контекст для RAG запроса с real-time отправкой событий о шагах обработки.
+     *
+     * @param query Запрос пользователя
+     * @param sessionId ID сессии
+     * @param applicationId ID приложения (optional)
+     * @param stepCallback Callback для уведомления о прогрессе шагов
+     * @return Подготовленный контекст
+     */
+    fun prepareContextWithProgress(
+        query: String,
+        sessionId: String,
+        applicationId: Long? = null,
+        stepCallback: StepProgressCallback
+    ): RagPreparedContext
 }
 
 data class RagPreparedContext(

@@ -53,13 +53,31 @@ class RagServiceImpl(
     }
 
     override fun prepareContext(query: String, sessionId: String, applicationId: Long?): RagPreparedContext {
+        return doPrepareContext(query, sessionId, applicationId, null)
+    }
+
+    override fun prepareContextWithProgress(
+        query: String,
+        sessionId: String,
+        applicationId: Long?,
+        stepCallback: com.bftcom.docgenerator.rag.api.StepProgressCallback
+    ): RagPreparedContext {
+        return doPrepareContext(query, sessionId, applicationId, stepCallback)
+    }
+
+    private fun doPrepareContext(
+        query: String,
+        sessionId: String,
+        applicationId: Long?,
+        stepCallback: com.bftcom.docgenerator.rag.api.StepProgressCallback?
+    ): RagPreparedContext {
         require(query.isNotBlank()) { "Query cannot be blank" }
         require(query.length <= 10000) { "Query length cannot exceed 10000 characters, got ${query.length}" }
         require(sessionId.isNotBlank()) { "Session ID cannot be blank" }
 
         val processingContext = try {
             CompletableFuture.supplyAsync {
-                graphRequestProcessor.process(query, sessionId, applicationId)
+                graphRequestProcessor.process(query, sessionId, applicationId, stepCallback)
             }.orTimeout(processingTimeoutSeconds, TimeUnit.SECONDS).get()
         } catch (e: TimeoutException) {
             log.error("Query processing timed out after {}s: query='{}'", processingTimeoutSeconds, query.take(50))

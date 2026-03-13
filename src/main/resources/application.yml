@@ -150,23 +150,29 @@ docgen:
     max-nodes: 100000
   rag:
     # Таймаут на весь пайплайн обработки запроса (секунды)
-    processing-timeout-seconds: 45
+    # Увеличено для удаленной LLM (Mac mini M4 через сеть)
+    processing-timeout-seconds: ${RAG_PROCESSING_TIMEOUT:120}
     # Таймаут на вызов LLM (секунды)
-    llm-timeout-seconds: 30
+    # Увеличено с учетом сетевой латентности + время обработки на M4
+    llm-timeout-seconds: ${RAG_LLM_TIMEOUT:90}
     # Таймаут на один шаг FSM (секунды)
-    step-timeout-seconds: 30
+    step-timeout-seconds: ${RAG_STEP_TIMEOUT:90}
     # Порог медленного шага для предупреждений (мс)
-    slow-step-threshold-ms: 10000
+    slow-step-threshold-ms: 15000
     # Лимит символов для текста связей графа в контексте
-    max-graph-re5lations-chars: 5000
+    # Уменьшено для ускорения обработки
+    max-graph-re5lations-chars: ${RAG_MAX_RELATIONS_CHARS:2000}
     # Максимум символов исходного кода в ноде для контекста
-    max-node-code-chars: 3000
+    # Уменьшено для ускорения + влезает в контекст модели
+    max-node-code-chars: ${RAG_MAX_NODE_CODE_CHARS:1500}
     # Общий лимит контекста для LLM
-    max-context-chars: 30000
+    # Уменьшено с 30k до 12k для быстрой обработки qwen2.5-coder:14b
+    max-context-chars: ${RAG_MAX_CONTEXT_CHARS:12000}
     # Максимум точных нод в контексте
-    max-exact-nodes: 5
+    max-exact-nodes: ${RAG_MAX_EXACT_NODES:3}
     # Максимум соседних нод в контексте
-    max-neighbor-nodes: 10
+    # Уменьшено с 10 до 5 для меньшего контекста
+    max-neighbor-nodes: ${RAG_MAX_NEIGHBOR_NODES:5}
   library:
     # Префиксы groupId для обработки библиотек (через запятую)
     whitelist: com.bftcom,ru.bftcom,ru.supercode,rrbpm
