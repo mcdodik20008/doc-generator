@@ -42,8 +42,9 @@ class Resilience4jConfig {
             .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
             // Allow 5 calls in half-open state before deciding to close or re-open
             .permittedNumberOfCallsInHalfOpenState(5)
-            // Consider slow calls (>30s) as failures
-            .slowCallDurationThreshold(Duration.ofSeconds(30))
+            // Локальная LLM (особенно reasoning-модель) может думать минутами.
+            // Считаем медленным только если >5 минут.
+            .slowCallDurationThreshold(Duration.ofMinutes(5))
             .slowCallRateThreshold(80f)
             .build()
 

@@ -42,7 +42,10 @@
       "Bash(./gradlew.bat build:*)",
       "Bash(./gradlew.bat test:*)",
       "Bash(./gradlew.bat:*)",
-      "Bash(.\\\\gradlew.bat build:*)"
+      "Bash(.\\\\gradlew.bat build:*)",
+      "Bash(javap:*)",
+      "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat build -x test)",
+      "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat :contexts:ai:test :contexts:chunking:contexts-chunking-impl:test)"
     ]
   }
 }

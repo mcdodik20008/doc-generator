@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
+import org.springframework.retry.support.RetryTemplate
 
 @Configuration
 class AiClientsConfig {
@@ -25,6 +26,7 @@ class AiClientsConfig {
     fun coderChatModel(
             ollamaApi: OpenAiApi,
             props: AiClientsProperties,
+            retryTemplate: RetryTemplate,
     ): OpenAiChatModel {
         val p = props.coder
         val options =
@@ -34,7 +36,11 @@ class AiClientsConfig {
                         .topP(p.topP)
                         .seed(p.seed)
                         .build()
-        return OpenAiChatModel.builder().openAiApi(ollamaApi).defaultOptions(options).build()
+        return OpenAiChatModel.builder()
+                .openAiApi(ollamaApi)
+                .defaultOptions(options)
+                .retryTemplate(retryTemplate)
+                .build()
     }
 
     /** ChatModel для talker с собственными опциями */
@@ -43,6 +49,7 @@ class AiClientsConfig {
     fun talkerChatModel(
             ollamaApi: OpenAiApi,
             props: AiClientsProperties,
+            retryTemplate: RetryTemplate,
     ): OpenAiChatModel {
         val p = props.talker
         val options =
@@ -52,7 +59,11 @@ class AiClientsConfig {
                         .topP(p.topP)
                         .seed(p.seed)
                         .build()
-        return OpenAiChatModel.builder().openAiApi(ollamaApi).defaultOptions(options).build()
+        return OpenAiChatModel.builder()
+                .openAiApi(ollamaApi)
+                .defaultOptions(options)
+                .retryTemplate(retryTemplate)
+                .build()
     }
 
     /**
@@ -123,6 +134,7 @@ class AiClientsConfig {
     fun fastExtractionChatClient(
             ollamaApi: OpenAiApi,
             loggingAdvisor: ChatClientLoggingAdvisor,
+            retryTemplate: RetryTemplate,
     ): ChatClient {
         // Используем быструю модель для извлечения (qwen2.5:0.5b)
         // Эта модель намного быстрее, чем qwen2.5-coder:14b
@@ -135,6 +147,7 @@ class AiClientsConfig {
                     .topP(0.9)
                     .build()
             )
+            .retryTemplate(retryTemplate)
             .build()
         
         return ChatClient.builder(fastModel)
@@ -152,6 +165,7 @@ class AiClientsConfig {
     fun structuredExtractionChatClient(
         ollamaApi: OpenAiApi,
         loggingAdvisor: ChatClientLoggingAdvisor,
+        retryTemplate: RetryTemplate,
     ): ChatClient {
         val model = OpenAiChatModel.builder()
             .openAiApi(ollamaApi)
@@ -162,6 +176,7 @@ class AiClientsConfig {
                     .topP(0.1)            // Минимизируем разброс токенов для JSON
                     .build()
             )
+            .retryTemplate(retryTemplate)
             .build()
 
         return ChatClient.builder(model)
@@ -178,6 +193,7 @@ class AiClientsConfig {
     fun fastCheckChatClient(
         ollamaApi: OpenAiApi,
         loggingAdvisor: ChatClientLoggingAdvisor,
+        retryTemplate: RetryTemplate,
     ): ChatClient {
         val model = OpenAiChatModel.builder()
             .openAiApi(ollamaApi)
@@ -188,6 +204,7 @@ class AiClientsConfig {
                     .topP(0.1)
                     .build()
             )
+            .retryTemplate(retryTemplate)
             .build()
 
         return ChatClient.builder(model)
