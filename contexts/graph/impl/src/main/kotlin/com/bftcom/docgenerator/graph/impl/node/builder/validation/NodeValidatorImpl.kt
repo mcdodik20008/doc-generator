@@ -15,17 +15,10 @@ class NodeValidatorImpl : NodeValidator {
     companion object {
         private const val MAX_FQN_LENGTH = 1000
 
-        // Поддерживает:
-        // - Базовый формат: package.ClassName или package.ClassName.method
-        // - Формат функций: package.ClassName.method(Type1,Type2) или package.method(Type1,Type2)
-        // - Nullable типы в параметрах: String?, LocalDate?
-        // - Лямбда-типы: () -> Type, (Type) -> Type, suspend (param: Type) -> Type
-//        private val FQN_PATTERN = Regex("^[a-zA-Z_][a-zA-Z0-9_.]*(?:\\([a-zA-Z0-9_,. ?() >\\-:]*\\))?$")
-//        private val FQN_PATTERN = Regex("^[\\p{L}_][\\p{L}\\p{N}_. ]*(?:\\([\\p{L}\\p{N}_,. ?() >\\-:]*\\))?$")
-        private val FQN_PATTERN = Regex(
-            "^[\\p{L}_][\\p{L}\\p{N}_. ,\\p{Pd}`()]*" + // Основная часть FQN (\\p{Pd} — все Unicode-дефисы: -, –, —)
-                    "(?:\\([\\p{L}\\p{N}_,. ?() >\\p{Pd}:]*\\))?$" // Параметры функции
-        )
+        // Kotlin backtick-идентификаторы могут содержать практически любые символы,
+        // поэтому запрещаем только управляющие символы (\p{Cc}).
+        // Первый символ должен быть буквой или подчёркиванием.
+        private val FQN_PATTERN = Regex("^[\\p{L}_][^\\p{Cc}]*$")
     }
 
     override fun validate(
