@@ -23,8 +23,8 @@ class NodeValidatorImpl : NodeValidator {
 //        private val FQN_PATTERN = Regex("^[a-zA-Z_][a-zA-Z0-9_.]*(?:\\([a-zA-Z0-9_,. ?() >\\-:]*\\))?$")
 //        private val FQN_PATTERN = Regex("^[\\p{L}_][\\p{L}\\p{N}_. ]*(?:\\([\\p{L}\\p{N}_,. ?() >\\-:]*\\))?$")
         private val FQN_PATTERN = Regex(
-            "^[\\p{L}_][\\p{L}\\p{N}_. ,\\-`()]*" + // Основная часть FQN
-                    "(?:\\([\\p{L}\\p{N}_,. ?() >\\-:]*\\))?$" // Параметры функции
+            "^[\\p{L}_][\\p{L}\\p{N}_. ,\\p{Pd}`()]*" + // Основная часть FQN (\\p{Pd} — все Unicode-дефисы: -, –, —)
+                    "(?:\\([\\p{L}\\p{N}_,. ?() >\\p{Pd}:]*\\))?$" // Параметры функции
         )
     }
 

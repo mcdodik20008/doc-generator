@@ -40,6 +40,8 @@ class RagController(
         @Qualifier("ragChatClient") private val chatClient: ChatClient,
         private val objectMapper: ObjectMapper,
         private val aiClientsProperties: AiClientsProperties,
+        private val chatSessionService: com.bftcom.docgenerator.service.ChatSessionService,
+        private val userDetailsService: com.bftcom.docgenerator.service.UserDetailsServiceImpl,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -137,6 +139,14 @@ class RagController(
     fun askStream(@RequestBody @Valid request: RagRequest): Flux<ServerSentEvent<String>> {
         log.info("RAG stream request received: sessionId=${request.sessionId}, query_length=${request.query.length}")
 
+        // Сохраняем user-сообщение в начале
+        saveUserMessage(request.sessionId, request.query, request.applicationId)
+
+        // Накопитель для ответа LLM (для последующего сохранения)
+        val answerBuilder = StringBuilder()
+        val sourcesRef = java.util.concurrent.atomic.AtomicReference<List<com.bftcom.docgenerator.rag.api.RagSource>>()
+        val metadataRef = java.util.concurrent.atomic.AtomicReference<com.bftcom.docgenerator.rag.api.RagQueryMetadata>()
+
         // Создаем sink для step событий
         val stepSink = reactor.core.publisher.Sinks.many().multicast().onBackpressureBuffer<com.bftcom.docgenerator.rag.api.StepEvent>()
 
@@ -180,6 +190,10 @@ class RagController(
 
         // КРИТИЧНО: Подписываемся на preparedMono сразу, чтобы начать эмитить step события
         val contentFlux = preparedMono.flatMapMany { prepared ->
+            // Сохраняем sources и metadata для последующего сохранения в БД
+            sourcesRef.set(prepared.sources)
+            metadataRef.set(prepared.metadata)
+
             val sourcesEvent = ServerSentEvent.builder<String>()
                 .event("sources")
                 .data(objectMapper.writeValueAsString(prepared.sources))
@@ -195,9 +209,12 @@ class RagController(
 
             val prompt = prepared.prompt
             if (prompt == null) {
+                val fallbackAnswer = prepared.fallbackAnswer ?: "Не удалось получить ответ."
+                answerBuilder.append(fallbackAnswer)
+
                 val fallbackToken = ServerSentEvent.builder<String>()
                     .event("token")
-                    .data(prepared.fallbackAnswer ?: "Не удалось получить ответ.")
+                    .data(fallbackAnswer)
                     .build()
                 Flux.just(sourcesEvent, metadataEvent, fallbackToken, doneEvent)
             } else {
@@ -225,6 +242,9 @@ class RagController(
                         Flux.just("⚠️ Ошибка генерации ответа: ${e.message}")
                     }
                     .map { chunk ->
+                        // Накапливаем токены для последующего сохранения
+                        answerBuilder.append(chunk)
+
                         ServerSentEvent.builder<String>()
                             .event("token")
                             .data(chunk)
@@ -239,6 +259,16 @@ class RagController(
 
         // Объединяем step события и контент используя merge (параллельно)
         return Flux.merge(stepEvents, contentFlux)
+            .doFinally {
+                // Сохраняем assistant-ответ в БД после завершения стриминга
+                val answer = answerBuilder.toString()
+                val sources = sourcesRef.get()
+                val metadata = metadataRef.get()
+
+                if (answer.isNotBlank() && sources != null && metadata != null) {
+                    saveAssistantMessage(request.sessionId, answer, sources, metadata)
+                }
+            }
             .onErrorResume { e ->
                 log.error("SSE stream error: ${e.message}", e)
                 val errorEvent = ServerSentEvent.builder<String>()
@@ -257,5 +287,75 @@ class RagController(
             "temperature" to coder.temperature,
             "topP" to coder.topP,
         )
+    }
+
+    /**
+     * Сохраняет user-сообщение в чат.
+     * Создает новый чат если его нет.
+     */
+    private fun saveUserMessage(sessionId: String, query: String, applicationId: Long?): com.bftcom.docgenerator.service.ChatSessionDto? {
+        return try {
+            val userId = userDetailsService.getCurrentUserId().block() ?: return null
+
+            // Получаем или создаем чат
+            val chat = chatSessionService.getOrCreateChat(
+                sessionId = sessionId,
+                userId = userId,
+                title = generateChatTitle(query)
+            )
+
+            // Сохраняем user-сообщение
+            val message = com.bftcom.docgenerator.service.ChatMessageDto(
+                role = "user",
+                data = mapOf("query" to query),
+                timestamp = System.currentTimeMillis()
+            )
+
+            chatSessionService.addMessage(sessionId, userId, message)
+        } catch (e: Exception) {
+            log.error("Failed to save user message: ${e.message}", e)
+            null
+        }
+    }
+
+    /**
+     * Сохраняет assistant-ответ в чат.
+     */
+    private fun saveAssistantMessage(
+        sessionId: String,
+        answer: String,
+        sources: List<com.bftcom.docgenerator.rag.api.RagSource>,
+        metadata: com.bftcom.docgenerator.rag.api.RagQueryMetadata
+    ) {
+        try {
+            val userId = userDetailsService.getCurrentUserId().block() ?: return
+
+            val message = com.bftcom.docgenerator.service.ChatMessageDto(
+                role = "assistant",
+                data = mapOf(
+                    "answer" to answer,
+                    "sources" to sources,
+                    "metadata" to metadata
+                ),
+                timestamp = System.currentTimeMillis()
+            )
+
+            chatSessionService.addMessage(sessionId, userId, message)
+            log.debug("Saved assistant message to chat: sessionId={}, answerLength={}", sessionId, answer.length)
+        } catch (e: Exception) {
+            log.error("Failed to save assistant message: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Генерирует название чата на основе первого вопроса.
+     */
+    private fun generateChatTitle(query: String): String {
+        val maxLength = 50
+        return if (query.length > maxLength) {
+            query.take(maxLength) + "..."
+        } else {
+            query
+        }
     }
 }
