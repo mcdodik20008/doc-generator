@@ -9,11 +9,6 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicLong
-import kotlin.math.ceil
-import kotlin.math.max
-import kotlin.math.min
 
 @Service
 class NodeDocFillerScheduler(
@@ -30,26 +25,6 @@ class NodeDocFillerScheduler(
     @Value("\${docgen.nodedoc.locale:ru}")
     private var locale: String = "ru"
 
-    @Value("\${docgen.nodedoc.methods.random:false}")
-    private var randomMethods: Boolean = false
-
-    @Value("\${docgen.nodedoc.skip.factor:0.01}")
-    private var skipFactor: Double = 0.01
-
-    @Value("\${docgen.nodedoc.skip.min:3}")
-    private var skipMin: Int = 3
-
-    @Value("\${docgen.nodedoc.skip.max:100}")
-    private var skipMax: Int = 100
-
-    private val skipCounts = ConcurrentHashMap<Long, Int>()
-    private val appNodeCounts = ConcurrentHashMap<Long, Long>()
-    private val appNodeCountsAccessTime = ConcurrentHashMap<Long, AtomicLong>()
-    private val kindOffsets = ConcurrentHashMap<String, Int>()
-
-    @Value("\${docgen.nodedoc.cache.ttl-ms:3600000}")
-    private var cacheTtlMs: Long = 3600000 // 1 hour default
-
     @PostConstruct
     fun validateConfiguration() {
         require(batchSize in 1..10000) {
@@ -60,129 +35,37 @@ class NodeDocFillerScheduler(
 
     @Scheduled(fixedDelayString = "\${docgen.nodedoc.poll-ms:5000}")
     fun poll() {
-        // bottom-up order: METHOD → LEAF → TYPE → PACKAGE → MODULE/REPO
-        val methodsSelected =
-            processBatch("METHOD") { offset ->
-                if (randomMethods) {
-                    nodeRepo.lockNextMethodsWithoutDocRandom(locale, batchSize)
-                } else {
-                    nodeRepo.lockNextMethodsWithoutDoc(locale, batchSize, offset)
-                }
-            }
-        if (methodsSelected > 0) return
-
-        val leafSelected =
-            processBatch("LEAF") { offset ->
-                nodeRepo.lockNextLeafNodesWithoutDoc(locale, batchSize, offset)
-            }
-        if (leafSelected > 0) return
-
-        val typesSelected = processBatch("TYPE") { offset -> nodeRepo.lockNextTypesWithoutDoc(locale, batchSize, offset) }
-        if (typesSelected > 0) return
-
-        val packagesSelected = processBatch("PACKAGE") { offset -> nodeRepo.lockNextPackagesWithoutDoc(locale, batchSize, offset) }
-        if (packagesSelected > 0) return
-
-        processBatch("MODULE/REPO") { offset -> nodeRepo.lockNextModulesAndReposWithoutDoc(locale, batchSize, offset) }
+        // Шаг 1: находим узлы, у которых все зависимости уже задокументированы
+        val batch = tx.execute { nodeRepo.lockNextReadyNodesWithoutDoc(locale, batchSize) } ?: emptyList()
+        if (batch.isNotEmpty()) {
+            processBatch("READY", batch, allowMissingDeps = false)
+            return
+        }
+        // Шаг 2: фоллбэк — разрываем циклы, берём любой незадокументированный узел
+        val cycleBatch = tx.execute { nodeRepo.lockNextAnyNodesWithoutDoc(locale, batchSize) } ?: emptyList()
+        if (cycleBatch.isNotEmpty()) {
+            log.info("nodedoc: breaking dependency cycle, forcing {} nodes", cycleBatch.size)
+            processBatch("CYCLE-BREAK", cycleBatch, allowMissingDeps = true)
+        }
     }
 
-    internal fun processBatch(label: String, loader: (Int) -> List<Node>): Int {
-        val currentOffset = kindOffsets.getOrDefault(label, 0)
-        val batch = tx.execute { loader(currentOffset) } ?: return 0
-        if (batch.isEmpty()) {
-            // Reached the end — reset offset to start over
-            if (currentOffset > 0) {
-                kindOffsets[label] = 0
-            }
-            return 0
-        }
-
-        val toStore = mutableListOf<Pair<Long, NodeDocGenerator.GeneratedDoc>>()
-        val skipped = mutableListOf<Pair<Long, String>>()
+    internal fun processBatch(label: String, batch: List<Node>, allowMissingDeps: Boolean) {
+        var success = 0
         var failed = 0
 
         for (n in batch) {
             val nodeId = n.id ?: continue
             try {
-                val allowMissingDeps = shouldAllowMissingDeps(n)
-                val generated = generator.generate(n, locale, allowMissingDeps)
-                if (generated == null) {
-                    if (!allowMissingDeps) {
-                        val next = skipCounts.merge(nodeId, 1, Int::plus) ?: 1
-                        val maxSkips = maxSkipsFor(n)
-                        skipped.add(nodeId to "skip=$next/$maxSkips")
-                    } else {
-                        skipped.add(nodeId to "forced")
-                    }
-                    continue
-                }
-                skipCounts.remove(nodeId)
-                toStore.add(nodeId to generated)
+                val generated = generator.generate(n, locale, allowMissingDeps) ?: continue
+                tx.execute { generator.store(nodeId, locale, generated) }
+                success++
             } catch (t: Throwable) {
                 failed++
-                log.warn("nodedoc: failed for nodeId={} fqn={}: {}", nodeId, n.fqn, t.message, t)
+                log.warn("nodedoc: failed nodeId={} fqn={}: {}", nodeId, n.fqn, t.message, t)
             }
         }
-
-        // Batch store all generated docs in a single transaction
-        if (toStore.isNotEmpty()) {
-            tx.execute {
-                for ((nodeId, generated) in toStore) {
-                    generator.store(nodeId, locale, generated)
-                }
-            }
+        if (success > 0 || failed > 0) {
+            log.info("nodedoc: batch {} — success={}, failed={}", label, success, failed)
         }
-
-        // Offset management: advance on all-skip, reset on any success
-        val success = toStore.size
-        if (success > 0) {
-            kindOffsets[label] = 0
-        } else if (batch.isNotEmpty()) {
-            kindOffsets[label] = currentOffset + batchSize
-        }
-
-        if (success > 0 || skipped.isNotEmpty() || failed > 0) {
-            log.info(
-                "nodedoc: batch {} completed - success={}, skipped={}, failed={}, offset={}",
-                label,
-                success,
-                skipped.size,
-                failed,
-                currentOffset,
-            )
-        }
-
-        return batch.size
-    }
-
-    private fun shouldAllowMissingDeps(node: Node): Boolean {
-        val nodeId = node.id ?: return false
-        val currentSkips = skipCounts[nodeId] ?: 0
-        val maxSkips = maxSkipsFor(node)
-        return currentSkips >= maxSkips
-    }
-
-    private fun maxSkipsFor(node: Node): Int {
-        val appId = node.application.id ?: return skipMin
-        val now = System.currentTimeMillis()
-
-        val accessTime = appNodeCountsAccessTime.getOrPut(appId) { AtomicLong(now) }
-        val cachedValue = appNodeCounts[appId]
-        val age = now - accessTime.get()
-
-        val totalNodes = if (cachedValue == null || age > cacheTtlMs) {
-            // Refresh cache
-            val fresh = nodeRepo.countByApplicationId(appId)
-            appNodeCounts[appId] = fresh
-            accessTime.set(now)
-            fresh
-        } else {
-            // Use cached value and update access time
-            accessTime.set(now)
-            cachedValue
-        }
-
-        val byFactor = ceil(totalNodes * skipFactor).toInt()
-        return max(skipMin, min(skipMax, byFactor))
     }
 }

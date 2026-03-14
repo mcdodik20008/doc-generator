@@ -16,7 +16,7 @@ data class AiClientsProperties(
         val temperature: Double? = null,
         val topP: Double? = null,
         val seed: Int? = null,
-        @field:NotBlank val system: String,
+        val system: String = "",
         val debug: Boolean = false,
     )
 }

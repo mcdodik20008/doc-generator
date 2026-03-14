@@ -188,131 +188,91 @@ interface NodeRepository : JpaRepository<Node, Long> {
 
     fun countByApplicationId(applicationId: Long): Long
 
+    /**
+     * Топологический выбор: находит узлы, у которых все зависимости уже задокументированы.
+     * - METHOD: все METHOD-зависимости через dependency-рёбра задокументированы (самоссылки исключены)
+     * - CLASS/INTERFACE/ENUM/RECORD: все METHOD+FIELD дочерние задокументированы
+     * - PACKAGE: все TYPE дочерние задокументированы
+     * - MODULE/REPO: все PACKAGE дочерние задокументированы
+     * - Остальные (FIELD, ENDPOINT, TOPIC и т.д.): всегда готовы
+     */
     @Query(
         value = """
             SELECT n.*
             FROM doc_generator.node n
-            WHERE n.kind = 'METHOD'
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM doc_generator.node_doc d
-                  WHERE d.node_id = n.id AND d.locale = :locale
+            WHERE
+              NOT EXISTS (
+                SELECT 1 FROM doc_generator.node_doc d
+                WHERE d.node_id = n.id AND d.locale = :locale
               )
+              AND (n.kind != 'METHOD' OR NOT EXISTS (
+                SELECT 1 FROM doc_generator.edge e
+                JOIN doc_generator.node t ON t.id = e.dst_id
+                WHERE e.src_id = n.id AND e.dst_id != n.id
+                AND e.kind IN ('CALLS_CODE','THROWS','READS','WRITES','QUERIES',
+                               'CALLS_HTTP','CALLS_GRPC','PRODUCES','CONSUMES','CONFIGURES',
+                               'CIRCUIT_BREAKER_TO','RETRIES_TO','TIMEOUTS_TO','DEPENDS_ON')
+                AND t.kind = 'METHOD'
+                AND NOT EXISTS (
+                  SELECT 1 FROM doc_generator.node_doc dd
+                  WHERE dd.node_id = t.id AND dd.locale = :locale
+                )
+              ))
+              AND (n.kind NOT IN ('CLASS','INTERFACE','ENUM','RECORD') OR NOT EXISTS (
+                SELECT 1 FROM doc_generator.node c
+                WHERE c.parent_id = n.id AND c.kind IN ('METHOD','FIELD')
+                AND NOT EXISTS (
+                  SELECT 1 FROM doc_generator.node_doc cd
+                  WHERE cd.node_id = c.id AND cd.locale = :locale
+                )
+              ))
+              AND (n.kind != 'PACKAGE' OR NOT EXISTS (
+                SELECT 1 FROM doc_generator.node c
+                WHERE c.parent_id = n.id AND c.kind IN ('CLASS','INTERFACE','ENUM','RECORD')
+                AND NOT EXISTS (
+                  SELECT 1 FROM doc_generator.node_doc cd
+                  WHERE cd.node_id = c.id AND cd.locale = :locale
+                )
+              ))
+              AND (n.kind NOT IN ('MODULE','REPO') OR NOT EXISTS (
+                SELECT 1 FROM doc_generator.node c
+                WHERE c.parent_id = n.id AND c.kind = 'PACKAGE'
+                AND NOT EXISTS (
+                  SELECT 1 FROM doc_generator.node_doc cd
+                  WHERE cd.node_id = c.id AND cd.locale = :locale
+                )
+              ))
             ORDER BY n.id
             LIMIT :limit
-            OFFSET :offset
-            FOR UPDATE of n SKIP LOCKED
+            FOR UPDATE OF n SKIP LOCKED
         """,
-        nativeQuery = true
+        nativeQuery = true,
     )
-    fun lockNextMethodsWithoutDoc(
+    fun lockNextReadyNodesWithoutDoc(
         @Param("locale") locale: String,
         @Param("limit") limit: Int,
-        @Param("offset") offset: Int = 0,
     ): List<Node>
 
+    /**
+     * Фоллбэк для циклических зависимостей: выбирает любой незадокументированный узел.
+     * Используется когда lockNextReadyNodesWithoutDoc возвращает пусто, но незадокументированные узлы ещё есть.
+     */
     @Query(
         value = """
             SELECT n.*
             FROM doc_generator.node n
-            WHERE n.kind = 'METHOD'
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM doc_generator.node_doc d
-                  WHERE d.node_id = n.id AND d.locale = :locale
-              )
-            ORDER BY random()
-            LIMIT :limit
-            FOR UPDATE of n SKIP LOCKED
-        """,
-        nativeQuery = true,
-    )
-    fun lockNextMethodsWithoutDocRandom(
-        @Param("locale") locale: String,
-        @Param("limit") limit: Int,
-    ): List<Node>
-
-    @Query(
-        value = """
-            SELECT n.*
-            FROM doc_generator.node n
-            LEFT JOIN doc_generator.node_doc d
-              ON d.node_id = n.id AND d.locale = :locale
-            WHERE n.kind IN ('CLASS','INTERFACE','ENUM','RECORD')
-              AND d.node_id IS NULL
+            WHERE NOT EXISTS (
+              SELECT 1 FROM doc_generator.node_doc d
+              WHERE d.node_id = n.id AND d.locale = :locale
+            )
             ORDER BY n.id
             LIMIT :limit
-            OFFSET :offset
-            FOR UPDATE of n SKIP LOCKED
+            FOR UPDATE OF n SKIP LOCKED
         """,
         nativeQuery = true,
     )
-    fun lockNextTypesWithoutDoc(
+    fun lockNextAnyNodesWithoutDoc(
         @Param("locale") locale: String,
         @Param("limit") limit: Int,
-        @Param("offset") offset: Int = 0,
-    ): List<Node>
-
-    @Query(
-        value = """
-            SELECT n.*
-            FROM doc_generator.node n
-            LEFT JOIN doc_generator.node_doc d
-              ON d.node_id = n.id AND d.locale = :locale
-            WHERE n.kind = 'PACKAGE'
-              AND d.node_id IS NULL
-            ORDER BY n.id
-            LIMIT :limit
-            OFFSET :offset
-            FOR UPDATE of n SKIP LOCKED
-        """,
-        nativeQuery = true,
-    )
-    fun lockNextPackagesWithoutDoc(
-        @Param("locale") locale: String,
-        @Param("limit") limit: Int,
-        @Param("offset") offset: Int = 0,
-    ): List<Node>
-
-    @Query(
-        value = """
-            SELECT n.*
-            FROM doc_generator.node n
-            LEFT JOIN doc_generator.node_doc d
-              ON d.node_id = n.id AND d.locale = :locale
-            WHERE n.kind IN ('MODULE','REPO')
-              AND d.node_id IS NULL
-            ORDER BY n.id
-            LIMIT :limit
-            OFFSET :offset
-            FOR UPDATE of n SKIP LOCKED
-        """,
-        nativeQuery = true,
-    )
-    fun lockNextModulesAndReposWithoutDoc(
-        @Param("locale") locale: String,
-        @Param("limit") limit: Int,
-        @Param("offset") offset: Int = 0,
-    ): List<Node>
-
-    @Query(
-        value = """
-            SELECT n.*
-            FROM doc_generator.node n
-            LEFT JOIN doc_generator.node_doc d
-              ON d.node_id = n.id AND d.locale = :locale
-            WHERE n.kind NOT IN ('METHOD','CLASS','INTERFACE','ENUM','RECORD','PACKAGE','MODULE','REPO')
-              AND d.node_id IS NULL
-            ORDER BY n.id
-            LIMIT :limit
-            OFFSET :offset
-            FOR UPDATE of n SKIP LOCKED
-        """,
-        nativeQuery = true,
-    )
-    fun lockNextLeafNodesWithoutDoc(
-        @Param("locale") locale: String,
-        @Param("limit") limit: Int,
-        @Param("offset") offset: Int = 0,
     ): List<Node>
 }

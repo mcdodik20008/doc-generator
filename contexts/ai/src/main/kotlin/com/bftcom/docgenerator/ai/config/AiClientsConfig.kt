@@ -55,17 +55,20 @@ class AiClientsConfig {
         return OpenAiChatModel.builder().openAiApi(ollamaApi).defaultOptions(options).build()
     }
 
-    /** Удобные ChatClient'ы с дефолтным system для каждой роли */
+    /**
+     * ChatClient'ы без defaultSystem — каждый вызывающий клиент
+     * (OllamaCoderClient, SummaryClient, NodeDocDigestClient, OllamaTalkerClient)
+     * всегда передаёт собственный .system(...) с task-specific промптом.
+     * defaultSystem только дублировался и раздувал контекст.
+     */
     @Bean
     @Primary
     @Qualifier("coderChatClient")
     fun coderChatClient(
             @Qualifier("coderChatModel") coderChatModel: ChatModel,
-            props: AiClientsProperties,
             loggingAdvisor: ChatClientLoggingAdvisor,
     ): ChatClient =
             ChatClient.builder(coderChatModel)
-                    .defaultSystem(props.coder.system.trim())
                     .defaultAdvisors(loggingAdvisor)
                     .build()
 
@@ -73,11 +76,9 @@ class AiClientsConfig {
     @Qualifier("talkerChatClient")
     fun talkerChatClient(
             @Qualifier("talkerChatModel") talkerChatModel: ChatModel,
-            props: AiClientsProperties,
             loggingAdvisor: ChatClientLoggingAdvisor,
     ): ChatClient =
             ChatClient.builder(talkerChatModel)
-                    .defaultSystem(props.talker.system.trim())
                     .defaultAdvisors(loggingAdvisor)
                     .build()
 

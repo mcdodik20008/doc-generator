@@ -203,7 +203,7 @@ class NodeRepositoryTest : BaseRepositoryTest() {
     }
 
     @Test
-    fun `lockNextMethodsWithoutDoc - возвращает методы без документации`() {
+    fun `lockNextReadyNodesWithoutDoc - возвращает узлы без документации`() {
         // Given
         val method = Node(
             application = application,
@@ -216,15 +216,14 @@ class NodeRepositoryTest : BaseRepositoryTest() {
         nodeRepository.flush()
 
         // When
-        val methods = nodeRepository.lockNextMethodsWithoutDoc(locale = "ru", limit = 10)
+        val nodes = nodeRepository.lockNextReadyNodesWithoutDoc(locale = "ru", limit = 10)
 
         // Then
-        assertThat(methods).isNotEmpty
-        assertThat(methods.all { it.kind == NodeKind.METHOD }).isTrue
+        assertThat(nodes).isNotEmpty
     }
 
     @Test
-    fun `lockNextTypesWithoutDoc - возвращает типы без документации`() {
+    fun `lockNextAnyNodesWithoutDoc - возвращает любые узлы без документации`() {
         // Given
         val classNode = Node(
             application = application,
@@ -237,10 +236,9 @@ class NodeRepositoryTest : BaseRepositoryTest() {
         nodeRepository.flush()
 
         // When
-        val types = nodeRepository.lockNextTypesWithoutDoc(locale = "ru", limit = 10)
+        val nodes = nodeRepository.lockNextAnyNodesWithoutDoc(locale = "ru", limit = 10)
 
         // Then
-        assertThat(types).isNotEmpty
-        assertThat(types.all { it.kind in setOf(NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM, NodeKind.RECORD) }).isTrue
+        assertThat(nodes).isNotEmpty
     }
 }
