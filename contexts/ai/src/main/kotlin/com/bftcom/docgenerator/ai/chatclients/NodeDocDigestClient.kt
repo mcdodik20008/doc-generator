@@ -1,17 +1,17 @@
 package com.bftcom.docgenerator.ai.chatclients
 
+import com.bftcom.docgenerator.ai.props.AiClientsProperties
 import com.bftcom.docgenerator.ai.resilience.ResilientExecutor
-import org.springframework.ai.chat.client.ChatClient
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 
 /**
  * Генерация `doc_digest` (строгий kv-lines) из `doc_tech`.
+ * Использует DirectLlmClient (прямой HTTP) вместо Spring AI ChatClient.
  */
 @Component
 class NodeDocDigestClient(
-    @param:Qualifier("coderChatClient")
-    private val chat: ChatClient,
+    private val directLlm: DirectLlmClient,
+    private val props: AiClientsProperties,
     private val resilientExecutor: ResilientExecutor? = null,
 ) {
     private val systemPrompt =
@@ -23,7 +23,7 @@ class NodeDocDigestClient(
         - Пиши ТОЛЬКО на русском.
         - Никаких Markdown-заголовков, списков кроме строк формата key=value или "- key: value".
         - Никаких пояснений, вступлений, заключений. Только дайджест.
-        - Не выдумывай факты. Если поле неизвестно — пиши value=\"unknown\".
+        - Не выдумывай факты. Если поле неизвестно — пиши value="unknown".
         - Строки должны быть короткими (по возможности).
 
         ОБЯЗАТЕЛЬНЫЕ КЛЮЧИ:
@@ -50,14 +50,16 @@ class NodeDocDigestClient(
             }
 
         val operation = {
-            chat
-                .prompt()
-                .system(systemPrompt)
-                .user(user)
-                .call()
-                .content()
-                .orEmpty()
-                .trim()
+            directLlm.call(
+                DirectLlmClient.LlmRequest(
+                    model = props.coder.model,
+                    systemPrompt = systemPrompt,
+                    userPrompt = user,
+                    temperature = props.coder.temperature,
+                    topP = props.coder.topP,
+                    seed = props.coder.seed,
+                ),
+            )
         }
 
         return if (resilientExecutor != null) {
@@ -67,4 +69,3 @@ class NodeDocDigestClient(
         }
     }
 }
-

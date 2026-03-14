@@ -35,7 +35,7 @@ class RestClientConfig {
                         .build(),
                 ).setMaxConnTotal(200) // Макс. соединений всего
                 .setMaxConnPerRoute(50) // Макс. соединений на один хост (например, на твой Ollama)
-                .setConnectionTimeToLive(TimeValue.ofMinutes(30)) // Как долго соединение может жить в пуле
+                .setConnectionTimeToLive(TimeValue.ofMinutes(65)) // Как долго соединение может жить в пуле (с запасом к часовому таймауту)
                 .build()
 
         // 2. Настраиваем таймауты

@@ -1,81 +1,58 @@
 package com.bftcom.docgenerator.ai.chatclients
 
 import com.bftcom.docgenerator.ai.model.TalkerRewriteRequest
+import com.bftcom.docgenerator.ai.props.AiClientsProperties
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.ArgumentCaptor
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.*
-import org.springframework.ai.chat.client.ChatClient
-import org.springframework.ai.chat.messages.AssistantMessage
-import org.springframework.ai.chat.model.ChatModel
-import org.springframework.ai.chat.model.ChatResponse
-import org.springframework.ai.chat.model.Generation
-import org.springframework.ai.chat.prompt.Prompt
 
 @ExtendWith(MockitoExtension::class)
 class OllamaTalkerClientTest {
 
     @Mock
-    private lateinit var chatModel: ChatModel
+    private lateinit var directLlm: DirectLlmClient
 
-    private lateinit var chatClient: ChatClient
-    private lateinit var talkerClient: OllamaTalkerClient
-
-    @BeforeEach
-    fun setUp() {
-        // Создаем реальный клиент. Ошибки Unresolved reference 'system' и 'user' исчезнут.
-        chatClient = ChatClient.builder(chatModel).build()
-        talkerClient = OllamaTalkerClient(chatClient)
-    }
+    private val props = AiClientsProperties(
+        coder = AiClientsProperties.ClientProps(model = "test-coder"),
+        talker = AiClientsProperties.ClientProps(model = "test-talker", temperature = 0.7, topP = 0.95, seed = 10),
+    )
 
     @Test
-    fun `rewrite should call chat client with system prompt and user request`() {
-        // Arrange
+    fun `rewrite should call DirectLlmClient with talker model and user prompt`() {
+        val client = OllamaTalkerClient(directLlm, props)
+        val captor = argumentCaptor<DirectLlmClient.LlmRequest>()
+        whenever(directLlm.call(any())).thenReturn("Human readable description")
+
         val request = TalkerRewriteRequest(
             nodeFqn = "com.example.Test",
             language = "ru",
-            rawContent = "Technical description"
+            rawContent = "Technical description",
         )
-        val aiResponse = ChatResponse(listOf(Generation(AssistantMessage("Human readable description"))))
-        whenever(chatModel.call(any<Prompt>())).thenReturn(aiResponse)
+        val result = client.rewrite(request)
 
-        // Act
-        val result = talkerClient.rewrite(request)
-
-        // Assert
         assertThat(result).isEqualTo("Human readable description")
-
-        // Проверяем, что ушло в модель
-        val promptCaptor = ArgumentCaptor.forClass(Prompt::class.java)
-        verify(chatModel).call(promptCaptor.capture())
-
-        val userContent = promptCaptor.value.instructions.find { it.messageType.name == "USER" }?.text ?: ""
-        assertThat(userContent).contains(request.nodeFqn)
-        assertThat(userContent).contains(request.language)
-        assertThat(userContent).contains("Technical description")
+        verify(directLlm).call(captor.capture())
+        val req = captor.firstValue
+        assertThat(req.model).isEqualTo("test-talker")
+        assertThat(req.userPrompt).contains("com.example.Test")
+        assertThat(req.userPrompt).contains("ru")
+        assertThat(req.userPrompt).contains("Technical description")
+        assertThat(req.temperature).isEqualTo(0.7)
+        assertThat(req.topP).isEqualTo(0.95)
+        assertThat(req.seed).isEqualTo(10)
     }
 
     @Test
-    fun `rewrite should remove redacted reasoning tags`() {
-        // Arrange
-        val request = TalkerRewriteRequest("fqn", "ru", "content")
-        val responseWithReasoning = """
-            <think>Some reasoning here</think>
-            Human readable description
-            <think>More reasoning</think>
-        """.trimIndent()
+    fun `rewrite should remove think tags from response`() {
+        val client = OllamaTalkerClient(directLlm, props)
+        whenever(directLlm.call(any())).thenReturn("<think>Some reasoning here</think>\nHuman readable description\n<think>More reasoning</think>")
 
-        val aiResponse = ChatResponse(listOf(Generation(AssistantMessage(responseWithReasoning))))
-        whenever(chatModel.call(any<Prompt>())).thenReturn(aiResponse)
+        val result = client.rewrite(TalkerRewriteRequest("fqn", "ru", "content"))
 
-        // Act
-        val result = talkerClient.rewrite(request)
-
-        // Assert
         assertThat(result).isEqualTo("Human readable description")
         assertThat(result).doesNotContain("<think>")
         assertThat(result).doesNotContain("Some reasoning here")
@@ -83,34 +60,24 @@ class OllamaTalkerClientTest {
 
     @Test
     fun `rewrite should trim whitespace from response`() {
-        // Arrange
-        val request = TalkerRewriteRequest("fqn", "ru", "content")
-        val aiResponse = ChatResponse(listOf(Generation(AssistantMessage("  Description  "))))
-        whenever(chatModel.call(any<Prompt>())).thenReturn(aiResponse)
+        val client = OllamaTalkerClient(directLlm, props)
+        whenever(directLlm.call(any())).thenReturn("  Description  ")
 
-        // Act
-        val result = talkerClient.rewrite(request)
+        val result = client.rewrite(TalkerRewriteRequest("fqn", "ru", "content"))
 
-        // Assert
         assertThat(result).isEqualTo("Description")
     }
 
     @Test
     fun `rewrite should trim rawContent in user prompt`() {
-        // Arrange
-        val request = TalkerRewriteRequest("fqn", "ru", "  Technical description  ")
-        val aiResponse = ChatResponse(listOf(Generation(AssistantMessage("ok"))))
-        whenever(chatModel.call(any<Prompt>())).thenReturn(aiResponse)
+        val client = OllamaTalkerClient(directLlm, props)
+        val captor = argumentCaptor<DirectLlmClient.LlmRequest>()
+        whenever(directLlm.call(any())).thenReturn("ok")
 
-        // Act
-        talkerClient.rewrite(request)
+        client.rewrite(TalkerRewriteRequest("fqn", "ru", "  Technical description  "))
 
-        // Assert
-        val promptCaptor = ArgumentCaptor.forClass(Prompt::class.java)
-        verify(chatModel).call(promptCaptor.capture())
-
-        val userContent = promptCaptor.value.instructions.find { it.messageType.name == "USER" }?.text ?: ""
-        assertThat(userContent).contains("Technical description")
-        assertThat(userContent).doesNotContain("  Technical description  ")
+        verify(directLlm).call(captor.capture())
+        assertThat(captor.firstValue.userPrompt).contains("Technical description")
+        assertThat(captor.firstValue.userPrompt).doesNotContain("  Technical description  ")
     }
 }

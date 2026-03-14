@@ -1,19 +1,19 @@
 package com.bftcom.docgenerator.ai.chatclients
 
 import com.bftcom.docgenerator.ai.model.TalkerRewriteRequest
+import com.bftcom.docgenerator.ai.props.AiClientsProperties
 import com.bftcom.docgenerator.ai.resilience.ResilientExecutor
-import org.springframework.ai.chat.client.ChatClient
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import java.util.regex.Pattern
 
 /**
  * Клиент для переписывания технических описаний в человекочитаемый формат через LLM (speaker/talker этап).
+ * Использует DirectLlmClient (прямой HTTP) вместо Spring AI ChatClient.
  */
 @Component
 class OllamaTalkerClient(
-    @param:Qualifier("talkerChatClient")
-    private val chat: ChatClient,
+    private val directLlm: DirectLlmClient,
+    private val props: AiClientsProperties,
     private val resilientExecutor: ResilientExecutor? = null,
 ) {
     private val thinkRegex = Pattern.compile("<think>.*?</think>", Pattern.DOTALL)
@@ -29,9 +29,9 @@ class OllamaTalkerClient(
         1. **Пиши простым языком:** Представь, что объясняешь коллеге, который не знает код.
         2. **По существу:** Сохрани основную суть. Не додумывай и не добавляй факты, которых нет в источнике.
         3. **Полнота и краткость:** Пиши кратко, но достаточно для полного понимания бизнес-задачи.
-        
+
         ### КРИТИЧЕСКИ ВАЖНЫЕ ПРАВИЛА (ЯЗЫК И ФОРМАТ)
-        
+
         0. **НЕ ДОБАВЛЯЙ ИЗБЫТОЧНЫХ ЗАГОЛОВКОВ:**
            * НЕ начинай с заголовков типа "# Описание метода", "### Описание компонента", "# Описание бизнес-задачи" и т.п.
            * НЕ добавляй вступительных фраз типа "Описание метода X", "Описание компонента Y".
@@ -61,14 +61,17 @@ class OllamaTalkerClient(
             }
 
         val operation = {
-            val rawResult = chat
-                .prompt()
-                .system(rewriteSystemPrompt)
-                .user(userPrompt)
-                .call()
-                .content()
-
-            thinkRegex.matcher(rawResult.orEmpty()).replaceAll("").trim()
+            val rawResult = directLlm.call(
+                DirectLlmClient.LlmRequest(
+                    model = props.talker.model,
+                    systemPrompt = rewriteSystemPrompt,
+                    userPrompt = userPrompt,
+                    temperature = props.talker.temperature,
+                    topP = props.talker.topP,
+                    seed = props.talker.seed,
+                ),
+            )
+            thinkRegex.matcher(rawResult).replaceAll("").trim()
         }
 
         return if (resilientExecutor != null) {

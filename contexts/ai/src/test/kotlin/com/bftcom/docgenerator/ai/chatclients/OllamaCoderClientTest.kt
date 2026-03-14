@@ -1,87 +1,79 @@
 package com.bftcom.docgenerator.ai.chatclients
 
+import com.bftcom.docgenerator.ai.props.AiClientsProperties
+import com.bftcom.docgenerator.ai.resilience.ResilientExecutor
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.BeforeEach
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.ArgumentCaptor
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.*
-import org.springframework.ai.chat.client.ChatClient
-import org.springframework.ai.chat.messages.AssistantMessage
-import org.springframework.ai.chat.model.ChatModel
-import org.springframework.ai.chat.model.ChatResponse
-import org.springframework.ai.chat.model.Generation
-import org.springframework.ai.chat.prompt.Prompt
 
 @ExtendWith(MockitoExtension::class)
 class OllamaCoderClientTest {
 
     @Mock
-    private lateinit var chatModel: ChatModel
+    private lateinit var directLlm: DirectLlmClient
 
-    private lateinit var chatClient: ChatClient
-    private lateinit var coderClient: OllamaCoderClient
-
-    @BeforeEach
-    fun setUp() {
-        // Создаем реальный клиент вокруг мока модели
-        chatClient = ChatClient.builder(chatModel).build()
-        coderClient = OllamaCoderClient(chatClient)
-    }
+    private val props = AiClientsProperties(
+        coder = AiClientsProperties.ClientProps(model = "test-coder", temperature = 0.1, topP = 0.9, seed = 42),
+        talker = AiClientsProperties.ClientProps(model = "test-talker"),
+    )
 
     @Test
-    fun `generate should call chat client with system prompt and context`() {
-        // Arrange
-        val systemPrompt = "You are a code explainer"
-        val context = "public class Test {}"
+    fun `generate should call DirectLlmClient with correct model and prompts`() {
+        val client = OllamaCoderClient(directLlm, props)
+        val captor = argumentCaptor<DirectLlmClient.LlmRequest>()
+        whenever(directLlm.call(any())).thenReturn("Explanation")
 
-        val aiResponse = ChatResponse(listOf(Generation(AssistantMessage("Explanation"))))
-        whenever(chatModel.call(any<Prompt>())).thenReturn(aiResponse)
+        val result = client.generate("public class Test {}", "You are a code explainer")
 
-        // Act
-        val result = coderClient.generate(context, systemPrompt)
-
-        // Assert
         assertThat(result).isEqualTo("Explanation")
-
-        // Проверяем содержимое промпта через Captor
-        val promptCaptor = ArgumentCaptor.forClass(Prompt::class.java)
-        verify(chatModel).call(promptCaptor.capture())
-
-        val prompt = promptCaptor.value
-        val systemMessage = prompt.instructions.find { it.messageType.name == "SYSTEM" }
-        val userMessage = prompt.instructions.find { it.messageType.name == "USER" }
-
-        assertThat(systemMessage?.text).isEqualTo(systemPrompt)
-        assertThat(userMessage?.text).isEqualTo(context)
+        verify(directLlm).call(captor.capture())
+        val req = captor.firstValue
+        assertThat(req.model).isEqualTo("test-coder")
+        assertThat(req.systemPrompt).isEqualTo("You are a code explainer")
+        assertThat(req.userPrompt).isEqualTo("public class Test {}")
+        assertThat(req.temperature).isEqualTo(0.1)
+        assertThat(req.topP).isEqualTo(0.9)
+        assertThat(req.seed).isEqualTo(42)
     }
 
     @Test
-    fun `generate should handle empty response`() {
-        // Arrange
-        // В Spring AI пустой ответ часто приходит как пустой список поколений или пустой контент
-        val aiResponse = ChatResponse(listOf(Generation(AssistantMessage(""))))
-        whenever(chatModel.call(any<Prompt>())).thenReturn(aiResponse)
+    fun `generate should return empty string when LLM returns empty`() {
+        val client = OllamaCoderClient(directLlm, props)
+        whenever(directLlm.call(any())).thenReturn("")
 
-        // Act
-        val result = coderClient.generate("Context", "System")
+        val result = client.generate("Context", "System")
 
-        // Assert
         assertThat(result).isEmpty()
     }
 
     @Test
-    fun `generate should trim whitespace from response`() {
-        // Arrange
-        val aiResponse = ChatResponse(listOf(Generation(AssistantMessage("  Explanation  "))))
-        whenever(chatModel.call(any<Prompt>())).thenReturn(aiResponse)
+    fun `generate should reject blank context`() {
+        val client = OllamaCoderClient(directLlm, props)
+        assertThatThrownBy { client.generate("", "System") }
+            .isInstanceOf(IllegalArgumentException::class.java)
+    }
 
-        // Act
-        val result = coderClient.generate("Context", "System")
+    @Test
+    fun `generate should reject blank system prompt`() {
+        val client = OllamaCoderClient(directLlm, props)
+        assertThatThrownBy { client.generate("Context", "") }
+            .isInstanceOf(IllegalArgumentException::class.java)
+    }
 
-        // Assert
-        assertThat(result).isEqualTo("Explanation")
+    @Test
+    fun `generate should use resilient executor when available`() {
+        val resilientExecutor = mock<ResilientExecutor>()
+        val client = OllamaCoderClient(directLlm, props, resilientExecutor)
+        whenever(resilientExecutor.executeString(any(), any())).thenReturn("Resilient result")
+
+        val result = client.generate("Context", "System")
+
+        assertThat(result).isEqualTo("Resilient result")
+        verify(resilientExecutor).executeString(eq("coder-generate"), any())
     }
 }
