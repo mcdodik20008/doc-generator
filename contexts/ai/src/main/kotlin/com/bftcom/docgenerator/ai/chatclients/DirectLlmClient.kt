@@ -1,5 +1,6 @@
 package com.bftcom.docgenerator.ai.chatclients
 
+import com.bftcom.docgenerator.ai.props.AiClientsProperties
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -17,6 +18,7 @@ class DirectLlmClient(
     @Value("\${spring.ai.openai.base-url}") baseUrl: String,
     factory: ClientHttpRequestFactory,
     private val objectMapper: ObjectMapper,
+    props: AiClientsProperties,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -25,6 +27,12 @@ class DirectLlmClient(
         .requestFactory(factory)
         .defaultHeader("Content-Type", "application/json")
         .build()
+
+    /** Множество моделей, для которых включён debug-лог (полный текст промпта/ответа). */
+    private val debugModels: Set<String> = buildSet {
+        if (props.coder.debug) add(props.coder.model)
+        if (props.talker.debug) add(props.talker.model)
+    }
 
     data class LlmRequest(
         val model: String,
@@ -40,11 +48,17 @@ class DirectLlmClient(
         val userLen = request.userPrompt.length
         val totalChars = systemLen + userLen
         val estimatedTokens = (totalChars / 3.5).toInt()
+        val debug = request.model in debugModels
 
-        log.info(
-            "LLM request started: model={}, chars={} (system={}, user={}), estimatedTokens=~{}",
-            request.model, totalChars, systemLen, userLen, estimatedTokens,
-        )
+        val sb = StringBuilder()
+        sb.append("LLM request started:")
+        sb.append("\n  model=${request.model}, chars=$totalChars (system=$systemLen, user=$userLen), estimatedTokens=~$estimatedTokens")
+        if (debug) {
+            sb.append("\n  full prompt:\n").append(request.userPrompt)
+        } else {
+            sb.append("\n  preview: ").append(shortenForLog(request.userPrompt))
+        }
+        log.info("{}", sb.toString())
 
         val body = buildRequestBody(request)
         val startMs = System.currentTimeMillis()
@@ -59,11 +73,17 @@ class DirectLlmClient(
         val durationMs = System.currentTimeMillis() - startMs
         val (content, usage) = extractResponse(responseJson)
 
-        log.info(
-            "LLM response received: model={}, durationMs={}, chars={}, tokens[prompt={}, completion={}, total={}]",
-            request.model, durationMs, content.length,
-            usage?.promptTokens, usage?.completionTokens, usage?.totalTokens,
-        )
+        val rb = StringBuilder()
+        rb.append("LLM response received:")
+        rb.append("\n  model=${request.model}, durationMs=$durationMs")
+        rb.append(", tokens[prompt=${usage?.promptTokens}, completion=${usage?.completionTokens}, total=${usage?.totalTokens}]")
+        rb.append(", chars=${content.length}")
+        if (debug) {
+            rb.append("\n  full response:\n").append(content)
+        } else {
+            rb.append("\n  preview: ").append(shortenForLog(content))
+        }
+        log.info("{}", rb.toString())
 
         return content
     }
@@ -95,5 +115,17 @@ class DirectLlmClient(
             totalTokens = usageNode.path("total_tokens").asLong(0),
         )
         return content to usage
+    }
+
+    companion object {
+        private const val HEAD_LEN = 120
+        private const val TAIL_LEN = 120
+    }
+
+    private fun shortenForLog(text: String): String {
+        if (text.isBlank()) return "<empty>"
+        val clean = text.replace('\n', ' ').replace('\r', ' ')
+        if (clean.length <= HEAD_LEN + TAIL_LEN) return clean
+        return clean.substring(0, HEAD_LEN) + " ... " + clean.substring(clean.length - TAIL_LEN)
     }
 }
