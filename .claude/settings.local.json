@@ -45,7 +45,13 @@
       "Bash(.\\\\gradlew.bat build:*)",
       "Bash(javap:*)",
       "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat build -x test)",
-      "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat :contexts:ai:test :contexts:chunking:contexts-chunking-impl:test)"
+      "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat :contexts:ai:test :contexts:chunking:contexts-chunking-impl:test)",
+      "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat :contexts:chunking:contexts-chunking-impl:test --tests \"com.bftcom.docgenerator.chunking.nodedoc.*\" :contexts:ai:test)",
+      "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat :contexts:graph:impl:test --tests \"com.bftcom.docgenerator.graph.impl.node.handlers.*\")",
+      "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat projects)",
+      "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat :contexts:graph:contexts-graph-impl:test --tests \"com.bftcom.docgenerator.graph.impl.node.handlers.*\")",
+      "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat test)",
+      "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat test -x :kernel:db:test)"
     ]
   }
 }

@@ -192,8 +192,8 @@ interface NodeRepository : JpaRepository<Node, Long> {
      * Топологический выбор: находит узлы, у которых все зависимости уже задокументированы.
      * - METHOD: все METHOD-зависимости через dependency-рёбра задокументированы (самоссылки исключены)
      * - CLASS/INTERFACE/ENUM/RECORD: все METHOD+FIELD дочерние задокументированы
-     * - PACKAGE: все TYPE дочерние задокументированы
-     * - MODULE/REPO: все PACKAGE дочерние задокументированы
+     * - PACKAGE: все TYPE + вложенные PACKAGE дочерние задокументированы (от листовых пакетов к корневым)
+     * - MODULE/REPO: все PACKAGE + вложенные MODULE дочерние задокументированы
      * - Остальные (FIELD, ENDPOINT, TOPIC и т.д.): всегда готовы
      */
     @Query(
@@ -228,7 +228,8 @@ interface NodeRepository : JpaRepository<Node, Long> {
               ))
               AND (n.kind != 'PACKAGE' OR NOT EXISTS (
                 SELECT 1 FROM doc_generator.node c
-                WHERE c.parent_id = n.id AND c.kind IN ('CLASS','INTERFACE','ENUM','RECORD')
+                WHERE c.parent_id = n.id
+                AND c.kind IN ('CLASS','INTERFACE','ENUM','RECORD','PACKAGE')
                 AND NOT EXISTS (
                   SELECT 1 FROM doc_generator.node_doc cd
                   WHERE cd.node_id = c.id AND cd.locale = :locale
@@ -236,7 +237,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
               ))
               AND (n.kind NOT IN ('MODULE','REPO') OR NOT EXISTS (
                 SELECT 1 FROM doc_generator.node c
-                WHERE c.parent_id = n.id AND c.kind = 'PACKAGE'
+                WHERE c.parent_id = n.id AND c.kind IN ('PACKAGE','MODULE')
                 AND NOT EXISTS (
                   SELECT 1 FROM doc_generator.node_doc cd
                   WHERE cd.node_id = c.id AND cd.locale = :locale

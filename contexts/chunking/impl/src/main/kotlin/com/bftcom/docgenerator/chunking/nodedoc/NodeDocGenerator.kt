@@ -110,13 +110,13 @@ class NodeDocGenerator(
                 // Wait for METHOD and FIELD children (both are processed before TYPE)
                 built.missingChildKinds.any { it == NodeKind.METHOD || it == NodeKind.FIELD }
             NodeKind.PACKAGE ->
-                // Only wait for TYPE children that the scheduler actually processes
-                built.missingChildKinds.any { it in PROCESSED_TYPE_KINDS }
+                // Wait for TYPE children and nested PACKAGE children
+                built.missingChildKinds.any { it in PROCESSED_TYPE_KINDS || it == NodeKind.PACKAGE }
             NodeKind.MODULE,
             NodeKind.REPO,
             ->
-                // Only wait for PACKAGE children
-                built.missingChildKinds.contains(NodeKind.PACKAGE)
+                // Wait for PACKAGE and nested MODULE children
+                built.missingChildKinds.any { it == NodeKind.PACKAGE || it == NodeKind.MODULE }
             else -> false
         }
     }

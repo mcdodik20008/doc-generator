@@ -28,25 +28,15 @@ class UpsertTypeHandler(
         val pkgFqn = r.pkgFqn ?: state.getFilePackage(r.filePath).orEmpty()
         val fqn = FqnBuilder.buildTypeFqn(pkgFqn.ifBlank { null }, r.simpleName)
 
-        // Обеспечиваем наличие пакета
+        // Обеспечиваем наличие пакета (вся иерархия промежуточных пакетов)
         val pkgNode =
             if (pkgFqn.isNotBlank()) {
-                state.getOrPutPackage(pkgFqn) {
-                    builder.upsertNode(
-                        fqn = pkgFqn,
-                        kind = NodeKind.PACKAGE,
-                        name = pkgFqn.substringAfterLast('.'),
-                        packageName = pkgFqn,
-                        parent = null,
-                        lang = Lang.kotlin,
-                        filePath = r.filePath,
-                        span = null,
-                        signature = null,
-                        sourceCode = null,
-                        docComment = null,
-                        meta = NodeMeta(source = "type:pkgAuto", pkgFqn = pkgFqn),
-                    )
-                }
+                ensurePackageChain(
+                    pkgFqn = pkgFqn,
+                    state = state,
+                    builder = builder,
+                    filePath = r.filePath,
+                )
             } else {
                 null
             }
