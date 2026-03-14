@@ -1,28 +1,40 @@
 package com.bftcom.docgenerator.ai.advisor
 
+import com.bftcom.docgenerator.ai.props.AiClientsProperties
 import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.client.ChatClientRequest
 import org.springframework.ai.chat.client.ChatClientResponse
 import org.springframework.ai.chat.client.advisor.api.AdvisorChain
 import org.springframework.ai.chat.client.advisor.api.BaseAdvisor
+import org.springframework.ai.chat.messages.MessageType
 import org.springframework.stereotype.Component
 
 /**
  * Advisor для качественного логирования обращений к LLM.
- * Логирует сокращенный контент (начало/конец), название модели, время и токены.
+ * Логирует модель, размеры промптов (system/user), оценку токенов, время и реальное использование токенов.
+ *
+ * Полный текст запроса/ответа выводится, если для клиента включён debug
+ * (spring.ai.clients.coder.debug=true / spring.ai.clients.talker.debug=true).
+ * Иначе — сокращённый preview (начало + конец).
  */
 @Component
-class ChatClientLoggingAdvisor : BaseAdvisor {
+class ChatClientLoggingAdvisor(
+    props: AiClientsProperties,
+) : BaseAdvisor {
 
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /** Множество моделей, для которых включён debug-лог. */
+    private val debugModels: Set<String> = buildSet {
+        if (props.coder.debug) add(props.coder.model)
+        if (props.talker.debug) add(props.talker.model)
+    }
+
     companion object {
         private val requestStartTime = ThreadLocal<Long>()
-        private const val HEAD_LEN = 100
-        private const val TAIL_LEN = 200
-
-        @Volatile
-        private var structureLogged = false
+        private const val HEAD_LEN = 120
+        private const val TAIL_LEN = 120
+        private const val AVG_CHARS_PER_TOKEN = 3.5
     }
 
     override fun getOrder(): Int = 0
@@ -31,41 +43,48 @@ class ChatClientLoggingAdvisor : BaseAdvisor {
         chatClientRequest: ChatClientRequest,
         advisorChain: AdvisorChain
     ): ChatClientRequest {
-        logStructureOnce()
-
         val now = System.currentTimeMillis()
         requestStartTime.set(now)
 
         val prompt = chatClientRequest.prompt()
-        val promptText = try {
-            // Prompt.getContents()
-            prompt.contents ?: ""
-        } catch (ex: Exception) {
-            log.warn("Failed to extract prompt contents for LLM logging: {}", ex.message)
-            ""
-        }
 
-        val modelFromOptions = try {
-            // Prompt.getOptions().getModel()
+        val model = try {
             prompt.options.model
         } catch (_: Exception) {
             null
+        } ?: "<unknown>"
+
+        val systemChars: Int
+        val userChars: Int
+        val userText: String
+        try {
+            val messages = prompt.instructions
+            systemChars = messages
+                .filter { it.messageType == MessageType.SYSTEM }
+                .sumOf { it.text?.length ?: 0 }
+            val userMessages = messages.filter { it.messageType == MessageType.USER }
+            userChars = userMessages.sumOf { it.text?.length ?: 0 }
+            userText = userMessages.joinToString("\n") { it.text ?: "" }
+        } catch (ex: Exception) {
+            log.warn("Failed to extract prompt messages for LLM logging: {}", ex.message)
+            return chatClientRequest
         }
 
-        val model = modelFromOptions ?: "<unknown>"
+        val totalChars = systemChars + userChars
+        val estimatedTokens = (totalChars / AVG_CHARS_PER_TOKEN).toInt()
 
-        val preview = shortenForLog(promptText)
+        val sb = StringBuilder()
+        sb.append("LLM request started:")
+        sb.append("\n  model=$model, chars=$totalChars (system=$systemChars, user=$userChars), estimatedTokens=~$estimatedTokens")
 
-        log.info(
-            "LLM request started: model={}, chars={}, preview={}",
-            model,
-            promptText.length,
-            preview
-        )
-        // Явно фиксируем, что ожидание ответа может быть долгим
-        log.debug("LLM request in progress, response may take noticeable time...")
+        if (isDebugFor(model)) {
+            sb.append("\n  full prompt:\n").append(userText)
+        } else {
+            sb.append("\n  preview: ").append(shortenForLog(userText))
+        }
 
-        // Никак не модифицируем запрос
+        log.info("{}", sb.toString())
+
         return chatClientRequest
     }
 
@@ -88,26 +107,18 @@ class ChatClientLoggingAdvisor : BaseAdvisor {
             null
         }
 
-        val modelFromMetadata = try {
+        val model = try {
             metadata?.model
         } catch (_: Exception) {
             null
-        }
-        val model = modelFromMetadata ?: "<unknown>"
+        } ?: "<unknown>"
 
         val responseText = try {
-            // chatResponse.getResult().getOutput().getContent()
-            chatResponse
-                ?.result
-                ?.output
-                ?.text
-                ?: ""
+            chatResponse?.result?.output?.text ?: ""
         } catch (ex: Exception) {
             log.warn("Failed to extract response content for LLM logging: {}", ex.message)
             ""
         }
-
-        val preview = shortenForLog(responseText)
 
         val usage = try {
             metadata?.usage
@@ -119,67 +130,33 @@ class ChatClientLoggingAdvisor : BaseAdvisor {
         val completionTokens = usage?.completionTokens
         val totalTokens = usage?.totalTokens
 
-        if (durationMs != null) {
-            log.info(
-                "LLM response received: model={}, durationMs={}, tokens[prompt={}, completion={}, total={}], chars={}, preview={}",
-                model,
-                durationMs,
-                promptTokens,
-                completionTokens,
-                totalTokens,
-                responseText.length,
-                preview
-            )
+        val sb = StringBuilder()
+        sb.append("LLM response received:")
+        sb.append("\n  model=$model")
+        if (durationMs != null) sb.append(", durationMs=$durationMs")
+        sb.append(", tokens[prompt=$promptTokens, completion=$completionTokens, total=$totalTokens]")
+        sb.append(", chars=${responseText.length}")
+
+        if (isDebugFor(model)) {
+            sb.append("\n  full response:\n").append(responseText)
         } else {
-            log.info(
-                "LLM response received: model={}, tokens[prompt={}, completion={}, total={}], chars={}, preview={}",
-                model,
-                promptTokens,
-                completionTokens,
-                totalTokens,
-                responseText.length,
-                preview
-            )
+            sb.append("\n  preview: ").append(shortenForLog(responseText))
         }
 
-        // Никак не модифицируем ответ
+        log.info("{}", sb.toString())
+
         return chatClientResponse
     }
 
-    /**
-     * Логируем один раз формат логов, чтобы потом по ним было проще ориентироваться.
-     */
-    private fun logStructureOnce() {
-        if (!structureLogged) {
-            synchronized(ChatClientLoggingAdvisor::class.java) {
-                if (!structureLogged) {
-                    log.info(
-                        "LLM logging enabled. " +
-                                "Requests/responses are logged with first {} and last {} characters, " +
-                                "including model, duration and token usage (prompt/completion/total).",
-                        HEAD_LEN,
-                        TAIL_LEN
-                    )
-                    structureLogged = true
-                }
-            }
-        }
-    }
+    private fun isDebugFor(model: String): Boolean = model in debugModels
 
     /**
      * Обрезает текст для логов: первые HEAD_LEN и последние TAIL_LEN символов.
      */
-    private fun shortenForLog(text: String): String {
-        if (text.isBlank()) {
-            return "<empty>"
-        }
-        if (text.length <= HEAD_LEN + TAIL_LEN) {
-            return text
-        }
-
-        val head = text.substring(0, HEAD_LEN)
-        val tail = text.substring(text.length - TAIL_LEN)
-
-        return "$head ... $tail"
+    internal fun shortenForLog(text: String): String {
+        if (text.isBlank()) return "<empty>"
+        val clean = text.replace('\n', ' ').replace('\r', ' ')
+        if (clean.length <= HEAD_LEN + TAIL_LEN) return clean
+        return clean.substring(0, HEAD_LEN) + " ... " + clean.substring(clean.length - TAIL_LEN)
     }
 }

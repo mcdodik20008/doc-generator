@@ -17,5 +17,6 @@ data class AiClientsProperties(
         val topP: Double? = null,
         val seed: Int? = null,
         @field:NotBlank val system: String,
+        val debug: Boolean = false,
     )
 }

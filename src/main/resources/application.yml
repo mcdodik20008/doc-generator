@@ -41,6 +41,11 @@ spring:
     properties:
       hibernate.type.preferred_json_mapper: jackson
   ai:
+    retry:
+      # Отключаем встроенный retry Spring AI — ретраи при таймауте LLM бесполезны.
+      # Resilience4j (Resilience4jConfig) сам управляет retry/circuit-breaker.
+      max-attempts: 1
+      on-client-errors: false
     openai:
       # Используется для Ollama совместимости с OpenAI API
       base-url: http://${OLLAMA_HOSTNAME:localhost}:${OLLAMA_PORT:11434}
@@ -65,6 +70,7 @@ spring:
         temperature: 0.1
         top-p: 0.9
         seed: 42
+        debug: true
         system: |
           Ты — строгий инженер-кодер. Объясняй код без домыслов, пунктами, лаконично.
           Структура: Purpose; Inputs; Outputs; Throws; SideEffects; Preconditions; Postconditions;
@@ -76,6 +82,7 @@ spring:
         temperature: 0.3
         top-p: 0.9
         seed: 42
+        debug: true
         system: |
           Ты — технический писатель. Перепиши пояснение простой человеческой речью (3–6 предложений).
           Избегай жаргона и повторов. Никаких домыслов сверх исходного текста. Отрази важные caveats.

@@ -62,9 +62,11 @@ class Resilience4jConfig {
 //            .waitDuration(Duration.ofSeconds(2))
             // Exponential backoff: 2s, 4s, 8s
             .intervalFunction { attempt -> (attempt * 2000).toLong() }
+            // Ретраим только сетевые ошибки (разрыв соединения и пр.),
+            // но НЕ таймауты — при таймауте LLM повторный вызов бесполезен
             .retryExceptions(
-                java.io.IOException::class.java,
-                java.util.concurrent.TimeoutException::class.java,
+                java.net.ConnectException::class.java,
+                java.net.UnknownHostException::class.java,
                 org.springframework.web.reactive.function.client.WebClientResponseException::class.java,
             )
             .ignoreExceptions(
