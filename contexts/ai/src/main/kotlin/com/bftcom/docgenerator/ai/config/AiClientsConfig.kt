@@ -91,7 +91,12 @@ class AiClientsConfig {
     fun chatMemory(
         chatMemoryRepository: ChatMemoryRepository
     ): ChatMemory {
-        return MessageWindowChatMemory.builder().chatMemoryRepository(chatMemoryRepository).build()
+        // Ограничиваем окно памяти до 3 последних пар сообщений (user + assistant)
+        // Это предотвращает переполнение контекста при длинных диалогах
+        return MessageWindowChatMemory.builder()
+            .chatMemoryRepository(chatMemoryRepository)
+            .maxMessages(3)  // Хранить только последние 3 пары сообщений
+            .build()
     }
 
     @Bean

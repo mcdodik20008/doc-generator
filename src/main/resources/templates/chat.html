@@ -2276,7 +2276,8 @@
         function removeLoading() {
             if (!loadingRemoved) {
                 removeTypingIndicator();
-                removeLiveSteps();
+                // НЕ удаляем шаги - пусть остаются видимыми рядом с ответом
+                // removeLiveSteps();
                 loadingRemoved = true;
             }
         }
@@ -2354,6 +2355,8 @@
                                 data: { answer: rawText, sources, metadata },
                                 timestamp: assistantTimestamp,
                             });
+                            // Удаляем шаги после завершения генерации ответа
+                            removeLiveSteps();
                             scrollToBottom();
                             break;
                         case 'error':
@@ -3086,6 +3089,15 @@
         const stepName = STEP_NAMES[stepType] || stepType;
         const description = stepData.description || '';
         const duration = stepData.metadata?.durationMs;
+
+        // Отладочное логирование для проверки метрик
+        if (stepStatus === 'completed') {
+            console.log(`✓ Step ${stepType}:`, {
+                status: stepStatus,
+                metadata: stepData.metadata,
+                duration: duration
+            });
+        }
 
         stepEl.innerHTML = `
             <span class="step-icon ${iconClass}">${icon}</span>
