@@ -20,6 +20,20 @@ import org.springframework.retry.support.RetryTemplate
 
 @Configuration
 class AiClientsConfig {
+    /**
+     * Явный RetryTemplate с одной попыткой (без ретраев).
+     * Перекрывает автоконфигурацию Spring AI, которая игнорирует spring.ai.retry.max-attempts
+     * и использует RetryUtils.DEFAULT_RETRY_TEMPLATE (10 попыток) внутри OpenAiChatModel.Builder.
+     * Resilience4j (ResilientExecutor) управляет ретраями самостоятельно.
+     */
+    @Bean
+    @Primary
+    fun noRetryTemplate(): RetryTemplate =
+        RetryTemplate.builder()
+            .maxAttempts(1)
+            .noBackoff()
+            .build()
+
     /** ChatModel для coder с собственными дефолтными опциями */
     @Qualifier("coderChatModel")
     @Bean(name = ["coderChatModel"])

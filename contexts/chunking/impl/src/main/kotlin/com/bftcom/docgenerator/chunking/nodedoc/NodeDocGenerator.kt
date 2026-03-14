@@ -10,6 +10,7 @@ import com.bftcom.docgenerator.db.NodeDocRepository
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.security.MessageDigest
 
@@ -23,6 +24,7 @@ class NodeDocGenerator(
     private val objectMapper: ObjectMapper,
     private val promptRegistry: NodeDocPromptRegistry,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
     data class GeneratedDoc(
         val docTech: String,
         val docPublic: String,
@@ -82,11 +84,16 @@ class NodeDocGenerator(
     }
 
     fun store(nodeId: Long, locale: String, generated: GeneratedDoc) {
+        val docPublic = generated.docPublic.ifBlank { null }
+        val docTech = generated.docTech.ifBlank { null }
+        if (docPublic == null) {
+            log.warn("nodedoc: doc_public is blank for nodeId={}, docTech length={}", nodeId, docTech?.length ?: 0)
+        }
         nodeDocRepo.upsert(
             nodeId = nodeId,
             locale = locale,
-            docPublic = generated.docPublic.ifBlank { null },
-            docTech = generated.docTech.ifBlank { null },
+            docPublic = docPublic,
+            docTech = docTech,
             docDigest = generated.docDigest.ifBlank { null },
             modelMetaJson = objectMapper.writeValueAsString(generated.modelMeta),
         )

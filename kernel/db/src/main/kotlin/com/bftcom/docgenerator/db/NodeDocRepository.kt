@@ -23,7 +23,7 @@ interface NodeDocRepository : JpaRepository<NodeDoc, NodeDocId> {
         @Param("locale") locale: String,
     ): String?
 
-    @Modifying
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(
         value = """
             insert into doc_generator.node_doc (node_id, locale, doc_public, doc_tech, doc_digest, model_meta, updated_at)
