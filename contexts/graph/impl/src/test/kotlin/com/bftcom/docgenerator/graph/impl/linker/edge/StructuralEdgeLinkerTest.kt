@@ -156,11 +156,43 @@ class StructuralEdgeLinkerTest {
         assertThat(edges).doesNotContain(Triple(type, member, EdgeKind.CONTAINS))
     }
 
+    @Test
+    fun `linkContains - создает CONTAINS между вложенными пакетами`() {
+        val root = node(fqn = "com", name = "com", pkg = "com", kind = NodeKind.PACKAGE)
+        val mid = node(fqn = "com.example", name = "example", pkg = "com.example", kind = NodeKind.PACKAGE, parent = root)
+        val leaf = node(fqn = "com.example.service", name = "service", pkg = "com.example.service", kind = NodeKind.PACKAGE, parent = mid)
+
+        val all = listOf(root, mid, leaf)
+        val index = NodeIndexFactory().create(all)
+
+        val edges = StructuralEdgeLinker().linkContains(all, index) { NodeMeta() }
+
+        assertThat(edges).contains(
+            Triple(root, mid, EdgeKind.CONTAINS),
+            Triple(mid, leaf, EdgeKind.CONTAINS),
+        )
+        // Корневой пакет без parent — для него CONTAINS не создаётся
+        assertThat(edges).noneMatch { it.second == root && it.third == EdgeKind.CONTAINS }
+    }
+
+    @Test
+    fun `linkContains - не создает CONTAINS для пакета без parent`() {
+        val root = node(fqn = "com.example", name = "com.example", pkg = "com.example", kind = NodeKind.PACKAGE)
+
+        val all = listOf(root)
+        val index = NodeIndexFactory().create(all)
+
+        val edges = StructuralEdgeLinker().linkContains(all, index) { NodeMeta() }
+
+        assertThat(edges).isEmpty()
+    }
+
     private fun node(
         fqn: String,
         name: String,
         pkg: String?,
         kind: NodeKind,
+        parent: Node? = null,
     ): Node =
         Node(
             id = null,
@@ -170,6 +202,6 @@ class StructuralEdgeLinkerTest {
             packageName = pkg,
             kind = kind,
             lang = Lang.kotlin,
-        )
+        ).also { it.parent = parent }
 }
 

@@ -28,6 +28,14 @@ class StructuralEdgeLinker {
     ): List<Triple<Node, Node, EdgeKind>> {
         val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
 
+        // Связи между пакетами (иерархия вложенности)
+        all
+            .filter { it.kind == NodeKind.PACKAGE && it.parent != null }
+            .forEach { pkg ->
+                val parent = index.findByFqn(pkg.parent!!.fqn) ?: return@forEach
+                res += Triple(parent, pkg, EdgeKind.CONTAINS)
+            }
+
         // Связи между пакетами и типами
         all
             .filter { it.kind in TYPE_KINDS }
