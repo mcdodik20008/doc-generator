@@ -30,8 +30,6 @@ class NodeDocContextBuilder(
         val childrenCount: Int,
         val hasKdoc: Boolean,
         val hasCode: Boolean,
-        val missingDepKinds: Set<NodeKind>,
-        val missingChildKinds: Set<NodeKind>,
     )
 
     fun build(node: Node, locale: String): BuildResult =
@@ -76,7 +74,6 @@ class NodeDocContextBuilder(
 
         val included = mutableListOf<Map<String, Any>>()
         val depsMissing = mutableListOf<Long>()
-        val missingDepKinds = mutableSetOf<NodeKind>()
         val depsForDigest = mutableListOf<String>()
 
         val depsBlock =
@@ -100,9 +97,6 @@ class NodeDocContextBuilder(
                             )
                         if (digest.isNullOrBlank()) {
                             depsMissing += dstId
-                            if (dst != null) {
-                                missingDepKinds += dst.kind
-                            }
                             appendLine("- edge=${e.kind.name} dst=$dstFqn digest=missing")
                         } else {
                             appendLine("- edge=${e.kind.name} dst=$dstFqn")
@@ -142,12 +136,10 @@ class NodeDocContextBuilder(
             depsMissing = depsMissing.isNotEmpty(),
             depsForDigest = depsForDigest.distinct().take(50),
             included = included,
-            depsCount = picked.size,
+            depsCount = picked.count { it.kind in prioIndex },
             childrenCount = 0,
             hasKdoc = kdoc.isNotBlank(),
             hasCode = code.isNotBlank(),
-            missingDepKinds = missingDepKinds,
-            missingChildKinds = emptySet(),
         )
     }
 
@@ -161,7 +153,6 @@ class NodeDocContextBuilder(
 
         val included = mutableListOf<Map<String, Any>>()
         val depsMissing = mutableListOf<Long>()
-        val missingChildKinds = mutableSetOf<NodeKind>()
         val depsForDigest = mutableListOf<String>()
 
         val childDigests =
@@ -177,7 +168,6 @@ class NodeDocContextBuilder(
                         included += mapOf("node_id" to chId, "kind" to ch.kind.name, "level" to "child")
                         if (digest.isNullOrBlank()) {
                             depsMissing += chId
-                            missingChildKinds += ch.kind
                             appendLine("- child=${ch.fqn} digest=missing")
                         } else {
                             appendLine("- child=${ch.fqn}")
@@ -212,8 +202,6 @@ class NodeDocContextBuilder(
             childrenCount = children.size,
             hasKdoc = kdoc.isNotBlank(),
             hasCode = false,
-            missingDepKinds = emptySet(),
-            missingChildKinds = missingChildKinds,
         )
     }
 
@@ -223,7 +211,6 @@ class NodeDocContextBuilder(
 
         val included = mutableListOf<Map<String, Any>>()
         val missing = mutableListOf<Long>()
-        val missingChildKinds = mutableSetOf<NodeKind>()
         val depsForDigest = mutableListOf<String>()
 
         val digests =
@@ -239,7 +226,6 @@ class NodeDocContextBuilder(
                         included += mapOf("node_id" to chId, "kind" to ch.kind.name, "level" to "child")
                         if (digest.isNullOrBlank()) {
                             missing += chId
-                            missingChildKinds += ch.kind
                             appendLine("- child=${ch.fqn} digest=missing")
                         } else {
                             appendLine("- child=${ch.fqn}")
@@ -268,8 +254,6 @@ class NodeDocContextBuilder(
             childrenCount = children.size,
             hasKdoc = false,
             hasCode = false,
-            missingDepKinds = emptySet(),
-            missingChildKinds = missingChildKinds,
         )
     }
 
@@ -304,8 +288,6 @@ class NodeDocContextBuilder(
             childrenCount = 0,
             hasKdoc = kdoc.isNotBlank(),
             hasCode = code.isNotBlank(),
-            missingDepKinds = emptySet(),
-            missingChildKinds = emptySet(),
         )
     }
 }

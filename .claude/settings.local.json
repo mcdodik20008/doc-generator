@@ -51,7 +51,12 @@
       "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat projects)",
       "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat :contexts:graph:contexts-graph-impl:test --tests \"com.bftcom.docgenerator.graph.impl.node.handlers.*\")",
       "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat test)",
-      "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat test -x :kernel:db:test)"
+      "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat test -x :kernel:db:test)",
+      "Bash(D:/backupE/projectWork/bft/doc-generator/gradlew.bat :contexts:ai:test)",
+      "Bash(cmd /c \"gradlew.bat :contexts:chunking:impl:test --tests com.bftcom.docgenerator.chunking.nodedoc.* 2>&1\")",
+      "Bash(D:backupEprojectWorkbftdoc-generatorgradlew.bat :contexts:chunking:impl:test --tests \"com.bftcom.docgenerator.chunking.nodedoc.*\")",
+      "Bash(cmd.exe:*)",
+      "Bash(powershell.exe:*)"
     ]
   }
 }

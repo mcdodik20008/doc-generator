@@ -78,7 +78,7 @@ spring:
           Запрещены предположения, если не следует из кода. Короткие формулировки.
 
       talker:
-        model: ${TALKER_MODEL:qwen3.5:27b} # qwen2.5:14b-instruct}
+        model: ${TALKER_MODEL:mistral-small3.2:24b} # qwen3.5:27b} # qwen2.5:14b-instruct}
         temperature: 0.3
         top-p: 0.9
         seed: 42

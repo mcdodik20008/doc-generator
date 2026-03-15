@@ -190,11 +190,13 @@ interface NodeRepository : JpaRepository<Node, Long> {
 
     /**
      * Топологический выбор: находит узлы, у которых все зависимости уже задокументированы.
+     * Порядок обработки bottom-up: листья → METHOD → TYPE → PACKAGE → MODULE/REPO.
+     * - Листья (FIELD, ENDPOINT, TOPIC и т.д.): всегда готовы, обрабатываются первыми
      * - METHOD: все METHOD-зависимости через dependency-рёбра задокументированы (самоссылки исключены)
      * - CLASS/INTERFACE/ENUM/RECORD: все METHOD+FIELD дочерние задокументированы
      * - PACKAGE: все TYPE + вложенные PACKAGE дочерние задокументированы (от листовых пакетов к корневым)
      * - MODULE/REPO: все PACKAGE + вложенные MODULE дочерние задокументированы
-     * - Остальные (FIELD, ENDPOINT, TOPIC и т.д.): всегда готовы
+     * Зависимость считается задокументированной только при наличии непустого doc_digest.
      */
     @Query(
         value = """
@@ -216,6 +218,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
                 AND NOT EXISTS (
                   SELECT 1 FROM doc_generator.node_doc dd
                   WHERE dd.node_id = t.id AND dd.locale = :locale
+                    AND dd.doc_digest IS NOT NULL AND dd.doc_digest != ''
                 )
               ))
               AND (n.kind NOT IN ('CLASS','INTERFACE','ENUM','RECORD') OR NOT EXISTS (
@@ -224,6 +227,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
                 AND NOT EXISTS (
                   SELECT 1 FROM doc_generator.node_doc cd
                   WHERE cd.node_id = c.id AND cd.locale = :locale
+                    AND cd.doc_digest IS NOT NULL AND cd.doc_digest != ''
                 )
               ))
               AND (n.kind != 'PACKAGE' OR NOT EXISTS (
@@ -233,6 +237,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
                 AND NOT EXISTS (
                   SELECT 1 FROM doc_generator.node_doc cd
                   WHERE cd.node_id = c.id AND cd.locale = :locale
+                    AND cd.doc_digest IS NOT NULL AND cd.doc_digest != ''
                 )
               ))
               AND (n.kind NOT IN ('MODULE','REPO') OR NOT EXISTS (
@@ -241,11 +246,26 @@ interface NodeRepository : JpaRepository<Node, Long> {
                 AND NOT EXISTS (
                   SELECT 1 FROM doc_generator.node_doc cd
                   WHERE cd.node_id = c.id AND cd.locale = :locale
+                    AND cd.doc_digest IS NOT NULL AND cd.doc_digest != ''
                 )
               ))
-            ORDER BY n.id
+            ORDER BY
+              CASE n.kind
+                WHEN 'FIELD'     THEN 0
+                WHEN 'ENDPOINT'  THEN 0
+                WHEN 'TOPIC'     THEN 0
+                WHEN 'METHOD'    THEN 1
+                WHEN 'CLASS'     THEN 2
+                WHEN 'INTERFACE' THEN 2
+                WHEN 'ENUM'      THEN 2
+                WHEN 'RECORD'    THEN 2
+                WHEN 'PACKAGE'   THEN 3
+                WHEN 'MODULE'    THEN 4
+                WHEN 'REPO'      THEN 5
+                ELSE 0
+              END,
+              n.id
             LIMIT :limit
-            FOR UPDATE OF n SKIP LOCKED
         """,
         nativeQuery = true,
     )
@@ -257,6 +277,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
     /**
      * Фоллбэк для циклических зависимостей: выбирает любой незадокументированный узел.
      * Используется когда lockNextReadyNodesWithoutDoc возвращает пусто, но незадокументированные узлы ещё есть.
+     * Порядок bottom-up: листья обрабатываются первыми для лучшего качества контекста.
      */
     @Query(
         value = """
@@ -266,9 +287,23 @@ interface NodeRepository : JpaRepository<Node, Long> {
               SELECT 1 FROM doc_generator.node_doc d
               WHERE d.node_id = n.id AND d.locale = :locale
             )
-            ORDER BY n.id
+            ORDER BY
+              CASE n.kind
+                WHEN 'FIELD'     THEN 0
+                WHEN 'ENDPOINT'  THEN 0
+                WHEN 'TOPIC'     THEN 0
+                WHEN 'METHOD'    THEN 1
+                WHEN 'CLASS'     THEN 2
+                WHEN 'INTERFACE' THEN 2
+                WHEN 'ENUM'      THEN 2
+                WHEN 'RECORD'    THEN 2
+                WHEN 'PACKAGE'   THEN 3
+                WHEN 'MODULE'    THEN 4
+                WHEN 'REPO'      THEN 5
+                ELSE 0
+              END,
+              n.id
             LIMIT :limit
-            FOR UPDATE OF n SKIP LOCKED
         """,
         nativeQuery = true,
     )

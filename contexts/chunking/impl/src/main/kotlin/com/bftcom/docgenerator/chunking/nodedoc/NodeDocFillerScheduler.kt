@@ -35,28 +35,29 @@ class NodeDocFillerScheduler(
 
     @Scheduled(fixedDelayString = "\${docgen.nodedoc.poll-ms:5000}")
     fun poll() {
-        // Шаг 1: находим узлы, у которых все зависимости уже задокументированы
+        log.info("nodedoc: NodeDocFillerScheduler")
+        // Шаг 1: находим узлы, у которых все зависимости уже задокументированы (bottom-up)
         val batch = tx.execute { nodeRepo.lockNextReadyNodesWithoutDoc(locale, batchSize) } ?: emptyList()
         if (batch.isNotEmpty()) {
-            processBatch("READY", batch, allowMissingDeps = false)
+            processBatch("READY", batch)
             return
         }
         // Шаг 2: фоллбэк — разрываем циклы, берём любой незадокументированный узел
         val cycleBatch = tx.execute { nodeRepo.lockNextAnyNodesWithoutDoc(locale, batchSize) } ?: emptyList()
         if (cycleBatch.isNotEmpty()) {
             log.info("nodedoc: breaking dependency cycle, forcing {} nodes", cycleBatch.size)
-            processBatch("CYCLE-BREAK", cycleBatch, allowMissingDeps = true)
+            processBatch("CYCLE-BREAK", cycleBatch)
         }
     }
 
-    internal fun processBatch(label: String, batch: List<Node>, allowMissingDeps: Boolean) {
+    internal fun processBatch(label: String, batch: List<Node>) {
         var success = 0
         var failed = 0
 
         for (n in batch) {
             val nodeId = n.id ?: continue
             try {
-                val generated = generator.generate(n, locale, allowMissingDeps) ?: continue
+                val generated = generator.generate(n, locale)
                 tx.execute { generator.store(nodeId, locale, generated) }
                 success++
             } catch (t: Throwable) {

@@ -159,7 +159,6 @@ class NodeDocContextBuilderTest {
 
         assertThat(result).isNotNull
         assertThat(result.depsMissing).isTrue
-        assertThat(result.missingDepKinds).contains(NodeKind.METHOD)
     }
 
     @Test
@@ -200,7 +199,6 @@ class NodeDocContextBuilderTest {
         assertThat(result).isNotNull
         assertThat(result.childrenCount).isEqualTo(1)
         assertThat(result.depsMissing).isTrue
-        assertThat(result.missingChildKinds).contains(NodeKind.METHOD)
     }
 
     @Test
@@ -329,8 +327,8 @@ class NodeDocContextBuilderTest {
         val result = builder.build(node, "ru")
 
         assertThat(result).isNotNull
-        // depsCount равен picked.size, а не количеству обработанных edges
-        // Edge с dst.id == null попадает в picked, но пропускается через continue
+        // depsCount считает dep-edges в picked (CALLS_CODE есть в prioIndex)
+        // Edge с dst.id == null попадает в picked, но пропускается через continue в цикле
         assertThat(result.depsCount).isEqualTo(1)
         // Но реально обработанных edges нет, поэтому depsForDigest пустой
         assertThat(result.depsForDigest).isEmpty()

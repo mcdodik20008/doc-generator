@@ -7,7 +7,6 @@ import com.bftcom.docgenerator.ai.model.TalkerRewriteRequest
 import com.bftcom.docgenerator.ai.prompts.NodeDocContextProfile
 import com.bftcom.docgenerator.ai.prompts.NodeDocPromptRegistry
 import com.bftcom.docgenerator.db.NodeDocRepository
-import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
@@ -35,12 +34,9 @@ class NodeDocGenerator(
     fun generate(
         node: Node,
         locale: String,
-        allowMissingDeps: Boolean = false,
-    ): GeneratedDoc? {
+    ): GeneratedDoc {
+        log.info("nodedoc: Start doc generate for nodeId = ${node.id}, and fqn = ${node.fqn}")
         val built = contextBuilder.build(node, locale)
-        if (!allowMissingDeps && shouldSkipForMissingDeps(node, built)) {
-            return null
-        }
         val prompt =
             promptRegistry.resolve(
                 NodeDocContextProfile(
@@ -61,7 +57,13 @@ class NodeDocGenerator(
                 ),
             )
 
-        val digest = digestClient.generate(node.kind.name, node.fqn, docTech, built.depsForDigest)
+        val rawDigest = digestClient.generate(node.kind.name, node.fqn, docTech, built.depsForDigest)
+        val digest = if (rawDigest.isNotBlank()) {
+            rawDigest
+        } else {
+            log.warn("nodedoc: digestClient returned blank for nodeId={}, using docTech truncation as fallback", node.id)
+            docTech.take(500).ifBlank { "no-content" }
+        }
 
         val modelMeta =
             linkedMapOf(
@@ -75,6 +77,7 @@ class NodeDocGenerator(
                     ),
             )
 
+        log.info("nodedoc: End doc generate for nodeId = ${node.id}, and fqn = ${node.fqn}")
         return GeneratedDoc(
             docTech = docTech,
             docPublic = docPublic,
@@ -104,34 +107,4 @@ class NodeDocGenerator(
         val digest = md.digest(s.toByteArray(Charsets.UTF_8))
         return digest.joinToString("") { "%02x".format(it) }
     }
-
-    private fun shouldSkipForMissingDeps(node: Node, built: NodeDocContextBuilder.BuildResult): Boolean {
-        if (!built.depsMissing) return false
-        return when (node.kind) {
-            NodeKind.METHOD -> built.missingDepKinds.contains(NodeKind.METHOD)
-            NodeKind.CLASS,
-            NodeKind.INTERFACE,
-            NodeKind.ENUM,
-            NodeKind.RECORD,
-            ->
-                // Wait for METHOD and FIELD children (both are processed before TYPE)
-                built.missingChildKinds.any { it == NodeKind.METHOD || it == NodeKind.FIELD }
-            NodeKind.PACKAGE ->
-                // Wait for TYPE children and nested PACKAGE children
-                built.missingChildKinds.any { it in PROCESSED_TYPE_KINDS || it == NodeKind.PACKAGE }
-            NodeKind.MODULE,
-            NodeKind.REPO,
-            ->
-                // Wait for PACKAGE and nested MODULE children
-                built.missingChildKinds.any { it == NodeKind.PACKAGE || it == NodeKind.MODULE }
-            else -> false
-        }
-    }
-
-    companion object {
-        private val PROCESSED_TYPE_KINDS = setOf(
-            NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM, NodeKind.RECORD,
-        )
-    }
 }
-

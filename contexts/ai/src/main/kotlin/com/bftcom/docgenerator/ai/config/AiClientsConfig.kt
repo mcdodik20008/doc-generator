@@ -185,7 +185,7 @@ class AiClientsConfig {
             .openAiApi(ollamaApi)
             .defaultOptions(
                 OpenAiChatOptions.builder()
-                    .model("qwen2.5:1.5b") // Оптимально для извлечения пар term-description
+                    .model("qwen3.5:4b") // Оптимально для извлечения пар term-description
                     .temperature(0.0)      // Строгая детерминированность
                     .topP(0.1)            // Минимизируем разброс токенов для JSON
                     .build()
@@ -213,7 +213,7 @@ class AiClientsConfig {
             .openAiApi(ollamaApi)
             .defaultOptions(
                 OpenAiChatOptions.builder()
-                    .model("qwen2.5:1.5b") // Qwen 1.5B для быстрой проверки
+                    .model("qwen3.5:4b") // Qwen 1.5B для быстрой проверки
                     .temperature(0.0)      // Детерминированность для YES/NO ответов
                     .topP(0.1)
                     .build()
