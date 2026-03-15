@@ -259,10 +259,15 @@ interface NodeRepository : JpaRepository<Node, Long> {
                 WHEN 'INTERFACE' THEN 2
                 WHEN 'ENUM'      THEN 2
                 WHEN 'RECORD'    THEN 2
+                WHEN 'SERVICE'   THEN 2
+                WHEN 'MAPPER'    THEN 2
+                WHEN 'CONFIG'    THEN 2
+                WHEN 'EXCEPTION' THEN 2
+                WHEN 'TEST'      THEN 2
                 WHEN 'PACKAGE'   THEN 3
                 WHEN 'MODULE'    THEN 4
                 WHEN 'REPO'      THEN 5
-                ELSE 0
+                ELSE 6
               END,
               n.id
             LIMIT :limit
@@ -297,10 +302,15 @@ interface NodeRepository : JpaRepository<Node, Long> {
                 WHEN 'INTERFACE' THEN 2
                 WHEN 'ENUM'      THEN 2
                 WHEN 'RECORD'    THEN 2
+                WHEN 'SERVICE'   THEN 2
+                WHEN 'MAPPER'    THEN 2
+                WHEN 'CONFIG'    THEN 2
+                WHEN 'EXCEPTION' THEN 2
+                WHEN 'TEST'      THEN 2
                 WHEN 'PACKAGE'   THEN 3
                 WHEN 'MODULE'    THEN 4
                 WHEN 'REPO'      THEN 5
-                ELSE 0
+                ELSE 6
               END,
               n.id
             LIMIT :limit
