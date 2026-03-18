@@ -66,7 +66,7 @@ Tyumen State University, Tyumen, Russia\\
 \section{Краткий обзор существующих подходов}
 
 \subsection{Code summarization --- генерация кратких описаний из кода}
-Подход фокусируется на моделях (CodeBERT~\cite{feng2020codebert}, CodeT5~\cite{wang2021codet5}, GraphCodeBERT~\cite{guo2021graphcodebert}), которые обучаются генерировать краткие текстовые описания (docstrings, комментарии) на основе анализа исходного кода и его синтаксического представления (AST).
+Подход фокусируется на моделях (CodeBERT~\cite{feng2020codebert}, CodeT5~\cite{wang2021codet5}, GraphCodeBERT~\cite{guo2021graphcodebert}), которые обучаются генерировать краткие текстовые описания (docstrings, комментарии) на основе анализа исходного кода и его синтаксического представления (AST.puml).
 \begin{itemize}[nosep]
 \item \textbf{Сильная сторона:} хорошие результаты на уровне функции/класса.
 \item \textbf{Слабая сторона:} отсутствие системного контекста; вызовы в другие модули остаются «чёрным ящиком».
@@ -182,7 +182,7 @@ Against this background, large language models (LLMs) are increasingly used to a
 
 \section{Existing Approaches (Brief)}
 \subsection{Code Summarization}
-Models such as CodeBERT~\cite{feng2020codebert}, CodeT5~\cite{wang2021codet5}, and GraphCodeBERT~\cite{guo2021graphcodebert} generate short textual summaries from code and AST.
+Models such as CodeBERT~\cite{feng2020codebert}, CodeT5~\cite{wang2021codet5}, and GraphCodeBERT~\cite{guo2021graphcodebert} generate short textual summaries from code and AST.puml.
 \begin{itemize}[nosep]
 \item \textbf{Strength:} good local quality at function/class level.
 \item \textbf{Weakness:} lack of broader architectural context.

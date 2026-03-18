@@ -29,7 +29,8 @@ class AiClientsConfig {
     @Bean
     @Primary
     fun noRetryTemplate(): RetryTemplate =
-        RetryTemplate.builder()
+        RetryTemplate
+            .builder()
             .maxAttempts(1)
             .noBackoff()
             .build()
@@ -38,46 +39,50 @@ class AiClientsConfig {
     @Qualifier("coderChatModel")
     @Bean(name = ["coderChatModel"])
     fun coderChatModel(
-            ollamaApi: OpenAiApi,
-            props: AiClientsProperties,
-            retryTemplate: RetryTemplate,
+        ollamaApi: OpenAiApi,
+        props: AiClientsProperties,
+        retryTemplate: RetryTemplate,
     ): OpenAiChatModel {
         val p = props.coder
         val options =
-                OpenAiChatOptions.builder()
-                        .model(p.model)
-                        .temperature(p.temperature)
-                        .topP(p.topP)
-                        .seed(p.seed)
-                        .build()
-        return OpenAiChatModel.builder()
-                .openAiApi(ollamaApi)
-                .defaultOptions(options)
-                .retryTemplate(retryTemplate)
+            OpenAiChatOptions
+                .builder()
+                .model(p.model)
+                .temperature(p.temperature)
+                .topP(p.topP)
+                .seed(p.seed)
                 .build()
+        return OpenAiChatModel
+            .builder()
+            .openAiApi(ollamaApi)
+            .defaultOptions(options)
+            .retryTemplate(retryTemplate)
+            .build()
     }
 
     /** ChatModel для talker с собственными опциями */
     @Qualifier("talkerChatModel")
     @Bean(name = ["talkerChatModel"])
     fun talkerChatModel(
-            ollamaApi: OpenAiApi,
-            props: AiClientsProperties,
-            retryTemplate: RetryTemplate,
+        ollamaApi: OpenAiApi,
+        props: AiClientsProperties,
+        retryTemplate: RetryTemplate,
     ): OpenAiChatModel {
         val p = props.talker
         val options =
-                OpenAiChatOptions.builder()
-                        .model(p.model)
-                        .temperature(p.temperature)
-                        .topP(p.topP)
-                        .seed(p.seed)
-                        .build()
-        return OpenAiChatModel.builder()
-                .openAiApi(ollamaApi)
-                .defaultOptions(options)
-                .retryTemplate(retryTemplate)
+            OpenAiChatOptions
+                .builder()
+                .model(p.model)
+                .temperature(p.temperature)
+                .topP(p.topP)
+                .seed(p.seed)
                 .build()
+        return OpenAiChatModel
+            .builder()
+            .openAiApi(ollamaApi)
+            .defaultOptions(options)
+            .retryTemplate(retryTemplate)
+            .build()
     }
 
     /**
@@ -90,54 +95,55 @@ class AiClientsConfig {
     @Primary
     @Qualifier("coderChatClient")
     fun coderChatClient(
-            @Qualifier("coderChatModel") coderChatModel: ChatModel,
-            loggingAdvisor: ChatClientLoggingAdvisor,
+        @Qualifier("coderChatModel") coderChatModel: ChatModel,
+        loggingAdvisor: ChatClientLoggingAdvisor,
     ): ChatClient =
-            ChatClient.builder(coderChatModel)
-                    .defaultAdvisors(loggingAdvisor)
-                    .build()
+        ChatClient
+            .builder(coderChatModel)
+            .defaultAdvisors(loggingAdvisor)
+            .build()
 
     @Bean
     @Qualifier("talkerChatClient")
     fun talkerChatClient(
-            @Qualifier("talkerChatModel") talkerChatModel: ChatModel,
-            loggingAdvisor: ChatClientLoggingAdvisor,
+        @Qualifier("talkerChatModel") talkerChatModel: ChatModel,
+        loggingAdvisor: ChatClientLoggingAdvisor,
     ): ChatClient =
-            ChatClient.builder(talkerChatModel)
-                    .defaultAdvisors(loggingAdvisor)
-                    .build()
+        ChatClient
+            .builder(talkerChatModel)
+            .defaultAdvisors(loggingAdvisor)
+            .build()
 
     @Bean
     @Primary
     fun primaryEmbedding(
-            @Qualifier("ollamaEmbeddingModel") delegate: EmbeddingModel,
+        @Qualifier("ollamaEmbeddingModel") delegate: EmbeddingModel,
     ): EmbeddingModel = delegate
 
     @Bean
-    fun chatMemory(
-        chatMemoryRepository: ChatMemoryRepository
-    ): ChatMemory {
+    fun chatMemory(chatMemoryRepository: ChatMemoryRepository): ChatMemory {
         // Ограничиваем окно памяти до 3 последних пар сообщений (user + assistant)
         // Это предотвращает переполнение контекста при длинных диалогах
-        return MessageWindowChatMemory.builder()
+        return MessageWindowChatMemory
+            .builder()
             .chatMemoryRepository(chatMemoryRepository)
-            .maxMessages(3)  // Хранить только последние 3 пары сообщений
+            .maxMessages(3) // Хранить только последние 3 пары сообщений
             .build()
     }
 
     @Bean
     @Qualifier("ragChatClient")
     fun ragChatClient(
-            @Qualifier("coderChatModel") coderChatModel: ChatModel,
-            chatMemory: ChatMemory,
-            loggingAdvisor: ChatClientLoggingAdvisor,
+        @Qualifier("coderChatModel") coderChatModel: ChatModel,
+        chatMemory: ChatMemory,
+        loggingAdvisor: ChatClientLoggingAdvisor,
     ): ChatClient =
-            ChatClient.builder(coderChatModel)
-                    .defaultAdvisors(
-                        loggingAdvisor,
-                        MessageChatMemoryAdvisor.builder(chatMemory).build()
-                    )
-                    .build()
+        ChatClient
+            .builder(coderChatModel)
+            .defaultAdvisors(
+                loggingAdvisor,
+                MessageChatMemoryAdvisor.builder(chatMemory).build(),
+            ).build()
 
     /**
      * Быстрый ChatClient для простых запросов (извлечение класса/метода).
@@ -146,27 +152,30 @@ class AiClientsConfig {
     @Bean
     @Qualifier("fastExtractionChatClient")
     fun fastExtractionChatClient(
-            ollamaApi: OpenAiApi,
-            loggingAdvisor: ChatClientLoggingAdvisor,
-            retryTemplate: RetryTemplate,
+        ollamaApi: OpenAiApi,
+        loggingAdvisor: ChatClientLoggingAdvisor,
+        retryTemplate: RetryTemplate,
     ): ChatClient {
         // Используем быструю модель для извлечения (qwen2.5:0.5b)
         // Эта модель намного быстрее, чем qwen2.5-coder:14b
-        val fastModel = OpenAiChatModel.builder()
-            .openAiApi(ollamaApi)
-            .defaultOptions(
-                OpenAiChatOptions.builder()
-                    .model("qwen2.5:0.5b") // Быстрая модель вместо 14b
-                    .temperature(0.0) // Детерминированность для извлечения
-                    .topP(0.9)
-                    .build()
-            )
-            .retryTemplate(retryTemplate)
-            .build()
-        
-        return ChatClient.builder(fastModel)
-                .defaultAdvisors(loggingAdvisor)
+        val fastModel =
+            OpenAiChatModel
+                .builder()
+                .openAiApi(ollamaApi)
+                .defaultOptions(
+                    OpenAiChatOptions
+                        .builder()
+                        .model("qwen2.5:0.5b") // Быстрая модель вместо 14b
+                        .temperature(0.0) // Детерминированность для извлечения
+                        .topP(0.9)
+                        .build(),
+                ).retryTemplate(retryTemplate)
                 .build()
+
+        return ChatClient
+            .builder(fastModel)
+            .defaultAdvisors(loggingAdvisor)
+            .build()
     }
 
     /**
@@ -181,19 +190,22 @@ class AiClientsConfig {
         loggingAdvisor: ChatClientLoggingAdvisor,
         retryTemplate: RetryTemplate,
     ): ChatClient {
-        val model = OpenAiChatModel.builder()
-            .openAiApi(ollamaApi)
-            .defaultOptions(
-                OpenAiChatOptions.builder()
-                    .model("qwen3.5:4b") // Оптимально для извлечения пар term-description
-                    .temperature(0.0)      // Строгая детерминированность
-                    .topP(0.1)            // Минимизируем разброс токенов для JSON
-                    .build()
-            )
-            .retryTemplate(retryTemplate)
-            .build()
+        val model =
+            OpenAiChatModel
+                .builder()
+                .openAiApi(ollamaApi)
+                .defaultOptions(
+                    OpenAiChatOptions
+                        .builder()
+                        .model("qwen2.5:1.5b") // Оптимально для извлечения пар term-description
+                        .temperature(0.0) // Строгая детерминированность
+                        .topP(0.1) // Минимизируем разброс токенов для JSON
+                        .build(),
+                ).retryTemplate(retryTemplate)
+                .build()
 
-        return ChatClient.builder(model)
+        return ChatClient
+            .builder(model)
             .defaultAdvisors(loggingAdvisor)
             .build()
     }
@@ -209,19 +221,22 @@ class AiClientsConfig {
         loggingAdvisor: ChatClientLoggingAdvisor,
         retryTemplate: RetryTemplate,
     ): ChatClient {
-        val model = OpenAiChatModel.builder()
-            .openAiApi(ollamaApi)
-            .defaultOptions(
-                OpenAiChatOptions.builder()
-                    .model("qwen3.5:4b") // Qwen 1.5B для быстрой проверки
-                    .temperature(0.0)      // Детерминированность для YES/NO ответов
-                    .topP(0.1)
-                    .build()
-            )
-            .retryTemplate(retryTemplate)
-            .build()
+        val model =
+            OpenAiChatModel
+                .builder()
+                .openAiApi(ollamaApi)
+                .defaultOptions(
+                    OpenAiChatOptions
+                        .builder()
+                        .model("qwen3.5:4b") // Qwen 1.5B для быстрой проверки
+                        .temperature(0.0) // Детерминированность для YES/NO ответов
+                        .topP(0.1)
+                        .build(),
+                ).retryTemplate(retryTemplate)
+                .build()
 
-        return ChatClient.builder(model)
+        return ChatClient
+            .builder(model)
             .defaultAdvisors(loggingAdvisor)
             .build()
     }
