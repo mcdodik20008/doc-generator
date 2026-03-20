@@ -19,7 +19,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
-            margin-bottom: 40px;
+            margin-bottom: 32px;
         }
 
         .stat-card {
@@ -42,6 +42,46 @@
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+
+        /* ======== Admin Tabs ======== */
+        .admin-tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 24px;
+        }
+
+        .admin-tab {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+            background: none;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+        }
+
+        .admin-tab:hover {
+            color: var(--text);
+        }
+
+        .admin-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
         }
 
         /* ======== Section Header ======== */
@@ -278,33 +318,295 @@
         .btn-secondary:hover {
             border-color: var(--accent);
         }
+
+        /* ======== Audit Filters ======== */
+        .audit-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+            align-items: flex-end;
+        }
+
+        .audit-filters .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .audit-filters .filter-group label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        .audit-filters input {
+            padding: 8px 12px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        .audit-filters input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .audit-filters .filter-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .audit-filters .filter-btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .audit-filters .filter-btn.primary {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .audit-filters .filter-btn.primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .audit-filters .filter-btn.secondary {
+            background: transparent;
+            color: var(--text);
+        }
+
+        .audit-filters .filter-btn.secondary:hover {
+            border-color: var(--accent);
+        }
+
+        /* ======== Audit Pagination ======== */
+        .audit-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .page-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .page-btn:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        .page-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .page-info {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-left: 12px;
+        }
+
+        /* ======== HTTP Method Badges ======== */
+        .method-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .method-get { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+        .method-post { background: rgba(99, 102, 241, 0.15); color: #6366f1; }
+        .method-put { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+        .method-delete { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+        .method-patch { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+
+        /* ======== API Key Scope Badges ======== */
+        .scope-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--accent);
+            margin-right: 4px;
+        }
+
+        /* ======== Raw Key Display ======== */
+        .raw-key-display {
+            background: rgba(234, 179, 8, 0.08);
+            border: 1px solid rgba(234, 179, 8, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+
+        .raw-key-display .warning {
+            color: #eab308;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .raw-key-code {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 13px;
+            background: var(--surface2);
+            padding: 10px 12px;
+            border-radius: 6px;
+            word-break: break-all;
+            margin: 8px 0;
+            color: var(--text);
+        }
+
+        /* ======== Confirm Overlay ======== */
+        .confirm-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .confirm-overlay.active {
+            display: flex;
+        }
+
+        .confirm-dialog {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .confirm-dialog .confirm-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .confirm-dialog .confirm-text {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+        }
+
+        .confirm-dialog .confirm-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        /* ======== Empty State ======== */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state .empty-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .empty-state .empty-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .empty-state .empty-subtitle {
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
-<div id="app-container">
-    <div th:replace="~{fragments/header :: header}"></div>
+<a class="skip-link" href="#main">Skip to content</a>
 
-    <main class="main-content">
-        <div class="admin-container">
-            <h1 style="font-size: 32px; font-weight: 700; margin-bottom: 32px;">Admin Panel</h1>
+<div class="header">
+    <div>
+        <h1>
+            <span class="logo">&#9670;</span>
+            Admin Panel
+        </h1>
+        <div class="breadcrumbs" style="margin-top:4px;margin-left:38px">
+            <a href="/">Doc Generator</a><span class="sep">/</span><span class="current">Admin</span>
+        </div>
+    </div>
+    <div class="header-right">
+        <nav class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/graph">Graph</a>
+            <a href="/chat">Chat</a>
+            <a href="/ingest">Ingest</a>
+            <a href="/health">Health</a>
+            <a href="/integrations">Integrations</a>
+        </nav>
+        <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">&#9728;</button>
+    </div>
+</div>
 
-            <!-- Stats Cards -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="value" th:text="${totalUsers}">0</div>
-                    <div class="label">Total Users</div>
-                </div>
-                <div class="stat-card">
-                    <div class="value" th:text="${enabledUsers}">0</div>
-                    <div class="label">Active Users</div>
-                </div>
-                <div class="stat-card">
-                    <div class="value" th:text="${totalChats}">0</div>
-                    <div class="label">Total Chats</div>
-                </div>
+<main id="main" class="main-content">
+    <div class="admin-container">
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="value" th:text="${totalUsers}">0</div>
+                <div class="label">Total Users</div>
             </div>
+            <div class="stat-card">
+                <div class="value" th:text="${enabledUsers}">0</div>
+                <div class="label">Active Users</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" th:text="${totalChats}">0</div>
+                <div class="label">Total Chats</div>
+            </div>
+        </div>
 
-            <!-- Users Section -->
+        <!-- Tab Navigation -->
+        <div class="admin-tabs">
+            <button class="admin-tab active" onclick="switchTab('users')">Users</button>
+            <button class="admin-tab" onclick="switchTab('api-keys')">API Keys</button>
+            <button class="admin-tab" onclick="switchTab('audit-logs')">Audit Logs</button>
+        </div>
+
+        <!-- ==================== TAB: Users ==================== -->
+        <div class="tab-content active" id="tab-users">
             <div class="section-header">
                 <div class="section-title">Users</div>
                 <button class="add-user-btn" onclick="openCreateUserModal()">+ Add User</button>
@@ -330,8 +632,102 @@
                 </table>
             </div>
         </div>
-    </main>
-</div>
+
+        <!-- ==================== TAB: API Keys ==================== -->
+        <div class="tab-content" id="tab-api-keys">
+            <div class="section-header">
+                <div class="section-title">API Keys</div>
+                <button class="add-user-btn" onclick="openCreateApiKeyModal()">+ Create API Key</button>
+            </div>
+
+            <div id="apiKeysLoading" class="loading" style="display:none">Loading...</div>
+            <div id="apiKeysEmpty" class="empty-state" style="display:none">
+                <div class="empty-icon">&#128272;</div>
+                <div class="empty-title">No API Keys</div>
+                <div class="empty-subtitle">Create an API key to authenticate programmatic access.</div>
+            </div>
+
+            <div class="users-table-container" id="apiKeysTableContainer" style="display:none">
+                <table class="users-table" id="apiKeysTable">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Scopes</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Expires</th>
+                        <th>Last Used</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody id="apiKeysTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ==================== TAB: Audit Logs ==================== -->
+        <div class="tab-content" id="tab-audit-logs">
+            <div class="section-header">
+                <div class="section-title">Audit Logs</div>
+            </div>
+
+            <div class="audit-filters">
+                <div class="filter-group">
+                    <label>User</label>
+                    <input type="text" id="auditFilterUser" placeholder="User ID..."/>
+                </div>
+                <div class="filter-group">
+                    <label>Action</label>
+                    <input type="text" id="auditFilterAction" placeholder="Action..."/>
+                </div>
+                <div class="filter-group">
+                    <label>Resource</label>
+                    <input type="text" id="auditFilterResource" placeholder="/api/..."/>
+                </div>
+                <div class="filter-group">
+                    <label>From</label>
+                    <input type="datetime-local" id="auditFilterFrom"/>
+                </div>
+                <div class="filter-group">
+                    <label>To</label>
+                    <input type="datetime-local" id="auditFilterTo"/>
+                </div>
+                <div class="filter-actions">
+                    <button class="filter-btn primary" onclick="loadAuditLogs(0)">Search</button>
+                    <button class="filter-btn secondary" onclick="clearAuditFilters()">Clear</button>
+                </div>
+            </div>
+
+            <div id="auditLoading" class="loading" style="display:none">Loading...</div>
+            <div id="auditEmpty" class="empty-state" style="display:none">
+                <div class="empty-icon">&#128203;</div>
+                <div class="empty-title">No audit logs found</div>
+                <div class="empty-subtitle">Try adjusting your filters or wait for new activity.</div>
+            </div>
+
+            <div class="users-table-container" id="auditTableContainer" style="display:none">
+                <table class="users-table" id="auditTable">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Resource</th>
+                        <th>Method</th>
+                        <th>IP</th>
+                        <th>Date</th>
+                    </tr>
+                    </thead>
+                    <tbody id="auditTableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="audit-pagination" id="auditPagination" style="display:none"></div>
+        </div>
+    </div>
+</main>
 
 <!-- Create/Edit User Modal -->
 <div id="userModal" class="modal">
@@ -367,16 +763,114 @@
                 </select>
             </div>
             <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('userModal')">Cancel</button>
                 <button type="submit" class="btn btn-primary">Save</button>
             </div>
         </form>
     </div>
 </div>
 
-<script>
-    let users = [];
+<!-- Create API Key Modal -->
+<div id="apiKeyModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">Create API Key</div>
+        <form id="apiKeyForm" onsubmit="createApiKey(event)">
+            <div class="form-group">
+                <label>Name *</label>
+                <input type="text" id="apiKeyName" required placeholder="e.g. CI/CD Pipeline"/>
+            </div>
+            <div class="form-group">
+                <label>Scopes</label>
+                <input type="text" id="apiKeyScopes" placeholder="read, write (comma-separated)"/>
+            </div>
+            <div class="form-group">
+                <label>Expires In (days)</label>
+                <input type="number" id="apiKeyExpiresDays" min="1" placeholder="Leave empty for no expiration"/>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('apiKeyModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
 
+<!-- Show Raw API Key Modal -->
+<div id="rawKeyModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">API Key Created</div>
+        <div class="raw-key-display">
+            <div class="warning">Copy this key now! You won't be able to see it again.</div>
+            <div class="raw-key-code" id="rawKeyValue"></div>
+            <button class="btn btn-primary" onclick="copyRawKey()" style="margin-top:8px">Copy to Clipboard</button>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal('rawKeyModal')">Done</button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Overlay -->
+<div id="confirmOverlay" class="confirm-overlay">
+    <div class="confirm-dialog">
+        <div class="confirm-title" id="confirmTitle">Confirm</div>
+        <div class="confirm-text" id="confirmText">Are you sure?</div>
+        <div class="confirm-actions">
+            <button class="btn btn-secondary" onclick="closeConfirm()">Cancel</button>
+            <button class="btn btn-primary" id="confirmAction" style="background:#ef4444">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ======== State ========
+    let users = [];
+    let apiKeys = [];
+    let auditData = null;
+    let tabLoaded = { users: false, 'api-keys': false, 'audit-logs': false };
+    let confirmCallback = null;
+
+    // ======== Tab Switching ========
+    function switchTab(name) {
+        document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+
+        document.querySelector(`.admin-tab[onclick="switchTab('${name}')"]`).classList.add('active');
+        document.getElementById('tab-' + name).classList.add('active');
+
+        // Lazy-load data on first visit
+        if (name === 'api-keys' && !tabLoaded['api-keys']) {
+            tabLoaded['api-keys'] = true;
+            loadApiKeys();
+        }
+        if (name === 'audit-logs' && !tabLoaded['audit-logs']) {
+            tabLoaded['audit-logs'] = true;
+            loadAuditLogs(0);
+        }
+    }
+
+    // ======== Confirm Dialog ========
+    function showConfirm(title, text, callback) {
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmText').textContent = text;
+        confirmCallback = callback;
+        document.getElementById('confirmAction').onclick = () => {
+            closeConfirm();
+            if (confirmCallback) confirmCallback();
+        };
+        document.getElementById('confirmOverlay').classList.add('active');
+    }
+
+    function closeConfirm() {
+        document.getElementById('confirmOverlay').classList.remove('active');
+        confirmCallback = null;
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('active');
+    }
+
+    // ==================== USERS ====================
     async function loadUsers() {
         try {
             const response = await fetch('/api/admin/users');
@@ -384,7 +878,7 @@
             renderUsers();
         } catch (error) {
             console.error('Failed to load users:', error);
-            alert('Failed to load users');
+            showToast('Failed to load users', 'error');
         }
     }
 
@@ -411,7 +905,7 @@
                 <td>
                     <button class="action-btn" onclick="editUser(${user.id})">Edit</button>
                     <button class="action-btn" onclick="toggleUserStatus(${user.id}, ${!user.enabled})">${user.enabled ? 'Disable' : 'Enable'}</button>
-                    <button class="action-btn danger" onclick="deleteUser(${user.id})">Delete</button>
+                    <button class="action-btn danger" onclick="confirmDeleteUser(${user.id}, '${esc(user.username)}')">Delete</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -444,10 +938,6 @@
         document.getElementById('userModal').classList.add('active');
     }
 
-    function closeModal() {
-        document.getElementById('userModal').classList.remove('active');
-    }
-
     document.getElementById('userForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -475,15 +965,16 @@
             });
 
             if (response.ok) {
-                closeModal();
+                closeModal('userModal');
+                showToast(isEdit ? 'User updated' : 'User created', 'success');
                 loadUsers();
             } else {
                 const error = await response.text();
-                alert('Error: ' + error);
+                showToast('Error: ' + error, 'error');
             }
         } catch (error) {
             console.error('Failed to save user:', error);
-            alert('Failed to save user');
+            showToast('Failed to save user', 'error');
         }
     });
 
@@ -496,44 +987,316 @@
             });
 
             if (response.ok) {
+                showToast('User status updated', 'success');
                 loadUsers();
             } else {
-                alert('Failed to update user status');
+                showToast('Failed to update user status', 'error');
             }
         } catch (error) {
             console.error('Failed to update user:', error);
-            alert('Failed to update user');
+            showToast('Failed to update user', 'error');
         }
+    }
+
+    function confirmDeleteUser(userId, username) {
+        showConfirm('Delete User', `Are you sure you want to delete "${username}"? This action cannot be undone.`, () => deleteUser(userId));
     }
 
     async function deleteUser(userId) {
-        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-            return;
-        }
-
         try {
-            const response = await fetch(`/api/admin/users/${userId}`, {
-                method: 'DELETE',
-            });
+            const response = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
 
             if (response.ok) {
+                showToast('User deleted', 'success');
                 loadUsers();
             } else {
-                alert('Failed to delete user');
+                showToast('Failed to delete user', 'error');
             }
         } catch (error) {
             console.error('Failed to delete user:', error);
-            alert('Failed to delete user');
+            showToast('Failed to delete user', 'error');
         }
     }
 
-    function esc(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+    // ==================== API KEYS ====================
+    async function loadApiKeys() {
+        document.getElementById('apiKeysLoading').style.display = 'block';
+        document.getElementById('apiKeysEmpty').style.display = 'none';
+        document.getElementById('apiKeysTableContainer').style.display = 'none';
+
+        try {
+            const response = await fetch('/api/api-keys');
+            apiKeys = await response.json();
+            renderApiKeys();
+        } catch (error) {
+            console.error('Failed to load API keys:', error);
+            showToast('Failed to load API keys', 'error');
+            document.getElementById('apiKeysLoading').style.display = 'none';
+        }
     }
 
-    // Load users on page load
+    function renderApiKeys() {
+        document.getElementById('apiKeysLoading').style.display = 'none';
+
+        if (apiKeys.length === 0) {
+            document.getElementById('apiKeysEmpty').style.display = 'block';
+            document.getElementById('apiKeysTableContainer').style.display = 'none';
+            return;
+        }
+
+        document.getElementById('apiKeysEmpty').style.display = 'none';
+        document.getElementById('apiKeysTableContainer').style.display = 'block';
+
+        const tbody = document.getElementById('apiKeysTableBody');
+        tbody.innerHTML = '';
+
+        apiKeys.forEach(key => {
+            const status = getApiKeyStatus(key);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${esc(key.name)}</strong></td>
+                <td>${key.scopes.length > 0 ? key.scopes.map(s => `<span class="scope-badge">${esc(s)}</span>`).join('') : '<span style="color:var(--text-muted)">none</span>'}</td>
+                <td><span class="status-badge ${status.cls}">${status.label}</span></td>
+                <td>${formatDate(key.createdAt)}</td>
+                <td>${key.expiresAt ? formatDate(key.expiresAt) : 'Never'}</td>
+                <td>${key.lastUsedAt ? formatRelativeTime(key.lastUsedAt) : 'Never'}</td>
+                <td>
+                    ${key.active ? `<button class="action-btn danger" onclick="confirmRevokeApiKey(${key.id}, '${esc(key.name)}')">Revoke</button>` : ''}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function getApiKeyStatus(key) {
+        if (!key.active) return { label: 'Revoked', cls: 'disabled' };
+        if (key.expiresAt && new Date(key.expiresAt) < new Date()) return { label: 'Expired', cls: 'disabled' };
+        return { label: 'Active', cls: 'enabled' };
+    }
+
+    function openCreateApiKeyModal() {
+        document.getElementById('apiKeyForm').reset();
+        document.getElementById('apiKeyModal').classList.add('active');
+    }
+
+    async function createApiKey(e) {
+        e.preventDefault();
+
+        const name = document.getElementById('apiKeyName').value;
+        const scopesRaw = document.getElementById('apiKeyScopes').value;
+        const expiresDays = document.getElementById('apiKeyExpiresDays').value;
+
+        const scopes = scopesRaw ? scopesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const body = { name, scopes };
+        if (expiresDays) body.expiresInDays = parseInt(expiresDays);
+
+        try {
+            const response = await fetch('/api/api-keys', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                closeModal('apiKeyModal');
+
+                // Show the raw key
+                document.getElementById('rawKeyValue').textContent = result.rawKey;
+                document.getElementById('rawKeyModal').classList.add('active');
+
+                loadApiKeys();
+            } else {
+                const error = await response.text();
+                showToast('Error: ' + error, 'error');
+            }
+        } catch (error) {
+            console.error('Failed to create API key:', error);
+            showToast('Failed to create API key', 'error');
+        }
+    }
+
+    function confirmRevokeApiKey(id, name) {
+        showConfirm('Revoke API Key', `Are you sure you want to revoke "${name}"? This action cannot be undone.`, () => revokeApiKey(id));
+    }
+
+    async function revokeApiKey(id) {
+        try {
+            const response = await fetch(`/api/api-keys/${id}`, { method: 'DELETE' });
+            if (response.ok) {
+                showToast('API key revoked', 'success');
+                loadApiKeys();
+            } else {
+                showToast('Failed to revoke API key', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to revoke API key:', error);
+            showToast('Failed to revoke API key', 'error');
+        }
+    }
+
+    function copyRawKey() {
+        const key = document.getElementById('rawKeyValue').textContent;
+        navigator.clipboard.writeText(key).then(() => {
+            showToast('Copied to clipboard', 'success');
+        }).catch(() => {
+            showToast('Failed to copy — select and copy manually', 'error');
+        });
+    }
+
+    // ==================== AUDIT LOGS ====================
+    async function loadAuditLogs(page) {
+        document.getElementById('auditLoading').style.display = 'block';
+        document.getElementById('auditEmpty').style.display = 'none';
+        document.getElementById('auditTableContainer').style.display = 'none';
+        document.getElementById('auditPagination').style.display = 'none';
+
+        const params = new URLSearchParams();
+        params.set('page', page);
+        params.set('size', 50);
+
+        const user = document.getElementById('auditFilterUser').value.trim();
+        const action = document.getElementById('auditFilterAction').value.trim();
+        const resource = document.getElementById('auditFilterResource').value.trim();
+        const from = document.getElementById('auditFilterFrom').value;
+        const to = document.getElementById('auditFilterTo').value;
+
+        if (user) params.set('user', user);
+        if (action) params.set('action', action);
+        if (resource) params.set('resource', resource);
+        if (from) params.set('from', new Date(from).toISOString());
+        if (to) params.set('to', new Date(to).toISOString());
+
+        try {
+            const response = await fetch('/api/audit-logs?' + params.toString());
+            auditData = await response.json();
+            renderAuditLogs(auditData);
+            renderAuditPagination(auditData);
+        } catch (error) {
+            console.error('Failed to load audit logs:', error);
+            showToast('Failed to load audit logs', 'error');
+            document.getElementById('auditLoading').style.display = 'none';
+        }
+    }
+
+    function renderAuditLogs(data) {
+        document.getElementById('auditLoading').style.display = 'none';
+
+        if (data.content.length === 0) {
+            document.getElementById('auditEmpty').style.display = 'block';
+            document.getElementById('auditTableContainer').style.display = 'none';
+            return;
+        }
+
+        document.getElementById('auditEmpty').style.display = 'none';
+        document.getElementById('auditTableContainer').style.display = 'block';
+
+        const tbody = document.getElementById('auditTableBody');
+        tbody.innerHTML = '';
+
+        data.content.forEach(log => {
+            const methodClass = log.httpMethod ? 'method-' + log.httpMethod.toLowerCase() : '';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${log.id}</td>
+                <td>${esc(log.userId || '-')}</td>
+                <td>${esc(log.action)}</td>
+                <td><span style="font-family:Consolas,monospace;font-size:12px">${esc(log.resource)}</span></td>
+                <td>${log.httpMethod ? `<span class="method-badge ${methodClass}">${log.httpMethod}</span>` : '-'}</td>
+                <td>${esc(log.ipAddress || '-')}</td>
+                <td>${formatDate(log.createdAt)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderAuditPagination(data) {
+        const container = document.getElementById('auditPagination');
+
+        if (data.totalPages <= 1) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'flex';
+        container.innerHTML = '';
+
+        // Prev button
+        const prevBtn = document.createElement('button');
+        prevBtn.className = 'page-btn';
+        prevBtn.textContent = '\u2190 Prev';
+        prevBtn.disabled = data.page === 0;
+        prevBtn.onclick = () => loadAuditLogs(data.page - 1);
+        container.appendChild(prevBtn);
+
+        // Page numbers
+        const maxPages = 5;
+        let startPage = Math.max(0, data.page - Math.floor(maxPages / 2));
+        let endPage = Math.min(data.totalPages, startPage + maxPages);
+        if (endPage - startPage < maxPages) startPage = Math.max(0, endPage - maxPages);
+
+        if (startPage > 0) {
+            const btn = document.createElement('button');
+            btn.className = 'page-btn';
+            btn.textContent = '1';
+            btn.onclick = () => loadAuditLogs(0);
+            container.appendChild(btn);
+            if (startPage > 1) {
+                const dots = document.createElement('span');
+                dots.className = 'page-info';
+                dots.textContent = '...';
+                container.appendChild(dots);
+            }
+        }
+
+        for (let i = startPage; i < endPage; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'page-btn' + (i === data.page ? ' active' : '');
+            btn.textContent = i + 1;
+            btn.onclick = () => loadAuditLogs(i);
+            container.appendChild(btn);
+        }
+
+        if (endPage < data.totalPages) {
+            if (endPage < data.totalPages - 1) {
+                const dots = document.createElement('span');
+                dots.className = 'page-info';
+                dots.textContent = '...';
+                container.appendChild(dots);
+            }
+            const btn = document.createElement('button');
+            btn.className = 'page-btn';
+            btn.textContent = data.totalPages;
+            btn.onclick = () => loadAuditLogs(data.totalPages - 1);
+            container.appendChild(btn);
+        }
+
+        // Next button
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'page-btn';
+        nextBtn.textContent = 'Next \u2192';
+        nextBtn.disabled = data.page >= data.totalPages - 1;
+        nextBtn.onclick = () => loadAuditLogs(data.page + 1);
+        container.appendChild(nextBtn);
+
+        // Total info
+        const info = document.createElement('span');
+        info.className = 'page-info';
+        info.textContent = data.totalElements + ' total';
+        container.appendChild(info);
+    }
+
+    function clearAuditFilters() {
+        document.getElementById('auditFilterUser').value = '';
+        document.getElementById('auditFilterAction').value = '';
+        document.getElementById('auditFilterResource').value = '';
+        document.getElementById('auditFilterFrom').value = '';
+        document.getElementById('auditFilterTo').value = '';
+        loadAuditLogs(0);
+    }
+
+    // ======== Init ========
+    tabLoaded.users = true;
     loadUsers();
 </script>
 </body>

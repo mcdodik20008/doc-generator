@@ -1516,12 +1516,20 @@
     let chatSearchFilter = '';
     let countdownInterval = null;
 
-    // Chat history in localStorage
+    // Chat history — server-backed with localStorage fallback
     const STORAGE_KEY = 'docgen_chat_history';
     const MAX_QUERY_LENGTH = 10000;
     const REQUEST_TIMEOUT_SECONDS = 45;
 
+    // In-memory cache of server chats (map: sessionId -> {serverId, sessionId, title, updatedAt, pinned})
+    let serverChats = [];
+    let serverAvailable = true;
+
     function loadChatHistory() {
+        // Returns from server cache if available, else localStorage
+        if (serverAvailable && serverChats.length > 0) {
+            return serverChats;
+        }
         try {
             return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         } catch { return []; }
@@ -1529,6 +1537,41 @@
 
     function saveChatHistory(history) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    }
+
+    async function loadChatHistoryFromServer() {
+        try {
+            const res = await fetch('/api/chat/sessions');
+            if (!res.ok) throw new Error('status ' + res.status);
+            const sessions = await res.json();
+            serverAvailable = true;
+
+            // Merge pinned flags from localStorage (server doesn't store pins)
+            const localPins = {};
+            try {
+                const local = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                local.forEach(c => { if (c.pinned) localPins[c.sessionId] = true; });
+            } catch {}
+
+            serverChats = sessions.map(s => ({
+                serverId: s.id,
+                sessionId: s.sessionId,
+                title: s.title || 'Chat',
+                updatedAt: new Date(s.updatedAt || s.createdAt).getTime(),
+                pinned: localPins[s.sessionId] || false,
+            }));
+
+            // Sort: most recent first
+            serverChats.sort((a, b) => b.updatedAt - a.updatedAt);
+
+            // Also update localStorage for offline fallback
+            saveChatHistory(serverChats);
+            return serverChats;
+        } catch (e) {
+            console.warn('Server chat history unavailable, using localStorage:', e);
+            serverAvailable = false;
+            return loadChatHistory();
+        }
     }
 
     function generateSessionId() {
@@ -1539,9 +1582,14 @@
     }
 
     // ======== Init ========
-    function init() {
+    async function init() {
         loadApplications();
-        const history = loadChatHistory();
+
+        // One-time migration of localStorage chats to server
+        await migrateLocalChatsToServer();
+
+        // Load from server
+        const history = await loadChatHistoryFromServer();
         if (history.length > 0) {
             renderChatHistory(history);
             loadChat(history[0].sessionId);
@@ -1550,6 +1598,32 @@
         }
         initSidebarResize();
         restoreSidebarWidth();
+    }
+
+    async function migrateLocalChatsToServer() {
+        if (localStorage.getItem('docgen_chat_migrated')) return;
+        try {
+            const local = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            if (local.length === 0) {
+                localStorage.setItem('docgen_chat_migrated', '1');
+                return;
+            }
+            let migrated = 0;
+            for (const chat of local) {
+                try {
+                    await fetch('/api/chat/sessions/get-or-create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId: chat.sessionId, title: chat.title }),
+                    });
+                    migrated++;
+                } catch {}
+            }
+            localStorage.setItem('docgen_chat_migrated', '1');
+            if (migrated > 0) showToast(`Migrated ${migrated} chat(s) to server`, 'success');
+        } catch (e) {
+            console.warn('Chat migration failed:', e);
+        }
     }
 
     // ======== Applications ========
@@ -1721,6 +1795,7 @@
     }
 
     function addToHistory(sessionId, title) {
+        // Update localStorage immediately for instant rendering
         const history = loadChatHistory();
         const existing = history.findIndex(h => h.sessionId === sessionId);
         const entry = {
@@ -1730,6 +1805,7 @@
         };
         if (existing >= 0) {
             entry.pinned = history[existing].pinned || false;
+            entry.serverId = history[existing].serverId;
             history[existing] = entry;
         } else {
             entry.pinned = false;
@@ -1737,7 +1813,22 @@
         }
         if (history.length > 50) history.length = 50;
         saveChatHistory(history);
+        serverChats = history;
         renderChatHistory(history);
+
+        // Sync to server (fire-and-forget)
+        fetch('/api/chat/sessions/get-or-create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, title: title.substring(0, 80) }),
+        }).then(res => {
+            if (res.ok) return res.json();
+        }).then(data => {
+            if (data) {
+                const idx = serverChats.findIndex(h => h.sessionId === sessionId);
+                if (idx >= 0) serverChats[idx].serverId = data.id;
+            }
+        }).catch(() => {});
     }
 
     // ======== Chat Delete ========
@@ -1745,10 +1836,18 @@
         const history = loadChatHistory();
         const idx = history.findIndex(h => h.sessionId === sessionId);
         if (idx < 0) return;
+
+        const chat = history[idx];
         history.splice(idx, 1);
         saveChatHistory(history);
+        serverChats = history;
         localStorage.removeItem('docgen_msgs_' + sessionId);
         localStorage.removeItem('docgen_feedback_' + sessionId);
+
+        // Delete from server
+        if (chat.serverId) {
+            fetch(`/api/chat/sessions/${chat.serverId}`, { method: 'DELETE' }).catch(() => {});
+        }
 
         if (sessionId === currentSessionId) {
             if (history.length > 0) {
@@ -1789,8 +1888,17 @@
             if (newTitle && newTitle !== chat.title) {
                 chat.title = newTitle.substring(0, 80);
                 saveChatHistory(history);
+                serverChats = history;
                 if (sessionId === currentSessionId) {
                     document.getElementById('chatTitle').textContent = chat.title;
+                }
+                // Sync rename to server
+                if (chat.serverId) {
+                    fetch(`/api/chat/sessions/${chat.serverId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title: chat.title }),
+                    }).catch(() => {});
                 }
             }
             renderChatHistory(loadChatHistory());
@@ -1816,7 +1924,8 @@
     // ======== Chat Search ========
     function filterChatHistory(query) {
         chatSearchFilter = query;
-        renderChatHistory(loadChatHistory());
+        const history = serverChats.length > 0 ? serverChats : loadChatHistory();
+        renderChatHistory(history);
     }
 
     // ======== Chat Export ========
@@ -1971,6 +2080,13 @@
         document.getElementById('queryInput').focus();
         renderChatHistory(loadChatHistory());
         updateMemoryBadge();
+
+        // Pre-create on server (fire-and-forget)
+        fetch('/api/chat/sessions/get-or-create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: currentSessionId, title: 'New conversation' }),
+        }).catch(() => {});
     }
 
     function showEmptyState() {

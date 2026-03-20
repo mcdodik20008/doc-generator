@@ -29,12 +29,12 @@ class VirtualNodeFactory(
         index: NodeIndex,
         application: Application,
     ): Pair<Node?, Boolean> {
-        // Создаем FQN для endpoint: "endpoint://{httpMethod} {url}"
+        // Создаем FQN для endpoint: "infra:http:{httpMethod}:{url}"
         val endpointFqn =
             if (httpMethod != null) {
-                "endpoint://$httpMethod $url"
+                "infra:http:$httpMethod:$url"
             } else {
-                "endpoint://$url"
+                "infra:http:UNKNOWN:$url"
             }
 
         // Пытаемся найти существующий узел
@@ -68,6 +68,7 @@ class VirtualNodeFactory(
                                 "url" to url,
                                 "httpMethod" to (httpMethod ?: "UNKNOWN"),
                                 "source" to "library_analysis",
+                                "synthetic" to true,
                             ),
                     ),
                 )
@@ -88,7 +89,7 @@ class VirtualNodeFactory(
         index: NodeIndex,
         application: Application,
     ): Pair<Node?, Boolean> {
-        val topicFqn = "topic://$topic"
+        val topicFqn = "infra:kafka:topic:$topic"
 
         val existing = index.findByFqn(topicFqn)
         if (existing != null) {
@@ -118,6 +119,7 @@ class VirtualNodeFactory(
                             mapOf(
                                 "topic" to topic,
                                 "source" to "library_analysis",
+                                "synthetic" to true,
                             ),
                     ),
                 )

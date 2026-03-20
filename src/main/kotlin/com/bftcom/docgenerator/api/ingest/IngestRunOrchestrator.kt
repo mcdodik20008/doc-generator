@@ -19,6 +19,7 @@ import com.bftcom.docgenerator.git.gitlab.GradleClasspathResolver
 import com.bftcom.docgenerator.graph.api.GraphBuilder
 import com.bftcom.docgenerator.graph.api.linker.GraphLinker
 import com.bftcom.docgenerator.library.api.LibraryBuilder
+import com.bftcom.docgenerator.library.api.integration.IntegrationPointLinker
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.scheduling.annotation.Async
@@ -41,6 +42,7 @@ class IngestRunOrchestrator(
     private val libraryBuilder: LibraryBuilder,
     private val graphBuilder: GraphBuilder,
     private val graphLinker: GraphLinker,
+    private val integrationPointLinker: IntegrationPointLinker,
     private val sseManager: IngestSseManager,
     private val tx: TransactionTemplate,
 ) {
@@ -291,6 +293,12 @@ class IngestRunOrchestrator(
             try {
                 val freshApp = tx.execute { applicationRepository.findById(appId).orElseThrow() }!!
                 graphLinker.link(freshApp)
+
+                // Создаем связи через интеграционные точки (HTTP endpoints, Kafka topics, Camel routes)
+                val integrationResult = integrationPointLinker.linkIntegrationPoints(freshApp)
+                log.info("Integration linking: HTTP={}, Kafka={}, Camel={}, errors={}",
+                    integrationResult.httpEdgesCreated, integrationResult.kafkaEdgesCreated,
+                    integrationResult.camelEdgesCreated, integrationResult.errors.size)
 
                 completeStep(linkStep)
                 emitEvent(runId, IngestStepType.LINK, IngestEventLevel.INFO, "Linking completed")

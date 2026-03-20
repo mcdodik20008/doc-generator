@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8"/>
+    <title>Doc Generator — Integrations</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+    <link rel="stylesheet" href="/css/common.css"/>
+    <script src="/js/common.js"></script>
+    <style>
+        .integrations-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+
+        /* ======== Search Panel ======== */
+        .search-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .search-panel-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .search-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .search-field label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        .search-field select,
+        .search-field input {
+            padding: 10px 12px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .search-field select:focus,
+        .search-field input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .search-btn {
+            padding: 10px 24px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .search-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        /* ======== Search Tabs ======== */
+        .search-tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .search-tab {
+            padding: 10px 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+            background: none;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+        }
+
+        .search-tab:hover {
+            color: var(--text);
+        }
+
+        .search-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        /* ======== Results Table ======== */
+        .results-table-container {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .results-table th {
+            background: var(--surface2);
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .results-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .results-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .results-table tr:hover {
+            background: var(--surface2);
+        }
+
+        .fqn-cell {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+        }
+
+        .parent-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            background: rgba(234, 179, 8, 0.15);
+            color: #eab308;
+        }
+
+        .action-btn {
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* ======== Summary Card ======== */
+        .summary-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .summary-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .summary-fqn {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .resilience-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .resilience-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .resilience-badge.retry {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+        }
+
+        .resilience-badge.timeout {
+            background: rgba(234, 179, 8, 0.1);
+            color: #eab308;
+        }
+
+        .resilience-badge.circuit-breaker {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .summary-section {
+            margin-top: 20px;
+        }
+
+        .summary-section-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .integration-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: var(--surface2);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+
+        .type-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .type-badge.http { background: rgba(99, 102, 241, 0.15); color: #6366f1; }
+        .type-badge.kafka { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+        .type-badge.camel { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+
+        .integration-url {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            flex: 1;
+            word-break: break-all;
+        }
+
+        .integration-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* ======== Empty State ======== */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state .empty-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .empty-state .empty-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .empty-state .empty-subtitle {
+            font-size: 14px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+
+        .back-btn {
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 16px;
+        }
+
+        .back-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<div class="header">
+    <div>
+        <h1>
+            <span class="logo">&#9670;</span>
+            Integration Points
+        </h1>
+        <div class="breadcrumbs" style="margin-top:4px;margin-left:38px">
+            <a href="/">Doc Generator</a><span class="sep">/</span><span class="current">Integrations</span>
+        </div>
+    </div>
+    <div class="header-right">
+        <nav class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/graph">Graph</a>
+            <a href="/chat">Chat</a>
+            <a href="/ingest">Ingest</a>
+            <a href="/health">Health</a>
+            <a href="/integrations" class="active">Integrations</a>
+        </nav>
+        <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">&#9728;</button>
+    </div>
+</div>
+
+<main id="main">
+    <div class="integrations-container">
+        <!-- Search Panel -->
+        <div class="search-panel">
+            <div class="search-tabs">
+                <button class="search-tab active" onclick="switchSearchTab('url')">HTTP URL</button>
+                <button class="search-tab" onclick="switchSearchTab('kafka')">Kafka Topic</button>
+                <button class="search-tab" onclick="switchSearchTab('camel')">Camel URI</button>
+                <button class="search-tab" onclick="switchSearchTab('summary')">Method Summary</button>
+                <button class="search-tab" onclick="switchSearchTab('parents')">Parent Clients</button>
+            </div>
+
+            <div class="search-panel-row">
+                <div class="search-field">
+                    <label>Library</label>
+                    <select id="librarySelect">
+                        <option value="">All libraries</option>
+                    </select>
+                </div>
+                <div class="search-field" id="searchInputField">
+                    <label id="searchInputLabel">URL</label>
+                    <input type="text" id="searchInput" placeholder="Enter URL to search..." onkeydown="if(event.key==='Enter')performSearch()"/>
+                </div>
+                <button class="search-btn" onclick="performSearch()">Search</button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="resultsLoading" class="loading" style="display:none">Searching...</div>
+
+        <div id="resultsEmpty" class="empty-state">
+            <div class="empty-icon">&#128279;</div>
+            <div class="empty-title">Integration Points Explorer</div>
+            <div class="empty-subtitle">Search for HTTP URLs, Kafka topics, or Camel URIs to find which library methods use them. You can also view method integration summaries and find parent clients.</div>
+        </div>
+
+        <div id="resultsContainer" style="display:none"></div>
+    </div>
+</main>
+
+<script>
+    let currentTab = 'url';
+    let libraries = [];
+
+    async function init() {
+        await loadLibraries();
+    }
+
+    async function loadLibraries() {
+        try {
+            const res = await fetch('/api/libraries');
+            if (!res.ok) return;
+            libraries = await res.json();
+            const select = document.getElementById('librarySelect');
+            libraries.forEach(lib => {
+                const opt = document.createElement('option');
+                opt.value = lib.id;
+                opt.textContent = lib.coordinate;
+                select.appendChild(opt);
+            });
+        } catch (e) {
+            console.error('Failed to load libraries:', e);
+        }
+    }
+
+    function switchSearchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.search-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector(`.search-tab[onclick="switchSearchTab('${tab}')"]`).classList.add('active');
+
+        const inputField = document.getElementById('searchInputField');
+        const inputLabel = document.getElementById('searchInputLabel');
+        const input = document.getElementById('searchInput');
+
+        switch (tab) {
+            case 'url':
+                inputLabel.textContent = 'URL';
+                input.placeholder = 'Enter URL to search...';
+                inputField.style.display = '';
+                break;
+            case 'kafka':
+                inputLabel.textContent = 'Topic';
+                input.placeholder = 'Enter Kafka topic name...';
+                inputField.style.display = '';
+                break;
+            case 'camel':
+                inputLabel.textContent = 'URI';
+                input.placeholder = 'Enter Camel URI...';
+                inputField.style.display = '';
+                break;
+            case 'summary':
+                inputLabel.textContent = 'Method FQN';
+                input.placeholder = 'Enter method fully qualified name...';
+                inputField.style.display = '';
+                break;
+            case 'parents':
+                inputField.style.display = 'none';
+                break;
+        }
+    }
+
+    async function performSearch() {
+        const libraryId = document.getElementById('librarySelect').value;
+        const query = document.getElementById('searchInput').value.trim();
+
+        if (currentTab !== 'parents' && !query) {
+            showToast('Please enter a search query', 'error');
+            return;
+        }
+
+        if (currentTab === 'parents' && !libraryId) {
+            showToast('Please select a library for Parent Clients search', 'error');
+            return;
+        }
+
+        if (currentTab === 'summary' && !libraryId) {
+            showToast('Please select a library for Method Summary', 'error');
+            return;
+        }
+
+        document.getElementById('resultsLoading').style.display = 'block';
+        document.getElementById('resultsEmpty').style.display = 'none';
+        document.getElementById('resultsContainer').style.display = 'none';
+
+        try {
+            let url;
+            const params = new URLSearchParams();
+            if (libraryId) params.set('libraryId', libraryId);
+
+            switch (currentTab) {
+                case 'url':
+                    params.set('url', query);
+                    url = '/api/integration/methods/by-url?' + params;
+                    break;
+                case 'kafka':
+                    params.set('topic', query);
+                    url = '/api/integration/methods/by-kafka-topic?' + params;
+                    break;
+                case 'camel':
+                    params.set('uri', query);
+                    url = '/api/integration/methods/by-camel-uri?' + params;
+                    break;
+                case 'summary':
+                    params.set('methodFqn', query);
+                    url = '/api/integration/method/summary?' + params;
+                    break;
+                case 'parents':
+                    url = '/api/integration/parent-clients?' + params;
+                    break;
+            }
+
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('status ' + res.status);
+            const data = await res.json();
+
+            document.getElementById('resultsLoading').style.display = 'none';
+
+            if (currentTab === 'summary') {
+                if (!data) {
+                    document.getElementById('resultsEmpty').style.display = 'block';
+                    document.getElementById('resultsEmpty').querySelector('.empty-title').textContent = 'Method not found';
+                    document.getElementById('resultsEmpty').querySelector('.empty-subtitle').textContent = 'No integration summary available for this method.';
+                } else {
+                    renderMethodSummary(data);
+                }
+            } else {
+                if (data.length === 0) {
+                    document.getElementById('resultsEmpty').style.display = 'block';
+                    document.getElementById('resultsEmpty').querySelector('.empty-title').textContent = 'No results found';
+                    document.getElementById('resultsEmpty').querySelector('.empty-subtitle').textContent = 'Try a different search query or select a different library.';
+                } else {
+                    renderMethodList(data);
+                }
+            }
+        } catch (e) {
+            console.error('Search failed:', e);
+            document.getElementById('resultsLoading').style.display = 'none';
+            showToast('Search failed: ' + e.message, 'error');
+        }
+    }
+
+    function renderMethodList(methods) {
+        const container = document.getElementById('resultsContainer');
+        container.style.display = 'block';
+
+        let html = `<div class="results-table-container"><table class="results-table">
+            <thead><tr>
+                <th>FQN</th>
+                <th>Name</th>
+                <th>Library</th>
+                <th>Parent Client</th>
+                <th>Actions</th>
+            </tr></thead><tbody>`;
+
+        methods.forEach(m => {
+            html += `<tr>
+                <td class="fqn-cell">${esc(m.fqn)}</td>
+                <td>${esc(m.name || '-')}</td>
+                <td>${esc(m.libraryCoordinate)}</td>
+                <td>${m.isParentClient ? '<span class="parent-badge">PARENT</span>' : '-'}</td>
+                <td><button class="action-btn" onclick="viewMethodSummary('${esc(m.fqn)}', '${esc(m.libraryCoordinate)}')">Summary</button></td>
+            </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    }
+
+    function renderMethodSummary(summary) {
+        const container = document.getElementById('resultsContainer');
+        container.style.display = 'block';
+
+        let html = '<button class="back-btn" onclick="goBackToResults()">&larr; Back to results</button>';
+        html += '<div class="summary-card">';
+
+        // Header
+        html += '<div class="summary-header">';
+        html += `<div class="summary-fqn">${esc(summary.methodFqn)}</div>`;
+        if (summary.isParentClient) html += '<span class="parent-badge">PARENT CLIENT</span>';
+        html += '</div>';
+
+        // Resilience badges
+        const badges = [];
+        if (summary.hasRetry) badges.push('<span class="resilience-badge retry">Retry</span>');
+        if (summary.hasTimeout) badges.push('<span class="resilience-badge timeout">Timeout</span>');
+        if (summary.hasCircuitBreaker) badges.push('<span class="resilience-badge circuit-breaker">Circuit Breaker</span>');
+        if (badges.length > 0) {
+            html += '<div class="resilience-badges">' + badges.join('') + '</div>';
+        }
+
+        // HTTP Endpoints
+        if (summary.httpEndpoints && summary.httpEndpoints.length > 0) {
+            html += '<div class="summary-section">';
+            html += '<div class="summary-section-title">HTTP Endpoints (' + summary.httpEndpoints.length + ')</div>';
+            summary.httpEndpoints.forEach(ep => {
+                const methodClass = ep.httpMethod ? 'method-' + ep.httpMethod.toLowerCase() : '';
+                html += `<div class="integration-item">
+                    <span class="type-badge http">HTTP</span>
+                    ${ep.httpMethod ? `<span class="type-badge ${methodClass}">${ep.httpMethod}</span>` : ''}
+                    <span class="integration-url">${esc(ep.url || '-')}</span>
+                    <span class="integration-meta">${esc(ep.clientType || '')}</span>
+                </div>`;
+            });
+            html += '</div>';
+        }
+
+        // Kafka Topics
+        if (summary.kafkaTopics && summary.kafkaTopics.length > 0) {
+            html += '<div class="summary-section">';
+            html += '<div class="summary-section-title">Kafka Topics (' + summary.kafkaTopics.length + ')</div>';
+            summary.kafkaTopics.forEach(t => {
+                html += `<div class="integration-item">
+                    <span class="type-badge kafka">KAFKA</span>
+                    <span class="integration-url">${esc(t.topic || '-')}</span>
+                    <span class="integration-meta">${esc(t.operation || '')} / ${esc(t.clientType || '')}</span>
+                </div>`;
+            });
+            html += '</div>';
+        }
+
+        // Camel Routes
+        if (summary.camelRoutes && summary.camelRoutes.length > 0) {
+            html += '<div class="summary-section">';
+            html += '<div class="summary-section-title">Camel Routes (' + summary.camelRoutes.length + ')</div>';
+            summary.camelRoutes.forEach(r => {
+                html += `<div class="integration-item">
+                    <span class="type-badge camel">CAMEL</span>
+                    <span class="integration-url">${esc(r.uri || '-')}</span>
+                    <span class="integration-meta">${esc(r.endpointType || '')} / ${esc(r.direction || '')}</span>
+                </div>`;
+            });
+            html += '</div>';
+        }
+
+        // Empty integrations
+        if ((!summary.httpEndpoints || summary.httpEndpoints.length === 0) &&
+            (!summary.kafkaTopics || summary.kafkaTopics.length === 0) &&
+            (!summary.camelRoutes || summary.camelRoutes.length === 0)) {
+            html += '<div style="padding:20px;text-align:center;color:var(--text-muted)">No integration points found for this method.</div>';
+        }
+
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function viewMethodSummary(fqn, libraryCoordinate) {
+        // Find library ID by coordinate
+        const lib = libraries.find(l => l.coordinate === libraryCoordinate);
+        if (!lib) {
+            showToast('Library not found', 'error');
+            return;
+        }
+
+        document.getElementById('searchInput').value = fqn;
+        document.getElementById('librarySelect').value = lib.id;
+        switchSearchTab('summary');
+        performSearch();
+    }
+
+    function goBackToResults() {
+        // Re-run the previous search (switch back to url/kafka/camel tab)
+        switchSearchTab('url');
+    }
+
+    // Method badge styles (reused from admin)
+    const methodBadgeStyle = document.createElement('style');
+    methodBadgeStyle.textContent = `
+        .method-get { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+        .method-post { background: rgba(99, 102, 241, 0.15); color: #6366f1; }
+        .method-put { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+        .method-delete { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+        .method-patch { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+    `;
+    document.head.appendChild(methodBadgeStyle);
+
+    init();
+</script>
+</body>
+</html>

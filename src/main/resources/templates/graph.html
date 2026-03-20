@@ -399,6 +399,7 @@
                 <a href="/chat">Chat</a>
                 <a href="/ingest">Ingest</a>
                 <a href="/health">Health</a>
+                <a href="/integrations">Integrations</a>
             </nav>
             <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">&#9728;</button>
         </div>
@@ -839,6 +840,19 @@ function buildCyStyles() {
                 'width': 50,
                 'height': 50,
                 'font-size': 12
+            }
+        },
+        {
+            selector: 'node[kind = "API_CONTRACT"]',
+            style: {
+                'background-color': '#a6e3a1',
+                'shape': 'diamond',
+                'width': 65,
+                'height': 65,
+                'font-size': 13,
+                'font-weight': 'bold',
+                'text-valign': 'center',
+                'text-margin-y': 0
             }
         }
     ];
@@ -1921,25 +1935,39 @@ function toggleIntegrationType(type) {
 }
 
 function toCrossAppCyElements(data) {
-    const nodes = data.nodes.map(n => ({
-        data: {
+    if (!data) return { nodes: [], edges: [] };
+    const rawNodes = data.nodes || [];
+    const rawEdges = data.edges || [];
+
+    const nodeSet = new Set();
+    const nodes = [];
+    for (const n of rawNodes) {
+        if (nodeSet.has(n.id)) continue;
+        nodeSet.add(n.id);
+        nodes.push({ data: {
             id: n.id,
             label: n.label,
             kind: n.kind,
-            metadata: n.metadata,
+            metadata: n.metadata || {},
             group: n.kind === 'APPLICATION' ? 'apps' : 'integrations'
-        }
-    }));
+        }});
+    }
 
-    const edges = data.edges.map(e => ({
-        data: {
-            id: e.source + '_' + e.target + '_' + e.kind,
+    const edgeSet = new Set();
+    const edges = [];
+    for (const e of rawEdges) {
+        const eid = e.source + '_' + e.target + '_' + e.kind;
+        if (edgeSet.has(eid)) continue;
+        if (!nodeSet.has(e.source) || !nodeSet.has(e.target)) continue;
+        edgeSet.add(eid);
+        edges.push({ data: {
+            id: eid,
             source: e.source,
             target: e.target,
             kind: e.kind,
-            methodCount: e.methodCount
-        }
-    }));
+            methodCount: e.methodCount || 1
+        }});
+    }
 
     return { nodes, edges };
 }
@@ -1949,10 +1977,12 @@ function updateCrossAppStats(stats) {
     const statEdges = document.getElementById('stat-edges');
     const statSelected = document.getElementById('stat-selected');
 
-    statNodes.textContent = stats.applicationCount + ' apps, ' +
-        stats.httpEndpoints + ' HTTP, ' +
-        stats.kafkaTopics + ' Kafka, ' +
-        stats.camelRoutes + ' Camel';
+    let parts = [stats.applicationCount + ' apps'];
+    if (stats.apiContracts > 0) parts.push(stats.apiContracts + ' contracts');
+    if (stats.httpEndpoints > 0) parts.push(stats.httpEndpoints + ' HTTP');
+    if (stats.kafkaTopics > 0) parts.push(stats.kafkaTopics + ' Kafka');
+    if (stats.camelRoutes > 0) parts.push(stats.camelRoutes + ' Camel');
+    statNodes.textContent = parts.join(', ');
     statEdges.textContent = stats.totalEdges;
     statSelected.textContent = '-';
 }
@@ -1994,6 +2024,47 @@ function showCrossAppNodeDetails(cyNode) {
                 html += '</li>';
             });
             html += '</ul></div>';
+        }
+    } else if (kind === 'API_CONTRACT') {
+        html += '<div class="detail-block"><h4>API Contract</h4>';
+        html += '<pre>' + escapeHtml(JSON.stringify({
+            interfaceFqn: metadata.interfaceFqn || metadata.fqn,
+            methodCount: metadata.methodCount,
+            applicationsCount: metadata.applicationsCount
+        }, null, 2)) + '</pre></div>';
+
+        // Show providers and consumers
+        const connectedEdges = cyNode.connectedEdges();
+        if (connectedEdges.length > 0) {
+            const providers = [];
+            const consumers = [];
+            connectedEdges.forEach(edge => {
+                const appNode = edge.source().id() === nodeData.id ? edge.target() : edge.source();
+                const edgeKind = edge.data('kind');
+                if (edgeKind === 'PROVIDES') {
+                    providers.push(appNode);
+                } else {
+                    consumers.push(appNode);
+                }
+            });
+            if (providers.length > 0) {
+                html += '<div class="detail-block"><h4>Providers (' + providers.length + ')</h4>';
+                html += '<ul class="relation-list">';
+                providers.forEach(n => {
+                    html += '<li><span class="relation-kind">PROVIDES</span>';
+                    html += ' <span class="relation-link" onclick="focusNode(\'' + escapeHtml(n.id()) + '\')">' + escapeHtml(n.data('label')) + '</span></li>';
+                });
+                html += '</ul></div>';
+            }
+            if (consumers.length > 0) {
+                html += '<div class="detail-block"><h4>Consumers (' + consumers.length + ')</h4>';
+                html += '<ul class="relation-list">';
+                consumers.forEach(n => {
+                    html += '<li><span class="relation-kind">CONSUMES</span>';
+                    html += ' <span class="relation-link" onclick="focusNode(\'' + escapeHtml(n.id()) + '\')">' + escapeHtml(n.data('label')) + '</span></li>';
+                });
+                html += '</ul></div>';
+            }
         }
     } else if (kind === 'ENDPOINT' || kind === 'TOPIC') {
         html += '<div class="detail-block"><h4>Integration Point</h4>';

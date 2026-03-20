@@ -30,7 +30,7 @@ class VirtualNodeFactoryTest {
             Node(
                 id = 100L,
                 application = app,
-                fqn = "endpoint://GET /api/users",
+                fqn = "infra:http:GET:/api/users",
                 name = "users",
                 packageName = null,
                 kind = NodeKind.ENDPOINT,
@@ -70,12 +70,13 @@ class VirtualNodeFactoryTest {
 
         assertThat(created).isTrue()
         assertThat(node).isNotNull
-        assertThat(node!!.fqn).isEqualTo("endpoint://GET /api/users")
+        assertThat(node!!.fqn).isEqualTo("infra:http:GET:/api/users")
         assertThat(node.kind).isEqualTo(NodeKind.ENDPOINT)
         assertThat(node.lang).isEqualTo(Lang.java)
         assertThat(node.meta).containsEntry("url", "/api/users")
         assertThat(node.meta).containsEntry("httpMethod", "GET")
         assertThat(node.meta).containsEntry("source", "library_analysis")
+        assertThat(node.meta).containsEntry("synthetic", true)
         verify(exactly = 1) { nodeRepo.save(any()) }
     }
 
@@ -94,7 +95,7 @@ class VirtualNodeFactoryTest {
 
         assertThat(created).isTrue()
         assertThat(node).isNotNull
-        assertThat(node!!.fqn).isEqualTo("endpoint:///api/users")
+        assertThat(node!!.fqn).isEqualTo("infra:http:UNKNOWN:/api/users")
         assertThat(node.meta).containsEntry("httpMethod", "UNKNOWN")
     }
 
@@ -112,11 +113,12 @@ class VirtualNodeFactoryTest {
 
         assertThat(created).isTrue()
         assertThat(node).isNotNull
-        assertThat(node!!.fqn).isEqualTo("topic://orders")
+        assertThat(node!!.fqn).isEqualTo("infra:kafka:topic:orders")
         assertThat(node.kind).isEqualTo(NodeKind.TOPIC)
         assertThat(node.lang).isEqualTo(Lang.java)
         assertThat(node.meta).containsEntry("topic", "orders")
         assertThat(node.meta).containsEntry("source", "library_analysis")
+        assertThat(node.meta).containsEntry("synthetic", true)
     }
 
     @Test

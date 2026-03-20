@@ -143,13 +143,13 @@ function initTheme() {
     updateThemeIcon(theme);
 
     // Dynamic page title based on current URL
-    const pageNames = { '/': 'Dashboard', '/graph': 'Graph Explorer', '/chat': 'Chat', '/ingest': 'Ingest', '/health': 'Health' };
+    const pageNames = { '/': 'Dashboard', '/graph': 'Graph Explorer', '/chat': 'Chat', '/ingest': 'Ingest', '/health': 'Health', '/integrations': 'Integrations' };
     const pageName = pageNames[window.location.pathname];
     if (pageName) document.title = 'Doc Generator \u2014 ' + pageName;
 
-    // Add title hints for nav links (Alt+1..5)
-    const shortcuts = { '/': '1', '/graph': '2', '/chat': '3', '/ingest': '4', '/health': '5' };
-    const labels = { '/': 'Dashboard', '/graph': 'Graph', '/chat': 'Chat', '/ingest': 'Ingest', '/health': 'Health' };
+    // Add title hints for nav links (Alt+1..6)
+    const shortcuts = { '/': '1', '/graph': '2', '/chat': '3', '/ingest': '4', '/health': '5', '/integrations': '6' };
+    const labels = { '/': 'Dashboard', '/graph': 'Graph', '/chat': 'Chat', '/ingest': 'Ingest', '/health': 'Health', '/integrations': 'Integrations' };
     document.querySelectorAll('.nav-links a, .sidebar-nav a').forEach(a => {
         const path = new URL(a.href, location.origin).pathname;
         if (shortcuts[path]) {
@@ -177,7 +177,7 @@ document.addEventListener('keydown', function(e) {
     var tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 
-    var routes = { '1': '/', '2': '/graph', '3': '/chat', '4': '/ingest', '5': '/health' };
+    var routes = { '1': '/', '2': '/graph', '3': '/chat', '4': '/ingest', '5': '/health', '6': '/integrations' };
     if (routes[e.key]) {
         e.preventDefault();
         window.location.href = routes[e.key];
