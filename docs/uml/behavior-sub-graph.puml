@@ -1,0 +1,22 @@
+@startuml
+!theme plain
+skinparam linetype polyline
+
+node "Type (Class)" as TYP #E3F2FD
+node "Method / Function" as M1 #FFF3E0
+node "Method / Function" as M2 #FFF3E0
+node "LibraryNode (Kafka)" as LIB #E8F5E9
+
+' Структура
+TYP -down-> M1 : <color:blue>CONTAINS</color>
+TYP -down-> M2 : <color:blue>CONTAINS</color>
+
+' Поведение (наш фокус сейчас)
+M1 -right-> M2 : <color:red>CALLS_CODE</color>
+M1 .up.> TYP : <color:red>THROWS (Exception)</color>
+
+' Интеграция
+M2 -down-> LIB : <color:green>PRODUCES (Topic)</color>
+
+note bottom of M1: Поведенческий слой:\nЦепочки вызовов и\nобработка исключений
+@enduml

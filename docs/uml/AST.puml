@@ -1,0 +1,36 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam ArrowThickness 1.5
+
+' Узлы дерева
+rectangle "KtFile (GraphLinkerImpl.kt)" as File #F8F9FA
+rectangle "KtClass (GraphLinkerImpl)" as Class #E3F2FD
+rectangle "KtAnnotationEntry (@Service)" as Ann #FFF3E0
+rectangle "KtParameterList (Constructor)" as Params #F3E5F5
+
+rectangle "KtParameter (nodeRepo)" as P1 #E8F5E9
+rectangle "KtTypeReference (NodeRepository)" as T1 #FCE4EC
+
+rectangle "KtNamedFunction (link)" as Func #FFF9C4
+rectangle "KtAnnotationEntry (@Transactional)" as Ann2 #FFF3E0
+
+' Связи (Иерархия AST)
+File --> Ann
+File --> Class
+Class --> Params
+Class --> Func
+
+Params --> P1
+P1 --> T1
+
+Func --> Ann2
+
+note bottom of T1
+  **Лист дерева:** Просто текст "NodeRepository".
+  AST еще не знает, что это
+  интерфейс из другого пакета.
+end note
+
+@enduml

@@ -1,0 +1,40 @@
+@startuml
+!theme plain
+skinparam shadowing false
+left to right direction
+skinparam ranksep 50
+
+' Стили
+skinparam rectangle {
+    BackgroundColor<<input>> #F8F9FA
+    BorderColor<<input>> #343A40
+    BackgroundColor<<tool>> #FFF3E0
+    BorderColor<<tool>> #E65100
+    BackgroundColor<<output>> #E8F5E9
+    BorderColor<<output>> #2E7D32
+}
+
+' Элементы конвейера
+rectangle "Внешняя зависимость\n(spring-boot-starter.jar)" as JAR <<input>>
+rectangle "Анализатор байткода\n(ObjectWeb ASM / Javassist)" as Tool <<tool>>
+rectangle "Метаданные графа\n(REST, Kafka, DB)" as Meta <<output>>
+
+' Процесс
+JAR --> Tool : Интроспекция .class файлов
+Tool --> Meta : Реконструкция контрактов
+
+' Примеры того, что достаем
+note bottom of Meta
+  **Извлекаемые сущности:**
+  * Эндпоинты (@GetMapping)
+  * Топики Kafka (@KafkaListener)
+  * Модели данных (@Table)
+end note
+
+note bottom of Tool
+  **Зачем это нужно:**
+  У библиотек нет исходников,
+  но байткод хранит сигнатуры
+  и аннотации.
+end note
+@enduml

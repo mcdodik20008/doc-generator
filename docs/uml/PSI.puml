@@ -1,0 +1,25 @@
+@startuml
+skinparam defaultFontName Consolas
+skinparam shadowing false
+skinparam RoundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowThickness 2
+
+package "Файл A: GraphLinkerImpl.kt" <<Rectangle>> #E8F4F8 {
+    rectangle "KtCallExpression\n==\nlibraryNodeSink.upsertLibraryNodeEdges(...)" as Call #White
+}
+
+package "Файл B: LibraryNodeGraphSink.kt" <<Rectangle>> #E8F8E8 {
+    rectangle "KtNamedFunction\n==\nfun upsertLibraryNodeEdges(...)" as Decl #White
+}
+
+database "Граф Знаний (PostgreSQL)" as DB #F0F0F0
+
+Call -[#D9534F,thickness=3]-> Decl : **Reference Resolution**\n(Разрешение кросс-файловой ссылки)
+Decl -[#28A745,thickness=2]-> DB : Массовый Upsert ребра\n**[CALLS]**
+
+note top of Call
+  AST видит только строку "upsert".
+  Связь обрывается.
+end note
+@enduml

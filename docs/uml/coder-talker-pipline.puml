@@ -1,0 +1,63 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam defaultFontName Arial
+
+' Уплотняем схему
+skinparam ranksep 25
+skinparam nodesep 10
+' Убираем стереотипы (надписи в кавычках)
+hide stereotype
+
+left to right direction
+
+' Стили слоев
+skinparam rectangle {
+    BackgroundColor<<L1>> #E8F5E9
+    BorderColor<<L1>> #2E7D32
+    BackgroundColor<<L2>> #FFF3E0
+    BorderColor<<L2>> #E65100
+    BackgroundColor<<L3>> #E3F2FD
+    BorderColor<<L3>> #0D47A1
+    BackgroundColor<<L4>> #F3E5F5
+    BorderColor<<L4>> #7B1FA2
+}
+
+' Компактные блоки
+rectangle "L1: Листья\n(FIELD, TOPIC)" as L1 <<L1>>
+rectangle "L2: Логика\n(METHOD)" as L2 <<L2>>
+rectangle "L3: Единицы\n(CLASS, PKG)" as L3 <<L3>>
+rectangle "L4: Контекст\n(REPO)" as L4 <<L4>>
+
+' Связи
+L1 --> L2 : doc_digest
+L2 --> L3 : doc_digest
+L3 --> L4 : doc_digest
+
+' Узкие и высокие сноски
+note top of L1
+  **Всегда готовы:**
+  Нет зависимостей,
+  старт обхода
+end note
+
+note top of L2
+  **Условие L2:**
+  Зависимости (CALLS,
+  READS) имеют digest
+end note
+
+note top of L3
+  **Условие L3:**
+  Дочерние (METHODS,
+  FIELDS) готовы
+end note
+
+note top of L4
+  **Условие L4:**
+  Все дочерние
+  компоненты (CLASS)
+  задокументированы
+end note
+
+@enduml
