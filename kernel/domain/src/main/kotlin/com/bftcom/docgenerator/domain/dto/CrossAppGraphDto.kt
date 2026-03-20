@@ -39,7 +39,8 @@ data class CrossAppStatistics(
     val kafkaTopics: Int,
     val camelRoutes: Int,
     val totalEdges: Int,
-    val apiContracts: Int = 0
+    val apiContracts: Int = 0,
+    val endpointMatches: Int = 0
 )
 
 /**

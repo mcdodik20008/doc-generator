@@ -30,6 +30,10 @@ class EndpointClassExtractor : NodeKindExtractor {
         if (NkxUtil.hasAnyAnn(a, "GrpcService")) {
             return NodeKind.ENDPOINT
         }
+        // Feign client interfaces (consumers of HTTP endpoints)
+        if (NkxUtil.hasAnyAnn(a, "FeignClient")) {
+            return NodeKind.ENDPOINT
+        }
         return null
     }
 

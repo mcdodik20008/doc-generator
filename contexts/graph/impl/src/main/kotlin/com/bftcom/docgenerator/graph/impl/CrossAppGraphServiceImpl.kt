@@ -14,11 +14,12 @@ import org.springframework.transaction.annotation.Transactional
 /**
  * Реализация сервиса для построения cross-app графов.
  *
- * Использует две стратегии поиска интеграционных связей:
+ * Использует три стратегии поиска интеграционных связей:
  * - Strategy A: API Contract Matching — обнаружение shared интерфейсов (API контрактов) между приложениями
  * - Strategy B: Synthetic Node Matching — поиск синтетических нод (meta.synthetic=true)
+ * - Strategy C: Endpoint Path Matching — сопоставление клиентских synthetic endpoint-ов с серверными apiMetadata по HTTP method + path
  *
- * Результаты обеих стратегий объединяются с дедупликацией.
+ * Результаты всех стратегий объединяются с дедупликацией.
  */
 @Service
 @Transactional(readOnly = true)
@@ -37,6 +38,7 @@ class CrossAppGraphServiceImpl(
         val kafkaCount: Int = 0,
         val camelCount: Int = 0,
         val apiContractCount: Int = 0,
+        val endpointMatchCount: Int = 0,
     ) {
         companion object {
             val EMPTY = IntegrationResult(emptyList(), emptyList())
@@ -72,9 +74,10 @@ class CrossAppGraphServiceImpl(
         val appIds = apps.map { requireNotNull(it.id) }
         log.debug("Found {} applications: {}", apps.size, apps.map { it.key })
 
-        // 2. Run both strategies
+        // 2. Run all strategies
         val strategyA = findApiContracts(appIds, integrationTypes)
         val strategyB = findSyntheticNodes(appIds, integrationTypes, limit)
+        val strategyC = findEndpointPathMatches(appIds, integrationTypes)
 
         // 3. Build application nodes
         val appNodes = apps.map { app ->
@@ -93,7 +96,7 @@ class CrossAppGraphServiceImpl(
         val allIntegrationNodes = mutableMapOf<String, CrossAppNode>()
         val allEdges = mutableMapOf<String, CrossAppEdge>()
 
-        for (result in listOf(strategyA, strategyB)) {
+        for (result in listOf(strategyA, strategyB, strategyC)) {
             for (node in result.nodes) {
                 allIntegrationNodes.putIfAbsent(node.id, node)
             }
@@ -114,14 +117,16 @@ class CrossAppGraphServiceImpl(
             kafkaTopics = strategyB.kafkaCount,
             camelRoutes = strategyB.camelCount,
             totalEdges = crossAppEdges.size,
-            apiContracts = strategyA.apiContractCount
+            apiContracts = strategyA.apiContractCount,
+            endpointMatches = strategyC.endpointMatchCount
         )
 
         log.info(
-            "Cross-app graph built: {} nodes, {} edges (apiContracts={}, synthetic={})",
+            "Cross-app graph built: {} nodes, {} edges (apiContracts={}, synthetic={}, endpointMatches={})",
             crossAppNodes.size, crossAppEdges.size,
             strategyA.apiContractCount,
-            strategyB.nodes.size
+            strategyB.nodes.size,
+            strategyC.endpointMatchCount
         )
 
         return CrossAppGraphResponse(
@@ -348,6 +353,200 @@ class CrossAppGraphServiceImpl(
             kafkaCount = kafkaCount,
             camelCount = camelCount
         )
+    }
+
+    // =====================================================================
+    //  Strategy C: Endpoint Path Matching
+    // =====================================================================
+
+    /**
+     * Сопоставляет клиентские синтетические endpoint-ы (URL из FQN) с серверными endpoint-ами
+     * (apiMetadata из @RequestMapping аннотаций) по HTTP-методу + пути.
+     *
+     * Клиент: infra:http:GET:https://host/ups/v1/findEstoDto → key "GET:/ups/v1/findEstoDto"
+     * Сервер: ENDPOINT с meta.apiMetadata={method:GET, path:/findEstoDto}, parent basePath=/ups/v1 → key "GET:/ups/v1/findEstoDto"
+     */
+    private fun findEndpointPathMatches(
+        appIds: List<Long>,
+        integrationTypes: Set<IntegrationType>,
+    ): IntegrationResult {
+        if (integrationTypes.isNotEmpty() && IntegrationType.HTTP !in integrationTypes) {
+            return IntegrationResult.EMPTY
+        }
+
+        val endpointNodes = nodeRepo.findAllByApplicationIdInAndKindIn(
+            appIds,
+            setOf(NodeKind.ENDPOINT, NodeKind.TOPIC)
+        )
+
+        // --- Server endpoints: non-synthetic ENDPOINT nodes with apiMetadata ---
+        data class ServerEntry(val key: String, val appId: Long, val node: Node)
+        data class ClientEntry(val key: String, val appId: Long, val node: Node)
+
+        val serverEntries = mutableListOf<ServerEntry>()
+        val clientEntries = mutableListOf<ClientEntry>()
+
+        for (node in endpointNodes) {
+            val appId = node.application.id ?: continue
+            val isSynthetic = node.meta["synthetic"] as? Boolean ?: false
+            val isLegacyVirtual = node.meta["source"] == "library_analysis"
+
+            if (isSynthetic || isLegacyVirtual) {
+                // Client-side synthetic node: extract method+path from FQN
+                val fqn = normalizeFqn(node.fqn)
+                if (!fqn.startsWith("infra:http:")) continue
+
+                val afterPrefix = fqn.removePrefix("infra:http:")
+                val colonIdx = afterPrefix.indexOf(':')
+                if (colonIdx <= 0) continue
+
+                val method = afterPrefix.substring(0, colonIdx).uppercase()
+                val url = afterPrefix.substring(colonIdx + 1)
+                val path = extractPathFromUrl(url) ?: continue
+
+                val key = "$method:${normalizeHttpPath(path)}"
+                clientEntries.add(ClientEntry(key, appId, node))
+            } else {
+                // Server-side node: check for apiMetadata
+                val apiMetadata = node.meta["apiMetadata"] as? Map<*, *> ?: continue
+                val atType = apiMetadata["@type"] as? String
+                if (atType != "HttpEndpoint") continue
+
+                val method = (apiMetadata["method"] as? String)?.uppercase() ?: continue
+                val endpointPath = apiMetadata["path"] as? String ?: continue
+
+                // Resolve basePath from parent node
+                val basePath = getParentBasePath(node) ?: ""
+                val fullPath = normalizeHttpPath(basePath + endpointPath)
+
+                val key = "$method:$fullPath"
+                serverEntries.add(ServerEntry(key, appId, node))
+            }
+        }
+
+        if (serverEntries.isEmpty() || clientEntries.isEmpty()) {
+            return IntegrationResult.EMPTY
+        }
+
+        // Group by key
+        val serverByKey = serverEntries.groupBy { it.key }
+        val clientByKey = clientEntries.groupBy { it.key }
+
+        val nodes = mutableListOf<CrossAppNode>()
+        val edges = mutableListOf<CrossAppEdge>()
+        var matchCount = 0
+
+        for ((key, servers) in serverByKey) {
+            val clients = clientByKey[key] ?: continue
+
+            // Only match across different applications
+            val serverAppIds = servers.map { it.appId }.toSet()
+            val clientAppIds = clients.map { it.appId }.toSet()
+            val crossAppClients = clients.filter { it.appId !in serverAppIds }
+
+            if (crossAppClients.isEmpty()) continue
+
+            matchCount++
+
+            val (method, path) = key.split(":", limit = 2)
+            val integrationId = "endpoint-match:$key"
+            val label = "$method $path"
+
+            nodes.add(
+                CrossAppNode(
+                    id = integrationId,
+                    label = label,
+                    kind = "ENDPOINT",
+                    metadata = mapOf(
+                        "fqn" to "infra:http:$key",
+                        "matchStrategy" to "endpoint-path",
+                        "serverApps" to serverAppIds.toList(),
+                        "clientApps" to crossAppClients.map { it.appId }.distinct()
+                    )
+                )
+            )
+
+            // Server apps → PROVIDES
+            for (serverAppId in serverAppIds) {
+                edges.add(
+                    CrossAppEdge(
+                        source = "app:$serverAppId",
+                        target = integrationId,
+                        kind = "PROVIDES",
+                        methodCount = servers.count { it.appId == serverAppId }
+                    )
+                )
+            }
+
+            // Client apps → CALLS_HTTP
+            for (clientEntry in crossAppClients) {
+                edges.add(
+                    CrossAppEdge(
+                        source = "app:${clientEntry.appId}",
+                        target = integrationId,
+                        kind = "CALLS_HTTP"
+                    )
+                )
+            }
+        }
+
+        if (matchCount > 0) {
+            log.info("Strategy C: found {} endpoint path matches", matchCount)
+        }
+
+        // Deduplicate edges by source+target+kind
+        val dedupedEdges = edges.groupBy { "${it.source}_${it.target}_${it.kind}" }
+            .map { (_, group) ->
+                group.first().copy(methodCount = group.sumOf { it.methodCount })
+            }
+
+        return IntegrationResult(
+            nodes = nodes,
+            edges = dedupedEdges,
+            endpointMatchCount = matchCount
+        )
+    }
+
+    /**
+     * Извлекает путь из URL, убирая scheme://host:port.
+     * "https://ups-service:8080/ups/v1/findEstoDto" → "/ups/v1/findEstoDto"
+     * Returns null if URL contains unresolved variables (e.g., ${...}).
+     */
+    private fun extractPathFromUrl(url: String): String? {
+        if (url.contains("\${")) {
+            log.debug("Skipping URL with unresolved variables: {}", url)
+            return null
+        }
+        return try {
+            val withoutScheme = if (url.contains("://")) {
+                url.substringAfter("://")
+            } else {
+                url
+            }
+            val pathStart = withoutScheme.indexOf('/')
+            if (pathStart < 0) "/" else withoutScheme.substring(pathStart)
+        } catch (e: Exception) {
+            log.warn("Failed to extract path from URL: {}", url, e)
+            null
+        }
+    }
+
+    /**
+     * Получает basePath из apiMetadata родительской ноды (REST controller).
+     */
+    private fun getParentBasePath(node: Node): String? {
+        val parent = node.parent ?: return null
+        val parentApi = parent.meta["apiMetadata"] as? Map<*, *> ?: return null
+        return parentApi["basePath"] as? String
+    }
+
+    /**
+     * Нормализует HTTP-путь: ведущий /, без trailing /, lowercase.
+     */
+    private fun normalizeHttpPath(path: String): String {
+        val trimmed = path.trim()
+        val withLeadingSlash = if (trimmed.startsWith("/")) trimmed else "/$trimmed"
+        return withLeadingSlash.trimEnd('/').lowercase()
     }
 
     // =====================================================================
