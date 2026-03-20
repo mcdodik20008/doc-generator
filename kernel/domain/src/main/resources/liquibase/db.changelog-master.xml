@@ -195,4 +195,13 @@
                 splitStatements="true"
                 stripComments="true"/>
     </changeSet>
+
+    <changeSet id="21-add-infrastructure-node-kind" author="claude" runInTransaction="false">
+        <sqlFile
+                path="migration/21_add_infrastructure_node_kind.sql"
+                relativeToChangelogFile="true"
+                endDelimiter=";"
+                splitStatements="true"
+                stripComments="true"/>
+    </changeSet>
 </databaseChangeLog>

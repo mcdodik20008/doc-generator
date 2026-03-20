@@ -110,6 +110,71 @@ class BytecodeParserImpl : BytecodeParser {
         reader.accept(visitor, ClassReader.SKIP_CODE or ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)
     }
 
+    companion object {
+        /** Аннотации, для которых извлекаем параметры */
+        private val ANNOTATIONS_WITH_PARAMS = setOf(
+            "org.springframework.cloud.openfeign.FeignClient",
+            "org.springframework.boot.context.properties.ConfigurationProperties",
+            "org.springframework.web.bind.annotation.RequestMapping",
+            "org.springframework.beans.factory.annotation.Value",
+            "org.springframework.web.bind.annotation.GetMapping",
+            "org.springframework.web.bind.annotation.PostMapping",
+            "org.springframework.web.bind.annotation.PutMapping",
+            "org.springframework.web.bind.annotation.DeleteMapping",
+            "org.springframework.web.bind.annotation.PatchMapping",
+            "org.springframework.kafka.annotation.KafkaListener",
+        )
+    }
+
+    /**
+     * Visitor для сбора параметров аннотации.
+     */
+    private class AnnotationParamCollector(
+        private val annotationFqn: String,
+        private val target: MutableMap<String, Map<String, Any>>,
+    ) : AnnotationVisitor(Opcodes.ASM9) {
+        private val params = mutableMapOf<String, Any>()
+
+        override fun visit(name: String?, value: Any?) {
+            if (name != null && value != null) {
+                params[name] = value
+            }
+        }
+
+        override fun visitArray(name: String?): AnnotationVisitor? {
+            val list = mutableListOf<Any>()
+            if (name != null) params[name] = list
+            return ArrayCollector(list)
+        }
+
+        override fun visitEnum(name: String?, descriptor: String?, value: String?) {
+            if (name != null && value != null) {
+                params[name] = value
+            }
+        }
+
+        override fun visitEnd() {
+            if (params.isNotEmpty()) {
+                target[annotationFqn] = params.toMap()
+            }
+        }
+    }
+
+    /**
+     * Visitor для сбора элементов массива в аннотации.
+     */
+    private class ArrayCollector(
+        private val list: MutableList<Any>,
+    ) : AnnotationVisitor(Opcodes.ASM9) {
+        override fun visit(name: String?, value: Any?) {
+            if (value != null) list.add(value)
+        }
+
+        override fun visitEnum(name: String?, descriptor: String?, value: String?) {
+            if (value != null) list.add(value)
+        }
+    }
+
     private class LibraryClassVisitor(
         private val filePath: String,
         private val nodes: MutableList<RawLibraryNode>,
@@ -120,6 +185,7 @@ class BytecodeParserImpl : BytecodeParser {
         private var simpleName: String? = null
         private var classModifiers: Set<String> = emptySet()
         private var classAnnotations: List<String> = emptyList()
+        private var classAnnotationParams: MutableMap<String, Map<String, Any>> = mutableMapOf()
         private var outerClassFqn: String? = null
         private var superClassFqn: String? = null
         private var interfaceFqns: List<String> = emptyList()
@@ -141,6 +207,7 @@ class BytecodeParserImpl : BytecodeParser {
 
             classModifiers = extractModifiers(access)
             classAnnotations = emptyList()
+            classAnnotationParams = mutableMapOf()
             classSignature = signature
 
             superClassFqn = superName?.replace('/', '.')
@@ -162,6 +229,10 @@ class BytecodeParserImpl : BytecodeParser {
         ): AnnotationVisitor? {
             val annotationFqn = Type.getType(descriptor).className
             classAnnotations = classAnnotations + annotationFqn
+
+            if (annotationFqn in ANNOTATIONS_WITH_PARAMS) {
+                return AnnotationParamCollector(annotationFqn, classAnnotationParams)
+            }
             return null
         }
 
@@ -195,6 +266,7 @@ class BytecodeParserImpl : BytecodeParser {
                     modifiers = classModifiers,
                     parentFqn = outerClassFqn,
                     meta = meta,
+                    annotationParams = classAnnotationParams.toMap(),
                 ),
             )
         }
@@ -225,24 +297,40 @@ class BytecodeParserImpl : BytecodeParser {
                 meta["synthetic"] = true
             }
 
-            nodes.add(
-                RawLibraryNode(
-                    fqn = fieldFqn,
-                    name = name,
-                    packageName = packageName,
-                    kind = NodeKind.FIELD,
-                    lang = Lang.java,
-                    filePath = filePath,
-                    signature = fieldType,
-                    annotations = emptyList(), // при необходимости можно дописать парсинг аннотаций
-                    modifiers = modifiers,
-                    parentFqn = ownerFqn,
-                    meta = meta,
-                ),
-            )
+            val fieldAnnotations = mutableListOf<String>()
+            val fieldAnnotationParams = mutableMapOf<String, Map<String, Any>>()
 
-            // Код нам не нужен, аннотации полей пока игнорируем
-            return null
+            // Возвращаем FieldVisitor для сбора аннотаций полей
+            return object : FieldVisitor(Opcodes.ASM9) {
+                override fun visitAnnotation(descriptor: String, visible: Boolean): AnnotationVisitor? {
+                    val annotationFqn = Type.getType(descriptor).className
+                    fieldAnnotations.add(annotationFqn)
+
+                    if (annotationFqn in ANNOTATIONS_WITH_PARAMS) {
+                        return AnnotationParamCollector(annotationFqn, fieldAnnotationParams)
+                    }
+                    return null
+                }
+
+                override fun visitEnd() {
+                    nodes.add(
+                        RawLibraryNode(
+                            fqn = fieldFqn,
+                            name = name,
+                            packageName = packageName,
+                            kind = NodeKind.FIELD,
+                            lang = Lang.java,
+                            filePath = filePath,
+                            signature = fieldType,
+                            annotations = fieldAnnotations.toList(),
+                            modifiers = modifiers,
+                            parentFqn = ownerFqn,
+                            meta = meta,
+                            annotationParams = fieldAnnotationParams.toMap(),
+                        ),
+                    )
+                }
+            }
         }
 
         // --- METHOD ---
@@ -289,24 +377,39 @@ class BytecodeParserImpl : BytecodeParser {
                 meta["synthetic"] = true
             }
 
-            nodes.add(
-                RawLibraryNode(
-                    fqn = methodFqn,
-                    name = name,
-                    packageName = packageName,
-                    kind = NodeKind.METHOD,
-                    lang = Lang.java,
-                    filePath = filePath,
-                    signature = methodSignature,
-                    annotations = emptyList(), // можно позже дописать парсинг аннотаций методов
-                    modifiers = modifiers,
-                    parentFqn = ownerFqn,
-                    meta = meta,
-                ),
-            )
+            val methodAnnotations = mutableListOf<String>()
+            val methodAnnotationParams = mutableMapOf<String, Map<String, Any>>()
 
-            // Тело метода нам не нужно (SKIP_CODE), аннотации пока не собираем
-            return null
+            return object : MethodVisitor(Opcodes.ASM9) {
+                override fun visitAnnotation(descriptor: String, visible: Boolean): AnnotationVisitor? {
+                    val annotationFqn = Type.getType(descriptor).className
+                    methodAnnotations.add(annotationFqn)
+
+                    if (annotationFqn in ANNOTATIONS_WITH_PARAMS) {
+                        return AnnotationParamCollector(annotationFqn, methodAnnotationParams)
+                    }
+                    return null
+                }
+
+                override fun visitEnd() {
+                    nodes.add(
+                        RawLibraryNode(
+                            fqn = methodFqn,
+                            name = name,
+                            packageName = packageName,
+                            kind = NodeKind.METHOD,
+                            lang = Lang.java,
+                            filePath = filePath,
+                            signature = methodSignature,
+                            annotations = methodAnnotations.toList(),
+                            modifiers = modifiers,
+                            parentFqn = ownerFqn,
+                            meta = meta,
+                            annotationParams = methodAnnotationParams.toMap(),
+                        ),
+                    )
+                }
+            }
         }
 
         // --- Вспомогательные методы ---

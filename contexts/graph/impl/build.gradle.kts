@@ -25,6 +25,9 @@ dependencies {
     // === AST/PSI для парсинга Kotlin кода ===
     implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21")
 
+    // === YAML parsing для YamlConfigScanner ===
+    implementation("org.yaml:snakeyaml")
+
     // ===== JSON для сериализации/десериализации =====
     implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")

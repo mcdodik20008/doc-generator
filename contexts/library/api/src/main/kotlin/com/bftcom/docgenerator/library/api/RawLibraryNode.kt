@@ -30,4 +30,6 @@ data class RawLibraryNode(
     val parentFqn: String? = null,
     /** Метаданные (дополнительная информация) */
     val meta: Map<String, Any> = emptyMap(),
+    /** Параметры аннотаций: annotationFqn → {paramName → value} */
+    val annotationParams: Map<String, Map<String, Any>> = emptyMap(),
 )

@@ -29,6 +29,7 @@ enum class NodeKind {
     DB_QUERY, // таблица/представление/запрос (MyBatis/JPA/SQL)
     SCHEMA, // контракт данных (Avro/JSON Schema/OpenAPI schema)
     CONFIG, // параметр конфигурации/фича-флаг/таймаут
+    INFRASTRUCTURE, // внешняя инфраструктурная зависимость (БД, очередь, HTTP-сервис и т.д.)
     MIGRATION, // Liquibase/Flyway миграция
     ANNOTATION, // Статические аннотации
 }

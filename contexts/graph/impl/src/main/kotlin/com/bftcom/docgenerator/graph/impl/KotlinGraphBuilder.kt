@@ -13,6 +13,8 @@ import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
 import com.bftcom.docgenerator.graph.api.node.NodeUpdateStrategy
 import com.bftcom.docgenerator.graph.api.node.NodeValidator
 import com.bftcom.docgenerator.graph.impl.apimetadata.ApiMetadataCollector
+import com.bftcom.docgenerator.graph.impl.config.ConfigPropertyLinker
+import com.bftcom.docgenerator.graph.impl.config.YamlConfigScanner
 import com.bftcom.docgenerator.graph.impl.node.CommandExecutorImpl
 import com.bftcom.docgenerator.graph.impl.node.KotlinSourceWalker
 import com.bftcom.docgenerator.graph.impl.node.KotlinToDomainVisitor
@@ -40,6 +42,8 @@ class KotlinGraphBuilder(
     private val codeHasher: CodeHasher,
     private val updateStrategy: NodeUpdateStrategy,
     private val apiMetadataCollector: ApiMetadataCollector? = null,
+    private val yamlConfigScanner: YamlConfigScanner? = null,
+    private val configPropertyLinker: ConfigPropertyLinker? = null,
 ) : GraphBuilder {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -86,8 +90,18 @@ class KotlinGraphBuilder(
             stats.total,
         )
 
+        // --- ФАЗА 1.5: сканирование YAML-конфигурации ---
+        if (yamlConfigScanner != null) {
+            tt.execute { yamlConfigScanner.scan(application, sourceRoot) }
+        }
+
         // --- ФАЗА 2: линковка ---
         tt.execute { graphLinker.link(application) }
+
+        // --- ФАЗА 2.5: линковка config → code ---
+        if (configPropertyLinker != null) {
+            tt.execute { configPropertyLinker.link(application) }
+        }
 
         val nodesAfter = nodeRepo.count()
         val edgesAfter = edgeRepo.count()

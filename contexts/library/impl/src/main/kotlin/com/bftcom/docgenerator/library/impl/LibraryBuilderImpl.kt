@@ -309,6 +309,10 @@ class LibraryBuilderImpl(
             )
         metaMap.putAll(raw.meta)
 
+        if (raw.annotationParams.isNotEmpty()) {
+            metaMap["annotationParams"] = raw.annotationParams
+        }
+
         // Добавляем информацию об интеграционных вызовах (HTTP/Kafka/Camel) для методов
         if (raw.kind == NodeKind.METHOD && analysisResult != null) {
             val methodSummary = findMethodSummary(raw.fqn, analysisResult)
