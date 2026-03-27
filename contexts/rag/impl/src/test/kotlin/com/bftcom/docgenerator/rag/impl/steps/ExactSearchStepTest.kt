@@ -33,7 +33,7 @@ class ExactSearchStepTest {
 
         every { applicationRepository.findAll() } returns listOf(app)
         every {
-            nodeRepository.findByApplicationIdAndClassNameAndMethodName(
+            nodeRepository.findByApplicationIdAndClassNameAndMethodNameIgnoreCase(
                 applicationId = 1L,
                 className = "UserService",
                 methodName = "getUser",
@@ -65,7 +65,7 @@ class ExactSearchStepTest {
 
         every { applicationRepository.findAll() } returns listOf(app)
         every {
-            nodeRepository.findByApplicationIdAndClassNameAndMethodName(
+            nodeRepository.findByApplicationIdAndClassNameAndMethodNameIgnoreCase(
                 any(), any(), any(), any()
             )
         } returns emptyList()

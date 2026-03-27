@@ -1,18 +1,24 @@
 package com.bftcom.docgenerator.embedding.impl
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.mockk.every
 import io.mockk.mockk
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.ai.document.Document
+import org.springframework.ai.embedding.EmbeddingModel
 import org.springframework.ai.vectorstore.SearchRequest
 import org.springframework.ai.vectorstore.VectorStore
+import org.springframework.jdbc.core.JdbcTemplate
 
 class EmbeddingSearchServiceImplTest {
     @Test
     fun `searchByText - маппит результаты similaritySearch`() {
         val store = mockk<VectorStore>()
-        val service = EmbeddingSearchServiceImpl(store)
+        val jdbcTemplate = mockk<JdbcTemplate>()
+        val embeddingModel = mockk<EmbeddingModel>()
+        val objectMapper = ObjectMapper()
+        val service = EmbeddingSearchServiceImpl(store, jdbcTemplate, embeddingModel, objectMapper)
 
         val d1 = Document.builder().id("1").text("t1").score(0.9).metadata(mapOf("k" to "v")).build()
         val d2 = Document.builder().id("2").text("t2").score(0.0).metadata(emptyMap<String, Any>()).build()

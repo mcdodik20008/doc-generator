@@ -53,6 +53,13 @@ enum class QueryMetadataKeys(val key: String) {
         // ID приложения для фильтрации
         APPLICATION_ID("applicationId"),
 
+        // Классификация намерения запроса
+        QUERY_INTENT("queryIntent"),
+
+        // Генерация гипотез
+        HYPOTHETICAL_NAMES("hypotheticalNames"),
+        HYPOTHETICAL_CODE("hypotheticalCode"),
+
         // Статус обработки
         PROCESSING_STATUS("processingStatus"),
 }

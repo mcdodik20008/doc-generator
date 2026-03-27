@@ -16,7 +16,7 @@ import org.springframework.web.client.ResourceAccessException
 
 @Component
 class ExtractionStep(
-    @param:Qualifier("fastExtractionChatClient")
+    @param:Qualifier("fastCheckChatClient")
     private val chatClient: ChatClient,
     private val objectMapper: ObjectMapper,
 ) : QueryStep {

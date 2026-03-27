@@ -47,7 +47,7 @@ class NormalizationStep : QueryStep {
             context
         }
 
-        // Всегда переходим к EXTRACTION после нормализации
+        // Всегда переходим к INTENT_CLASSIFICATION после нормализации
         return StepResult(
             context = updatedContext,
             transitionKey = "SUCCESS",
@@ -56,7 +56,7 @@ class NormalizationStep : QueryStep {
 
     override fun getTransitions(): Map<String, ProcessingStepType> {
         return linkedMapOf(
-            "SUCCESS" to ProcessingStepType.EXTRACTION,
+            "SUCCESS" to ProcessingStepType.INTENT_CLASSIFICATION,
         )
     }
 }

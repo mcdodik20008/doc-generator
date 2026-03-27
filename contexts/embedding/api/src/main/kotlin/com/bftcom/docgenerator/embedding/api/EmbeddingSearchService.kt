@@ -8,9 +8,10 @@ interface EmbeddingSearchService {
      * Поиск похожих документов по текстовому запросу
      * @param query текстовый запрос
      * @param topK количество результатов
+     * @param applicationId опциональный ID приложения для фильтрации
      * @return список найденных документов с метаданными
      */
-    fun searchByText(query: String, topK: Int = 10): List<SearchResult>
+    fun searchByText(query: String, topK: Int = 10, applicationId: Long? = null): List<SearchResult>
 
 }
 

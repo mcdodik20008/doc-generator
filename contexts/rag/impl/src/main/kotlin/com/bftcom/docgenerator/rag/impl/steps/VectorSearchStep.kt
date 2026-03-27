@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 @Component
-class   VectorSearchStep(
+class VectorSearchStep(
     private val embeddingSearchService: EmbeddingSearchService,
 ) : QueryStep {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -22,12 +22,19 @@ class   VectorSearchStep(
         val originalQuery = context.originalQuery
         val rewrittenQuery = context.getMetadata<String>(QueryMetadataKeys.REWRITTEN_QUERY)
             ?.takeIf { it.isNotBlank() && it != originalQuery }
+        val applicationId = context.getMetadata<Long>(QueryMetadataKeys.APPLICATION_ID)
 
         val results = mutableListOf<SearchResult>()
-        results.addAll(embeddingSearchService.searchByText(originalQuery, topK = 5))
+        results.addAll(embeddingSearchService.searchByText(originalQuery, topK = 5, applicationId = applicationId))
 
         if (rewrittenQuery != null) {
-            results.addAll(embeddingSearchService.searchByText(rewrittenQuery, topK = 5))
+            results.addAll(embeddingSearchService.searchByText(rewrittenQuery, topK = 5, applicationId = applicationId))
+        }
+
+        // HyDE: поиск по гипотетическому коду для концептуальных запросов
+        val hypotheticalCode = context.getMetadata<String>(QueryMetadataKeys.HYPOTHETICAL_CODE)
+        if (!hypotheticalCode.isNullOrBlank()) {
+            results.addAll(embeddingSearchService.searchByText(hypotheticalCode, topK = 3, applicationId = applicationId))
         }
 
         val mergedResults = results.distinctBy { it.id }
@@ -43,7 +50,7 @@ class   VectorSearchStep(
                 ),
             )
 
-        log.info("VECTOR_SEARCH: original='{}', rewritten='{}', chunks={}", originalQuery, rewrittenQuery, mergedResults.size)
+        log.info("VECTOR_SEARCH: original='{}', rewritten='{}', hyde={}, chunks={}", originalQuery, rewrittenQuery, hypotheticalCode != null, mergedResults.size)
         return StepResult(
             context = updatedContext,
             transitionKey = "SUCCESS",

@@ -22,7 +22,7 @@ class VectorSearchStepTest {
             createSearchResult("2", "Content 2", 0.85),
         )
 
-        every { embeddingSearchService.searchByText(query, topK = 5) } returns results
+        every { embeddingSearchService.searchByText(query, topK = 5, applicationId = null) } returns results
 
         val context = QueryProcessingContext(
             originalQuery = query,
@@ -52,8 +52,8 @@ class VectorSearchStepTest {
             createSearchResult("3", "Content 3", 0.8),
         )
 
-        every { embeddingSearchService.searchByText(originalQuery, topK = 5) } returns originalResults
-        every { embeddingSearchService.searchByText(rewrittenQuery, topK = 5) } returns rewrittenResults
+        every { embeddingSearchService.searchByText(originalQuery, topK = 5, applicationId = null) } returns originalResults
+        every { embeddingSearchService.searchByText(rewrittenQuery, topK = 5, applicationId = null) } returns rewrittenResults
 
         val context = QueryProcessingContext(
             originalQuery = originalQuery,
@@ -75,7 +75,7 @@ class VectorSearchStepTest {
         val query = "test query"
         val results = listOf(createSearchResult("1", "Content", 0.9))
 
-        every { embeddingSearchService.searchByText(query, topK = 5) } returns results
+        every { embeddingSearchService.searchByText(query, topK = 5, applicationId = null) } returns results
 
         val context = QueryProcessingContext(
             originalQuery = query,
@@ -86,7 +86,7 @@ class VectorSearchStepTest {
         val result = step.execute(context)
 
         // Должен быть вызван только один раз
-        io.mockk.verify(exactly = 1) { embeddingSearchService.searchByText(any(), any()) }
+        io.mockk.verify(exactly = 1) { embeddingSearchService.searchByText(any(), any(), any()) }
         val chunks = result.context.getMetadata<List<*>>(QueryMetadataKeys.CHUNKS)
         assertThat(chunks).isNotNull
         assertThat(chunks!!).hasSize(1)

@@ -56,6 +56,18 @@ class ResultFilterService {
             }
         }
 
+        // Для концептуальных запросов используем гипотетические имена как ключевые слова
+        val intent = processingContext.getMetadata<String>(QueryMetadataKeys.QUERY_INTENT)
+        if (finalClassName.isNullOrBlank() && finalMethodName.isNullOrBlank() && intent == "CONCEPTUAL") {
+            val hypoNames = processingContext.getMetadata<List<*>>(QueryMetadataKeys.HYPOTHETICAL_NAMES)
+                ?.filterIsInstance<String>()
+            if (!hypoNames.isNullOrEmpty()) {
+                log.debug("Используем гипотетические имена для фильтрации: {}", hypoNames)
+                val hypoKeywords = hypoNames.toMutableList()
+                return filterByKeywords(results, hypoKeywords, null, null)
+            }
+        }
+
         // Если не удалось определить вообще ничего — пропускаем фильтрацию
         if (finalClassName.isNullOrBlank() && finalMethodName.isNullOrBlank()) {
             log.debug("Нет информации об извлеченных классе/методе и нет применимых точных узлов, пропускаем фильтрацию")
@@ -68,6 +80,15 @@ class ResultFilterService {
         val keywords = mutableListOf<String>()
         finalClassName?.let { keywords.add(it) }
         finalMethodName?.let { keywords.add(it) }
+
+        // Дополняем гипотетическими именами если доступны
+        if (intent == "CONCEPTUAL") {
+            val hypoNames = processingContext.getMetadata<List<*>>(QueryMetadataKeys.HYPOTHETICAL_NAMES)
+                ?.filterIsInstance<String>()
+            if (hypoNames != null) {
+                keywords.addAll(hypoNames)
+            }
+        }
 
         // Фильтруем результаты в два этапа:
         // 1. Сначала ищем ТОЧНЫЕ совпадения
@@ -93,6 +114,35 @@ class ResultFilterService {
             log.info("Отфильтровано {} результатов из {} (осталось {})", removed, results.size, filtered.size)
         }
 
+        return filtered
+    }
+
+    /**
+     * Фильтрует результаты по списку ключевых слов (без привязки к className/methodName).
+     * Используется для концептуальных запросов с гипотетическими именами.
+     */
+    private fun filterByKeywords(
+        results: List<SearchResult>,
+        keywords: List<String>,
+        className: String?,
+        methodName: String?,
+    ): List<SearchResult> {
+        val exactMatches = results.filter { result ->
+            containsKeywordsExact(result.content, keywords, className, methodName)
+        }
+        val filtered = if (exactMatches.isNotEmpty()) {
+            log.info("Гипотетическая фильтрация: найдено {} точных совпадений", exactMatches.size)
+            exactMatches
+        } else {
+            log.info("Гипотетическая фильтрация: точных совпадений нет, используем нечеткое")
+            results.filter { result ->
+                containsKeywordsFuzzy(result.content, keywords, className, methodName)
+            }
+        }
+        val removed = results.size - filtered.size
+        if (removed > 0) {
+            log.info("Гипотетическая фильтрация: отфильтровано {} из {} (осталось {})", removed, results.size, filtered.size)
+        }
         return filtered
     }
 

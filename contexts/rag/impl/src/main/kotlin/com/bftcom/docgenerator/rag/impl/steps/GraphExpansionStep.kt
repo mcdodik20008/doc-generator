@@ -156,7 +156,7 @@ class GraphExpansionStep(
 
     override fun getTransitions(): Map<String, ProcessingStepType> {
         return linkedMapOf(
-            "SUCCESS" to ProcessingStepType.RERANKING,
+            "SUCCESS" to ProcessingStepType.VECTOR_SEARCH,
             "NO_NODES" to ProcessingStepType.VECTOR_SEARCH,
         )
     }

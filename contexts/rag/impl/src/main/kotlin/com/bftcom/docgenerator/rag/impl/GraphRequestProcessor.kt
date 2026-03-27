@@ -168,10 +168,20 @@ class GraphRequestProcessor(
                                 StepEventStatus.COMPLETED -> "Запрос нормализован"
                                 else -> "Нормализация"
                         }
+                        ProcessingStepType.INTENT_CLASSIFICATION -> when (status) {
+                                StepEventStatus.STARTED -> "Определение типа запроса..."
+                                StepEventStatus.COMPLETED -> "Тип запроса определён"
+                                else -> "Классификация"
+                        }
                         ProcessingStepType.EXTRACTION -> when (status) {
                                 StepEventStatus.STARTED -> "Извлечение классов и методов..."
                                 StepEventStatus.COMPLETED -> "Классы и методы извлечены"
                                 else -> "Извлечение"
+                        }
+                        ProcessingStepType.HYPOTHESIS_GENERATION -> when (status) {
+                                StepEventStatus.STARTED -> "Генерация гипотез..."
+                                StepEventStatus.COMPLETED -> "Гипотезы сгенерированы"
+                                else -> "Генерация гипотез"
                         }
                         ProcessingStepType.EXACT_SEARCH -> when (status) {
                                 StepEventStatus.STARTED -> "Поиск точных совпадений..."
