@@ -27,17 +27,18 @@ class IntentClassificationStep(
         val query = context.currentQuery
         val intent = classifyIntent(query)
 
-        val updatedContext = context
-            .setMetadata(QueryMetadataKeys.QUERY_INTENT, intent)
-            .addStep(
-                ProcessingStep(
-                    advisorName = "IntentClassificationStep",
-                    input = query,
-                    output = "Тип запроса: $intent",
-                    stepType = type,
-                    status = ProcessingStepStatus.SUCCESS,
-                ),
-            )
+        val updatedContext =
+            context
+                .setMetadata(QueryMetadataKeys.QUERY_INTENT, intent)
+                .addStep(
+                    ProcessingStep(
+                        advisorName = "IntentClassificationStep",
+                        input = query,
+                        output = "Тип запроса: $intent",
+                        stepType = type,
+                        status = ProcessingStepStatus.SUCCESS,
+                    ),
+                )
 
         log.info("INTENT_CLASSIFICATION: query='{}', intent={}", query, intent)
         return StepResult(
@@ -63,7 +64,8 @@ class IntentClassificationStep(
         }
 
         return try {
-            val prompt = """
+            val prompt =
+                """
                 Классифицируй запрос пользователя о программном коде. Ответь ОДНИМ словом.
 
                 Типы:
@@ -76,16 +78,17 @@ class IntentClassificationStep(
                 Запрос: $query
 
                 Ответ (EXACT, CONCEPTUAL, ARCHITECTURE, STACKTRACE или DEFAULT):
-            """.trimIndent()
+                """.trimIndent()
 
-            val response = chatClient
-                .prompt()
-                .user(prompt)
-                .call()
-                .content()
-                ?.trim()
-                ?.uppercase()
-                ?: "DEFAULT"
+            val response =
+                chatClient
+                    .prompt()
+                    .user(prompt)
+                    .call()
+                    .content()
+                    ?.trim()
+                    ?.uppercase()
+                    ?: "DEFAULT"
 
             when {
                 response.contains("STACKTRACE") -> "STACKTRACE"
@@ -106,14 +109,15 @@ class IntentClassificationStep(
     }
 
     private fun hasExplicitClassMethodMarker(query: String): Boolean {
-        val markers = listOf(
-            Regex("\\bкласс\\s+[A-Za-z_]", RegexOption.IGNORE_CASE),
-            Regex("\\bclass\\s+[A-Za-z_]", RegexOption.IGNORE_CASE),
-            Regex("\\bметод\\s+[A-Za-z_]", RegexOption.IGNORE_CASE),
-            Regex("\\bmethod\\s+[A-Za-z_]", RegexOption.IGNORE_CASE),
-            Regex("\\bфункция\\s+[A-Za-z_]", RegexOption.IGNORE_CASE),
-            Regex("\\bfunction\\s+[A-Za-z_]", RegexOption.IGNORE_CASE),
-        )
+        val markers =
+            listOf(
+                Regex("\\bкласс\\s+[A-Za-z_]", RegexOption.IGNORE_CASE),
+                Regex("\\bclass\\s+[A-Za-z_]", RegexOption.IGNORE_CASE),
+                Regex("\\bметод\\s+[A-Za-z_]", RegexOption.IGNORE_CASE),
+                Regex("\\bmethod\\s+[A-Za-z_]", RegexOption.IGNORE_CASE),
+                Regex("\\bфункция\\s+[A-Za-z_]", RegexOption.IGNORE_CASE),
+                Regex("\\bfunction\\s+[A-Za-z_]", RegexOption.IGNORE_CASE),
+            )
         return markers.any { it.containsMatchIn(query) }
     }
 
@@ -122,28 +126,38 @@ class IntentClassificationStep(
         val frameCount = framePattern.findAll(query).count()
         if (frameCount >= 2) return true
 
-        val hasExceptionHeader = Regex("""[\w.]+Exception\s*:""").containsMatchIn(query) ||
-            query.contains("Caused by:")
+        val hasExceptionHeader =
+            Regex("""[\w.]+Exception\s*:""").containsMatchIn(query) ||
+                query.contains("Caused by:")
         return frameCount >= 1 && hasExceptionHeader
     }
 
     private fun hasArchitectureKeywords(query: String): Boolean {
         val lower = query.lowercase()
-        val keywords = listOf(
-            "архитектур", "как устроен", "обзор систем", "какие слои",
-            "интеграци", "технологи", "структура проект", "из чего состоит",
-            "architecture", "overview", "layers", "system design",
-        )
+        val keywords =
+            listOf(
+                "архитектур",
+                "как устроен",
+                "обзор систем",
+                "какие слои",
+                "интеграци",
+                "технологи",
+                "структура проект",
+                "из чего состоит",
+                "architecture",
+                "overview",
+                "layers",
+                "system design",
+            )
         return keywords.any { lower.contains(it) }
     }
 
-    override fun getTransitions(): Map<String, ProcessingStepType> {
-        return linkedMapOf(
+    override fun getTransitions(): Map<String, ProcessingStepType> =
+        linkedMapOf(
             "STACKTRACE" to ProcessingStepType.STACKTRACE_PARSING,
             "ARCHITECTURE" to ProcessingStepType.ARCHITECTURE_SYNTHESIS,
             "EXACT" to ProcessingStepType.EXTRACTION,
             "CONCEPTUAL" to ProcessingStepType.HYPOTHESIS_GENERATION,
             "DEFAULT" to ProcessingStepType.REWRITING,
         )
-    }
 }

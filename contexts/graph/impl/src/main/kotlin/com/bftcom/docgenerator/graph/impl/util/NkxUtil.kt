@@ -3,11 +3,12 @@ package com.bftcom.docgenerator.graph.impl.util
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.graph.api.model.rawdecl.SrcLang
 
-fun SrcLang.toLang(): Lang = when (this) {
-    SrcLang.kotlin, SrcLang.kts -> Lang.kotlin
-    SrcLang.java -> Lang.java
-    SrcLang.unknown -> Lang.other
-}
+fun SrcLang.toLang(): Lang =
+    when (this) {
+        SrcLang.kotlin, SrcLang.kts -> Lang.kotlin
+        SrcLang.java -> Lang.java
+        SrcLang.unknown -> Lang.other
+    }
 
 internal object NkxUtil {
     fun anns(raw: List<String>) = raw.map { it.substringAfterLast('.').lowercase() }.toSet()

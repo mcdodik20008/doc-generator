@@ -10,7 +10,11 @@ interface EmbeddingStoreService {
      * @param content текст документа
      * @param metadata дополнительные метаданные
      */
-    fun addDocument(id: String, content: String, metadata: Map<String, Any> = emptyMap())
+    fun addDocument(
+        id: String,
+        content: String,
+        metadata: Map<String, Any> = emptyMap(),
+    )
 
     /**
      * Добавить документ с готовым эмбеддингом
@@ -54,4 +58,3 @@ data class Document(
     val content: String,
     val metadata: Map<String, Any>,
 )
-

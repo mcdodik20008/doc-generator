@@ -37,7 +37,12 @@ class NodeDocDigestClient(
         notes=<важные ограничения или none>
         """.trimIndent()
 
-    fun generate(kind: String, fqn: String, docTech: String, deps: List<String>): String {
+    fun generate(
+        kind: String,
+        fqn: String,
+        docTech: String,
+        deps: List<String>,
+    ): String {
         val depsLine = if (deps.isEmpty()) "none" else deps.joinToString(",").take(800)
         val user =
             buildString {

@@ -20,30 +20,22 @@ class SynonymDictionary(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null,
-
     @Column(nullable = false, columnDefinition = "text")
     var term: String,
-
     @Column(nullable = false, columnDefinition = "text")
     var description: String,
-
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "source_node_id", nullable = false)
     var sourceNode: Node,
-
     // Векторные эмбеддинги хранятся как transient и сохраняются через нативные запросы
     @jakarta.persistence.Transient
     var termEmbedding: FloatArray? = null,
-
     @jakarta.persistence.Transient
     var descEmbedding: FloatArray? = null,
-
     @Column(name = "model_name", nullable = false)
     var modelName: String,
-
     @Column(name = "created_at", nullable = false)
     var createdAt: OffsetDateTime = OffsetDateTime.now(),
-
     @Column(name = "updated_at", nullable = false)
     var updatedAt: OffsetDateTime = OffsetDateTime.now(),
 ) {

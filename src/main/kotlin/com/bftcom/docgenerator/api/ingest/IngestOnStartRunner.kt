@@ -38,7 +38,10 @@ class IngestOnStartRunner(
                             }
                     listOf(app)
                 }
-                else -> appRepo.findAll()
+
+                else -> {
+                    appRepo.findAll()
+                }
             }
 
         if (apps.isEmpty()) {

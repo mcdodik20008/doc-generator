@@ -32,4 +32,3 @@ class GitIngestOrchestratorFactoryTest {
         assertThat(factory.getOrchestratorByProvider(null)).isSameAs(gl)
     }
 }
-

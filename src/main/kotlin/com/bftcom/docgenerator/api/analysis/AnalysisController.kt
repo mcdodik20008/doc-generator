@@ -10,16 +10,16 @@ import org.springframework.web.bind.annotation.RestController
 /** REST API для модулей аналитики. */
 @RestController
 @RequestMapping("/api/analysis")
-class AnalysisController(private val changeImpactService: ChangeImpactService) {
+class AnalysisController(
+    private val changeImpactService: ChangeImpactService,
+) {
     /**
      * Оценка последствий изменений компонента. Возвращает список всех узлов, зависящих от
      * переданного узла (nodeId).
      */
     @GetMapping("/impact")
     fun analyzeImpact(
-            @RequestParam nodeId: Long,
-            @RequestParam(defaultValue = "5") maxDepth: Int
-    ): ImpactAnalysisResult {
-        return changeImpactService.analyzeImpact(nodeId, maxDepth)
-    }
+        @RequestParam nodeId: Long,
+        @RequestParam(defaultValue = "5") maxDepth: Int,
+    ): ImpactAnalysisResult = changeImpactService.analyzeImpact(nodeId, maxDepth)
 }

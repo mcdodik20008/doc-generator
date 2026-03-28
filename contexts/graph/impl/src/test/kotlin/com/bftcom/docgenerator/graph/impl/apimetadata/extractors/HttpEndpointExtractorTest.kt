@@ -31,22 +31,27 @@ class HttpEndpointExtractorTest {
         "PostMapping, POST",
         "PutMapping, PUT",
         "DeleteMapping, DELETE",
-        "PatchMapping, PATCH"
+        "PatchMapping, PATCH",
     )
-    fun `extractFunctionMetadata returns HttpEndpoint for Spring mapping annotations`(annotation: String, expectedMethod: String) {
+    fun `extractFunctionMetadata returns HttpEndpoint for Spring mapping annotations`(
+        annotation: String,
+        expectedMethod: String,
+    ) {
         // Используем короткое имя, которое чаще всего ожидает экстрактор
         val annotationString = "@$annotation(\"/api/users\")"
 
-        val function = createRawFunction(
-            annotationsRepr = setOf(annotationString)
-        )
+        val function =
+            createRawFunction(
+                annotationsRepr = setOf(annotationString),
+            )
         val ctx = createContext()
 
         val result = extractor.extractFunctionMetadata(function, null, ctx)
 
         assertThat(result)
-            .withFailMessage("Extractor returned null for short annotation name: $annotationString. If this fails, please show the HttpEndpointExtractor code.")
-            .isNotNull
+            .withFailMessage(
+                "Extractor returned null for short annotation name: $annotationString. If this fails, please show the HttpEndpointExtractor code.",
+            ).isNotNull
 
         assertThat(result).isInstanceOf(ApiMetadata.HttpEndpoint::class.java)
         val httpEndpoint = result as ApiMetadata.HttpEndpoint
@@ -56,9 +61,10 @@ class HttpEndpointExtractorTest {
 
     @Test
     fun `extractFunctionMetadata extracts path from annotation`() {
-        val function = createRawFunction(
-            annotationsRepr = setOf("""org.springframework.web.bind.annotation.GetMapping("/api/users")""")
-        )
+        val function =
+            createRawFunction(
+                annotationsRepr = setOf("""org.springframework.web.bind.annotation.GetMapping("/api/users")"""),
+            )
         val ctx = createContext()
 
         val result = extractor.extractFunctionMetadata(function, null, ctx)
@@ -68,28 +74,31 @@ class HttpEndpointExtractorTest {
         assertThat(httpEndpoint.path).isEqualTo("/api/users")
     }
 
-        @Test
-        fun `extractFunctionMetadata uses default path when not found`() {
-            val function = createRawFunction(
-                annotationsRepr = setOf("org.springframework.web.bind.annotation.GetMapping")
+    @Test
+    fun `extractFunctionMetadata uses default path when not found`() {
+        val function =
+            createRawFunction(
+                annotationsRepr = setOf("org.springframework.web.bind.annotation.GetMapping"),
             )
-            val ctx = createContext()
+        val ctx = createContext()
 
-            val result = extractor.extractFunctionMetadata(function, null, ctx)
+        val result = extractor.extractFunctionMetadata(function, null, ctx)
 
-            assertThat(result).isInstanceOf(ApiMetadata.HttpEndpoint::class.java)
-            val httpEndpoint = result as ApiMetadata.HttpEndpoint
-            assertThat(httpEndpoint.path).isEqualTo("/")
-        }
+        assertThat(result).isInstanceOf(ApiMetadata.HttpEndpoint::class.java)
+        val httpEndpoint = result as ApiMetadata.HttpEndpoint
+        assertThat(httpEndpoint.path).isEqualTo("/")
+    }
 
     @Test
     fun `extractFunctionMetadata extracts basePath from owner type`() {
-        val function = createRawFunction(
-            annotationsRepr = setOf("""org.springframework.web.bind.annotation.GetMapping("/users")""")
-        )
-        val ownerType = createRawType(
-            annotationsRepr = listOf("""org.springframework.web.bind.annotation.RequestMapping("/api")""")
-        )
+        val function =
+            createRawFunction(
+                annotationsRepr = setOf("""org.springframework.web.bind.annotation.GetMapping("/users")"""),
+            )
+        val ownerType =
+            createRawType(
+                annotationsRepr = listOf("""org.springframework.web.bind.annotation.RequestMapping("/api")"""),
+            )
         val ctx = createContext()
 
         val result = extractor.extractFunctionMetadata(function, ownerType, ctx)
@@ -102,9 +111,10 @@ class HttpEndpointExtractorTest {
 
     @Test
     fun `extractFunctionMetadata returns null for non-HTTP annotations`() {
-        val function = createRawFunction(
-            annotationsRepr = setOf("org.springframework.stereotype.Service")
-        )
+        val function =
+            createRawFunction(
+                annotationsRepr = setOf("org.springframework.stereotype.Service"),
+            )
         val ctx = createContext()
 
         val result = extractor.extractFunctionMetadata(function, null, ctx)
@@ -114,9 +124,10 @@ class HttpEndpointExtractorTest {
 
     @Test
     fun `extractTypeMetadata returns HttpEndpoint for RequestMapping on class`() {
-        val type = createRawType(
-            annotationsRepr = listOf("""org.springframework.web.bind.annotation.RequestMapping("/api")""")
-        )
+        val type =
+            createRawType(
+                annotationsRepr = listOf("""org.springframework.web.bind.annotation.RequestMapping("/api")"""),
+            )
         val ctx = createContext()
 
         val result = extractor.extractTypeMetadata(type, ctx)
@@ -130,9 +141,10 @@ class HttpEndpointExtractorTest {
 
     @Test
     fun `extractTypeMetadata returns null when no RequestMapping on class`() {
-        val type = createRawType(
-            annotationsRepr = emptyList()
-        )
+        val type =
+            createRawType(
+                annotationsRepr = emptyList(),
+            )
         val ctx = createContext()
 
         val result = extractor.extractTypeMetadata(type, ctx)
@@ -142,9 +154,10 @@ class HttpEndpointExtractorTest {
 
     @Test
     fun `extractFunctionMetadata handles RequestMapping annotation`() {
-        val function = createRawFunction(
-            annotationsRepr = setOf("org.springframework.web.bind.annotation.RequestMapping")
-        )
+        val function =
+            createRawFunction(
+                annotationsRepr = setOf("org.springframework.web.bind.annotation.RequestMapping"),
+            )
         val ctx = createContext()
 
         val result = extractor.extractFunctionMetadata(function, null, ctx)
@@ -154,10 +167,8 @@ class HttpEndpointExtractorTest {
         assertThat(httpEndpoint.method).isEqualTo("GET") // fallback
     }
 
-    private fun createRawFunction(
-        annotationsRepr: Set<String> = emptySet(),
-    ): RawFunction {
-        return RawFunction(
+    private fun createRawFunction(annotationsRepr: Set<String> = emptySet()): RawFunction =
+        RawFunction(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = "com.example",
@@ -172,12 +183,9 @@ class HttpEndpointExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createRawType(
-        annotationsRepr: List<String> = emptyList(),
-    ): RawType {
-        return RawType(
+    private fun createRawType(annotationsRepr: List<String> = emptyList()): RawType =
+        RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = "com.example",
@@ -188,13 +196,11 @@ class HttpEndpointExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createContext(): NodeKindContext {
-        return NodeKindContext(
+    private fun createContext(): NodeKindContext =
+        NodeKindContext(
             lang = Lang.kotlin,
             file = null,
             imports = null,
         )
-    }
 }

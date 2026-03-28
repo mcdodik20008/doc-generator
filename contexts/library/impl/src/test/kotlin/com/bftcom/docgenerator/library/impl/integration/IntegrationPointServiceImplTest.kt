@@ -209,4 +209,3 @@ class IntegrationPointServiceImplTest {
         assertThat(summary?.httpEndpoints).hasSize(1)
     }
 }
-

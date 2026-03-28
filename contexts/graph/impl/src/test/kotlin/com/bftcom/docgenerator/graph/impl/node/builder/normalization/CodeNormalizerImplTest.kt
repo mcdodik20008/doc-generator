@@ -40,4 +40,3 @@ class CodeNormalizerImplTest {
         assertThat(normalizer.countLines("a\r\nb\r\nc")).isEqualTo(3)
     }
 }
-

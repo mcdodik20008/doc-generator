@@ -2,8 +2,8 @@ package com.bftcom.docgenerator.graph.api.linker
 
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.linker.indexing.NodeIndex
+import com.bftcom.docgenerator.shared.node.NodeMeta
 
 /**
  * Стратегия линковки рёбер графа.
@@ -17,6 +17,9 @@ interface EdgeLinker {
      * @param index Индекс узлов для поиска связанных узлов
      * @return Список троек (источник, назначение, тип ребра)
      */
-    fun link(node: Node, meta: NodeMeta, index: NodeIndex): List<Triple<Node, Node, EdgeKind>>
+    fun link(
+        node: Node,
+        meta: NodeMeta,
+        index: NodeIndex,
+    ): List<Triple<Node, Node, EdgeKind>>
 }
-

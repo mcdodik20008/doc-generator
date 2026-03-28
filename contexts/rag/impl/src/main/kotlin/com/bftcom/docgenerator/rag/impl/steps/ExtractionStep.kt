@@ -6,13 +6,13 @@ import com.bftcom.docgenerator.rag.api.ProcessingStepType
 import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
 import com.bftcom.docgenerator.rag.api.QueryProcessingContext
 import com.fasterxml.jackson.databind.ObjectMapper
-import java.net.SocketTimeoutException
-import java.util.concurrent.TimeoutException
 import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import org.springframework.web.client.ResourceAccessException
+import java.net.SocketTimeoutException
+import java.util.concurrent.TimeoutException
 
 @Component
 class ExtractionStep(
@@ -27,42 +27,43 @@ class ExtractionStep(
     override fun execute(context: QueryProcessingContext): StepResult {
         val query = context.currentQuery
         val extractionResult = extractClassAndMethod(query)
-        val updatedContext = if (extractionResult != null) {
-            context
-                .setMetadata(
-                    QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-                    mapOf(
-                        "className" to (extractionResult.className ?: ""),
-                        "methodName" to (extractionResult.methodName ?: ""),
-                    ),
-                )
-                .addStep(
+        val updatedContext =
+            if (extractionResult != null) {
+                context
+                    .setMetadata(
+                        QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+                        mapOf(
+                            "className" to (extractionResult.className ?: ""),
+                            "methodName" to (extractionResult.methodName ?: ""),
+                        ),
+                    ).addStep(
+                        ProcessingStep(
+                            advisorName = "ExtractionStep",
+                            input = query,
+                            output = "Извлечено: класс='${extractionResult.className}', метод='${extractionResult.methodName}'",
+                            stepType = type,
+                            status = ProcessingStepStatus.SUCCESS,
+                        ),
+                    )
+            } else {
+                context.addStep(
                     ProcessingStep(
                         advisorName = "ExtractionStep",
                         input = query,
-                        output = "Извлечено: класс='${extractionResult.className}', метод='${extractionResult.methodName}'",
+                        output = "Не удалось извлечь класс/метод, переходим к REWRITING",
                         stepType = type,
                         status = ProcessingStepStatus.SUCCESS,
                     ),
                 )
-        } else {
-            context.addStep(
-                ProcessingStep(
-                    advisorName = "ExtractionStep",
-                    input = query,
-                    output = "Не удалось извлечь класс/метод, переходим к REWRITING",
-                    stepType = type,
-                    status = ProcessingStepStatus.SUCCESS,
-                ),
-            )
-        }
+            }
 
-        val transitionKey = if (extractionResult?.hasAnyValue() == true) {
-            "FOUND"
-        } else {
-            // Если не удалось извлечь класс/метод, пытаемся переформулировать запрос
-            "NOT_FOUND"
-        }
+        val transitionKey =
+            if (extractionResult?.hasAnyValue() == true) {
+                "FOUND"
+            } else {
+                // Если не удалось извлечь класс/метод, пытаемся переформулировать запрос
+                "NOT_FOUND"
+            }
 
         return StepResult(
             context = updatedContext,
@@ -72,7 +73,8 @@ class ExtractionStep(
 
     private fun extractClassAndMethod(query: String): ExtractionResult? {
         try {
-            val prompt = """
+            val prompt =
+                """
                 Проанализируй следующий запрос и извлеки информацию о классе и методе, если они упомянуты.
                 
                 Примеры запросов:
@@ -90,15 +92,16 @@ class ExtractionStep(
                 Запрос: $query
                 
                 JSON ответ:
-            """.trimIndent()
+                """.trimIndent()
 
-            val response = chatClient
-                .prompt()
-                .user(prompt)
-                .call()
-                .content()
-                ?.trim()
-                ?: return trySimpleParsing(query)
+            val response =
+                chatClient
+                    .prompt()
+                    .user(prompt)
+                    .call()
+                    .content()
+                    ?.trim()
+                    ?: return trySimpleParsing(query)
 
             return try {
                 val json = cleanJsonResponse(response)
@@ -132,24 +135,28 @@ class ExtractionStep(
     }
 
     private fun trySimpleParsing(query: String): ExtractionResult? {
-        val classPatterns = listOf(
-            Regex("класс\\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOption.IGNORE_CASE),
-            Regex("class\\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOption.IGNORE_CASE),
-        )
+        val classPatterns =
+            listOf(
+                Regex("класс\\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOption.IGNORE_CASE),
+                Regex("class\\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOption.IGNORE_CASE),
+            )
 
-        val methodPatterns = listOf(
-            Regex("метод\\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOption.IGNORE_CASE),
-            Regex("method\\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOption.IGNORE_CASE),
-            Regex("функция\\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOption.IGNORE_CASE),
-            Regex("function\\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOption.IGNORE_CASE),
-        )
+        val methodPatterns =
+            listOf(
+                Regex("метод\\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOption.IGNORE_CASE),
+                Regex("method\\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOption.IGNORE_CASE),
+                Regex("функция\\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOption.IGNORE_CASE),
+                Regex("function\\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOption.IGNORE_CASE),
+            )
 
-        val className = classPatterns.firstNotNullOfOrNull { pattern ->
-            pattern.find(query)?.groupValues?.getOrNull(1)
-        }
-        val methodName = methodPatterns.firstNotNullOfOrNull { pattern ->
-            pattern.find(query)?.groupValues?.getOrNull(1)
-        }
+        val className =
+            classPatterns.firstNotNullOfOrNull { pattern ->
+                pattern.find(query)?.groupValues?.getOrNull(1)
+            }
+        val methodName =
+            methodPatterns.firstNotNullOfOrNull { pattern ->
+                pattern.find(query)?.groupValues?.getOrNull(1)
+            }
 
         if (className == null && methodName == null) {
             return null
@@ -158,21 +165,19 @@ class ExtractionStep(
         return ExtractionResult(className, methodName)
     }
 
-    private fun cleanJsonResponse(response: String): String {
-        return response
+    private fun cleanJsonResponse(response: String): String =
+        response
             .trim()
             .removePrefix("```json")
             .removePrefix("```")
             .removeSuffix("```")
             .trim()
-    }
 
-    override fun getTransitions(): Map<String, ProcessingStepType> {
-        return linkedMapOf(
+    override fun getTransitions(): Map<String, ProcessingStepType> =
+        linkedMapOf(
             "FOUND" to ProcessingStepType.EXACT_SEARCH,
             "NOT_FOUND" to ProcessingStepType.REWRITING,
         )
-    }
 
     private data class ExtractionResult(
         val className: String?,

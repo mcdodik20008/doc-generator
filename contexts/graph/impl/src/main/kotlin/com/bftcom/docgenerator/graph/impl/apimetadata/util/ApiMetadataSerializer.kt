@@ -13,7 +13,7 @@ object ApiMetadataSerializer {
         if (metadata == null) return null
 
         return when (metadata) {
-            is ApiMetadata.HttpEndpoint ->
+            is ApiMetadata.HttpEndpoint -> {
                 mapOf(
                     "@type" to "HttpEndpoint",
                     "method" to metadata.method,
@@ -25,8 +25,9 @@ object ApiMetadataSerializer {
                 ).filterValues { it !is String || it.isNotEmpty() }
                     .filterValues { it !is List<*> || it.isNotEmpty() }
                     .filterValues { it !is Map<*, *> || it.isNotEmpty() }
+            }
 
-            is ApiMetadata.GraphQLEndpoint ->
+            is ApiMetadata.GraphQLEndpoint -> {
                 mapOf(
                     "@type" to "GraphQLEndpoint",
                     "query" to (metadata.query ?: ""),
@@ -34,16 +35,18 @@ object ApiMetadataSerializer {
                     "subscription" to (metadata.subscription ?: ""),
                     "schema" to (metadata.schema ?: ""),
                 ).filterValues { it is String && it.isNotEmpty() }
+            }
 
-            is ApiMetadata.GrpcEndpoint ->
+            is ApiMetadata.GrpcEndpoint -> {
                 mapOf(
                     "@type" to "GrpcEndpoint",
                     "service" to metadata.service,
                     "method" to metadata.method,
                     "packageName" to (metadata.packageName ?: ""),
                 ).filterValues { it !is String || it.isNotEmpty() }
+            }
 
-            is ApiMetadata.MessageBrokerEndpoint ->
+            is ApiMetadata.MessageBrokerEndpoint -> {
                 mapOf(
                     "@type" to "MessageBrokerEndpoint",
                     "broker" to metadata.broker.name,
@@ -53,6 +56,7 @@ object ApiMetadataSerializer {
                     "exchange" to (metadata.exchange ?: ""),
                     "routingKey" to (metadata.routingKey ?: ""),
                 ).filterValues { it !is String || it.isNotEmpty() }
+            }
         }
     }
 }

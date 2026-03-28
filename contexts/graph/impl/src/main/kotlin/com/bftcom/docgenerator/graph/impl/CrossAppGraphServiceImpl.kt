@@ -46,28 +46,33 @@ class CrossAppGraphServiceImpl(
     }
 
     /** Ключ агрегации рёбер — заменяет хрупкий split(":"). */
-    private data class AggregationKey(val appId: Long, val integrationId: String, val edgeKind: String)
+    private data class AggregationKey(
+        val appId: Long,
+        val integrationId: String,
+        val edgeKind: String,
+    )
 
     override fun buildCrossAppGraph(
         applicationIds: List<Long>,
         integrationTypes: Set<IntegrationType>,
-        limit: Int
+        limit: Int,
     ): CrossAppGraphResponse {
         log.info("Building cross-app graph for applications: {}, types: {}", applicationIds, integrationTypes)
 
         // 1. Load applications
-        val apps = if (applicationIds.isEmpty()) {
-            applicationRepo.findAll()
-        } else {
-            applicationRepo.findAllById(applicationIds)
-        }
+        val apps =
+            if (applicationIds.isEmpty()) {
+                applicationRepo.findAll()
+            } else {
+                applicationRepo.findAllById(applicationIds)
+            }
 
         if (apps.isEmpty()) {
             log.warn("No applications found for IDs: {}", applicationIds)
             return CrossAppGraphResponse(
                 nodes = emptyList(),
                 edges = emptyList(),
-                statistics = CrossAppStatistics(0, 0, 0, 0, 0)
+                statistics = CrossAppStatistics(0, 0, 0, 0, 0),
             )
         }
 
@@ -80,17 +85,19 @@ class CrossAppGraphServiceImpl(
         val strategyC = findEndpointPathMatches(appIds, integrationTypes)
 
         // 3. Build application nodes
-        val appNodes = apps.map { app ->
-            CrossAppNode(
-                id = "app:${app.id}",
-                label = app.name ?: app.key,
-                kind = "APPLICATION",
-                metadata = mapOf(
-                    "key" to app.key,
-                    "description" to (app.description ?: "")
+        val appNodes =
+            apps.map { app ->
+                CrossAppNode(
+                    id = "app:${app.id}",
+                    label = app.name ?: app.key,
+                    kind = "APPLICATION",
+                    metadata =
+                        mapOf(
+                            "key" to app.key,
+                            "description" to (app.description ?: ""),
+                        ),
                 )
-            )
-        }
+            }
 
         // 4. Merge results with deduplication
         val allIntegrationNodes = mutableMapOf<String, CrossAppNode>()
@@ -111,28 +118,30 @@ class CrossAppGraphServiceImpl(
         val crossAppNodes = appNodes + allIntegrationNodes.values.toList()
         val crossAppEdges = allEdges.values.toList()
 
-        val statistics = CrossAppStatistics(
-            applicationCount = apps.size,
-            httpEndpoints = strategyB.httpCount,
-            kafkaTopics = strategyB.kafkaCount,
-            camelRoutes = strategyB.camelCount,
-            totalEdges = crossAppEdges.size,
-            apiContracts = strategyA.apiContractCount,
-            endpointMatches = strategyC.endpointMatchCount
-        )
+        val statistics =
+            CrossAppStatistics(
+                applicationCount = apps.size,
+                httpEndpoints = strategyB.httpCount,
+                kafkaTopics = strategyB.kafkaCount,
+                camelRoutes = strategyB.camelCount,
+                totalEdges = crossAppEdges.size,
+                apiContracts = strategyA.apiContractCount,
+                endpointMatches = strategyC.endpointMatchCount,
+            )
 
         log.info(
             "Cross-app graph built: {} nodes, {} edges (apiContracts={}, synthetic={}, endpointMatches={})",
-            crossAppNodes.size, crossAppEdges.size,
+            crossAppNodes.size,
+            crossAppEdges.size,
             strategyA.apiContractCount,
             strategyB.nodes.size,
-            strategyC.endpointMatchCount
+            strategyC.endpointMatchCount,
         )
 
         return CrossAppGraphResponse(
             nodes = crossAppNodes,
             edges = crossAppEdges,
-            statistics = statistics
+            statistics = statistics,
         )
     }
 
@@ -154,10 +163,11 @@ class CrossAppGraphServiceImpl(
         }
 
         // Загружаем все INTERFACE ноды по выбранным приложениям
-        val interfaceNodes = nodeRepo.findAllByApplicationIdInAndKindIn(
-            appIds,
-            setOf(NodeKind.INTERFACE)
-        )
+        val interfaceNodes =
+            nodeRepo.findAllByApplicationIdInAndKindIn(
+                appIds,
+                setOf(NodeKind.INTERFACE),
+            )
 
         if (interfaceNodes.isEmpty()) {
             log.debug("No INTERFACE nodes found")
@@ -165,10 +175,12 @@ class CrossAppGraphServiceImpl(
         }
 
         // Группируем по FQN — ищем интерфейсы, присутствующие в 2+ приложениях
-        val sharedInterfaces = interfaceNodes.groupBy { it.fqn }
-            .filter { (_, nodes) ->
-                nodes.map { it.application.id }.distinct().size >= 2
-            }
+        val sharedInterfaces =
+            interfaceNodes
+                .groupBy { it.fqn }
+                .filter { (_, nodes) ->
+                    nodes.map { it.application.id }.distinct().size >= 2
+                }
 
         if (sharedInterfaces.isEmpty()) {
             log.debug("No shared interfaces found across applications")
@@ -178,10 +190,11 @@ class CrossAppGraphServiceImpl(
         log.info("Found {} shared API contract interfaces", sharedInterfaces.size)
 
         // Загружаем class-ноды для определения Provider (кто реализует интерфейс)
-        val classLikeNodes = nodeRepo.findAllByApplicationIdInAndKindIn(
-            appIds,
-            setOf(NodeKind.CLASS, NodeKind.ENDPOINT, NodeKind.SERVICE)
-        )
+        val classLikeNodes =
+            nodeRepo.findAllByApplicationIdInAndKindIn(
+                appIds,
+                setOf(NodeKind.CLASS, NodeKind.ENDPOINT, NodeKind.SERVICE),
+            )
 
         val nodes = mutableListOf<CrossAppNode>()
         val edges = mutableListOf<CrossAppEdge>()
@@ -206,10 +219,11 @@ class CrossAppGraphServiceImpl(
             val consumerAppIds = allAppIdsWithInterface - providerAppIds
 
             // Подсчитываем методы интерфейса
-            val methodCount = ifaceNodes.maxOf { iface ->
-                val ifaceId = iface.id ?: return@maxOf 0
-                nodeRepo.findAllByParentId(ifaceId).count { it.kind == NodeKind.METHOD }
-            }
+            val methodCount =
+                ifaceNodes.maxOf { iface ->
+                    val ifaceId = iface.id ?: return@maxOf 0
+                    nodeRepo.findAllByParentId(ifaceId).count { it.kind == NodeKind.METHOD }
+                }
 
             // Создаем узел API_CONTRACT
             nodes.add(
@@ -217,15 +231,16 @@ class CrossAppGraphServiceImpl(
                     id = integrationId,
                     label = simpleName,
                     kind = "API_CONTRACT",
-                    metadata = mapOf(
-                        "fqn" to interfaceFqn,
-                        "interfaceFqn" to interfaceFqn,
-                        "methodCount" to methodCount,
-                        "applicationsCount" to allAppIdsWithInterface.size,
-                        "providers" to providerAppIds.toList(),
-                        "consumers" to consumerAppIds.toList()
-                    )
-                )
+                    metadata =
+                        mapOf(
+                            "fqn" to interfaceFqn,
+                            "interfaceFqn" to interfaceFqn,
+                            "methodCount" to methodCount,
+                            "applicationsCount" to allAppIdsWithInterface.size,
+                            "providers" to providerAppIds.toList(),
+                            "consumers" to consumerAppIds.toList(),
+                        ),
+                ),
             )
 
             // Создаем рёбра
@@ -240,14 +255,18 @@ class CrossAppGraphServiceImpl(
         return IntegrationResult(
             nodes = nodes,
             edges = edges,
-            apiContractCount = sharedInterfaces.size
+            apiContractCount = sharedInterfaces.size,
         )
     }
 
     /**
      * Проверяет, реализует ли class-нода указанный интерфейс через supertypesSimple или supertypesResolved.
      */
-    private fun implementsInterface(classNode: Node, interfaceFqn: String, simpleName: String): Boolean {
+    private fun implementsInterface(
+        classNode: Node,
+        interfaceFqn: String,
+        simpleName: String,
+    ): Boolean {
         val meta = classNode.meta
         val supertypesSimple = (meta["supertypesSimple"] as? List<*>)?.filterIsInstance<String>().orEmpty()
         val supertypesResolved = (meta["supertypesResolved"] as? List<*>)?.filterIsInstance<String>().orEmpty()
@@ -268,17 +287,19 @@ class CrossAppGraphServiceImpl(
         integrationTypes: Set<IntegrationType>,
         limit: Int,
     ): IntegrationResult {
-        val integrationNodes = nodeRepo.findAllByApplicationIdInAndKindIn(
-            appIds,
-            setOf(NodeKind.ENDPOINT, NodeKind.TOPIC)
-        ).filter { node ->
-            val isSynthetic = node.meta["synthetic"] as? Boolean ?: false
-            val isLegacyVirtual = node.meta["source"] == "library_analysis"
-            if (!isSynthetic && !isLegacyVirtual) return@filter false
+        val integrationNodes =
+            nodeRepo
+                .findAllByApplicationIdInAndKindIn(
+                    appIds,
+                    setOf(NodeKind.ENDPOINT, NodeKind.TOPIC),
+                ).filter { node ->
+                    val isSynthetic = node.meta["synthetic"] as? Boolean ?: false
+                    val isLegacyVirtual = node.meta["source"] == "library_analysis"
+                    if (!isSynthetic && !isLegacyVirtual) return@filter false
 
-            if (integrationTypes.isEmpty()) return@filter true
-            matchesIntegrationType(node.fqn, integrationTypes)
-        }
+                    if (integrationTypes.isEmpty()) return@filter true
+                    matchesIntegrationType(node.fqn, integrationTypes)
+                }
 
         if (integrationNodes.isEmpty()) {
             return IntegrationResult.EMPTY
@@ -312,11 +333,12 @@ class CrossAppGraphServiceImpl(
                     id = integrationId,
                     label = label,
                     kind = integrationKind,
-                    metadata = mapOf(
-                        "fqn" to fqn,
-                        "applicationsCount" to groupNodes.map { it.application.id }.distinct().size
-                    )
-                )
+                    metadata =
+                        mapOf(
+                            "fqn" to fqn,
+                            "applicationsCount" to groupNodes.map { it.application.id }.distinct().size,
+                        ),
+                ),
             )
 
             groupNodes.forEach { node ->
@@ -337,21 +359,22 @@ class CrossAppGraphServiceImpl(
             }
         }
 
-        val edges = edgeCountMap.map { (key, count) ->
-            CrossAppEdge(
-                source = "app:${key.appId}",
-                target = key.integrationId,
-                kind = key.edgeKind,
-                methodCount = count
-            )
-        }
+        val edges =
+            edgeCountMap.map { (key, count) ->
+                CrossAppEdge(
+                    source = "app:${key.appId}",
+                    target = key.integrationId,
+                    kind = key.edgeKind,
+                    methodCount = count,
+                )
+            }
 
         return IntegrationResult(
             nodes = nodes,
             edges = edges,
             httpCount = httpCount,
             kafkaCount = kafkaCount,
-            camelCount = camelCount
+            camelCount = camelCount,
         )
     }
 
@@ -374,14 +397,24 @@ class CrossAppGraphServiceImpl(
             return IntegrationResult.EMPTY
         }
 
-        val endpointNodes = nodeRepo.findAllByApplicationIdInAndKindIn(
-            appIds,
-            setOf(NodeKind.ENDPOINT, NodeKind.TOPIC)
-        )
+        val endpointNodes =
+            nodeRepo.findAllByApplicationIdInAndKindIn(
+                appIds,
+                setOf(NodeKind.ENDPOINT, NodeKind.TOPIC),
+            )
 
         // --- Server endpoints: non-synthetic ENDPOINT nodes with apiMetadata ---
-        data class ServerEntry(val key: String, val appId: Long, val node: Node)
-        data class ClientEntry(val key: String, val appId: Long, val node: Node)
+        data class ServerEntry(
+            val key: String,
+            val appId: Long,
+            val node: Node,
+        )
+
+        data class ClientEntry(
+            val key: String,
+            val appId: Long,
+            val node: Node,
+        )
 
         val serverEntries = mutableListOf<ServerEntry>()
         val clientEntries = mutableListOf<ClientEntry>()
@@ -457,13 +490,14 @@ class CrossAppGraphServiceImpl(
                     id = integrationId,
                     label = label,
                     kind = "ENDPOINT",
-                    metadata = mapOf(
-                        "fqn" to "infra:http:$key",
-                        "matchStrategy" to "endpoint-path",
-                        "serverApps" to serverAppIds.toList(),
-                        "clientApps" to crossAppClients.map { it.appId }.distinct()
-                    )
-                )
+                    metadata =
+                        mapOf(
+                            "fqn" to "infra:http:$key",
+                            "matchStrategy" to "endpoint-path",
+                            "serverApps" to serverAppIds.toList(),
+                            "clientApps" to crossAppClients.map { it.appId }.distinct(),
+                        ),
+                ),
             )
 
             // Server apps → PROVIDES
@@ -473,8 +507,8 @@ class CrossAppGraphServiceImpl(
                         source = "app:$serverAppId",
                         target = integrationId,
                         kind = "PROVIDES",
-                        methodCount = servers.count { it.appId == serverAppId }
-                    )
+                        methodCount = servers.count { it.appId == serverAppId },
+                    ),
                 )
             }
 
@@ -484,8 +518,8 @@ class CrossAppGraphServiceImpl(
                     CrossAppEdge(
                         source = "app:${clientEntry.appId}",
                         target = integrationId,
-                        kind = "CALLS_HTTP"
-                    )
+                        kind = "CALLS_HTTP",
+                    ),
                 )
             }
         }
@@ -495,15 +529,17 @@ class CrossAppGraphServiceImpl(
         }
 
         // Deduplicate edges by source+target+kind
-        val dedupedEdges = edges.groupBy { "${it.source}_${it.target}_${it.kind}" }
-            .map { (_, group) ->
-                group.first().copy(methodCount = group.sumOf { it.methodCount })
-            }
+        val dedupedEdges =
+            edges
+                .groupBy { "${it.source}_${it.target}_${it.kind}" }
+                .map { (_, group) ->
+                    group.first().copy(methodCount = group.sumOf { it.methodCount })
+                }
 
         return IntegrationResult(
             nodes = nodes,
             edges = dedupedEdges,
-            endpointMatchCount = matchCount
+            endpointMatchCount = matchCount,
         )
     }
 
@@ -518,11 +554,12 @@ class CrossAppGraphServiceImpl(
             return null
         }
         return try {
-            val withoutScheme = if (url.contains("://")) {
-                url.substringAfter("://")
-            } else {
-                url
-            }
+            val withoutScheme =
+                if (url.contains("://")) {
+                    url.substringAfter("://")
+                } else {
+                    url
+                }
             val pathStart = withoutScheme.indexOf('/')
             if (pathStart < 0) "/" else withoutScheme.substring(pathStart)
         } catch (e: Exception) {
@@ -556,26 +593,34 @@ class CrossAppGraphServiceImpl(
     /**
      * Нормализует legacy FQN-форматы VirtualNodeFactory в стандартный формат infra:*.
      */
-    private fun normalizeFqn(fqn: String): String = when {
-        fqn.startsWith("endpoint://") -> {
-            // "endpoint://GET https://..." -> "infra:http:GET:https://..."
-            val rest = fqn.removePrefix("endpoint://")
-            val spaceIdx = rest.indexOf(' ')
-            if (spaceIdx > 0) {
-                val method = rest.substring(0, spaceIdx)
-                val url = rest.substring(spaceIdx + 1)
-                "infra:http:$method:$url"
-            } else {
-                "infra:http:UNKNOWN:$rest"
+    private fun normalizeFqn(fqn: String): String =
+        when {
+            fqn.startsWith("endpoint://") -> {
+                // "endpoint://GET https://..." -> "infra:http:GET:https://..."
+                val rest = fqn.removePrefix("endpoint://")
+                val spaceIdx = rest.indexOf(' ')
+                if (spaceIdx > 0) {
+                    val method = rest.substring(0, spaceIdx)
+                    val url = rest.substring(spaceIdx + 1)
+                    "infra:http:$method:$url"
+                } else {
+                    "infra:http:UNKNOWN:$rest"
+                }
+            }
+
+            fqn.startsWith("topic://") -> {
+                "infra:kafka:topic:${fqn.removePrefix("topic://")}"
+            }
+
+            else -> {
+                fqn
             }
         }
-        fqn.startsWith("topic://") -> {
-            "infra:kafka:topic:${fqn.removePrefix("topic://")}"
-        }
-        else -> fqn
-    }
 
-    private fun matchesIntegrationType(fqn: String, types: Set<IntegrationType>): Boolean {
+    private fun matchesIntegrationType(
+        fqn: String,
+        types: Set<IntegrationType>,
+    ): Boolean {
         val normalized = normalizeFqn(fqn)
         return types.any { type ->
             when (type) {
@@ -586,7 +631,10 @@ class CrossAppGraphServiceImpl(
         }
     }
 
-    private fun extractIntegrationLabel(fqn: String, nodeName: String?): String {
+    private fun extractIntegrationLabel(
+        fqn: String,
+        nodeName: String?,
+    ): String {
         if (!nodeName.isNullOrBlank() && nodeName != fqn) {
             return nodeName
         }
@@ -597,17 +645,27 @@ class CrossAppGraphServiceImpl(
                 if (parts.size == 2) {
                     val method = parts[0]
                     val url = parts[1]
-                    val path = url.substringAfter("//").substringAfter("/").let {
-                        if (it.isBlank()) "/" else "/$it"
-                    }
+                    val path =
+                        url.substringAfter("//").substringAfter("/").let {
+                            if (it.isBlank()) "/" else "/$it"
+                        }
                     "$method $path"
                 } else {
                     fqn
                 }
             }
-            fqn.startsWith("infra:kafka:topic:") -> fqn.removePrefix("infra:kafka:topic:")
-            fqn.startsWith("infra:camel:uri:") -> fqn.removePrefix("infra:camel:uri:")
-            else -> fqn
+
+            fqn.startsWith("infra:kafka:topic:") -> {
+                fqn.removePrefix("infra:kafka:topic:")
+            }
+
+            fqn.startsWith("infra:camel:uri:") -> {
+                fqn.removePrefix("infra:camel:uri:")
+            }
+
+            else -> {
+                fqn
+            }
         }
     }
 }

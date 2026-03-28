@@ -22,17 +22,20 @@ class DirectLlmClient(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val restClient: RestClient = RestClient.builder()
-        .baseUrl(baseUrl)
-        .requestFactory(factory)
-        .defaultHeader("Content-Type", "application/json")
-        .build()
+    private val restClient: RestClient =
+        RestClient
+            .builder()
+            .baseUrl(baseUrl)
+            .requestFactory(factory)
+            .defaultHeader("Content-Type", "application/json")
+            .build()
 
     /** Множество моделей, для которых включён debug-лог (полный текст промпта/ответа). */
-    private val debugModels: Set<String> = buildSet {
-        if (props.coder.debug) add(props.coder.model)
-        if (props.talker.debug) add(props.talker.model)
-    }
+    private val debugModels: Set<String> =
+        buildSet {
+            if (props.coder.debug) add(props.coder.model)
+            if (props.talker.debug) add(props.talker.model)
+        }
 
     data class LlmRequest(
         val model: String,
@@ -63,12 +66,14 @@ class DirectLlmClient(
         val body = buildRequestBody(request)
         val startMs = System.currentTimeMillis()
 
-        val responseJson = restClient.post()
-            .uri("/v1/chat/completions")
-            .body(body)
-            .retrieve()
-            .body(String::class.java)
-            ?: throw RuntimeException("Empty response from LLM")
+        val responseJson =
+            restClient
+                .post()
+                .uri("/v1/chat/completions")
+                .body(body)
+                .retrieve()
+                .body(String::class.java)
+                ?: throw RuntimeException("Empty response from LLM")
 
         val durationMs = System.currentTimeMillis() - startMs
         val (content, usage) = extractResponse(responseJson)
@@ -89,10 +94,11 @@ class DirectLlmClient(
     }
 
     private fun buildRequestBody(request: LlmRequest): Map<String, Any?> {
-        val messages = listOf(
-            mapOf("role" to "system", "content" to request.systemPrompt),
-            mapOf("role" to "user", "content" to request.userPrompt),
-        )
+        val messages =
+            listOf(
+                mapOf("role" to "system", "content" to request.systemPrompt),
+                mapOf("role" to "user", "content" to request.userPrompt),
+            )
         return buildMap {
             put("model", request.model)
             put("messages", messages)
@@ -103,17 +109,32 @@ class DirectLlmClient(
         }
     }
 
-    private data class Usage(val promptTokens: Long?, val completionTokens: Long?, val totalTokens: Long?)
+    private data class Usage(
+        val promptTokens: Long?,
+        val completionTokens: Long?,
+        val totalTokens: Long?,
+    )
 
     private fun extractResponse(json: String): Pair<String, Usage?> {
         val tree = objectMapper.readTree(json)
-        val content = tree.path("choices").path(0).path("message").path("content").asText("")
+        val content =
+            tree
+                .path("choices")
+                .path(0)
+                .path("message")
+                .path("content")
+                .asText("")
         val usageNode = tree.path("usage")
-        val usage = if (usageNode.isMissingNode) null else Usage(
-            promptTokens = usageNode.path("prompt_tokens").asLong(0),
-            completionTokens = usageNode.path("completion_tokens").asLong(0),
-            totalTokens = usageNode.path("total_tokens").asLong(0),
-        )
+        val usage =
+            if (usageNode.isMissingNode) {
+                null
+            } else {
+                Usage(
+                    promptTokens = usageNode.path("prompt_tokens").asLong(0),
+                    completionTokens = usageNode.path("completion_tokens").asLong(0),
+                    totalTokens = usageNode.path("total_tokens").asLong(0),
+                )
+            }
         return content to usage
     }
 

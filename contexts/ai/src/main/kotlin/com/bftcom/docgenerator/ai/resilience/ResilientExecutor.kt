@@ -5,7 +5,6 @@ package com.bftcom.docgenerator.ai.resilience
  * Allows AI module to use resilience without direct dependency on main module.
  */
 interface ResilientExecutor {
-
     /**
      * Execute an operation with resilience protection.
      *
@@ -14,12 +13,17 @@ interface ResilientExecutor {
      * @param operation The actual operation to execute
      * @return Result of the operation or fallback value
      */
-    fun <T> execute(operationName: String, fallback: T, operation: () -> T): T
+    fun <T> execute(
+        operationName: String,
+        fallback: T,
+        operation: () -> T,
+    ): T
 
     /**
      * Execute a string-returning operation with empty string fallback.
      */
-    fun executeString(operationName: String, operation: () -> String): String {
-        return execute(operationName, "", operation)
-    }
+    fun executeString(
+        operationName: String,
+        operation: () -> String,
+    ): String = execute(operationName, "", operation)
 }

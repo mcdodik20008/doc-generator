@@ -24,12 +24,13 @@ class ChunkFromNodeDocSchedulerTest {
 
     @BeforeEach
     fun setUp() {
-        txManager = mockk {
-            val status = mockk<TransactionStatus>(relaxed = true)
-            every { getTransaction(any()) } returns status
-            every { commit(status) } just Runs
-            every { rollback(status) } just Runs
-        }
+        txManager =
+            mockk {
+                val status = mockk<TransactionStatus>(relaxed = true)
+                every { getTransaction(any()) } returns status
+                every { commit(status) } just Runs
+                every { rollback(status) } just Runs
+            }
         nodeDocRepo = mockk(relaxed = true)
         chunkRepo = mockk(relaxed = true)
         objectMapper = ObjectMapper().registerKotlinModule()
@@ -54,13 +55,14 @@ class ChunkFromNodeDocSchedulerTest {
 
     @Test
     fun `poll - обрабатывает батч с docPublic и docTech`() {
-        val row = mockk<NodeDocRepository.DocChunkSyncRow> {
-            every { getNodeId() } returns 100L
-            every { getApplicationId() } returns 1L
-            every { getLocale() } returns "ru"
-            every { getDocPublic() } returns "public doc content"
-            every { getDocTech() } returns "tech doc content"
-        }
+        val row =
+            mockk<NodeDocRepository.DocChunkSyncRow> {
+                every { getNodeId() } returns 100L
+                every { getApplicationId() } returns 1L
+                every { getLocale() } returns "ru"
+                every { getDocPublic() } returns "public doc content"
+                every { getDocTech() } returns "tech doc content"
+            }
 
         every { nodeDocRepo.lockNextBatchForChunkSync(50) } returns listOf(row)
         every {
@@ -110,13 +112,14 @@ class ChunkFromNodeDocSchedulerTest {
 
     @Test
     fun `poll - пропускает пустые docPublic и docTech`() {
-        val row = mockk<NodeDocRepository.DocChunkSyncRow> {
-            every { getNodeId() } returns 100L
-            every { getApplicationId() } returns 1L
-            every { getLocale() } returns "ru"
-            every { getDocPublic() } returns "  " // Пустая строка
-            every { getDocTech() } returns "" // Пустая строка
-        }
+        val row =
+            mockk<NodeDocRepository.DocChunkSyncRow> {
+                every { getNodeId() } returns 100L
+                every { getApplicationId() } returns 1L
+                every { getLocale() } returns "ru"
+                every { getDocPublic() } returns "  " // Пустая строка
+                every { getDocTech() } returns "" // Пустая строка
+            }
 
         every { nodeDocRepo.lockNextBatchForChunkSync(50) } returns listOf(row)
 
@@ -127,13 +130,14 @@ class ChunkFromNodeDocSchedulerTest {
 
     @Test
     fun `poll - обрабатывает только docPublic`() {
-        val row = mockk<NodeDocRepository.DocChunkSyncRow> {
-            every { getNodeId() } returns 100L
-            every { getApplicationId() } returns 1L
-            every { getLocale() } returns "ru"
-            every { getDocPublic() } returns "public doc"
-            every { getDocTech() } returns null
-        }
+        val row =
+            mockk<NodeDocRepository.DocChunkSyncRow> {
+                every { getNodeId() } returns 100L
+                every { getApplicationId() } returns 1L
+                every { getLocale() } returns "ru"
+                every { getDocPublic() } returns "public doc"
+                every { getDocTech() } returns null
+            }
 
         every { nodeDocRepo.lockNextBatchForChunkSync(50) } returns listOf(row)
         every {

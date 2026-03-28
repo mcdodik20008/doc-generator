@@ -1,5 +1,7 @@
 package com.bftcom.docgenerator.graph.impl.apimetadata.util
 
+import io.mockk.every
+import io.mockk.mockk
 import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
@@ -7,8 +9,6 @@ import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.KtValueArgumentName
 import org.junit.jupiter.api.Test
-import io.mockk.every
-import io.mockk.mockk
 
 class AnnotationParserTest {
     @Test
@@ -171,7 +171,10 @@ class AnnotationParserTest {
         assertThat(result).containsExactly("topic1", "topic2")
     }
 
-    private fun createStringValueArgument(value: String, paramName: String? = null): KtValueArgument {
+    private fun createStringValueArgument(
+        value: String,
+        paramName: String? = null,
+    ): KtValueArgument {
         val arg = mockk<KtValueArgument>()
         val expr = mockk<KtExpression>()
         every { expr.text } returns value
@@ -190,7 +193,10 @@ class AnnotationParserTest {
         return arg
     }
 
-    private fun createStringArrayValueArgument(value: String, paramName: String? = null): KtValueArgument {
+    private fun createStringArrayValueArgument(
+        value: String,
+        paramName: String? = null,
+    ): KtValueArgument {
         val arg = mockk<KtValueArgument>()
         val expr = mockk<KtExpression>()
         every { expr.text } returns value

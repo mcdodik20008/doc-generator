@@ -7,15 +7,18 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 
 interface SynonymDictionaryRepository : JpaRepository<SynonymDictionary, Long> {
-
     /**
      * Результат поиска с информацией о синониме и сходстве
      */
     interface SynonymWithSimilarity {
         fun getId(): Long
+
         fun getTerm(): String
+
         fun getDescription(): String
+
         fun getSourceNodeId(): Long
+
         fun getModelName(): String
     }
 
@@ -113,5 +116,7 @@ interface SynonymDictionaryRepository : JpaRepository<SynonymDictionary, Long> {
         """,
         nativeQuery = true,
     )
-    fun deleteBySourceNodeId(@Param("nodeId") nodeId: Long): Int
+    fun deleteBySourceNodeId(
+        @Param("nodeId") nodeId: Long,
+    ): Int
 }

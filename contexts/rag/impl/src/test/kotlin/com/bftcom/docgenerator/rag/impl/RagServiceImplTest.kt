@@ -22,26 +22,29 @@ class RagServiceImplTest {
     fun setUp() {
         chatClient = mockk()
         graphRequestProcessor = mockk()
-        ragService = RagServiceImpl(
-            chatClient = chatClient,
-            graphRequestProcessor = graphRequestProcessor,
-        )
+        ragService =
+            RagServiceImpl(
+                chatClient = chatClient,
+                graphRequestProcessor = graphRequestProcessor,
+            )
     }
 
     @Test
     fun `ask - базовый сценарий с найденными чанками`() {
         val query = "Что делает метод process?"
         val sessionId = "session-123"
-        val context = QueryProcessingContext(
-            originalQuery = query,
-            currentQuery = query,
-            sessionId = sessionId,
-        )
-            .setMetadata(QueryMetadataKeys.FILTERED_CHUNKS, listOf(
-                createSearchResult("1", "Метод process обрабатывает данные", 0.9),
-                createSearchResult("2", "Process method implementation", 0.85),
-            ))
-            .setMetadata(QueryMetadataKeys.PROCESSING_STATUS, ProcessingStepType.COMPLETED.name)
+        val context =
+            QueryProcessingContext(
+                originalQuery = query,
+                currentQuery = query,
+                sessionId = sessionId,
+            ).setMetadata(
+                QueryMetadataKeys.FILTERED_CHUNKS,
+                listOf(
+                    createSearchResult("1", "Метод process обрабатывает данные", 0.9),
+                    createSearchResult("2", "Process method implementation", 0.85),
+                ),
+            ).setMetadata(QueryMetadataKeys.PROCESSING_STATUS, ProcessingStepType.COMPLETED.name)
 
         val chatResponse = createMockCallResponseSpec("Метод process обрабатывает входящие данные и возвращает результат.")
         val promptSpec = createMockPromptSpec(chatResponse)
@@ -61,12 +64,13 @@ class RagServiceImplTest {
     fun `ask - возвращает дефолтный ответ при FAILED`() {
         val query = "неизвестный запрос"
         val sessionId = "session-123"
-        val context = QueryProcessingContext(
-            originalQuery = query,
-            currentQuery = query,
-            sessionId = sessionId,
-            metadata = mutableMapOf(QueryMetadataKeys.PROCESSING_STATUS.key to ProcessingStepType.FAILED.name),
-        )
+        val context =
+            QueryProcessingContext(
+                originalQuery = query,
+                currentQuery = query,
+                sessionId = sessionId,
+                metadata = mutableMapOf(QueryMetadataKeys.PROCESSING_STATUS.key to ProcessingStepType.FAILED.name),
+            )
 
         every { graphRequestProcessor.process(query, sessionId, null) } returns context
 
@@ -82,16 +86,18 @@ class RagServiceImplTest {
         val query = "что делает process"
         val sessionId = "session-123"
         val rewrittenQuery = "Что делает метод process?"
-        val context = QueryProcessingContext(
-            originalQuery = query,
-            currentQuery = query,
-            sessionId = sessionId,
-        )
-            .setMetadata(QueryMetadataKeys.REWRITTEN_QUERY, rewrittenQuery)
-            .setMetadata(QueryMetadataKeys.FILTERED_CHUNKS, listOf(
-                createSearchResult("1", "Content", 0.9),
-            ))
-            .setMetadata(QueryMetadataKeys.PROCESSING_STATUS, ProcessingStepType.COMPLETED.name)
+        val context =
+            QueryProcessingContext(
+                originalQuery = query,
+                currentQuery = query,
+                sessionId = sessionId,
+            ).setMetadata(QueryMetadataKeys.REWRITTEN_QUERY, rewrittenQuery)
+                .setMetadata(
+                    QueryMetadataKeys.FILTERED_CHUNKS,
+                    listOf(
+                        createSearchResult("1", "Content", 0.9),
+                    ),
+                ).setMetadata(QueryMetadataKeys.PROCESSING_STATUS, ProcessingStepType.COMPLETED.name)
 
         val chatResponse = createMockCallResponseSpec("Ответ")
         val promptSpec = createMockPromptSpec(chatResponse)
@@ -108,17 +114,19 @@ class RagServiceImplTest {
     fun `ask - удаляет дубликаты результатов`() {
         val query = "test query"
         val sessionId = "session-123"
-        val context = QueryProcessingContext(
-            originalQuery = query,
-            currentQuery = query,
-            sessionId = sessionId,
-        )
-            .setMetadata(QueryMetadataKeys.CHUNKS, listOf(
-                createSearchResult("1", "Content 1", 0.9),
-                createSearchResult("1", "Content 1", 0.9),
-                createSearchResult("2", "Content 2", 0.85),
-            ))
-            .setMetadata(QueryMetadataKeys.PROCESSING_STATUS, ProcessingStepType.COMPLETED.name)
+        val context =
+            QueryProcessingContext(
+                originalQuery = query,
+                currentQuery = query,
+                sessionId = sessionId,
+            ).setMetadata(
+                QueryMetadataKeys.CHUNKS,
+                listOf(
+                    createSearchResult("1", "Content 1", 0.9),
+                    createSearchResult("1", "Content 1", 0.9),
+                    createSearchResult("2", "Content 2", 0.85),
+                ),
+            ).setMetadata(QueryMetadataKeys.PROCESSING_STATUS, ProcessingStepType.COMPLETED.name)
 
         val chatResponse = createMockCallResponseSpec("Ответ")
         val promptSpec = createMockPromptSpec(chatResponse)
@@ -135,16 +143,17 @@ class RagServiceImplTest {
     fun `ask - ограничивает результаты до топ-5`() {
         val query = "test query"
         val sessionId = "session-123"
-        val manyResults = (1..10).map { i ->
-            createSearchResult("$i", "Content $i", 1.0 - i * 0.05)
-        }
-        val context = QueryProcessingContext(
-            originalQuery = query,
-            currentQuery = query,
-            sessionId = sessionId,
-        )
-            .setMetadata(QueryMetadataKeys.FILTERED_CHUNKS, manyResults)
-            .setMetadata(QueryMetadataKeys.PROCESSING_STATUS, ProcessingStepType.COMPLETED.name)
+        val manyResults =
+            (1..10).map { i ->
+                createSearchResult("$i", "Content $i", 1.0 - i * 0.05)
+            }
+        val context =
+            QueryProcessingContext(
+                originalQuery = query,
+                currentQuery = query,
+                sessionId = sessionId,
+            ).setMetadata(QueryMetadataKeys.FILTERED_CHUNKS, manyResults)
+                .setMetadata(QueryMetadataKeys.PROCESSING_STATUS, ProcessingStepType.COMPLETED.name)
 
         val chatResponse = createMockCallResponseSpec("Ответ")
         val promptSpec = createMockPromptSpec(chatResponse)
@@ -161,13 +170,13 @@ class RagServiceImplTest {
     fun `ask - обработка null ответа от chatClient`() {
         val query = "test query"
         val sessionId = "session-123"
-        val context = QueryProcessingContext(
-            originalQuery = query,
-            currentQuery = query,
-            sessionId = sessionId,
-        )
-            .setMetadata(QueryMetadataKeys.FILTERED_CHUNKS, listOf(createSearchResult("1", "Content", 0.9)))
-            .setMetadata(QueryMetadataKeys.PROCESSING_STATUS, ProcessingStepType.COMPLETED.name)
+        val context =
+            QueryProcessingContext(
+                originalQuery = query,
+                currentQuery = query,
+                sessionId = sessionId,
+            ).setMetadata(QueryMetadataKeys.FILTERED_CHUNKS, listOf(createSearchResult("1", "Content", 0.9)))
+                .setMetadata(QueryMetadataKeys.PROCESSING_STATUS, ProcessingStepType.COMPLETED.name)
 
         val chatResponse = createMockCallResponseSpec(null)
         val promptSpec = createMockPromptSpec(chatResponse)
@@ -180,14 +189,17 @@ class RagServiceImplTest {
         assertThat(result.answer).isEqualTo("Не удалось получить ответ.")
     }
 
-    private fun createSearchResult(id: String, content: String, similarity: Double): SearchResult {
-        return SearchResult(
+    private fun createSearchResult(
+        id: String,
+        content: String,
+        similarity: Double,
+    ): SearchResult =
+        SearchResult(
             id = id,
             content = content,
             metadata = emptyMap(),
             similarity = similarity,
         )
-    }
 
     private fun createMockCallResponseSpec(content: String?): ChatClient.CallResponseSpec {
         val mock = mockk<ChatClient.CallResponseSpec>()

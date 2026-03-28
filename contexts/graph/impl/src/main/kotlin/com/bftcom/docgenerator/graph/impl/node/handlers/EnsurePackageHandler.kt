@@ -3,10 +3,10 @@ package com.bftcom.docgenerator.graph.impl.node.handlers
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.declplanner.EnsurePackageCmd
 import com.bftcom.docgenerator.graph.impl.node.builder.NodeBuilder
 import com.bftcom.docgenerator.graph.impl.node.state.GraphState
+import com.bftcom.docgenerator.shared.node.NodeMeta
 
 /**
  * Обработчик команды EnsurePackageCmd - создает ноду пакета, если её еще нет.
@@ -59,25 +59,27 @@ internal fun ensurePackageChain(
         val isLeaf = (i == segments.size - 1)
         val currentParent = parentNode
 
-        parentNode = state.getOrPutPackage(currentFqn) {
-            builder.upsertNode(
-                fqn = currentFqn,
-                kind = NodeKind.PACKAGE,
-                name = segments[i],
-                packageName = currentFqn,
-                parent = currentParent,
-                lang = Lang.kotlin,
-                filePath = if (isLeaf) filePath else null,
-                span = if (isLeaf && filePath != null) spanStart..spanEnd else null,
-                signature = null,
-                sourceCode = if (isLeaf) sourceText else null,
-                docComment = null,
-                meta = NodeMeta(
-                    source = if (isLeaf) "package/fileUnit" else "package/hierarchy",
-                    pkgFqn = currentFqn,
-                ),
-            )
-        }
+        parentNode =
+            state.getOrPutPackage(currentFqn) {
+                builder.upsertNode(
+                    fqn = currentFqn,
+                    kind = NodeKind.PACKAGE,
+                    name = segments[i],
+                    packageName = currentFqn,
+                    parent = currentParent,
+                    lang = Lang.kotlin,
+                    filePath = if (isLeaf) filePath else null,
+                    span = if (isLeaf && filePath != null) spanStart..spanEnd else null,
+                    signature = null,
+                    sourceCode = if (isLeaf) sourceText else null,
+                    docComment = null,
+                    meta =
+                        NodeMeta(
+                            source = if (isLeaf) "package/fileUnit" else "package/hierarchy",
+                            pkgFqn = currentFqn,
+                        ),
+                )
+            }
     }
 
     return parentNode ?: error("Empty package FQN: $pkgFqn")

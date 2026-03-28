@@ -32,7 +32,6 @@ data class AuditLogSearchResult(
 class AuditLogController(
     private val auditLogRepository: AuditLogRepository,
 ) {
-
     @GetMapping
     fun search(
         @RequestParam(required = false) user: String?,
@@ -47,17 +46,18 @@ class AuditLogController(
         val result = auditLogRepository.search(user, action, resource, from, to, pageable)
 
         return AuditLogSearchResult(
-            content = result.content.map {
-                AuditLogResponse(
-                    id = it.id!!,
-                    userId = it.userId,
-                    action = it.action,
-                    resource = it.resource,
-                    httpMethod = it.httpMethod,
-                    ipAddress = it.ipAddress,
-                    createdAt = it.createdAt,
-                )
-            },
+            content =
+                result.content.map {
+                    AuditLogResponse(
+                        id = it.id!!,
+                        userId = it.userId,
+                        action = it.action,
+                        resource = it.resource,
+                        httpMethod = it.httpMethod,
+                        ipAddress = it.ipAddress,
+                        createdAt = it.createdAt,
+                    )
+                },
             totalElements = result.totalElements,
             totalPages = result.totalPages,
             page = page,

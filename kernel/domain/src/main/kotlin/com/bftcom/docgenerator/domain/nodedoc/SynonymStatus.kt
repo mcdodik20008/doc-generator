@@ -32,5 +32,5 @@ enum class SynonymStatus {
     /**
      * Ошибка экстракции или пустой ответ модели.
      */
-    FAILED_LLM
+    FAILED_LLM,
 }

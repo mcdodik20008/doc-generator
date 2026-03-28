@@ -20,10 +20,10 @@ class ProfilePageController(
     private val userDetailsService: UserDetailsServiceImpl,
     private val chatSessionService: ChatSessionService,
 ) {
-
     @GetMapping("/profile")
-    fun profilePage(model: Model): Mono<String> {
-        return userDetailsService.getCurrentUser()
+    fun profilePage(model: Model): Mono<String> =
+        userDetailsService
+            .getCurrentUser()
             .flatMap { user ->
                 val chats = chatSessionService.getUserChats(user.id!!)
                 val chatCount = chatSessionService.getUserChatCount(user.id!!)
@@ -34,5 +34,4 @@ class ProfilePageController(
 
                 Mono.just("profile")
             }
-    }
 }

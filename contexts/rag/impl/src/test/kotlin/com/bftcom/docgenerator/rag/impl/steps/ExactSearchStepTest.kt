@@ -22,14 +22,15 @@ class ExactSearchStepTest {
     @Test
     fun `execute - находит узлы и переходит к GRAPH_EXPANSION`() {
         val app = Application(id = 1L, key = "app", name = "App")
-        val node = Node(
-            id = 10L,
-            application = app,
-            fqn = "com.example.UserService.getUser",
-            name = "getUser",
-            kind = NodeKind.METHOD,
-            lang = Lang.kotlin,
-        )
+        val node =
+            Node(
+                id = 10L,
+                application = app,
+                fqn = "com.example.UserService.getUser",
+                name = "getUser",
+                kind = NodeKind.METHOD,
+                lang = Lang.kotlin,
+            )
 
         every { applicationRepository.findAll() } returns listOf(app)
         every {
@@ -41,14 +42,15 @@ class ExactSearchStepTest {
             )
         } returns listOf(node)
 
-        val context = QueryProcessingContext(
-            originalQuery = "UserService getUser",
-            currentQuery = "UserService getUser",
-            sessionId = "s-1",
-        ).setMetadata(
-            QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-            mapOf("className" to "UserService", "methodName" to "getUser"),
-        )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "UserService getUser",
+                currentQuery = "UserService getUser",
+                sessionId = "s-1",
+            ).setMetadata(
+                QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+                mapOf("className" to "UserService", "methodName" to "getUser"),
+            )
 
         val result = step.execute(context)
 
@@ -66,18 +68,22 @@ class ExactSearchStepTest {
         every { applicationRepository.findAll() } returns listOf(app)
         every {
             nodeRepository.findByApplicationIdAndClassNameAndMethodNameIgnoreCase(
-                any(), any(), any(), any()
+                any(),
+                any(),
+                any(),
+                any(),
             )
         } returns emptyList()
 
-        val context = QueryProcessingContext(
-            originalQuery = "NonExistentClass method",
-            currentQuery = "NonExistentClass method",
-            sessionId = "s-1",
-        ).setMetadata(
-            QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-            mapOf("className" to "NonExistentClass", "methodName" to "method"),
-        )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "NonExistentClass method",
+                currentQuery = "NonExistentClass method",
+                sessionId = "s-1",
+            ).setMetadata(
+                QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+                mapOf("className" to "NonExistentClass", "methodName" to "method"),
+            )
 
         val result = step.execute(context)
 
@@ -87,11 +93,12 @@ class ExactSearchStepTest {
 
     @Test
     fun `execute - нет извлеченных данных и переходит к REWRITING`() {
-        val context = QueryProcessingContext(
-            originalQuery = "общий запрос",
-            currentQuery = "общий запрос",
-            sessionId = "s-1",
-        )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "общий запрос",
+                currentQuery = "общий запрос",
+                sessionId = "s-1",
+            )
 
         val result = step.execute(context)
 

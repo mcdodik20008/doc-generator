@@ -25,28 +25,21 @@ class NodeDoc(
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "node_id", nullable = false)
     var node: Node,
-
     @Id
     @Column(name = "locale", nullable = false)
     var locale: String = "ru",
-
     @Column(name = "doc_public", columnDefinition = "text")
     var docPublic: String? = null,
-
     @Column(name = "doc_tech", columnDefinition = "text")
     var docTech: String? = null,
-
     @Column(name = "doc_digest", columnDefinition = "text")
     var docDigest: String? = null,
-
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "model_meta", columnDefinition = "jsonb", nullable = false)
     var modelMeta: Map<String, Any> = emptyMap(),
-
     @Enumerated(EnumType.STRING)
     @Column(name = "synonym_status", nullable = false)
     var synonymStatus: SynonymStatus = SynonymStatus.PENDING,
-
     @Column(name = "updated_at", nullable = false)
     var updatedAt: OffsetDateTime = OffsetDateTime.now(),
 ) {
@@ -60,4 +53,3 @@ class NodeDoc(
         updatedAt = OffsetDateTime.now()
     }
 }
-

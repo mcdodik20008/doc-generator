@@ -135,10 +135,11 @@ class PerNodeChunkStrategyTest {
         val target2 = node(fqn = "com.example.Target2", name = "Target2", packageName = "com.example", kind = NodeKind.CLASS)
         target2.id = 300L
 
-        val edges = listOf(
-            Edge(src = node, dst = target1, kind = EdgeKind.CALLS),
-            Edge(src = node, dst = target2, kind = EdgeKind.DEPENDS_ON), // не CALLS
-        )
+        val edges =
+            listOf(
+                Edge(src = node, dst = target1, kind = EdgeKind.CALLS),
+                Edge(src = node, dst = target2, kind = EdgeKind.DEPENDS_ON), // не CALLS
+            )
 
         // when
         val plans = strategy.buildChunks(node, edges)
@@ -371,10 +372,10 @@ class PerNodeChunkStrategyTest {
         val nodeWithDoc = node(fqn = "com.example.Test", name = "Test", packageName = "com.example", kind = NodeKind.CLASS)
         nodeWithDoc.id = 100L
         nodeWithDoc.signature = "test"
-        
+
         val nodeWithoutDoc = node(fqn = "com.example.Test", name = "Test", packageName = "com.example", kind = NodeKind.CLASS)
         nodeWithoutDoc.id = 100L
-        
+
         val docPlans = strategy.buildChunks(nodeWithDoc, emptyList())
         val codePlans = strategy.buildChunks(nodeWithoutDoc, emptyList())
 

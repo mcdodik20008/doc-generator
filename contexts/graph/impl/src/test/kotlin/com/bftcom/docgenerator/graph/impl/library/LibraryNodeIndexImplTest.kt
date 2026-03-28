@@ -14,11 +14,12 @@ class LibraryNodeIndexImplTest {
     @Test
     fun `buildIndex indexes methods and resolves lookups`() {
         val repo = mockk<LibraryNodeRepository>()
-        val methodNode = createLibraryNode(
-            fqn = "com.example.Client.call",
-            kind = NodeKind.METHOD,
-            meta = mapOf("integrationAnalysis" to mapOf("isParentClient" to true)),
-        )
+        val methodNode =
+            createLibraryNode(
+                fqn = "com.example.Client.call",
+                kind = NodeKind.METHOD,
+                meta = mapOf("integrationAnalysis" to mapOf("isParentClient" to true)),
+            )
         val methodNoDot = createLibraryNode(fqn = "methodOnly", kind = NodeKind.METHOD)
         val classNode = createLibraryNode(fqn = "com.example.Client", kind = NodeKind.CLASS)
         every { repo.findAll() } returns listOf(methodNode, methodNoDot, classNode)
@@ -39,12 +40,13 @@ class LibraryNodeIndexImplTest {
         kind: NodeKind,
         meta: Map<String, Any> = emptyMap(),
     ): LibraryNode {
-        val library = Library(
-            coordinate = "com.example:lib:1.0.0",
-            groupId = "com.example",
-            artifactId = "lib",
-            version = "1.0.0",
-        )
+        val library =
+            Library(
+                coordinate = "com.example:lib:1.0.0",
+                groupId = "com.example",
+                artifactId = "lib",
+                version = "1.0.0",
+            )
         library.id = 1L
         return LibraryNode(
             library = library,

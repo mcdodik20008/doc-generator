@@ -1,10 +1,10 @@
 package com.bftcom.docgenerator.db
 
 import com.bftcom.docgenerator.domain.application.Application
+import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
-import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.node.Node
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -14,7 +14,6 @@ import org.springframework.context.annotation.Import
 
 @Import(ChunkGraphRepositoryImpl::class)
 class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
-
     @Autowired
     private lateinit var chunkGraphRepository: ChunkGraphRepository
 
@@ -36,64 +35,70 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @BeforeEach
     fun setUp() {
         // Given: Создаём Application
-        application = Application(
-            key = "test-app-${System.currentTimeMillis()}",
-            name = "Test Application",
-        )
+        application =
+            Application(
+                key = "test-app-${System.currentTimeMillis()}",
+                name = "Test Application",
+            )
         application = applicationRepository.save(application)
 
         // Given: Создаём несколько Node разных типов
-        node1 = Node(
-            application = application,
-            fqn = "com.example.TestClass1",
-            name = "TestClass1",
-            packageName = "com.example",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        node1 =
+            Node(
+                application = application,
+                fqn = "com.example.TestClass1",
+                name = "TestClass1",
+                packageName = "com.example",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         node1 = nodeRepository.save(node1)
 
-        node2 = Node(
-            application = application,
-            fqn = "com.example.TestClass2",
-            name = "TestClass2",
-            packageName = "com.example",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        node2 =
+            Node(
+                application = application,
+                fqn = "com.example.TestClass2",
+                name = "TestClass2",
+                packageName = "com.example",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         node2 = nodeRepository.save(node2)
 
-        node3 = Node(
-            application = application,
-            fqn = "com.example.testMethod1",
-            name = "testMethod1",
-            packageName = "com.example",
-            kind = NodeKind.METHOD,
-            lang = Lang.kotlin,
-            parent = node1,
-        )
+        node3 =
+            Node(
+                application = application,
+                fqn = "com.example.testMethod1",
+                name = "testMethod1",
+                packageName = "com.example",
+                kind = NodeKind.METHOD,
+                lang = Lang.kotlin,
+                parent = node1,
+            )
         node3 = nodeRepository.save(node3)
 
-        node4 = Node(
-            application = application,
-            fqn = "com.example.testMethod2",
-            name = "testMethod2",
-            packageName = "com.example",
-            kind = NodeKind.METHOD,
-            lang = Lang.kotlin,
-            parent = node2,
-        )
+        node4 =
+            Node(
+                application = application,
+                fqn = "com.example.testMethod2",
+                name = "testMethod2",
+                packageName = "com.example",
+                kind = NodeKind.METHOD,
+                lang = Lang.kotlin,
+                parent = node2,
+            )
         node4 = nodeRepository.save(node4)
     }
 
     @Test
     fun `loadNodes - возвращает все узлы для application при пустом наборе kinds`() {
         // When
-        val nodes = chunkGraphRepository.loadNodes(
-            appId = application.id!!,
-            kinds = emptySet(),
-            limit = 100,
-        )
+        val nodes =
+            chunkGraphRepository.loadNodes(
+                appId = application.id!!,
+                kinds = emptySet(),
+                limit = 100,
+            )
 
         // Then
         assertThat(nodes).hasSize(4)
@@ -108,11 +113,12 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadNodes - фильтрует по kinds`() {
         // When
-        val nodes = chunkGraphRepository.loadNodes(
-            appId = application.id!!,
-            kinds = setOf("CLASS"),
-            limit = 100,
-        )
+        val nodes =
+            chunkGraphRepository.loadNodes(
+                appId = application.id!!,
+                kinds = setOf("CLASS"),
+                limit = 100,
+            )
 
         // Then
         assertThat(nodes).hasSize(2)
@@ -126,11 +132,12 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadNodes - уважает limit`() {
         // When
-        val nodes = chunkGraphRepository.loadNodes(
-            appId = application.id!!,
-            kinds = emptySet(),
-            limit = 2,
-        )
+        val nodes =
+            chunkGraphRepository.loadNodes(
+                appId = application.id!!,
+                kinds = emptySet(),
+                limit = 2,
+            )
 
         // Then
         assertThat(nodes).hasSizeLessThanOrEqualTo(2)
@@ -139,11 +146,12 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadNodes - корректно маппит в GNode`() {
         // When
-        val nodes = chunkGraphRepository.loadNodes(
-            appId = application.id!!,
-            kinds = setOf("CLASS"),
-            limit = 100,
-        )
+        val nodes =
+            chunkGraphRepository.loadNodes(
+                appId = application.id!!,
+                kinds = setOf("CLASS"),
+                limit = 100,
+            )
 
         // Then
         assertThat(nodes).isNotEmpty
@@ -161,11 +169,12 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadNodes - возвращает пустой список для несуществующего application`() {
         // When
-        val nodes = chunkGraphRepository.loadNodes(
-            appId = 99999L,
-            kinds = emptySet(),
-            limit = 100,
-        )
+        val nodes =
+            chunkGraphRepository.loadNodes(
+                appId = 99999L,
+                kinds = emptySet(),
+                limit = 100,
+            )
 
         // Then
         assertThat(nodes).isEmpty()
@@ -174,29 +183,32 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadEdges - возвращает рёбра для заданных nodeIds`() {
         // Given: создаём рёбра
-        val edge1 = Edge(
-            src = node1,
-            dst = node2,
-            kind = EdgeKind.DEPENDS_ON,
-            evidence = emptyMap(),
-        )
+        val edge1 =
+            Edge(
+                src = node1,
+                dst = node2,
+                kind = EdgeKind.DEPENDS_ON,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge1)
 
-        val edge2 = Edge(
-            src = node3,
-            dst = node4,
-            kind = EdgeKind.CALLS_CODE,
-            evidence = emptyMap(),
-        )
+        val edge2 =
+            Edge(
+                src = node3,
+                dst = node4,
+                kind = EdgeKind.CALLS_CODE,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge2)
         edgeRepository.flush()
 
         // When
-        val edges = chunkGraphRepository.loadEdges(
-            appId = application.id!!,
-            nodeIds = setOf(node1.id.toString(), node2.id.toString()),
-            edgeKinds = emptySet(),
-        )
+        val edges =
+            chunkGraphRepository.loadEdges(
+                appId = application.id!!,
+                nodeIds = setOf(node1.id.toString(), node2.id.toString()),
+                edgeKinds = emptySet(),
+            )
 
         // Then
         assertThat(edges).hasSize(1)
@@ -208,29 +220,32 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadEdges - возвращает входящие и исходящие рёбра`() {
         // Given: создаём рёбра
-        val edge1 = Edge(
-            src = node1,
-            dst = node2,
-            kind = EdgeKind.DEPENDS_ON,
-            evidence = emptyMap(),
-        )
+        val edge1 =
+            Edge(
+                src = node1,
+                dst = node2,
+                kind = EdgeKind.DEPENDS_ON,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge1)
 
-        val edge2 = Edge(
-            src = node3,
-            dst = node1, // входящее для node1
-            kind = EdgeKind.CALLS_CODE,
-            evidence = emptyMap(),
-        )
+        val edge2 =
+            Edge(
+                src = node3,
+                dst = node1, // входящее для node1
+                kind = EdgeKind.CALLS_CODE,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge2)
         edgeRepository.flush()
 
         // When
-        val edges = chunkGraphRepository.loadEdges(
-            appId = application.id!!,
-            nodeIds = setOf(node1.id.toString()),
-            edgeKinds = emptySet(),
-        )
+        val edges =
+            chunkGraphRepository.loadEdges(
+                appId = application.id!!,
+                nodeIds = setOf(node1.id.toString()),
+                edgeKinds = emptySet(),
+            )
 
         // Then: должны быть оба ребра (исходящее и входящее)
         assertThat(edges).hasSize(2)
@@ -247,21 +262,23 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadEdges - корректно маппит в GEdge`() {
         // Given
-        val edge = Edge(
-            src = node1,
-            dst = node2,
-            kind = EdgeKind.DEPENDS_ON,
-            evidence = emptyMap(),
-        )
+        val edge =
+            Edge(
+                src = node1,
+                dst = node2,
+                kind = EdgeKind.DEPENDS_ON,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge)
         edgeRepository.flush()
 
         // When
-        val edges = chunkGraphRepository.loadEdges(
-            appId = application.id!!,
-            nodeIds = setOf(node1.id.toString(), node2.id.toString()),
-            edgeKinds = emptySet(),
-        )
+        val edges =
+            chunkGraphRepository.loadEdges(
+                appId = application.id!!,
+                nodeIds = setOf(node1.id.toString(), node2.id.toString()),
+                edgeKinds = emptySet(),
+            )
 
         // Then
         assertThat(edges).hasSize(1)
@@ -276,11 +293,12 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadEdges - возвращает пустой список для пустого набора nodeIds`() {
         // When
-        val edges = chunkGraphRepository.loadEdges(
-            appId = application.id!!,
-            nodeIds = emptySet(),
-            edgeKinds = emptySet(),
-        )
+        val edges =
+            chunkGraphRepository.loadEdges(
+                appId = application.id!!,
+                nodeIds = emptySet(),
+                edgeKinds = emptySet(),
+            )
 
         // Then
         assertThat(edges).isEmpty()
@@ -289,28 +307,31 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadNeighbors - возвращает соседей узла`() {
         // Given: создаём рёбра
-        val edge1 = Edge(
-            src = node1,
-            dst = node2,
-            kind = EdgeKind.DEPENDS_ON,
-            evidence = emptyMap(),
-        )
+        val edge1 =
+            Edge(
+                src = node1,
+                dst = node2,
+                kind = EdgeKind.DEPENDS_ON,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge1)
 
-        val edge2 = Edge(
-            src = node3,
-            dst = node1,
-            kind = EdgeKind.CALLS_CODE,
-            evidence = emptyMap(),
-        )
+        val edge2 =
+            Edge(
+                src = node3,
+                dst = node1,
+                kind = EdgeKind.CALLS_CODE,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge2)
         edgeRepository.flush()
 
         // When
-        val neighbors = chunkGraphRepository.loadNeighbors(
-            nodeId = node1.id.toString(),
-            limit = 100,
-        )
+        val neighbors =
+            chunkGraphRepository.loadNeighbors(
+                nodeId = node1.id.toString(),
+                limit = 100,
+            )
 
         // Then: должны быть node2 и node3
         assertThat(neighbors).hasSize(2)
@@ -323,38 +344,42 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadNeighbors - уважает limit`() {
         // Given: создаём несколько соседей
-        val node5 = Node(
-            application = application,
-            fqn = "com.example.Class3",
-            name = "Class3",
-            packageName = "com.example",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        val node5 =
+            Node(
+                application = application,
+                fqn = "com.example.Class3",
+                name = "Class3",
+                packageName = "com.example",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         val savedNode5 = nodeRepository.save(node5)
 
-        val edge1 = Edge(
-            src = node1,
-            dst = node2,
-            kind = EdgeKind.DEPENDS_ON,
-            evidence = emptyMap(),
-        )
+        val edge1 =
+            Edge(
+                src = node1,
+                dst = node2,
+                kind = EdgeKind.DEPENDS_ON,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge1)
 
-        val edge2 = Edge(
-            src = node1,
-            dst = savedNode5,
-            kind = EdgeKind.DEPENDS_ON,
-            evidence = emptyMap(),
-        )
+        val edge2 =
+            Edge(
+                src = node1,
+                dst = savedNode5,
+                kind = EdgeKind.DEPENDS_ON,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge2)
         edgeRepository.flush()
 
         // When
-        val neighbors = chunkGraphRepository.loadNeighbors(
-            nodeId = node1.id.toString(),
-            limit = 1,
-        )
+        val neighbors =
+            chunkGraphRepository.loadNeighbors(
+                nodeId = node1.id.toString(),
+                limit = 1,
+            )
 
         // Then
         assertThat(neighbors).hasSizeLessThanOrEqualTo(1)
@@ -363,10 +388,11 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadNeighbors - возвращает пустой список для узла без соседей`() {
         // When
-        val neighbors = chunkGraphRepository.loadNeighbors(
-            nodeId = node1.id.toString(),
-            limit = 100,
-        )
+        val neighbors =
+            chunkGraphRepository.loadNeighbors(
+                nodeId = node1.id.toString(),
+                limit = 100,
+            )
 
         // Then
         assertThat(neighbors).isEmpty()
@@ -375,10 +401,11 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadNeighbors - возвращает пустой список для несуществующего узла`() {
         // When
-        val neighbors = chunkGraphRepository.loadNeighbors(
-            nodeId = "99999",
-            limit = 100,
-        )
+        val neighbors =
+            chunkGraphRepository.loadNeighbors(
+                nodeId = "99999",
+                limit = 100,
+            )
 
         // Then
         assertThat(neighbors).isEmpty()
@@ -387,46 +414,51 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadEdgesByNode - возвращает рёбра между узлом и его соседями`() {
         // Given: создаём рёбра
-        val edge1 = Edge(
-            src = node1,
-            dst = node2,
-            kind = EdgeKind.DEPENDS_ON,
-            evidence = emptyMap(),
-        )
+        val edge1 =
+            Edge(
+                src = node1,
+                dst = node2,
+                kind = EdgeKind.DEPENDS_ON,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge1)
 
-        val edge2 = Edge(
-            src = node3,
-            dst = node1,
-            kind = EdgeKind.CALLS_CODE,
-            evidence = emptyMap(),
-        )
+        val edge2 =
+            Edge(
+                src = node3,
+                dst = node1,
+                kind = EdgeKind.CALLS_CODE,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge2)
 
-        val node5 = Node(
-            application = application,
-            fqn = "com.example.Class5",
-            name = "Class5",
-            packageName = "com.example",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        val node5 =
+            Node(
+                application = application,
+                fqn = "com.example.Class5",
+                name = "Class5",
+                packageName = "com.example",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         val savedNode5 = nodeRepository.save(node5)
 
-        val edge3 = Edge(
-            src = node4,
-            dst = savedNode5, // не относится к node1
-            kind = EdgeKind.DEPENDS_ON,
-            evidence = emptyMap(),
-        )
+        val edge3 =
+            Edge(
+                src = node4,
+                dst = savedNode5, // не относится к node1
+                kind = EdgeKind.DEPENDS_ON,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge3)
         edgeRepository.flush()
 
         // When
-        val edges = chunkGraphRepository.loadEdgesByNode(
-            nodeId = node1.id.toString(),
-            neighborIds = setOf(node2.id.toString(), node3.id.toString()),
-        )
+        val edges =
+            chunkGraphRepository.loadEdgesByNode(
+                nodeId = node1.id.toString(),
+                neighborIds = setOf(node2.id.toString(), node3.id.toString()),
+            )
 
         // Then: должны быть только рёбра, связывающие node1 с соседями
         assertThat(edges).hasSize(2)
@@ -442,10 +474,11 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadEdgesByNode - возвращает пустой список для узла без соседей`() {
         // When
-        val edges = chunkGraphRepository.loadEdgesByNode(
-            nodeId = node1.id.toString(),
-            neighborIds = emptySet(),
-        )
+        val edges =
+            chunkGraphRepository.loadEdgesByNode(
+                nodeId = node1.id.toString(),
+                neighborIds = emptySet(),
+            )
 
         // Then
         assertThat(edges).isEmpty()
@@ -454,10 +487,11 @@ class ChunkGraphRepositoryImplTest : BaseRepositoryTest() {
     @Test
     fun `loadEdgesByNode - возвращает пустой список для несуществующего узла`() {
         // When
-        val edges = chunkGraphRepository.loadEdgesByNode(
-            nodeId = "99999",
-            neighborIds = setOf(node2.id.toString()),
-        )
+        val edges =
+            chunkGraphRepository.loadEdgesByNode(
+                nodeId = "99999",
+                neighborIds = setOf(node2.id.toString()),
+            )
 
         // Then
         assertThat(edges).isEmpty()

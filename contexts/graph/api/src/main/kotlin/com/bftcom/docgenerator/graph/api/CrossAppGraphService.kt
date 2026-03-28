@@ -19,6 +19,6 @@ interface CrossAppGraphService {
     fun buildCrossAppGraph(
         applicationIds: List<Long> = emptyList(),
         integrationTypes: Set<IntegrationType> = emptySet(),
-        limit: Int = 1000
+        limit: Int = 1000,
     ): CrossAppGraphResponse
 }

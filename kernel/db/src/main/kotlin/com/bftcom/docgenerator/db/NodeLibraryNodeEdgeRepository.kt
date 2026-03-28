@@ -26,4 +26,3 @@ interface NodeLibraryNodeEdgeRepository : JpaRepository<NodeLibraryNodeEdge, Lon
         @Param("kind") kind: String,
     )
 }
-

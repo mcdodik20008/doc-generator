@@ -31,44 +31,53 @@ class IntegrationPointServiceImpl(
 
         urls.forEach { url ->
             httpMethods.forEach { method ->
-                points.add(IntegrationPoint.HttpEndpoint(
-                    url = url,
-                    methodId = methodFqn,
-                    httpMethod = method,
-                    clientType = integrationMeta["clientType"] as? String ?: "Unknown",
-                    hasRetry = integrationMeta.flag("hasRetry"),
-                    hasTimeout = integrationMeta.flag("hasTimeout"),
-                    hasCircuitBreaker = integrationMeta.flag("hasCircuitBreaker")
-                ))
+                points.add(
+                    IntegrationPoint.HttpEndpoint(
+                        url = url,
+                        methodId = methodFqn,
+                        httpMethod = method,
+                        clientType = integrationMeta["clientType"] as? String ?: "Unknown",
+                        hasRetry = integrationMeta.flag("hasRetry"),
+                        hasTimeout = integrationMeta.flag("hasTimeout"),
+                        hasCircuitBreaker = integrationMeta.flag("hasCircuitBreaker"),
+                    ),
+                )
             }
         }
 
         // Kafka
         getList<String>("kafkaTopics").forEach { topic ->
             val call = getList<Map<String, Any>>("kafkaCalls").find { it["topic"] == topic }
-            points.add(IntegrationPoint.KafkaTopic(
-                methodId = methodFqn,
-                topic = topic,
-                operation = call?.get("operation") as? String ?: "UNKNOWN",
-                clientType = call?.get("clientType") as? String ?: "Unknown"
-            ))
+            points.add(
+                IntegrationPoint.KafkaTopic(
+                    methodId = methodFqn,
+                    topic = topic,
+                    operation = call?.get("operation") as? String ?: "UNKNOWN",
+                    clientType = call?.get("clientType") as? String ?: "Unknown",
+                ),
+            )
         }
 
         // Camel
         getList<String>("camelUris").forEach { uri ->
             val call = getList<Map<String, Any>>("camelCalls").find { it["uri"] == uri }
-            points.add(IntegrationPoint.CamelRoute(
-                methodId = methodFqn,
-                uri = uri,
-                endpointType = call?.get("endpointType") as? String,
-                direction = call?.get("direction") as? String ?: "UNKNOWN"
-            ))
+            points.add(
+                IntegrationPoint.CamelRoute(
+                    methodId = methodFqn,
+                    uri = uri,
+                    endpointType = call?.get("endpointType") as? String,
+                    direction = call?.get("direction") as? String ?: "UNKNOWN",
+                ),
+            )
         }
 
         return points
     }
 
-    override fun getMethodIntegrationSummary(methodFqn: String, libraryId: Long): IntegrationPointService.IntegrationMethodSummary? {
+    override fun getMethodIntegrationSummary(
+        methodFqn: String,
+        libraryId: Long,
+    ): IntegrationPointService.IntegrationMethodSummary? {
         val node = libraryNodeRepo.findByLibraryIdAndFqn(libraryId, methodFqn) ?: return null
         val points = extractIntegrationPoints(node)
         val meta = node.meta["integrationAnalysis"] as? Map<String, Any>
@@ -81,7 +90,7 @@ class IntegrationPointServiceImpl(
             camelRoutes = points.filterIsInstance<IntegrationPoint.CamelRoute>(),
             hasRetry = meta.flag("hasRetry"),
             hasTimeout = meta.flag("hasTimeout"),
-            hasCircuitBreaker = meta.flag("hasCircuitBreaker")
+            hasCircuitBreaker = meta.flag("hasCircuitBreaker"),
         )
     }
 
@@ -92,9 +101,21 @@ class IntegrationPointServiceImpl(
     private fun String.toJsonString() = "\"$this\""
 
     override fun findParentClients(libraryId: Long) = libraryNodeRepo.findParentClientsByLibraryId(libraryId)
-    override fun findMethodsByUrl(url: String, libraryId: Long?) = libraryNodeRepo.findMethodsByUrl(url.toJsonString(), libraryId)
-    override fun findMethodsByKafkaTopic(topic: String, libraryId: Long?) = libraryNodeRepo.findMethodsByKafkaTopic(topic.toJsonString(), libraryId)
-    override fun findMethodsByCamelUri(uri: String, libraryId: Long?) = libraryNodeRepo.findMethodsByCamelUri(uri.toJsonString(), libraryId)
+
+    override fun findMethodsByUrl(
+        url: String,
+        libraryId: Long?,
+    ) = libraryNodeRepo.findMethodsByUrl(url.toJsonString(), libraryId)
+
+    override fun findMethodsByKafkaTopic(
+        topic: String,
+        libraryId: Long?,
+    ) = libraryNodeRepo.findMethodsByKafkaTopic(topic.toJsonString(), libraryId)
+
+    override fun findMethodsByCamelUri(
+        uri: String,
+        libraryId: Long?,
+    ) = libraryNodeRepo.findMethodsByCamelUri(uri.toJsonString(), libraryId)
 
     override fun resolveIntegrationPointsTransitive(
         libraryNode: LibraryNode,

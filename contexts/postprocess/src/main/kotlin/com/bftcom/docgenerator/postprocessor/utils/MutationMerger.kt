@@ -36,7 +36,10 @@ object MutationMerger {
         return acc
     }
 
-    private fun pickLonger(a: Any?, b: Any?): Any? {
+    private fun pickLonger(
+        a: Any?,
+        b: Any?,
+    ): Any? {
         val sa = a?.toString() ?: return b
         val sb = b?.toString() ?: return a
         return if (sb.length > sa.length) b else a
@@ -46,7 +49,10 @@ object MutationMerger {
      * На текущем slim-`chunk` не используется, но оставлено для обратной совместимости MergePolicy.
      * Ожидаем JSON вида {"grade":"A|B|C", ...}. Чем ближе к "A", тем лучше.
      */
-    private fun pickBetterGrade(a: Any?, b: Any?): Any? {
+    private fun pickBetterGrade(
+        a: Any?,
+        b: Any?,
+    ): Any? {
         fun score(x: Any?): Int {
             val s = x?.toString() ?: return -1
             val grade = Regex(""""grade"\s*:\s*"(.*?)"""").find(s)?.groupValues?.get(1)

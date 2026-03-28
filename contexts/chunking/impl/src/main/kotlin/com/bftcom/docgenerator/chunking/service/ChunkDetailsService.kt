@@ -17,11 +17,13 @@ class ChunkDetailsService(
     private val edgeRepo: EdgeRepository,
 ) {
     fun getDetails(id: String): ChunkDetailsResponse {
-        val nodeIdLong = id.toLongOrNull()
-            ?: return emptyDetails(id)
+        val nodeIdLong =
+            id.toLongOrNull()
+                ?: return emptyDetails(id)
 
-        val chunk = chunkRepo.findByNodeId(nodeIdLong).firstOrNull()
-            ?: return nodeOnlyDetails(id, nodeIdLong)
+        val chunk =
+            chunkRepo.findByNodeId(nodeIdLong).firstOrNull()
+                ?: return nodeOnlyDetails(id, nodeIdLong)
 
         val nodeId =
             chunk.node.id ?: return ChunkDetailsResponse(
@@ -65,26 +67,35 @@ class ChunkDetailsService(
         )
     }
 
-    private fun nodeOnlyDetails(id: String, nodeIdLong: Long): ChunkDetailsResponse {
-        val node = nodeRepo.findByIdOrNull(nodeIdLong)
-            ?: return emptyDetails(id)
+    private fun nodeOnlyDetails(
+        id: String,
+        nodeIdLong: Long,
+    ): ChunkDetailsResponse {
+        val node =
+            nodeRepo.findByIdOrNull(nodeIdLong)
+                ?: return emptyDetails(id)
 
         val nodeId = node.id ?: return emptyDetails(id)
 
-        val outgoing = edgeRepo.findAllBySrcId(nodeId)
-            .map { e -> RelationBrief(e.src.id.toString(), e.kind.name, e.dst.id.toString()) }
-        val incoming = edgeRepo.findAllByDstId(nodeId)
-            .map { e -> RelationBrief(e.dst.id.toString(), e.kind.name, e.src.id.toString()) }
+        val outgoing =
+            edgeRepo
+                .findAllBySrcId(nodeId)
+                .map { e -> RelationBrief(e.src.id.toString(), e.kind.name, e.dst.id.toString()) }
+        val incoming =
+            edgeRepo
+                .findAllByDstId(nodeId)
+                .map { e -> RelationBrief(e.dst.id.toString(), e.kind.name, e.src.id.toString()) }
 
         return ChunkDetailsResponse(
             id = nodeId.toString(),
             title = node.fqn,
-            node = NodeBrief(
-                id = nodeId.toString(),
-                kind = node.kind.name,
-                name = node.name ?: "",
-                packageName = node.packageName,
-            ),
+            node =
+                NodeBrief(
+                    id = nodeId.toString(),
+                    kind = node.kind.name,
+                    name = node.name ?: "",
+                    packageName = node.packageName,
+                ),
             content = node.docComment ?: node.signature,
             metadata = node.meta,
             embeddingSize = null,
@@ -92,13 +103,14 @@ class ChunkDetailsService(
         )
     }
 
-    private fun emptyDetails(id: String) = ChunkDetailsResponse(
-        id = id,
-        title = "Node $id",
-        node = null,
-        content = null,
-        metadata = null,
-        embeddingSize = null,
-        relations = ChunkRelations(emptyList(), emptyList()),
-    )
+    private fun emptyDetails(id: String) =
+        ChunkDetailsResponse(
+            id = id,
+            title = "Node $id",
+            node = null,
+            content = null,
+            metadata = null,
+            embeddingSize = null,
+            relations = ChunkRelations(emptyList(), emptyList()),
+        )
 }

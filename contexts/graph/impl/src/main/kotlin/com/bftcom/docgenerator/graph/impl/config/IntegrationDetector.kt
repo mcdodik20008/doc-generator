@@ -34,7 +34,6 @@ data class DetectedIntegration(
  * Чистая логика без side-effects — удобно тестировать.
  */
 object IntegrationDetector {
-
     private val URL_VALUE_PATTERN = Regex("^https?://|^\\$\\{.*}$", RegexOption.IGNORE_CASE)
     private val ENV_VAR_PATTERN = Regex("\\$\\{([^}:]+)(?::([^}]*))?}")
 
@@ -61,17 +60,21 @@ object IntegrationDetector {
 
     // --- Database ---
 
-    private fun detectDatabase(props: Map<String, String>, consumed: MutableSet<String>): List<DetectedIntegration> {
+    private fun detectDatabase(
+        props: Map<String, String>,
+        consumed: MutableSet<String>,
+    ): List<DetectedIntegration> {
         val result = mutableListOf<DetectedIntegration>()
 
         // spring.datasource.* / spring.r2dbc.* / *.datasource.*
-        val dbKeys = props.keys.filter { key ->
-            key !in consumed && (
-                key.startsWith("spring.datasource.") ||
-                    key.startsWith("spring.r2dbc.") ||
-                    key.contains(".datasource.")
+        val dbKeys =
+            props.keys.filter { key ->
+                key !in consumed && (
+                    key.startsWith("spring.datasource.") ||
+                        key.startsWith("spring.r2dbc.") ||
+                        key.contains(".datasource.")
                 )
-        }
+            }
 
         val groups = groupByPrefix(dbKeys, props)
         for ((group, groupProps) in groups) {
@@ -80,13 +83,14 @@ object IntegrationDetector {
             if (urlValue != null && (urlValue.contains("jdbc:") || urlValue.contains("r2dbc:"))) {
                 consumed += groupProps.keys
                 val (envVar, defaultUrl) = extractEnvAndDefault(urlValue)
-                result += DetectedIntegration(
-                    type = InfraIntegrationType.DATABASE,
-                    groupKey = group,
-                    properties = groupProps,
-                    defaultUrl = defaultUrl ?: urlValue,
-                    envVar = envVar,
-                )
+                result +=
+                    DetectedIntegration(
+                        type = InfraIntegrationType.DATABASE,
+                        groupKey = group,
+                        properties = groupProps,
+                        defaultUrl = defaultUrl ?: urlValue,
+                        envVar = envVar,
+                    )
             }
         }
         return result
@@ -94,7 +98,10 @@ object IntegrationDetector {
 
     // --- Kafka ---
 
-    private fun detectKafka(props: Map<String, String>, consumed: MutableSet<String>): List<DetectedIntegration> {
+    private fun detectKafka(
+        props: Map<String, String>,
+        consumed: MutableSet<String>,
+    ): List<DetectedIntegration> {
         val result = mutableListOf<DetectedIntegration>()
 
         // Все spring.kafka.* свойства — одна группа
@@ -106,19 +113,21 @@ object IntegrationDetector {
             val serversValue = serversKey?.let { groupProps[it] }
             val (envVar, defaultUrl) = if (serversValue != null) extractEnvAndDefault(serversValue) else (null to null)
 
-            result += DetectedIntegration(
-                type = InfraIntegrationType.KAFKA,
-                groupKey = "spring.kafka",
-                properties = groupProps,
-                defaultUrl = defaultUrl ?: serversValue,
-                envVar = envVar,
-            )
+            result +=
+                DetectedIntegration(
+                    type = InfraIntegrationType.KAFKA,
+                    groupKey = "spring.kafka",
+                    properties = groupProps,
+                    defaultUrl = defaultUrl ?: serversValue,
+                    envVar = envVar,
+                )
         }
 
         // Кастомные *.bootstrap-servers вне spring.kafka
-        val customKafkaKeys = props.keys.filter { key ->
-            key !in consumed && key.endsWith(".bootstrap-servers") && !key.startsWith("spring.kafka.")
-        }
+        val customKafkaKeys =
+            props.keys.filter { key ->
+                key !in consumed && key.endsWith(".bootstrap-servers") && !key.startsWith("spring.kafka.")
+            }
         for (key in customKafkaKeys) {
             val groupKey = key.substringBeforeLast('.')
             val groupProps = props.filter { (k, _) -> k !in consumed && k.startsWith("$groupKey.") }
@@ -126,13 +135,14 @@ object IntegrationDetector {
             val serversValue = props[key]
             val (envVar, defaultUrl) = if (serversValue != null) extractEnvAndDefault(serversValue) else (null to null)
 
-            result += DetectedIntegration(
-                type = InfraIntegrationType.KAFKA,
-                groupKey = groupKey,
-                properties = groupProps,
-                defaultUrl = defaultUrl ?: serversValue,
-                envVar = envVar,
-            )
+            result +=
+                DetectedIntegration(
+                    type = InfraIntegrationType.KAFKA,
+                    groupKey = groupKey,
+                    properties = groupProps,
+                    defaultUrl = defaultUrl ?: serversValue,
+                    envVar = envVar,
+                )
         }
 
         return result
@@ -140,23 +150,28 @@ object IntegrationDetector {
 
     // --- Rabbit ---
 
-    private fun detectRabbit(props: Map<String, String>, consumed: MutableSet<String>): List<DetectedIntegration> {
+    private fun detectRabbit(
+        props: Map<String, String>,
+        consumed: MutableSet<String>,
+    ): List<DetectedIntegration> {
         val result = mutableListOf<DetectedIntegration>()
 
-        val rabbitKeys = props.keys.filter { key ->
-            key !in consumed && (
-                key.startsWith("spring.rabbitmq.") ||
-                    key.contains("rabbit", ignoreCase = true)
+        val rabbitKeys =
+            props.keys.filter { key ->
+                key !in consumed && (
+                    key.startsWith("spring.rabbitmq.") ||
+                        key.contains("rabbit", ignoreCase = true)
                 )
-        }
+            }
 
         val groups = groupByPrefix(rabbitKeys, props)
         for ((group, groupProps) in groups) {
             // Для кастомных rabbit-настроек требуем host + (exchange или queue)
             val hasHost = groupProps.keys.any { it.endsWith(".host") }
-            val hasExchangeOrQueue = groupProps.keys.any {
-                it.endsWith(".exchange") || it.endsWith(".queue") || it.endsWith(".routing-key")
-            }
+            val hasExchangeOrQueue =
+                groupProps.keys.any {
+                    it.endsWith(".exchange") || it.endsWith(".queue") || it.endsWith(".routing-key")
+                }
             val isSpringRabbit = group.startsWith("spring.rabbitmq")
 
             if (isSpringRabbit || (hasHost && hasExchangeOrQueue)) {
@@ -165,13 +180,14 @@ object IntegrationDetector {
                 val hostValue = hostKey?.let { groupProps[it] }
                 val (envVar, defaultUrl) = if (hostValue != null) extractEnvAndDefault(hostValue) else (null to null)
 
-                result += DetectedIntegration(
-                    type = InfraIntegrationType.RABBIT,
-                    groupKey = group,
-                    properties = groupProps,
-                    defaultUrl = defaultUrl ?: hostValue,
-                    envVar = envVar,
-                )
+                result +=
+                    DetectedIntegration(
+                        type = InfraIntegrationType.RABBIT,
+                        groupKey = group,
+                        properties = groupProps,
+                        defaultUrl = defaultUrl ?: hostValue,
+                        envVar = envVar,
+                    )
             }
         }
         return result
@@ -179,7 +195,10 @@ object IntegrationDetector {
 
     // --- Camunda ---
 
-    private fun detectCamunda(props: Map<String, String>, consumed: MutableSet<String>): List<DetectedIntegration> {
+    private fun detectCamunda(
+        props: Map<String, String>,
+        consumed: MutableSet<String>,
+    ): List<DetectedIntegration> {
         val result = mutableListOf<DetectedIntegration>()
 
         val camundaKeys = props.keys.filter { it !in consumed && it.startsWith("camunda.") }
@@ -190,20 +209,24 @@ object IntegrationDetector {
             val urlValue = urlKey?.let { groupProps[it] }
             val (envVar, defaultUrl) = if (urlValue != null) extractEnvAndDefault(urlValue) else (null to null)
 
-            result += DetectedIntegration(
-                type = InfraIntegrationType.CAMUNDA,
-                groupKey = "camunda",
-                properties = groupProps,
-                defaultUrl = defaultUrl ?: urlValue,
-                envVar = envVar,
-            )
+            result +=
+                DetectedIntegration(
+                    type = InfraIntegrationType.CAMUNDA,
+                    groupKey = "camunda",
+                    properties = groupProps,
+                    defaultUrl = defaultUrl ?: urlValue,
+                    envVar = envVar,
+                )
         }
         return result
     }
 
     // --- Auth (OAuth2) ---
 
-    private fun detectAuth(props: Map<String, String>, consumed: MutableSet<String>): List<DetectedIntegration> {
+    private fun detectAuth(
+        props: Map<String, String>,
+        consumed: MutableSet<String>,
+    ): List<DetectedIntegration> {
         val result = mutableListOf<DetectedIntegration>()
 
         val authKeys = props.keys.filter { it !in consumed && it.startsWith("spring.security.oauth2.") }
@@ -211,19 +234,21 @@ object IntegrationDetector {
             val groups = groupByPrefix(authKeys, props)
             for ((group, groupProps) in groups) {
                 consumed += groupProps.keys
-                val urlKey = groupProps.keys.firstOrNull {
-                    it.endsWith(".issuer-uri") || it.endsWith(".token-uri") || it.endsWith(".authorization-uri")
-                }
+                val urlKey =
+                    groupProps.keys.firstOrNull {
+                        it.endsWith(".issuer-uri") || it.endsWith(".token-uri") || it.endsWith(".authorization-uri")
+                    }
                 val urlValue = urlKey?.let { groupProps[it] }
                 val (envVar, defaultUrl) = if (urlValue != null) extractEnvAndDefault(urlValue) else (null to null)
 
-                result += DetectedIntegration(
-                    type = InfraIntegrationType.AUTH,
-                    groupKey = group,
-                    properties = groupProps,
-                    defaultUrl = defaultUrl ?: urlValue,
-                    envVar = envVar,
-                )
+                result +=
+                    DetectedIntegration(
+                        type = InfraIntegrationType.AUTH,
+                        groupKey = group,
+                        properties = groupProps,
+                        defaultUrl = defaultUrl ?: urlValue,
+                        envVar = envVar,
+                    )
             }
         }
         return result
@@ -231,7 +256,10 @@ object IntegrationDetector {
 
     // --- Config Server ---
 
-    private fun detectConfigServer(props: Map<String, String>, consumed: MutableSet<String>): List<DetectedIntegration> {
+    private fun detectConfigServer(
+        props: Map<String, String>,
+        consumed: MutableSet<String>,
+    ): List<DetectedIntegration> {
         val result = mutableListOf<DetectedIntegration>()
 
         val configKeys = props.keys.filter { it !in consumed && it.startsWith("spring.cloud.config.") }
@@ -242,30 +270,36 @@ object IntegrationDetector {
             val urlValue = urlKey?.let { groupProps[it] }
             val (envVar, defaultUrl) = if (urlValue != null) extractEnvAndDefault(urlValue) else (null to null)
 
-            result += DetectedIntegration(
-                type = InfraIntegrationType.CONFIG_SERVER,
-                groupKey = "spring.cloud.config",
-                properties = groupProps,
-                defaultUrl = defaultUrl ?: urlValue,
-                envVar = envVar,
-            )
+            result +=
+                DetectedIntegration(
+                    type = InfraIntegrationType.CONFIG_SERVER,
+                    groupKey = "spring.cloud.config",
+                    properties = groupProps,
+                    defaultUrl = defaultUrl ?: urlValue,
+                    envVar = envVar,
+                )
         }
         return result
     }
 
     // --- HTTP (generic URL/URI properties) ---
 
-    private fun detectHttp(props: Map<String, String>, consumed: MutableSet<String>): List<DetectedIntegration> {
+    private fun detectHttp(
+        props: Map<String, String>,
+        consumed: MutableSet<String>,
+    ): List<DetectedIntegration> {
         val result = mutableListOf<DetectedIntegration>()
 
         // Ищем ключи, которые выглядят как URL/URI-настройки
         val urlSuffixes = setOf(".url", ".uri", ".rest-uri", ".base-url", ".api-url", ".service-url")
-        val httpLeafKeys = props.keys.filter { key ->
-            key !in consumed && urlSuffixes.any { suffix -> key.endsWith(suffix, ignoreCase = true) }
-        }.filter { key ->
-            val value = props[key] ?: ""
-            looksLikeUrl(value)
-        }
+        val httpLeafKeys =
+            props.keys
+                .filter { key ->
+                    key !in consumed && urlSuffixes.any { suffix -> key.endsWith(suffix, ignoreCase = true) }
+                }.filter { key ->
+                    val value = props[key] ?: ""
+                    looksLikeUrl(value)
+                }
 
         // Группируем по родительскому префиксу
         for (leafKey in httpLeafKeys) {
@@ -273,21 +307,23 @@ object IntegrationDetector {
             if (groupKey in consumed) continue
 
             // Собираем все свойства группы
-            val groupProps = props.filter { (k, _) ->
-                k !in consumed && k.startsWith("$groupKey.")
-            }
+            val groupProps =
+                props.filter { (k, _) ->
+                    k !in consumed && k.startsWith("$groupKey.")
+                }
 
             consumed += groupProps.keys
             val urlValue = props[leafKey] ?: ""
             val (envVar, defaultUrl) = extractEnvAndDefault(urlValue)
 
-            result += DetectedIntegration(
-                type = InfraIntegrationType.HTTP,
-                groupKey = groupKey,
-                properties = groupProps,
-                defaultUrl = defaultUrl ?: urlValue,
-                envVar = envVar,
-            )
+            result +=
+                DetectedIntegration(
+                    type = InfraIntegrationType.HTTP,
+                    groupKey = groupKey,
+                    properties = groupProps,
+                    defaultUrl = defaultUrl ?: urlValue,
+                    envVar = envVar,
+                )
         }
         return result
     }
@@ -307,11 +343,10 @@ object IntegrationDetector {
     /**
      * Разрешает placeholder `${VAR:default}` → default-значение (если есть).
      */
-    fun resolveDefault(value: String): String {
-        return ENV_VAR_PATTERN.replace(value) { match ->
+    fun resolveDefault(value: String): String =
+        ENV_VAR_PATTERN.replace(value) { match ->
             match.groupValues[2].takeIf { it.isNotBlank() } ?: match.value
         }
-    }
 
     private fun looksLikeUrl(value: String): Boolean {
         if (value.isBlank()) return false
@@ -349,7 +384,10 @@ object IntegrationDetector {
         return groups
     }
 
-    private fun findGroupPrefix(prefix: String, allProps: Map<String, String>): String {
+    private fun findGroupPrefix(
+        prefix: String,
+        allProps: Map<String, String>,
+    ): String {
         // Поднимаемся вверх, пока у нас есть хотя бы 2 свойства
         var current = prefix
         while (current.contains('.')) {
@@ -367,22 +405,30 @@ object IntegrationDetector {
      * `spring.datasource` → `datasource`
      * `rr.unsi.client` → `unsi-client`
      */
-    fun readableName(groupKey: String, type: InfraIntegrationType): String {
-        val stripped = groupKey
-            .removePrefix("rr.")
-            .removePrefix("spring.")
-            .removePrefix("spring.cloud.")
+    fun readableName(
+        groupKey: String,
+        type: InfraIntegrationType,
+    ): String {
+        val stripped =
+            groupKey
+                .removePrefix("rr.")
+                .removePrefix("spring.")
+                .removePrefix("spring.cloud.")
 
-        val name = when {
-            stripped.contains('.') -> {
-                val parts = stripped.split('.')
-                // Берём наиболее информативные части (пропуская generic слова)
-                val genericWords = setOf("client", "settings", "config", "configuration", "properties")
-                val meaningful = parts.filter { it.lowercase() !in genericWords }
-                if (meaningful.isNotEmpty()) meaningful.joinToString("-") else parts.joinToString("-")
+        val name =
+            when {
+                stripped.contains('.') -> {
+                    val parts = stripped.split('.')
+                    // Берём наиболее информативные части (пропуская generic слова)
+                    val genericWords = setOf("client", "settings", "config", "configuration", "properties")
+                    val meaningful = parts.filter { it.lowercase() !in genericWords }
+                    if (meaningful.isNotEmpty()) meaningful.joinToString("-") else parts.joinToString("-")
+                }
+
+                else -> {
+                    stripped
+                }
             }
-            else -> stripped
-        }
 
         return "$name (${type.name})"
     }

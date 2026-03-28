@@ -5,9 +5,9 @@ import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
+import com.bftcom.docgenerator.graph.impl.linker.NodeIndexFactory
 import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.shared.node.RawUsage
-import com.bftcom.docgenerator.graph.impl.linker.NodeIndexFactory
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -40,10 +40,11 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(target, caller))
-        val meta = NodeMeta(
-            imports = listOf("com.example.Target"),
-            rawUsages = listOf(RawUsage.Simple("Target", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                imports = listOf("com.example.Target"),
+                rawUsages = listOf(RawUsage.Simple("Target", isCall = true)),
+            )
 
         // when
         val edges = CallEdgeLinker().link(caller, meta, index)
@@ -61,10 +62,11 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(target, caller))
-        val meta = NodeMeta(
-            imports = listOf("com.example.Target"),
-            rawUsages = listOf(RawUsage.Simple("Target", isCall = false)),
-        )
+        val meta =
+            NodeMeta(
+                imports = listOf("com.example.Target"),
+                rawUsages = listOf(RawUsage.Simple("Target", isCall = false)),
+            )
 
         // when
         val edges = CallEdgeLinker().link(caller, meta, index)
@@ -81,11 +83,12 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(owner, target, caller))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            imports = listOf("com.example.Target"),
-            rawUsages = listOf(RawUsage.Simple("Target", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                imports = listOf("com.example.Target"),
+                rawUsages = listOf(RawUsage.Simple("Target", isCall = true)),
+            )
 
         // when
         val edges = CallEdgeLinker().link(caller, meta, index)
@@ -104,10 +107,11 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller()", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(receiverType, method, caller))
-        val meta = NodeMeta(
-            imports = listOf("com.example.Receiver"),
-            rawUsages = listOf(RawUsage.Dot(receiver = "Receiver", member = "method", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                imports = listOf("com.example.Receiver"),
+                rawUsages = listOf(RawUsage.Dot(receiver = "Receiver", member = "method", isCall = true)),
+            )
 
         // when
         val edges = CallEdgeLinker().link(caller, meta, index)
@@ -126,10 +130,11 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller()", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(owner, method, caller))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Dot(receiver = "owner", member = "method", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Dot(receiver = "owner", member = "method", isCall = true)),
+            )
 
         // when
         val edges = CallEdgeLinker().link(caller, meta, index)
@@ -146,9 +151,10 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(caller))
-        val meta = NodeMeta(
-            rawUsages = listOf(RawUsage.Dot(receiver = "unknown", member = "method", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                rawUsages = listOf(RawUsage.Dot(receiver = "unknown", member = "method", isCall = true)),
+            )
 
         // when
         val edges = CallEdgeLinker().link(caller, meta, index)
@@ -163,10 +169,11 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(caller))
-        val meta = NodeMeta(
-            imports = listOf("com.example.Other"),
-            rawUsages = listOf(RawUsage.Dot(receiver = "UnknownType", member = "method", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                imports = listOf("com.example.Other"),
+                rawUsages = listOf(RawUsage.Dot(receiver = "UnknownType", member = "method", isCall = true)),
+            )
 
         // when
         val edges = CallEdgeLinker().link(caller, meta, index)
@@ -182,10 +189,11 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(owner, caller))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Dot(receiver = "owner", member = "nonExistentMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Dot(receiver = "owner", member = "nonExistentMethod", isCall = true)),
+            )
 
         // when
         val edges = CallEdgeLinker().link(caller, meta, index)
@@ -234,15 +242,17 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(owner, method1, method2, target, caller))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            imports = listOf("com.example.Target"),
-            rawUsages = listOf(
-                RawUsage.Simple("method1", isCall = true),
-                RawUsage.Dot(receiver = "owner", member = "method2", isCall = true),
-                RawUsage.Simple("Target", isCall = true),
-            ),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                imports = listOf("com.example.Target"),
+                rawUsages =
+                    listOf(
+                        RawUsage.Simple("method1", isCall = true),
+                        RawUsage.Dot(receiver = "owner", member = "method2", isCall = true),
+                        RawUsage.Simple("Target", isCall = true),
+                    ),
+            )
 
         // when
         val edges = CallEdgeLinker().link(caller, meta, index)
@@ -263,10 +273,11 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller()", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(owner, method, caller))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Dot(receiver = "", member = "method", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Dot(receiver = "", member = "method", isCall = true)),
+            )
 
         // when
         val edges = CallEdgeLinker().link(caller, meta, index)
@@ -286,18 +297,20 @@ class CallEdgeLinkerTest {
         val index = NodeIndexFactory().create(listOf(nodeA, nodeB))
 
         // A вызывает B
-        val metaA = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            imports = listOf("com.example.B"),
-            rawUsages = listOf(RawUsage.Simple("B", isCall = true)),
-        )
+        val metaA =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                imports = listOf("com.example.B"),
+                rawUsages = listOf(RawUsage.Simple("B", isCall = true)),
+            )
 
         // B вызывает A
-        val metaB = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            imports = listOf("com.example.A"),
-            rawUsages = listOf(RawUsage.Simple("A", isCall = true)),
-        )
+        val metaB =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                imports = listOf("com.example.A"),
+                rawUsages = listOf(RawUsage.Simple("A", isCall = true)),
+            )
 
         // when
         val edgesA = CallEdgeLinker().link(nodeA, metaA, index)
@@ -318,25 +331,28 @@ class CallEdgeLinkerTest {
         val index = NodeIndexFactory().create(listOf(nodeA, nodeB, nodeC))
 
         // A вызывает B
-        val metaA = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            imports = listOf("com.example.B"),
-            rawUsages = listOf(RawUsage.Simple("B", isCall = true)),
-        )
+        val metaA =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                imports = listOf("com.example.B"),
+                rawUsages = listOf(RawUsage.Simple("B", isCall = true)),
+            )
 
         // B вызывает C
-        val metaB = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            imports = listOf("com.example.C"),
-            rawUsages = listOf(RawUsage.Simple("C", isCall = true)),
-        )
+        val metaB =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                imports = listOf("com.example.C"),
+                rawUsages = listOf(RawUsage.Simple("C", isCall = true)),
+            )
 
         // C вызывает A
-        val metaC = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            imports = listOf("com.example.A"),
-            rawUsages = listOf(RawUsage.Simple("A", isCall = true)),
-        )
+        val metaC =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                imports = listOf("com.example.A"),
+                rawUsages = listOf(RawUsage.Simple("A", isCall = true)),
+            )
 
         // when
         val edgesA = CallEdgeLinker().link(nodeA, metaA, index)
@@ -359,16 +375,18 @@ class CallEdgeLinkerTest {
         val index = NodeIndexFactory().create(listOf(receiver, methodA, methodB))
 
         // methodA вызывает methodB через receiver.methodB
-        val metaA = NodeMeta(
-            ownerFqn = "com.example.Receiver",
-            rawUsages = listOf(RawUsage.Dot(receiver = "receiver", member = "methodB", isCall = true)),
-        )
+        val metaA =
+            NodeMeta(
+                ownerFqn = "com.example.Receiver",
+                rawUsages = listOf(RawUsage.Dot(receiver = "receiver", member = "methodB", isCall = true)),
+            )
 
         // methodB вызывает methodA через receiver.methodA
-        val metaB = NodeMeta(
-            ownerFqn = "com.example.Receiver",
-            rawUsages = listOf(RawUsage.Dot(receiver = "receiver", member = "methodA", isCall = true)),
-        )
+        val metaB =
+            NodeMeta(
+                ownerFqn = "com.example.Receiver",
+                rawUsages = listOf(RawUsage.Dot(receiver = "receiver", member = "methodA", isCall = true)),
+            )
 
         // when
         val edgesA = CallEdgeLinker().link(methodA, metaA, index)
@@ -387,10 +405,11 @@ class CallEdgeLinkerTest {
         val index = NodeIndexFactory().create(listOf(method))
 
         // Метод вызывает сам себя
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Method",
-            rawUsages = listOf(RawUsage.Simple("selfCall", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Method",
+                rawUsages = listOf(RawUsage.Simple("selfCall", isCall = true)),
+            )
 
         // when
         val edges = CallEdgeLinker().link(method, meta, index)
@@ -434,11 +453,12 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller()", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(receiverType, method, caller))
-        val meta = NodeMeta(
-            ownerFqn = null,
-            rawUsages = listOf(RawUsage.Dot(receiver = "receiver", member = "method", isCall = true)),
-            imports = emptyList(),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = null,
+                rawUsages = listOf(RawUsage.Dot(receiver = "receiver", member = "method", isCall = true)),
+                imports = emptyList(),
+            )
 
         val edges = CallEdgeLinker().link(caller, meta, index)
 
@@ -450,11 +470,12 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(caller))
-        val meta = NodeMeta(
-            ownerFqn = null,
-            rawUsages = listOf(RawUsage.Dot(receiver = "receiver", member = "method", isCall = true)),
-            imports = emptyList(),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = null,
+                rawUsages = listOf(RawUsage.Dot(receiver = "receiver", member = "method", isCall = true)),
+                imports = emptyList(),
+            )
 
         val edges = CallEdgeLinker().link(caller, meta, index)
 
@@ -469,14 +490,16 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(owner, method1, target, caller))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            imports = listOf("com.example.Target"),
-            rawUsages = listOf(
-                RawUsage.Simple("method1", isCall = true),
-                RawUsage.Simple("Target", isCall = true),
-            ),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                imports = listOf("com.example.Target"),
+                rawUsages =
+                    listOf(
+                        RawUsage.Simple("method1", isCall = true),
+                        RawUsage.Simple("Target", isCall = true),
+                    ),
+            )
 
         val edges = CallEdgeLinker().link(caller, meta, index)
 
@@ -495,14 +518,16 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller", name = "Caller", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(receiverType1, method1, owner, method2, caller))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            imports = listOf("com.example.Receiver1"),
-            rawUsages = listOf(
-                RawUsage.Dot(receiver = "Receiver1", member = "method1", isCall = true),
-                RawUsage.Dot(receiver = "owner", member = "method2", isCall = true),
-            ),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                imports = listOf("com.example.Receiver1"),
+                rawUsages =
+                    listOf(
+                        RawUsage.Dot(receiver = "Receiver1", member = "method1", isCall = true),
+                        RawUsage.Dot(receiver = "owner", member = "method2", isCall = true),
+                    ),
+            )
 
         val edges = CallEdgeLinker().link(caller, meta, index)
 
@@ -520,20 +545,23 @@ class CallEdgeLinkerTest {
 
         val index = NodeIndexFactory().create(listOf(nodeA, nodeB, nodeC))
 
-        val metaA = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            imports = listOf("com.example.B"),
-            rawUsages = listOf(RawUsage.Simple("B", isCall = true)),
-        )
+        val metaA =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                imports = listOf("com.example.B"),
+                rawUsages = listOf(RawUsage.Simple("B", isCall = true)),
+            )
 
-        val metaB = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            imports = listOf("com.example.B", "com.example.C"),
-            rawUsages = listOf(
-                RawUsage.Simple("B", isCall = true),
-                RawUsage.Simple("C", isCall = true),
-            ),
-        )
+        val metaB =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                imports = listOf("com.example.B", "com.example.C"),
+                rawUsages =
+                    listOf(
+                        RawUsage.Simple("B", isCall = true),
+                        RawUsage.Simple("C", isCall = true),
+                    ),
+            )
 
         val edgesA = CallEdgeLinker().link(nodeA, metaA, index)
         val edgesB = CallEdgeLinker().link(nodeB, metaB, index)
@@ -552,34 +580,40 @@ class CallEdgeLinkerTest {
         val index = NodeIndexFactory().create(listOf(nodeA, nodeB, nodeC))
 
         // A вызывает B и C
-        val metaA = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            imports = listOf("com.example.B", "com.example.C"),
-            rawUsages = listOf(
-                RawUsage.Simple("B", isCall = true),
-                RawUsage.Simple("C", isCall = true),
-            ),
-        )
+        val metaA =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                imports = listOf("com.example.B", "com.example.C"),
+                rawUsages =
+                    listOf(
+                        RawUsage.Simple("B", isCall = true),
+                        RawUsage.Simple("C", isCall = true),
+                    ),
+            )
 
         // B вызывает A и C
-        val metaB = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            imports = listOf("com.example.A", "com.example.C"),
-            rawUsages = listOf(
-                RawUsage.Simple("A", isCall = true),
-                RawUsage.Simple("C", isCall = true),
-            ),
-        )
+        val metaB =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                imports = listOf("com.example.A", "com.example.C"),
+                rawUsages =
+                    listOf(
+                        RawUsage.Simple("A", isCall = true),
+                        RawUsage.Simple("C", isCall = true),
+                    ),
+            )
 
         // C вызывает A и B
-        val metaC = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            imports = listOf("com.example.A", "com.example.B"),
-            rawUsages = listOf(
-                RawUsage.Simple("A", isCall = true),
-                RawUsage.Simple("B", isCall = true),
-            ),
-        )
+        val metaC =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                imports = listOf("com.example.A", "com.example.B"),
+                rawUsages =
+                    listOf(
+                        RawUsage.Simple("A", isCall = true),
+                        RawUsage.Simple("B", isCall = true),
+                    ),
+            )
 
         val edgesA = CallEdgeLinker().link(nodeA, metaA, index)
         val edgesB = CallEdgeLinker().link(nodeB, metaB, index)
@@ -601,10 +635,11 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller.run()", name = "run", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(owner, overload1, overload2, caller))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("process", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("process", isCall = true)),
+            )
 
         val edges = CallEdgeLinker().link(caller, meta, index)
 
@@ -622,10 +657,11 @@ class CallEdgeLinkerTest {
         val caller = node(fqn = "com.example.Caller.run()", name = "run", pkg = "com.example", kind = NodeKind.METHOD)
 
         val index = NodeIndexFactory().create(listOf(receiverType, overload1, overload2, caller))
-        val meta = NodeMeta(
-            imports = listOf("com.example.Service"),
-            rawUsages = listOf(RawUsage.Dot(receiver = "Service", member = "handle", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                imports = listOf("com.example.Service"),
+                rawUsages = listOf(RawUsage.Dot(receiver = "Service", member = "handle", isCall = true)),
+            )
 
         val edges = CallEdgeLinker().link(caller, meta, index)
 

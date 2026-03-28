@@ -3,8 +3,6 @@ package com.bftcom.docgenerator.graph.impl.linker.edge
 import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
-import com.bftcom.docgenerator.shared.node.RawUsage
 import com.bftcom.docgenerator.graph.api.library.LibraryNodeIndex
 import com.bftcom.docgenerator.graph.api.linker.EdgeLinker
 import com.bftcom.docgenerator.graph.api.linker.indexing.NodeIndex
@@ -12,6 +10,8 @@ import com.bftcom.docgenerator.graph.api.linker.sink.LibraryNodeEdgeProposal
 import com.bftcom.docgenerator.graph.impl.linker.virtual.VirtualNodeFactory
 import com.bftcom.docgenerator.library.api.integration.IntegrationPoint
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointService
+import com.bftcom.docgenerator.shared.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.RawUsage
 import org.springframework.stereotype.Component
 
 @Component
@@ -20,8 +20,11 @@ class IntegrationEdgeLinker(
     private val integrationPointService: IntegrationPointService,
     private val virtualNodeFactory: VirtualNodeFactory,
 ) : EdgeLinker {
-
-    override fun link(node: Node, meta: NodeMeta, index: NodeIndex) = emptyList<Triple<Node, Node, EdgeKind>>()
+    override fun link(
+        node: Node,
+        meta: NodeMeta,
+        index: NodeIndex,
+    ) = emptyList<Triple<Node, Node, EdgeKind>>()
 
     fun linkIntegrationEdgesWithNodes(
         fn: Node,
@@ -29,7 +32,6 @@ class IntegrationEdgeLinker(
         index: NodeIndex,
         application: Application,
     ): Triple<List<Triple<Node, Node, EdgeKind>>, List<Node>, List<LibraryNodeEdgeProposal>> {
-
         val usages = meta.rawUsages ?: return Triple(emptyList(), emptyList(), emptyList())
 
         val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
@@ -55,10 +57,16 @@ class IntegrationEdgeLinker(
         return Triple(res, newNodes, libProposals)
     }
 
-    private fun handleHttp(src: Node, pt: IntegrationPoint.HttpEndpoint, idx: NodeIndex, app: Application,
-                           res: MutableList<Triple<Node, Node, EdgeKind>>, newNodes: MutableList<Node>,
-                           props: MutableList<LibraryNodeEdgeProposal>, lib: com.bftcom.docgenerator.domain.library.LibraryNode) {
-
+    private fun handleHttp(
+        src: Node,
+        pt: IntegrationPoint.HttpEndpoint,
+        idx: NodeIndex,
+        app: Application,
+        res: MutableList<Triple<Node, Node, EdgeKind>>,
+        newNodes: MutableList<Node>,
+        props: MutableList<LibraryNodeEdgeProposal>,
+        lib: com.bftcom.docgenerator.domain.library.LibraryNode,
+    ) {
         val (node, isNew) = virtualNodeFactory.getOrCreateEndpointNode(pt.url ?: "unknown", pt.httpMethod, idx, app)
         if (node == null) return
         if (isNew) newNodes.add(node)
@@ -75,10 +83,16 @@ class IntegrationEdgeLinker(
         if (pt.hasCircuitBreaker) addEdge(EdgeKind.CIRCUIT_BREAKER_TO)
     }
 
-    private fun handleKafka(src: Node, pt: IntegrationPoint.KafkaTopic, idx: NodeIndex, app: Application,
-                            res: MutableList<Triple<Node, Node, EdgeKind>>, newNodes: MutableList<Node>,
-                            props: MutableList<LibraryNodeEdgeProposal>, lib: com.bftcom.docgenerator.domain.library.LibraryNode) {
-
+    private fun handleKafka(
+        src: Node,
+        pt: IntegrationPoint.KafkaTopic,
+        idx: NodeIndex,
+        app: Application,
+        res: MutableList<Triple<Node, Node, EdgeKind>>,
+        newNodes: MutableList<Node>,
+        props: MutableList<LibraryNodeEdgeProposal>,
+        lib: com.bftcom.docgenerator.domain.library.LibraryNode,
+    ) {
         val (node, isNew) = virtualNodeFactory.getOrCreateTopicNode(pt.topic ?: "unknown", idx, app)
         if (node == null) return
         if (isNew) newNodes.add(node)
@@ -88,10 +102,16 @@ class IntegrationEdgeLinker(
         props.add(LibraryNodeEdgeProposal(kind, src, lib))
     }
 
-    private fun handleCamel(src: Node, pt: IntegrationPoint.CamelRoute, idx: NodeIndex, app: Application,
-                            res: MutableList<Triple<Node, Node, EdgeKind>>, newNodes: MutableList<Node>,
-                            props: MutableList<LibraryNodeEdgeProposal>, lib: com.bftcom.docgenerator.domain.library.LibraryNode) {
-
+    private fun handleCamel(
+        src: Node,
+        pt: IntegrationPoint.CamelRoute,
+        idx: NodeIndex,
+        app: Application,
+        res: MutableList<Triple<Node, Node, EdgeKind>>,
+        newNodes: MutableList<Node>,
+        props: MutableList<LibraryNodeEdgeProposal>,
+        lib: com.bftcom.docgenerator.domain.library.LibraryNode,
+    ) {
         val isHttp = pt.endpointType == "http" || pt.uri?.startsWith("http") == true
         val (node, isNew) = virtualNodeFactory.getOrCreateEndpointNode(pt.uri ?: "unknown", null, idx, app)
 
@@ -104,7 +124,11 @@ class IntegrationEdgeLinker(
         }
     }
 
-    private fun resolveLibraryFqn(u: RawUsage, meta: NodeMeta, index: NodeIndex): String? {
+    private fun resolveLibraryFqn(
+        u: RawUsage,
+        meta: NodeMeta,
+        index: NodeIndex,
+    ): String? {
         val imports = meta.imports ?: emptyList()
         val ownerFqn = meta.ownerFqn
 
@@ -112,13 +136,24 @@ class IntegrationEdgeLinker(
             is RawUsage.Simple -> {
                 ownerFqn?.let { "$it.${u.name}" }
                     ?: imports.find { it.endsWith(".${u.name}") } // Static import
-                    ?: imports.find { it.split('.').last().firstOrNull()?.isUpperCase() == true }?.let { "$it.${u.name}" } // Class import
+                    ?: imports
+                        .find {
+                            it
+                                .split('.')
+                                .last()
+                                .firstOrNull()
+                                ?.isUpperCase() == true
+                        }?.let { "$it.${u.name}" } // Class import
                     ?: if (u.name.contains('.')) u.name else null
             }
+
             is RawUsage.Dot -> {
-                val recvType = if (u.receiver.firstOrNull()?.isUpperCase() == true) {
-                    index.resolveType(u.receiver, imports, meta.pkgFqn ?: "")?.fqn
-                } else ownerFqn
+                val recvType =
+                    if (u.receiver.firstOrNull()?.isUpperCase() == true) {
+                        index.resolveType(u.receiver, imports, meta.pkgFqn ?: "")?.fqn
+                    } else {
+                        ownerFqn
+                    }
                 recvType?.let { "$it.${u.member}" }
             }
         }

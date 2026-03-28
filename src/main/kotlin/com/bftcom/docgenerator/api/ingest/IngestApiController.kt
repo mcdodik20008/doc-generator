@@ -27,10 +27,13 @@ class IngestApiController(
     }
 
     @PostMapping("/reindex/{appId}")
-    fun reindex(@PathVariable appId: Long): IngestSummary {
-        val app = applicationRepository.findById(appId).orElseThrow {
-            ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found: $appId")
-        }
+    fun reindex(
+        @PathVariable appId: Long,
+    ): IngestSummary {
+        val app =
+            applicationRepository.findById(appId).orElseThrow {
+                ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found: $appId")
+            }
 
         val repoOwner = app.repoOwner
         val repoName = app.repoName
@@ -49,9 +52,12 @@ class IngestApiController(
         val orchestrator = orchestratorFactory.getOrchestratorByProvider(app.repoProvider)
 
         return try {
-            val summary = CompletableFuture.supplyAsync {
-                orchestrator.runOnce(appKey = appKey, repoPath = repoPath, branch = branch)
-            }.orTimeout(INGEST_TIMEOUT_SECONDS, TimeUnit.SECONDS).get()
+            val summary =
+                CompletableFuture
+                    .supplyAsync {
+                        orchestrator.runOnce(appKey = appKey, repoPath = repoPath, branch = branch)
+                    }.orTimeout(INGEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .get()
             log.info("Reindex completed: appKey=$appKey, nodes=${summary.nodes}, edges=${summary.edges}")
             summary
         } catch (e: TimeoutException) {

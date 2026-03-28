@@ -13,9 +13,14 @@ import org.springframework.stereotype.Component
 @Component
 class MessagingTopicExtractor : NodeKindExtractor {
     override fun id() = "messaging-topic"
+
     override fun supports(lang: Lang) = (lang == Lang.kotlin || lang == Lang.java)
 
-    override fun refineType(base: NodeKind, raw: RawType, ctx: NodeKindContext): NodeKind? {
+    override fun refineType(
+        base: NodeKind,
+        raw: RawType,
+        ctx: NodeKindContext,
+    ): NodeKind? {
         val imps = NkxUtil.imps(ctx.imports)
         val n = NkxUtil.name(raw.simpleName)
         val pkg = NkxUtil.pkg(raw.pkgFqn)

@@ -23,12 +23,27 @@ class StacktraceParsingStep : QueryStep {
         private val CAUSED_BY_PATTERN = Regex("""Caused\s+by\s*:\s*([\w.$]+(?:Exception|Error|Throwable))\s*:\s*(.*)""")
         private val FRAME_PATTERN = Regex("""at\s+([\w.$]+)\.([\w$<>]+)\(([^)]*?)(?::(\d+))?\)""")
 
-        val LIBRARY_PREFIXES = setOf(
-            "java.", "javax.", "jakarta.", "kotlin.", "kotlinx.",
-            "org.springframework.", "org.apache.", "org.hibernate.", "com.zaxxer.",
-            "io.netty.", "reactor.", "sun.", "jdk.", "org.postgresql.", "com.fasterxml.",
-            "io.micrometer.", "org.slf4j.", "ch.qos.logback.",
-        )
+        val LIBRARY_PREFIXES =
+            setOf(
+                "java.",
+                "javax.",
+                "jakarta.",
+                "kotlin.",
+                "kotlinx.",
+                "org.springframework.",
+                "org.apache.",
+                "org.hibernate.",
+                "com.zaxxer.",
+                "io.netty.",
+                "reactor.",
+                "sun.",
+                "jdk.",
+                "org.postgresql.",
+                "com.fasterxml.",
+                "io.micrometer.",
+                "org.slf4j.",
+                "ch.qos.logback.",
+            )
     }
 
     override fun execute(context: QueryProcessingContext): StepResult {
@@ -37,15 +52,16 @@ class StacktraceParsingStep : QueryStep {
         val frames = parseFrames(query)
         if (frames.isEmpty()) {
             log.info("STACKTRACE_PARSING: no frames found, falling back to REWRITING")
-            val updatedContext = context.addStep(
-                ProcessingStep(
-                    advisorName = "StacktraceParsingStep",
-                    input = query,
-                    output = "Стектрейс не распознан",
-                    stepType = type,
-                    status = ProcessingStepStatus.SUCCESS,
-                ),
-            )
+            val updatedContext =
+                context.addStep(
+                    ProcessingStep(
+                        advisorName = "StacktraceParsingStep",
+                        input = query,
+                        output = "Стектрейс не распознан",
+                        stepType = type,
+                        status = ProcessingStepStatus.SUCCESS,
+                    ),
+                )
             return StepResult(context = updatedContext, transitionKey = "PARSE_FAILED")
         }
 
@@ -53,45 +69,50 @@ class StacktraceParsingStep : QueryStep {
         val exceptionInfo = parseExceptionInfo(query)
         val rootCauseFrame = findRootCauseFrame(query, appFrames, frames)
 
-        val updatedContext = context
-            .setMetadata(QueryMetadataKeys.STACKTRACE_FRAMES, frames)
-            .setMetadata(QueryMetadataKeys.STACKTRACE_APP_FRAMES, appFrames)
-            .setMetadata(QueryMetadataKeys.STACKTRACE_EXCEPTION_TYPE, exceptionInfo.first)
-            .setMetadata(QueryMetadataKeys.STACKTRACE_EXCEPTION_MESSAGE, exceptionInfo.second)
-            .setMetadata(QueryMetadataKeys.STACKTRACE_ROOT_CAUSE_FRAME, rootCauseFrame)
-            .addStep(
-                ProcessingStep(
-                    advisorName = "StacktraceParsingStep",
-                    input = query.take(200),
-                    output = "Фреймов: ${frames.size}, приложения: ${appFrames.size}, исключение: ${exceptionInfo.first}",
-                    stepType = type,
-                    status = ProcessingStepStatus.SUCCESS,
-                ),
-            )
+        val updatedContext =
+            context
+                .setMetadata(QueryMetadataKeys.STACKTRACE_FRAMES, frames)
+                .setMetadata(QueryMetadataKeys.STACKTRACE_APP_FRAMES, appFrames)
+                .setMetadata(QueryMetadataKeys.STACKTRACE_EXCEPTION_TYPE, exceptionInfo.first)
+                .setMetadata(QueryMetadataKeys.STACKTRACE_EXCEPTION_MESSAGE, exceptionInfo.second)
+                .setMetadataNullable(QueryMetadataKeys.STACKTRACE_ROOT_CAUSE_FRAME, rootCauseFrame)
+                .addStep(
+                    ProcessingStep(
+                        advisorName = "StacktraceParsingStep",
+                        input = query.take(200),
+                        output = "Фреймов: ${frames.size}, приложения: ${appFrames.size}, исключение: ${exceptionInfo.first}",
+                        stepType = type,
+                        status = ProcessingStepStatus.SUCCESS,
+                    ),
+                )
 
         log.info(
             "STACKTRACE_PARSING: frames={}, appFrames={}, exception={}, rootCause={}",
-            frames.size, appFrames.size, exceptionInfo.first, rootCauseFrame?.methodName,
+            frames.size,
+            appFrames.size,
+            exceptionInfo.first,
+            rootCauseFrame?.methodName,
         )
         return StepResult(context = updatedContext, transitionKey = "SUCCESS")
     }
 
-    internal fun parseFrames(text: String): List<StackFrame> {
-        return FRAME_PATTERN.findAll(text).map { match ->
-            val fullClassName = match.groupValues[1]
-            val methodName = match.groupValues[2]
-            val fileInfo = match.groupValues[3]
-            val lineNumber = match.groupValues[4].toIntOrNull()
+    internal fun parseFrames(text: String): List<StackFrame> =
+        FRAME_PATTERN
+            .findAll(text)
+            .map { match ->
+                val fullClassName = match.groupValues[1]
+                val methodName = match.groupValues[2]
+                val fileInfo = match.groupValues[3]
+                val lineNumber = match.groupValues[4].toIntOrNull()
 
-            StackFrame(
-                fullClassName = fullClassName,
-                className = fullClassName.substringAfterLast('.'),
-                methodName = methodName,
-                fileName = fileInfo.takeIf { it.isNotBlank() && !it.contains(':') } ?: fileInfo.substringBefore(':'),
-                lineNumber = lineNumber,
-            )
-        }.toList()
-    }
+                StackFrame(
+                    fullClassName = fullClassName,
+                    className = fullClassName.substringAfterLast('.'),
+                    methodName = methodName,
+                    fileName = fileInfo.takeIf { it.isNotBlank() && !it.contains(':') } ?: fileInfo.substringBefore(':'),
+                    lineNumber = lineNumber,
+                )
+            }.toList()
 
     internal fun parseExceptionInfo(text: String): Pair<String, String> {
         // Ищем последний "Caused by:" как корневую причину
@@ -128,16 +149,13 @@ class StacktraceParsingStep : QueryStep {
         return appFrames.firstOrNull() ?: allFrames.firstOrNull()
     }
 
-    private fun isLibraryFrame(frame: StackFrame): Boolean {
-        return LIBRARY_PREFIXES.any { frame.fullClassName.startsWith(it) }
-    }
+    private fun isLibraryFrame(frame: StackFrame): Boolean = LIBRARY_PREFIXES.any { frame.fullClassName.startsWith(it) }
 
-    override fun getTransitions(): Map<String, ProcessingStepType> {
-        return linkedMapOf(
+    override fun getTransitions(): Map<String, ProcessingStepType> =
+        linkedMapOf(
             "SUCCESS" to ProcessingStepType.STACKTRACE_ANALYSIS,
             "PARSE_FAILED" to ProcessingStepType.REWRITING,
         )
-    }
 }
 
 /**

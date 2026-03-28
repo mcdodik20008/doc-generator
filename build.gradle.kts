@@ -48,25 +48,26 @@ repositories {
 dependencies {
     // === Modules ===
     // 1. Определяем список всех внутренних модулей, которые должны войти в состав приложения
-    val internalProjects = listOf(
-        projects.contexts.graph.contextsGraphApi,
-        projects.contexts.graph.contextsGraphImpl,
-        projects.contexts.chunking.contextsChunkingApi,
-        projects.contexts.chunking.contextsChunkingImpl,
-        projects.contexts.ai,
-        projects.contexts.git.contextsGitApi,
-        projects.contexts.git.contextsGitImpl,
-        projects.contexts.library.contextsLibraryApi,
-        projects.contexts.library.contextsLibraryImpl,
-        projects.contexts.postprocess,
-        projects.contexts.embedding.contextsEmbeddingApi,
-        projects.contexts.embedding.contextsEmbeddingImpl,
-        projects.kernel.domain,
-        projects.kernel.db,
-        projects.kernel.shared,
-        projects.contexts.rag.contextsRagApi,
-        projects.contexts.rag.contextsRagImpl
-    )
+    val internalProjects =
+        listOf(
+            projects.contexts.graph.contextsGraphApi,
+            projects.contexts.graph.contextsGraphImpl,
+            projects.contexts.chunking.contextsChunkingApi,
+            projects.contexts.chunking.contextsChunkingImpl,
+            projects.contexts.ai,
+            projects.contexts.git.contextsGitApi,
+            projects.contexts.git.contextsGitImpl,
+            projects.contexts.library.contextsLibraryApi,
+            projects.contexts.library.contextsLibraryImpl,
+            projects.contexts.postprocess,
+            projects.contexts.embedding.contextsEmbeddingApi,
+            projects.contexts.embedding.contextsEmbeddingImpl,
+            projects.kernel.domain,
+            projects.kernel.db,
+            projects.kernel.shared,
+            projects.contexts.rag.contextsRagApi,
+            projects.contexts.rag.contextsRagImpl,
+        )
     internalProjects.forEach {
         implementation(it)
         kover(it)
@@ -140,7 +141,7 @@ kover {
                     "*Request",
                     "*Response",
                     "*Result",
-                    "*ApplicationKt"
+                    "*ApplicationKt",
                 )
 
                 // 2. Исключение пакетов
@@ -157,7 +158,7 @@ kover {
                     "*.linker.model",
                     "com.bftcom.docgenerator.api.rag.dto",
                     "com.bftcom.docgenerator.api.embedding.dto",
-                    "com.bftcom.docgenerator.api.ingest.dto"
+                    "com.bftcom.docgenerator.api.ingest.dto",
                 )
 
                 // 3. Аннотации

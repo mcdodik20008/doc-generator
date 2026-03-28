@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component
 @Component
 class MessageBrokerExtractor : ApiMetadataExtractor {
     override fun id() = "message-broker"
+
     override fun supports(lang: Lang) = (lang == Lang.kotlin)
 
     private val annPattern = """@?(?:[\w.]+\.)?(\w+Listener)(?:\s*\((.*)\))?""".toRegex()
@@ -32,17 +33,19 @@ class MessageBrokerExtractor : ApiMetadataExtractor {
                 "KafkaListener" -> return ApiMetadata.MessageBrokerEndpoint(
                     broker = ApiMetadata.BrokerType.KAFKA,
                     topic = extractParam(content, "topic", "topics", "value"),
-                    consumerGroup = extractParam(content, "groupId", "group")
+                    consumerGroup = extractParam(content, "groupId", "group"),
                 )
+
                 "RabbitListener" -> return ApiMetadata.MessageBrokerEndpoint(
                     broker = ApiMetadata.BrokerType.RABBITMQ,
                     queue = extractParam(content, "queues", "queue", "value"),
                     exchange = extractParam(content, "exchange"),
-                    routingKey = extractParam(content, "key", "routingKey")
+                    routingKey = extractParam(content, "key", "routingKey"),
                 )
+
                 "NatsListener" -> return ApiMetadata.MessageBrokerEndpoint(
                     broker = ApiMetadata.BrokerType.NATS,
-                    topic = extractParam(content, "subject", "value")
+                    topic = extractParam(content, "subject", "value"),
                 )
             }
         }
@@ -52,16 +55,22 @@ class MessageBrokerExtractor : ApiMetadataExtractor {
         if (imports.any { it.contains("io.nats") }) {
             return ApiMetadata.MessageBrokerEndpoint(
                 broker = ApiMetadata.BrokerType.NATS,
-                topic = null // В данном случае топик не определен без аннотации
+                topic = null, // В данном случае топик не определен без аннотации
             )
         }
 
         return null
     }
 
-    override fun extractTypeMetadata(type: RawType, ctx: NodeKindContext): ApiMetadata? = null
+    override fun extractTypeMetadata(
+        type: RawType,
+        ctx: NodeKindContext,
+    ): ApiMetadata? = null
 
-    private fun extractParam(content: String, vararg paramNames: String): String? {
+    private fun extractParam(
+        content: String,
+        vararg paramNames: String,
+    ): String? {
         if (content.isBlank()) return null
         for (name in paramNames) {
             val namedPattern = """$name\s*=\s*(?:\[\s*)?["']([^"']+)["']""".toRegex()

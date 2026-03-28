@@ -23,10 +23,10 @@ import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.io.File
-import java.nio.file.Path
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionStatus
+import java.io.File
+import java.nio.file.Path
 
 class KotlinGraphBuilderTest {
     private lateinit var nodeRepo: NodeRepository
@@ -60,13 +60,14 @@ class KotlinGraphBuilderTest {
         codeHasher = mockk(relaxed = true)
         updateStrategy = mockk(relaxed = true)
         apiMetadataCollector = mockk(relaxed = true)
-        txManager = mockk {
-            // Настраиваем базовое поведение, чтобы возвращался пустой статус
-            val status = mockk<TransactionStatus>(relaxed = true)
-            every { getTransaction(any()) } returns status
-            every { commit(status) } just Runs
-            every { rollback(status) } just Runs
-        }
+        txManager =
+            mockk {
+                // Настраиваем базовое поведение, чтобы возвращался пустой статус
+                val status = mockk<TransactionStatus>(relaxed = true)
+                every { getTransaction(any()) } returns status
+                every { commit(status) } just Runs
+                every { rollback(status) } just Runs
+            }
 
         builder =
             KotlinGraphBuilder(
@@ -107,4 +108,3 @@ class KotlinGraphBuilderTest {
         verify(exactly = 2) { edgeRepo.count() }
     }
 }
-

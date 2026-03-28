@@ -81,4 +81,3 @@ class ChunkFromNodeDocScheduler(
         log.info("chunk-sync: processed {} node_doc rows, upserts={}", rows.size, written)
     }
 }
-

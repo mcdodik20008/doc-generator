@@ -25,9 +25,10 @@ class ExceptionTypeExtractorTest {
 
     @Test
     fun `refineType returns EXCEPTION for class extending Throwable`() {
-        val raw = createRawType(
-            supertypesRepr = listOf("java.lang.Throwable")
-        )
+        val raw =
+            createRawType(
+                supertypesRepr = listOf("java.lang.Throwable"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -37,9 +38,10 @@ class ExceptionTypeExtractorTest {
 
     @Test
     fun `refineType returns EXCEPTION for class extending Exception`() {
-        val raw = createRawType(
-            supertypesRepr = listOf("java.lang.Exception")
-        )
+        val raw =
+            createRawType(
+                supertypesRepr = listOf("java.lang.Exception"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -49,9 +51,10 @@ class ExceptionTypeExtractorTest {
 
     @Test
     fun `refineType returns EXCEPTION for class extending RuntimeException`() {
-        val raw = createRawType(
-            supertypesRepr = listOf("java.lang.RuntimeException")
-        )
+        val raw =
+            createRawType(
+                supertypesRepr = listOf("java.lang.RuntimeException"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -61,9 +64,10 @@ class ExceptionTypeExtractorTest {
 
     @Test
     fun `refineType returns EXCEPTION for name ending with Exception`() {
-        val raw = createRawType(
-            simpleName = "MyException"
-        )
+        val raw =
+            createRawType(
+                simpleName = "MyException",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -73,9 +77,10 @@ class ExceptionTypeExtractorTest {
 
     @Test
     fun `refineType returns null for name ending with Error without Exception supertype`() {
-        val raw = createRawType(
-            simpleName = "MyError"
-        )
+        val raw =
+            createRawType(
+                simpleName = "MyError",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -85,9 +90,10 @@ class ExceptionTypeExtractorTest {
 
     @Test
     fun `refineType returns null for regular class`() {
-        val raw = createRawType(
-            simpleName = "RegularClass"
-        )
+        val raw =
+            createRawType(
+                simpleName = "RegularClass",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -97,9 +103,10 @@ class ExceptionTypeExtractorTest {
 
     @Test
     fun `refineType handles case-insensitive supertype matching`() {
-        val raw = createRawType(
-            supertypesRepr = listOf("java.lang.THROWABLE")
-        )
+        val raw =
+            createRawType(
+                supertypesRepr = listOf("java.lang.THROWABLE"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -109,9 +116,10 @@ class ExceptionTypeExtractorTest {
 
     @Test
     fun `refineType handles case-insensitive name matching`() {
-        val raw = createRawType(
-            simpleName = "MYEXCEPTION"
-        )
+        val raw =
+            createRawType(
+                simpleName = "MYEXCEPTION",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -121,10 +129,11 @@ class ExceptionTypeExtractorTest {
 
     @Test
     fun `refineType returns EXCEPTION when both supertype and name match`() {
-        val raw = createRawType(
-            simpleName = "MyException",
-            supertypesRepr = listOf("java.lang.Exception")
-        )
+        val raw =
+            createRawType(
+                simpleName = "MyException",
+                supertypesRepr = listOf("java.lang.Exception"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -134,9 +143,10 @@ class ExceptionTypeExtractorTest {
 
     @Test
     fun `refineType returns null for class extending other types`() {
-        val raw = createRawType(
-            supertypesRepr = listOf("java.lang.Object")
-        )
+        val raw =
+            createRawType(
+                supertypesRepr = listOf("java.lang.Object"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -146,10 +156,11 @@ class ExceptionTypeExtractorTest {
 
     @Test
     fun `refineType returns EXCEPTION for Error suffix with Exception supertype`() {
-        val raw = createRawType(
-            simpleName = "ValidationError",
-            supertypesRepr = listOf("java.lang.RuntimeException")
-        )
+        val raw =
+            createRawType(
+                simpleName = "ValidationError",
+                supertypesRepr = listOf("java.lang.RuntimeException"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -159,9 +170,10 @@ class ExceptionTypeExtractorTest {
 
     @Test
     fun `refineType returns null for name containing Exception but not ending with it`() {
-        val raw = createRawType(
-            simpleName = "ExceptionHandler"
-        )
+        val raw =
+            createRawType(
+                simpleName = "ExceptionHandler",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -174,8 +186,8 @@ class ExceptionTypeExtractorTest {
         pkgFqn: String? = "com.example",
         supertypesRepr: List<String> = emptyList(),
         annotationsRepr: List<String> = emptyList(),
-    ): RawType {
-        return RawType(
+    ): RawType =
+        RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -186,13 +198,11 @@ class ExceptionTypeExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createContext(): NodeKindContext {
-        return NodeKindContext(
+    private fun createContext(): NodeKindContext =
+        NodeKindContext(
             lang = Lang.kotlin,
             file = null,
             imports = null,
         )
-    }
 }

@@ -16,23 +16,28 @@ class RawUsagePolymorphicDeserializer : JsonDeserializer<RawUsage>() {
         val typeNode = node.get("@type")?.asText()
         if (typeNode != null) {
             return when (typeNode.lowercase()) {
-                "dot" ->
+                "dot" -> {
                     RawUsage.Dot(
                         receiver = node.get("receiver")?.asText().orEmpty(),
                         member = node.get("member")?.asText().orEmpty(),
                         isCall = node.get("isCall")?.asBoolean() ?: false,
                     )
-                "simple" ->
+                }
+
+                "simple" -> {
                     RawUsage.Simple(
                         name = node.get("name")?.asText().orEmpty(),
                         isCall = node.get("isCall")?.asBoolean() ?: true,
                     )
-                else ->
+                }
+
+                else -> {
                     ctxt.reportInputMismatch(
                         RawUsage::class.java,
                         "Unknown @type for RawUsage: %s",
                         typeNode,
                     )
+                }
             }
         }
 
@@ -42,23 +47,28 @@ class RawUsagePolymorphicDeserializer : JsonDeserializer<RawUsage>() {
         val hasName = node.has("name")
 
         return when {
-            hasReceiver && hasMember ->
+            hasReceiver && hasMember -> {
                 RawUsage.Dot(
                     receiver = node.get("receiver")?.asText().orEmpty(),
                     member = node.get("member")?.asText().orEmpty(),
                     isCall = node.get("isCall")?.asBoolean() ?: false,
                 )
-            hasName ->
+            }
+
+            hasName -> {
                 RawUsage.Simple(
                     name = node.get("name")?.asText().orEmpty(),
                     isCall = node.get("isCall")?.asBoolean() ?: true,
                 )
-            else ->
+            }
+
+            else -> {
                 ctxt.reportInputMismatch(
                     RawUsage::class.java,
                     "Cannot infer RawUsage variant from node: %s",
                     node.toString(),
                 )
+            }
         }
     }
 }

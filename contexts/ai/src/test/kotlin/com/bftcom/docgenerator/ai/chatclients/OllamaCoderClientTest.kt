@@ -13,14 +13,14 @@ import org.mockito.kotlin.*
 
 @ExtendWith(MockitoExtension::class)
 class OllamaCoderClientTest {
-
     @Mock
     private lateinit var directLlm: DirectLlmClient
 
-    private val props = AiClientsProperties(
-        coder = AiClientsProperties.ClientProps(model = "test-coder", temperature = 0.1, topP = 0.9, seed = 42),
-        talker = AiClientsProperties.ClientProps(model = "test-talker"),
-    )
+    private val props =
+        AiClientsProperties(
+            coder = AiClientsProperties.ClientProps(model = "test-coder", temperature = 0.1, topP = 0.9, seed = 42),
+            talker = AiClientsProperties.ClientProps(model = "test-talker"),
+        )
 
     @Test
     fun `generate should call DirectLlmClient with correct model and prompts`() {

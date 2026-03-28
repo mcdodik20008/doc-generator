@@ -34,7 +34,10 @@ interface NodeUpdateStrategy {
      * @param newData Новые данные
      * @return Обновленный узел (может быть тот же объект, если изменений не было)
      */
-    fun update(existing: Node, newData: NodeUpdateData): Node
+    fun update(
+        existing: Node,
+        newData: NodeUpdateData,
+    ): Node
 
     /**
      * Проверяет, были ли изменения в узле.
@@ -42,6 +45,8 @@ interface NodeUpdateStrategy {
      * @param newData Новые данные
      * @return true, если есть изменения, требующие сохранения
      */
-    fun hasChanges(existing: Node, newData: NodeUpdateData): Boolean
+    fun hasChanges(
+        existing: Node,
+        newData: NodeUpdateData,
+    ): Boolean
 }
-

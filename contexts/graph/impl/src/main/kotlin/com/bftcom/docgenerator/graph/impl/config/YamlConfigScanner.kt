@@ -11,8 +11,8 @@ import org.yaml.snakeyaml.Yaml
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.io.path.name
 import kotlin.io.path.extension
+import kotlin.io.path.name
 
 /**
  * Сканирует YAML-конфигурацию приложения (application*.yml, bootstrap*.yml)
@@ -29,7 +29,10 @@ class YamlConfigScanner(
      * Сканирует YAML-файлы в sourceRoot и создает INFRASTRUCTURE-ноды.
      * @return количество созданных нод
      */
-    fun scan(application: Application, sourceRoot: Path): Int {
+    fun scan(
+        application: Application,
+        sourceRoot: Path,
+    ): Int {
         val yamlFiles = findYamlFiles(sourceRoot)
         if (yamlFiles.isEmpty()) {
             log.debug("No YAML config files found under {}", sourceRoot)
@@ -70,7 +73,8 @@ class YamlConfigScanner(
             } catch (e: Exception) {
                 log.warn(
                     "Failed to create INFRASTRUCTURE node for {}: {}",
-                    integration.groupKey, e.message,
+                    integration.groupKey,
+                    e.message,
                 )
             }
         }
@@ -86,19 +90,18 @@ class YamlConfigScanner(
         val result = mutableListOf<Path>()
 
         try {
-            Files.walk(sourceRoot)
+            Files
+                .walk(sourceRoot)
                 .filter { path ->
                     val name = path.name
                     val ext = path.extension
                     (ext == "yml" || ext == "yaml") &&
                         (name.startsWith("application") || name.startsWith("bootstrap"))
-                }
-                .filter { path ->
+                }.filter { path ->
                     // Должен быть в src/main/resources или resources корне
                     val pathStr = path.toString().replace('\\', '/')
                     pathStr.contains("src/main/resources") || pathStr.contains("resources/")
-                }
-                .forEach { result.add(it) }
+                }.forEach { result.add(it) }
         } catch (e: Exception) {
             log.warn("Error walking source root {}: {}", sourceRoot, e.message)
         }
@@ -127,7 +130,11 @@ class YamlConfigScanner(
     /**
      * Рекурсивно «раскладывает» вложенную карту в плоскую.
      */
-    private fun flattenMap(prefix: String, map: Map<String, Any>, result: MutableMap<String, String>) {
+    private fun flattenMap(
+        prefix: String,
+        map: Map<String, Any>,
+        result: MutableMap<String, String>,
+    ) {
         for ((key, value) in map) {
             val fullKey = if (prefix.isEmpty()) key else "$prefix.$key"
             when (value) {
@@ -135,6 +142,7 @@ class YamlConfigScanner(
                     @Suppress("UNCHECKED_CAST")
                     flattenMap(fullKey, value as Map<String, Any>, result)
                 }
+
                 is List<*> -> {
                     value.forEachIndexed { idx, item ->
                         if (item is Map<*, *>) {
@@ -145,7 +153,10 @@ class YamlConfigScanner(
                         }
                     }
                 }
-                else -> result[fullKey] = value.toString()
+
+                else -> {
+                    result[fullKey] = value.toString()
+                }
             }
         }
     }
@@ -170,12 +181,13 @@ class YamlConfigScanner(
         // Собираем YAML-snippet для контекста
         val yamlSnippet = buildYamlSnippet(integration)
 
-        val meta = mutableMapOf<String, Any>(
-            "source" to "yaml",
-            "configPrefix" to integration.groupKey,
-            "integrationType" to integration.type.name,
-            "synthetic" to true,
-        )
+        val meta =
+            mutableMapOf<String, Any>(
+                "source" to "yaml",
+                "configPrefix" to integration.groupKey,
+                "integrationType" to integration.type.name,
+                "synthetic" to true,
+            )
 
         integration.defaultUrl?.let { meta["defaultUrl"] = it }
         integration.envVar?.let { meta["envVar"] = it }
@@ -184,23 +196,24 @@ class YamlConfigScanner(
             meta["properties"] = integration.properties
         }
 
-        val node = Node(
-            application = application,
-            fqn = fqn,
-            name = readableName,
-            packageName = null,
-            kind = NodeKind.INFRASTRUCTURE,
-            lang = Lang.yaml,
-            parent = null,
-            filePath = yamlFiles.firstOrNull()?.toString(),
-            lineStart = null,
-            lineEnd = null,
-            sourceCode = yamlSnippet,
-            docComment = null,
-            signature = null,
-            codeHash = null,
-            meta = meta,
-        )
+        val node =
+            Node(
+                application = application,
+                fqn = fqn,
+                name = readableName,
+                packageName = null,
+                kind = NodeKind.INFRASTRUCTURE,
+                lang = Lang.yaml,
+                parent = null,
+                filePath = yamlFiles.firstOrNull()?.toString(),
+                lineStart = null,
+                lineEnd = null,
+                sourceCode = yamlSnippet,
+                docComment = null,
+                signature = null,
+                codeHash = null,
+                meta = meta,
+            )
 
         return nodeRepo.save(node)
     }

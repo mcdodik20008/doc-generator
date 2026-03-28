@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.domain.PageRequest
 
 class NodeRepositoryTest : BaseRepositoryTest() {
-
     @Autowired
     private lateinit var nodeRepository: NodeRepository
 
@@ -22,24 +21,26 @@ class NodeRepositoryTest : BaseRepositoryTest() {
 
     @BeforeEach
     fun setUp() {
-        application = Application(
-            key = "test-app-${System.currentTimeMillis()}",
-            name = "Test Application",
-        )
+        application =
+            Application(
+                key = "test-app-${System.currentTimeMillis()}",
+                name = "Test Application",
+            )
         application = applicationRepository.save(application)
     }
 
     @Test
     fun `findByApplicationIdAndFqn - возвращает Node по applicationId и fqn`() {
         // Given
-        val node = Node(
-            application = application,
-            fqn = "com.example.TestClass",
-            name = "TestClass",
-            packageName = "com.example",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        val node =
+            Node(
+                application = application,
+                fqn = "com.example.TestClass",
+                name = "TestClass",
+                packageName = "com.example",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         nodeRepository.save(node)
 
         // When
@@ -54,20 +55,22 @@ class NodeRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `findAllByApplicationId - возвращает все Node для application`() {
         // Given
-        val node1 = Node(
-            application = application,
-            fqn = "com.example.Class1",
-            name = "Class1",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
-        val node2 = Node(
-            application = application,
-            fqn = "com.example.Class2",
-            name = "Class2",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        val node1 =
+            Node(
+                application = application,
+                fqn = "com.example.Class1",
+                name = "Class1",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
+        val node2 =
+            Node(
+                application = application,
+                fqn = "com.example.Class2",
+                name = "Class2",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         nodeRepository.save(node1)
         nodeRepository.save(node2)
 
@@ -82,30 +85,33 @@ class NodeRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `findAllByApplicationIdAndKindIn - фильтрует по kinds`() {
         // Given
-        val classNode = Node(
-            application = application,
-            fqn = "com.example.Class",
-            name = "Class",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
-        val methodNode = Node(
-            application = application,
-            fqn = "com.example.method",
-            name = "method",
-            kind = NodeKind.METHOD,
-            lang = Lang.kotlin,
-            parent = classNode,
-        )
+        val classNode =
+            Node(
+                application = application,
+                fqn = "com.example.Class",
+                name = "Class",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
+        val methodNode =
+            Node(
+                application = application,
+                fqn = "com.example.method",
+                name = "method",
+                kind = NodeKind.METHOD,
+                lang = Lang.kotlin,
+                parent = classNode,
+            )
         nodeRepository.save(classNode)
         nodeRepository.save(methodNode)
 
         // When
-        val nodes = nodeRepository.findAllByApplicationIdAndKindIn(
-            applicationId = application.id!!,
-            kinds = setOf(NodeKind.CLASS),
-            pageable = PageRequest.of(0, 10),
-        )
+        val nodes =
+            nodeRepository.findAllByApplicationIdAndKindIn(
+                applicationId = application.id!!,
+                kinds = setOf(NodeKind.CLASS),
+                pageable = PageRequest.of(0, 10),
+            )
 
         // Then
         assertThat(nodes).hasSize(1)
@@ -115,18 +121,20 @@ class NodeRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `findAllByIdIn - возвращает Node по списку ID`() {
         // Given
-        val node1 = Node(
-            application = application,
-            fqn = "com.example.Class1",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
-        val node2 = Node(
-            application = application,
-            fqn = "com.example.Class2",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        val node1 =
+            Node(
+                application = application,
+                fqn = "com.example.Class1",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
+        val node2 =
+            Node(
+                application = application,
+                fqn = "com.example.Class2",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         val saved1 = nodeRepository.save(node1)
         val saved2 = nodeRepository.save(node2)
 
@@ -141,31 +149,34 @@ class NodeRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `findAllByParentId - возвращает дочерние Node`() {
         // Given
-        val parent = Node(
-            application = application,
-            fqn = "com.example.Parent",
-            name = "Parent",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        val parent =
+            Node(
+                application = application,
+                fqn = "com.example.Parent",
+                name = "Parent",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         val savedParent = nodeRepository.save(parent)
 
-        val child1 = Node(
-            application = application,
-            fqn = "com.example.Parent.method1",
-            name = "method1",
-            kind = NodeKind.METHOD,
-            lang = Lang.kotlin,
-            parent = savedParent,
-        )
-        val child2 = Node(
-            application = application,
-            fqn = "com.example.Parent.method2",
-            name = "method2",
-            kind = NodeKind.METHOD,
-            lang = Lang.kotlin,
-            parent = savedParent,
-        )
+        val child1 =
+            Node(
+                application = application,
+                fqn = "com.example.Parent.method1",
+                name = "method1",
+                kind = NodeKind.METHOD,
+                lang = Lang.kotlin,
+                parent = savedParent,
+            )
+        val child2 =
+            Node(
+                application = application,
+                fqn = "com.example.Parent.method2",
+                name = "method2",
+                kind = NodeKind.METHOD,
+                lang = Lang.kotlin,
+                parent = savedParent,
+            )
         nodeRepository.save(child1)
         nodeRepository.save(child2)
 
@@ -180,18 +191,20 @@ class NodeRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `countByApplicationId - возвращает количество Node для application`() {
         // Given
-        val node1 = Node(
-            application = application,
-            fqn = "com.example.Class1",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
-        val node2 = Node(
-            application = application,
-            fqn = "com.example.Class2",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        val node1 =
+            Node(
+                application = application,
+                fqn = "com.example.Class1",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
+        val node2 =
+            Node(
+                application = application,
+                fqn = "com.example.Class2",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         nodeRepository.save(node1)
         nodeRepository.save(node2)
 
@@ -205,13 +218,14 @@ class NodeRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `lockNextReadyNodesWithoutDoc - возвращает узлы без документации`() {
         // Given
-        val method = Node(
-            application = application,
-            fqn = "com.example.method",
-            name = "method",
-            kind = NodeKind.METHOD,
-            lang = Lang.kotlin,
-        )
+        val method =
+            Node(
+                application = application,
+                fqn = "com.example.method",
+                name = "method",
+                kind = NodeKind.METHOD,
+                lang = Lang.kotlin,
+            )
         nodeRepository.save(method)
         nodeRepository.flush()
 
@@ -225,13 +239,14 @@ class NodeRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `lockNextAnyNodesWithoutDoc - возвращает любые узлы без документации`() {
         // Given
-        val classNode = Node(
-            application = application,
-            fqn = "com.example.Class",
-            name = "Class",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        val classNode =
+            Node(
+                application = application,
+                fqn = "com.example.Class",
+                name = "Class",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         nodeRepository.save(classNode)
         nodeRepository.flush()
 

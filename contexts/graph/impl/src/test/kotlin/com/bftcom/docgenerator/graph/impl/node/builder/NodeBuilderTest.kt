@@ -5,11 +5,11 @@ import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.node.CodeHasher
 import com.bftcom.docgenerator.graph.api.node.CodeNormalizer
 import com.bftcom.docgenerator.graph.api.node.NodeUpdateStrategy
 import com.bftcom.docgenerator.graph.api.node.NodeValidator
+import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.mockk.every
@@ -233,4 +233,3 @@ class NodeBuilderTest {
         assertThat(builder.getStats().created).isEqualTo(1)
     }
 }
-

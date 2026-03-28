@@ -134,4 +134,3 @@ class GitHubCheckoutService(
             baseUrlOrFull.trimEnd('/') + "/" + repoPath.trimStart('/') + ".git"
         }
 }
-

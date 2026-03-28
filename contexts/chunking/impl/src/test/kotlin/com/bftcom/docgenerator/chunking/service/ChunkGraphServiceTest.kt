@@ -24,13 +24,15 @@ class ChunkGraphServiceTest {
     @Test
     fun `buildGraph - возвращает GraphResponse с nodes и edges`() {
         // given
-        val nodes = listOf(
-            GNode(id = "100", label = "Node1", kind = "CLASS", group = "com.example"),
-            GNode(id = "200", label = "Node2", kind = "METHOD", group = "com.example"),
-        )
-        val edges = listOf(
-            GEdge(id = "1", source = "100", target = "200", kind = "CALLS"),
-        )
+        val nodes =
+            listOf(
+                GNode(id = "100", label = "Node1", kind = "CLASS", group = "com.example"),
+                GNode(id = "200", label = "Node2", kind = "METHOD", group = "com.example"),
+            )
+        val edges =
+            listOf(
+                GEdge(id = "1", source = "100", target = "200", kind = "CALLS"),
+            )
         val edgeKinds = setOf("CALLS")
 
         every { repo.loadNodes(1L, emptySet(), 500) } returns nodes
@@ -68,10 +70,11 @@ class ChunkGraphServiceTest {
     @Test
     fun `buildGraph - вызывает repo loadEdges с корректными nodeIds и edgeKinds`() {
         // given
-        val nodes = listOf(
-            GNode(id = "100", label = "Node1", kind = "CLASS", group = "com.example"),
-            GNode(id = "200", label = "Node2", kind = "METHOD", group = "com.example"),
-        )
+        val nodes =
+            listOf(
+                GNode(id = "100", label = "Node1", kind = "CLASS", group = "com.example"),
+                GNode(id = "200", label = "Node2", kind = "METHOD", group = "com.example"),
+            )
         val edgeKinds = setOf("CALLS_CODE", "CONTAINS")
 
         every { repo.loadNodes(1L, emptySet(), 500) } returns nodes
@@ -172,11 +175,12 @@ class ChunkGraphServiceTest {
     @Test
     fun `buildGraph - корректно маппит nodeIds из nodes для loadEdges`() {
         // given
-        val nodes = listOf(
-            GNode(id = "100", label = "Node1", kind = "CLASS", group = "com.example"),
-            GNode(id = "200", label = "Node2", kind = "METHOD", group = "com.example"),
-            GNode(id = "300", label = "Node3", kind = "FIELD", group = "com.example"),
-        )
+        val nodes =
+            listOf(
+                GNode(id = "100", label = "Node1", kind = "CLASS", group = "com.example"),
+                GNode(id = "200", label = "Node2", kind = "METHOD", group = "com.example"),
+                GNode(id = "300", label = "Node3", kind = "FIELD", group = "com.example"),
+            )
 
         every { repo.loadNodes(1L, emptySet(), 500) } returns nodes
         every { repo.loadEdges(1L, setOf("100", "200", "300"), emptySet()) } returns emptyList()
@@ -192,14 +196,16 @@ class ChunkGraphServiceTest {
     fun `expandNode - возвращает GraphResponse для соседних узлов`() {
         // given
         val nodeId = "100"
-        val nodes = listOf(
-            GNode(id = "200", label = "Neighbor1", kind = "CLASS", group = "com.example"),
-            GNode(id = "300", label = "Neighbor2", kind = "METHOD", group = "com.example"),
-        )
-        val edges = listOf(
-            GEdge(id = "1", source = "100", target = "200", kind = "CALLS"),
-            GEdge(id = "2", source = "100", target = "300", kind = "READS"),
-        )
+        val nodes =
+            listOf(
+                GNode(id = "200", label = "Neighbor1", kind = "CLASS", group = "com.example"),
+                GNode(id = "300", label = "Neighbor2", kind = "METHOD", group = "com.example"),
+            )
+        val edges =
+            listOf(
+                GEdge(id = "1", source = "100", target = "200", kind = "CALLS"),
+                GEdge(id = "2", source = "100", target = "300", kind = "READS"),
+            )
 
         every { repo.loadNeighbors(nodeId, 200) } returns nodes
         every { repo.loadEdgesByNode(nodeId, setOf("200", "300")) } returns edges
@@ -235,10 +241,11 @@ class ChunkGraphServiceTest {
     fun `expandNode - вызывает repo loadEdgesByNode с корректными nodeIds`() {
         // given
         val nodeId = "100"
-        val nodes = listOf(
-            GNode(id = "200", label = "Neighbor1", kind = "CLASS", group = "com.example"),
-            GNode(id = "300", label = "Neighbor2", kind = "METHOD", group = "com.example"),
-        )
+        val nodes =
+            listOf(
+                GNode(id = "200", label = "Neighbor1", kind = "CLASS", group = "com.example"),
+                GNode(id = "300", label = "Neighbor2", kind = "METHOD", group = "com.example"),
+            )
 
         every { repo.loadNeighbors(nodeId, 200) } returns nodes
         every { repo.loadEdgesByNode(nodeId, setOf("200", "300")) } returns emptyList()
@@ -309,11 +316,12 @@ class ChunkGraphServiceTest {
     fun `expandNode - корректно маппит nodeIds из neighbors для loadEdgesByNode`() {
         // given
         val nodeId = "100"
-        val nodes = listOf(
-            GNode(id = "200", label = "Neighbor1", kind = "CLASS", group = "com.example"),
-            GNode(id = "300", label = "Neighbor2", kind = "METHOD", group = "com.example"),
-            GNode(id = "400", label = "Neighbor3", kind = "FIELD", group = "com.example"),
-        )
+        val nodes =
+            listOf(
+                GNode(id = "200", label = "Neighbor1", kind = "CLASS", group = "com.example"),
+                GNode(id = "300", label = "Neighbor2", kind = "METHOD", group = "com.example"),
+                GNode(id = "400", label = "Neighbor3", kind = "FIELD", group = "com.example"),
+            )
 
         every { repo.loadNeighbors(nodeId, 200) } returns nodes
         every { repo.loadEdgesByNode(nodeId, setOf("200", "300", "400")) } returns emptyList()
@@ -329,9 +337,10 @@ class ChunkGraphServiceTest {
     fun `buildGraph - обрабатывает kinds с несколькими значениями`() {
         // given
         val kinds = setOf("CLASS", "METHOD", "FIELD")
-        val nodes = listOf(
-            GNode(id = "100", label = "Node1", kind = "CLASS", group = "com.example"),
-        )
+        val nodes =
+            listOf(
+                GNode(id = "100", label = "Node1", kind = "CLASS", group = "com.example"),
+            )
 
         every { repo.loadNodes(1L, kinds, 500) } returns nodes
         every { repo.loadEdges(any(), any(), any()) } returns emptyList()

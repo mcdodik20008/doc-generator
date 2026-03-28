@@ -5,8 +5,8 @@ import com.bftcom.docgenerator.embedding.api.SearchResult
 import com.bftcom.docgenerator.rag.api.ProcessingStepType
 import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
 import com.bftcom.docgenerator.rag.api.QueryProcessingContext
-import com.bftcom.docgenerator.rag.api.RagQueryMetadata
 import com.bftcom.docgenerator.rag.api.RagPreparedContext
+import com.bftcom.docgenerator.rag.api.RagQueryMetadata
 import com.bftcom.docgenerator.rag.api.RagResponse
 import com.bftcom.docgenerator.rag.api.RagService
 import com.bftcom.docgenerator.rag.api.RagSource
@@ -35,15 +35,20 @@ class RagServiceImpl(
 ) : RagService {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    override fun ask(query: String, sessionId: String, applicationId: Long?): RagResponse {
+    override fun ask(
+        query: String,
+        sessionId: String,
+        applicationId: Long?,
+    ): RagResponse {
         val prepared = prepareContext(query, sessionId, applicationId)
 
         val prompt = prepared.prompt
-        val answer = if (prompt != null) {
-            callLlm(prompt, prepared.sessionId)
-        } else {
-            prepared.fallbackAnswer ?: "Не удалось получить ответ."
-        }
+        val answer =
+            if (prompt != null) {
+                callLlm(prompt, prepared.sessionId)
+            } else {
+                prepared.fallbackAnswer ?: "Не удалось получить ответ."
+            }
 
         return RagResponse(
             answer = answer,
@@ -52,53 +57,56 @@ class RagServiceImpl(
         )
     }
 
-    override fun prepareContext(query: String, sessionId: String, applicationId: Long?): RagPreparedContext {
-        return doPrepareContext(query, sessionId, applicationId, null)
-    }
+    override fun prepareContext(
+        query: String,
+        sessionId: String,
+        applicationId: Long?,
+    ): RagPreparedContext = doPrepareContext(query, sessionId, applicationId, null)
 
     override fun prepareContextWithProgress(
         query: String,
         sessionId: String,
         applicationId: Long?,
-        stepCallback: com.bftcom.docgenerator.rag.api.StepProgressCallback
-    ): RagPreparedContext {
-        return doPrepareContext(query, sessionId, applicationId, stepCallback)
-    }
+        stepCallback: com.bftcom.docgenerator.rag.api.StepProgressCallback,
+    ): RagPreparedContext = doPrepareContext(query, sessionId, applicationId, stepCallback)
 
     private fun doPrepareContext(
         query: String,
         sessionId: String,
         applicationId: Long?,
-        stepCallback: com.bftcom.docgenerator.rag.api.StepProgressCallback?
+        stepCallback: com.bftcom.docgenerator.rag.api.StepProgressCallback?,
     ): RagPreparedContext {
         require(query.isNotBlank()) { "Query cannot be blank" }
         require(query.length <= 10000) { "Query length cannot exceed 10000 characters, got ${query.length}" }
         require(sessionId.isNotBlank()) { "Session ID cannot be blank" }
 
-        val processingContext = try {
-            CompletableFuture.supplyAsync {
-                graphRequestProcessor.process(query, sessionId, applicationId, stepCallback)
-            }.orTimeout(processingTimeoutSeconds, TimeUnit.SECONDS).get()
-        } catch (e: TimeoutException) {
-            log.error("Query processing timed out after {}s: query='{}'", processingTimeoutSeconds, query.take(50))
-            return RagPreparedContext(
-                prompt = null,
-                fallbackAnswer = "Не удалось обработать запрос — превышено время ожидания.",
-                sources = emptyList(),
-                metadata = RagQueryMetadata(originalQuery = query),
-                sessionId = sessionId,
-            )
-        } catch (e: Exception) {
-            val cause = e.cause ?: e
-            log.error("Query processing failed: {}", cause.message, cause)
-            return RagPreparedContext(
-                prompt = null,
-                fallbackAnswer = "Произошла ошибка при обработке запроса.",
-                sources = emptyList(),
-                metadata = RagQueryMetadata(originalQuery = query),
-                sessionId = sessionId,
-            )
-        }
+        val processingContext =
+            try {
+                CompletableFuture
+                    .supplyAsync {
+                        graphRequestProcessor.process(query, sessionId, applicationId, stepCallback)
+                    }.orTimeout(processingTimeoutSeconds, TimeUnit.SECONDS)
+                    .get()
+            } catch (e: TimeoutException) {
+                log.error("Query processing timed out after {}s: query='{}'", processingTimeoutSeconds, query.take(50))
+                return RagPreparedContext(
+                    prompt = null,
+                    fallbackAnswer = "Не удалось обработать запрос — превышено время ожидания.",
+                    sources = emptyList(),
+                    metadata = RagQueryMetadata(originalQuery = query),
+                    sessionId = sessionId,
+                )
+            } catch (e: Exception) {
+                val cause = e.cause ?: e
+                log.error("Query processing failed: {}", cause.message, cause)
+                return RagPreparedContext(
+                    prompt = null,
+                    fallbackAnswer = "Произошла ошибка при обработке запроса.",
+                    sources = emptyList(),
+                    metadata = RagQueryMetadata(originalQuery = query),
+                    sessionId = sessionId,
+                )
+            }
         val processingStatus = processingContext.getMetadata<String>(QueryMetadataKeys.PROCESSING_STATUS)
 
         if (processingStatus == ProcessingStepType.FAILED.name) {
@@ -115,101 +123,114 @@ class RagServiceImpl(
         log.info("RAG search: итоговых результатов = {}", searchResults.size)
 
         val exactNodes = processingContext.getMetadata<List<*>>(QueryMetadataKeys.EXACT_NODES)
-        val exactNodesContext = if (exactNodes != null && exactNodes.isNotEmpty()) {
-            val nodes = exactNodes.filterIsInstance<Node>().take(maxExactNodes)
-            if (nodes.isNotEmpty()) {
-                log.debug("Добавляем {} найденных узлов в контекст (лимит {})", nodes.size, maxExactNodes)
-                formatNodes(nodes)
+        val exactNodesContext =
+            if (exactNodes != null && exactNodes.isNotEmpty()) {
+                val nodes = exactNodes.filterIsInstance<Node>().take(maxExactNodes)
+                if (nodes.isNotEmpty()) {
+                    log.debug("Добавляем {} найденных узлов в контекст (лимит {})", nodes.size, maxExactNodes)
+                    formatNodes(nodes)
+                } else {
+                    ""
+                }
             } else {
                 ""
             }
-        } else {
-            ""
-        }
 
         val neighborNodes = processingContext.getMetadata<List<*>>(QueryMetadataKeys.NEIGHBOR_NODES)
-        val neighborNodesContext = if (neighborNodes != null && neighborNodes.isNotEmpty()) {
-            val nodes = neighborNodes.filterIsInstance<Node>().take(maxNeighborNodes)
-            if (nodes.isNotEmpty()) {
-                log.debug("Добавляем {} соседних узлов в контекст (лимит {})", nodes.size, maxNeighborNodes)
-                formatNodes(nodes)
+        val neighborNodesContext =
+            if (neighborNodes != null && neighborNodes.isNotEmpty()) {
+                val nodes = neighborNodes.filterIsInstance<Node>().take(maxNeighborNodes)
+                if (nodes.isNotEmpty()) {
+                    log.debug("Добавляем {} соседних узлов в контекст (лимит {})", nodes.size, maxNeighborNodes)
+                    formatNodes(nodes)
+                } else {
+                    ""
+                }
             } else {
                 ""
             }
-        } else {
-            ""
-        }
 
         val graphRelationsText = processingContext.getMetadata<String>(QueryMetadataKeys.GRAPH_RELATIONS_TEXT)
         val archContext = processingContext.getMetadata<String>(QueryMetadataKeys.ARCHITECTURE_CONTEXT_TEXT)
         val stacktraceContext = processingContext.getMetadata<String>(QueryMetadataKeys.STACKTRACE_ANALYSIS_TEXT)
 
-        val context = buildString {
-            if (!archContext.isNullOrBlank()) {
-                append("=== АРХИТЕКТУРНЫЙ КОНТЕКСТ ===\n")
-                append(archContext)
-                append("\n\n")
-            }
-            if (!stacktraceContext.isNullOrBlank()) {
-                append("=== АНАЛИЗ СТЕКТРЕЙСА ===\n")
-                append(stacktraceContext)
-                append("\n\n")
-            }
-            if (exactNodesContext.isNotEmpty()) {
-                append("=== ТОЧНО НАЙДЕННЫЕ УЗЛЫ ===\n")
-                append(exactNodesContext)
-                append("\n\n")
-            }
-            if (neighborNodesContext.isNotEmpty()) {
-                append("=== СОСЕДНИЕ УЗЛЫ (связанные через граф) ===\n")
-                append(neighborNodesContext)
-                append("\n\n")
-            }
-            if (!graphRelationsText.isNullOrBlank()) {
-                append("=== СВЯЗИ В ГРАФЕ КОДА ===\n")
-                if (graphRelationsText.length > maxGraphRelationsChars) {
-                    log.warn("Graph relations text truncated: {} -> {} chars", graphRelationsText.length, maxGraphRelationsChars)
-                    append(graphRelationsText.take(maxGraphRelationsChars))
-                    append("\n... [связи обрезаны]")
-                } else {
-                    append(graphRelationsText)
+        val context =
+            buildString {
+                if (!archContext.isNullOrBlank()) {
+                    append("=== АРХИТЕКТУРНЫЙ КОНТЕКСТ ===\n")
+                    append(archContext)
+                    append("\n\n")
                 }
-                append("\n\n")
+                if (!stacktraceContext.isNullOrBlank()) {
+                    append("=== АНАЛИЗ СТЕКТРЕЙСА ===\n")
+                    append(stacktraceContext)
+                    append("\n\n")
+                }
+                if (exactNodesContext.isNotEmpty()) {
+                    append("=== ТОЧНО НАЙДЕННЫЕ УЗЛЫ ===\n")
+                    append(exactNodesContext)
+                    append("\n\n")
+                }
+                if (neighborNodesContext.isNotEmpty()) {
+                    append("=== СОСЕДНИЕ УЗЛЫ (связанные через граф) ===\n")
+                    append(neighborNodesContext)
+                    append("\n\n")
+                }
+                if (!graphRelationsText.isNullOrBlank()) {
+                    append("=== СВЯЗИ В ГРАФЕ КОДА ===\n")
+                    if (graphRelationsText.length > maxGraphRelationsChars) {
+                        log.warn("Graph relations text truncated: {} -> {} chars", graphRelationsText.length, maxGraphRelationsChars)
+                        append(graphRelationsText.take(maxGraphRelationsChars))
+                        append("\n... [связи обрезаны]")
+                    } else {
+                        append(graphRelationsText)
+                    }
+                    append("\n\n")
+                }
+                if (exactNodesContext.isNotEmpty() || neighborNodesContext.isNotEmpty()) {
+                    append("=== РЕЗУЛЬТАТЫ ВЕКТОРНОГО ПОИСКА ===\n")
+                }
+                append(searchResults.joinToString("\n\n") { "Source [${it.id}]:\n${it.content}" })
             }
-            if (exactNodesContext.isNotEmpty() || neighborNodesContext.isNotEmpty()) {
-                append("=== РЕЗУЛЬТАТЫ ВЕКТОРНОГО ПОИСКА ===\n")
-            }
-            append(searchResults.joinToString("\n\n") { "Source [${it.id}]:\n${it.content}" })
-        }
 
-        val truncatedContext = if (context.length > maxContextChars) {
-            log.warn("RAG context truncated: {} -> {} chars", context.length, maxContextChars)
-            context.take(maxContextChars) + "\n... [контекст обрезан]"
-        } else {
-            context
-        }
+        val truncatedContext =
+            if (context.length > maxContextChars) {
+                log.warn("RAG context truncated: {} -> {} chars", context.length, maxContextChars)
+                context.take(maxContextChars) + "\n... [контекст обрезан]"
+            } else {
+                context
+            }
 
         val queryIntent = processingContext.getMetadata<String>(QueryMetadataKeys.QUERY_INTENT)
-        val systemPrompt = when (queryIntent) {
-            "ARCHITECTURE" -> """
-                Ты — архитектурный эксперт. Ответь на вопрос об архитектуре, используя предоставленный контекст.
-                Описывай слои, компоненты, интеграции и паттерны, которые видишь в контексте.
-                Если в контексте нет информации, так и скажи.
-                ОБЯЗАТЕЛЬНО указывай источники информации в формате [ID].
-            """.trimIndent()
-            "STACKTRACE" -> """
-                Ты — эксперт по отладке Java/Kotlin. Проанализируй стектрейс и контекст кода.
-                Объясни причину ошибки и предложи исправление. Укажи конкретные файлы и строки.
-                Если в контексте нет информации, так и скажи.
-                ОБЯЗАТЕЛЬНО указывай источники информации в формате [ID].
-            """.trimIndent()
-            else -> """
-                Ты — умный ассистент разработчика. Ответь на вопрос, используя только предоставленный контекст.
-                Если в контексте нет информации, так и скажи.
-                ОБЯЗАТЕЛЬНО указывай источники информации в формате [ID], где ID — это идентификатор источника из контекста.
-                Пример: "Этот метод используется в классе Foo [123]".
-            """.trimIndent()
-        }
+        val systemPrompt =
+            when (queryIntent) {
+                "ARCHITECTURE" -> {
+                    """
+                    Ты — архитектурный эксперт. Ответь на вопрос об архитектуре, используя предоставленный контекст.
+                    Описывай слои, компоненты, интеграции и паттерны, которые видишь в контексте.
+                    Если в контексте нет информации, так и скажи.
+                    ОБЯЗАТЕЛЬНО указывай источники информации в формате [ID].
+                    """.trimIndent()
+                }
+
+                "STACKTRACE" -> {
+                    """
+                    Ты — эксперт по отладке Java/Kotlin. Проанализируй стектрейс и контекст кода.
+                    Объясни причину ошибки и предложи исправление. Укажи конкретные файлы и строки.
+                    Если в контексте нет информации, так и скажи.
+                    ОБЯЗАТЕЛЬНО указывай источники информации в формате [ID].
+                    """.trimIndent()
+                }
+
+                else -> {
+                    """
+                    Ты — умный ассистент разработчика. Ответь на вопрос, используя только предоставленный контекст.
+                    Если в контексте нет информации, так и скажи.
+                    ОБЯЗАТЕЛЬНО указывай источники информации в формате [ID], где ID — это идентификатор источника из контекста.
+                    Пример: "Этот метод используется в классе Foo [123]".
+                    """.trimIndent()
+                }
+            }
 
         val prompt =
             """
@@ -222,11 +243,17 @@ class RagServiceImpl(
             ${processingContext.originalQuery}
             """.trimIndent()
 
-        log.info("RAG prompt generated: query='{}', context_length={}, prompt_length={}", processingContext.originalQuery.take(80), truncatedContext.length, prompt.length)
+        log.info(
+            "RAG prompt generated: query='{}', context_length={}, prompt_length={}",
+            processingContext.originalQuery.take(80),
+            truncatedContext.length,
+            prompt.length,
+        )
 
-        val sources = searchResults.map {
-            RagSource(it.id, it.content, it.metadata, it.similarity)
-        }
+        val sources =
+            searchResults.map {
+                RagSource(it.id, it.content, it.metadata, it.similarity)
+            }
 
         return RagPreparedContext(
             prompt = prompt,
@@ -237,41 +264,45 @@ class RagServiceImpl(
         )
     }
 
-    private fun callLlm(prompt: String, sessionId: String): String {
-        return try {
-            CompletableFuture.supplyAsync {
-                chatClient
-                    .prompt()
-                    .user(prompt)
-                    .advisors { spec ->
-                        spec.param(
-                            DEFAULT_CONVERSATION_ID,
-                            sessionId
-                        )
-                    }
-                    .call()
-                    .content()
-            }
-                .orTimeout(llmTimeoutSeconds, TimeUnit.SECONDS)
+    private fun callLlm(
+        prompt: String,
+        sessionId: String,
+    ): String =
+        try {
+            CompletableFuture
+                .supplyAsync {
+                    chatClient
+                        .prompt()
+                        .user(prompt)
+                        .advisors { spec ->
+                            spec.param(
+                                DEFAULT_CONVERSATION_ID,
+                                sessionId,
+                            )
+                        }.call()
+                        .content()
+                }.orTimeout(llmTimeoutSeconds, TimeUnit.SECONDS)
                 .exceptionally { ex ->
                     log.error("LLM call failed or timed out: ${ex.message}", ex)
                     null
-                }
-                .get()
+                }.get()
                 ?: "Не удалось получить ответ."
         } catch (e: Exception) {
             log.error("Error during LLM call: ${e.message}", e)
             "Не удалось получить ответ."
         }
-    }
 
     private fun buildSearchResults(context: QueryProcessingContext): List<SearchResult> {
-        val filteredChunks = context.getMetadata<List<*>>(QueryMetadataKeys.FILTERED_CHUNKS)
-            ?.filterIsInstance<SearchResult>()
-            .orEmpty()
-        val rawChunks = context.getMetadata<List<*>>(QueryMetadataKeys.CHUNKS)
-            ?.filterIsInstance<SearchResult>()
-            .orEmpty()
+        val filteredChunks =
+            context
+                .getMetadata<List<*>>(QueryMetadataKeys.FILTERED_CHUNKS)
+                ?.filterIsInstance<SearchResult>()
+                .orEmpty()
+        val rawChunks =
+            context
+                .getMetadata<List<*>>(QueryMetadataKeys.CHUNKS)
+                ?.filterIsInstance<SearchResult>()
+                .orEmpty()
 
         val selected = if (filteredChunks.isNotEmpty()) filteredChunks else rawChunks
         return selected
@@ -281,9 +312,11 @@ class RagServiceImpl(
     }
 
     private fun buildMetadata(context: QueryProcessingContext): RagQueryMetadata {
-        val expandedQueries = context.getMetadata<List<*>>(QueryMetadataKeys.EXPANDED_QUERIES)
-            ?.mapNotNull { it as? String }
-            ?: emptyList()
+        val expandedQueries =
+            context
+                .getMetadata<List<*>>(QueryMetadataKeys.EXPANDED_QUERIES)
+                ?.mapNotNull { it as? String }
+                ?: emptyList()
 
         return RagQueryMetadata(
             originalQuery = context.originalQuery,
@@ -297,8 +330,8 @@ class RagServiceImpl(
     /**
      * Форматирует список узлов для включения в контекст RAG
      */
-    private fun formatNodes(nodes: List<Node>): String {
-        return nodes.joinToString("\n\n") { node ->
+    private fun formatNodes(nodes: List<Node>): String =
+        nodes.joinToString("\n\n") { node ->
             buildString {
                 append("Node [${node.id}]:\n")
                 append("FQN: ${node.fqn}\n")
@@ -312,11 +345,12 @@ class RagServiceImpl(
                 if (node.sourceCode != null) {
                     val code = node.sourceCode
                     if (code != null) {
-                        val truncatedCode = if (code.length > maxNodeCodeChars) {
-                            code.take(maxNodeCodeChars) + "\n// ... [код обрезан]"
-                        } else {
-                            code
-                        }
+                        val truncatedCode =
+                            if (code.length > maxNodeCodeChars) {
+                                code.take(maxNodeCodeChars) + "\n// ... [код обрезан]"
+                            } else {
+                                code
+                            }
                         append("Source Code:\n$truncatedCode\n")
                     }
                 }
@@ -325,5 +359,4 @@ class RagServiceImpl(
                 }
             }
         }
-    }
 }

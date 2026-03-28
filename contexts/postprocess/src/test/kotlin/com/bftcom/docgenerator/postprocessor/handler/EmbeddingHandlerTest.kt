@@ -18,7 +18,6 @@ import java.time.OffsetDateTime
 import kotlin.test.assertTrue
 
 class EmbeddingHandlerTest {
-
     private lateinit var embeddingClient: EmbeddingClient
     private lateinit var summaryClient: SummaryClient
     private lateinit var handler: EmbeddingHandler
@@ -31,68 +30,73 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `supports - возвращает false когда enabled = false`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = false,
-            maxContentChars = 30000,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = false,
+                maxContentChars = 30000,
+            )
 
         val snapshot = createSnapshot()
-        
+
         assertThat(handler.supports(snapshot)).isFalse()
     }
 
     @Test
     fun `supports - возвращает false когда client = null`() {
-        handler = EmbeddingHandler(
-            client = null,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-        )
+        handler =
+            EmbeddingHandler(
+                client = null,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+            )
 
         val snapshot = createSnapshot()
-        
+
         assertThat(handler.supports(snapshot)).isFalse()
     }
 
     @Test
     fun `supports - возвращает false когда embedding уже присутствует`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+            )
 
         val snapshot = createSnapshot(embeddingPresent = true)
-        
+
         assertThat(handler.supports(snapshot)).isFalse()
     }
 
     @Test
     fun `supports - возвращает true когда все условия выполнены`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+            )
 
         val snapshot = createSnapshot(embeddingPresent = false)
-        
+
         assertThat(handler.supports(snapshot)).isTrue()
     }
 
     @Test
     fun `produce - возвращает правильные поля для короткого контента`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+            )
 
         val content = "short content"
         val snapshot = createSnapshot(content = content)
@@ -112,12 +116,13 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `produce - создает summary для длинного контента`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 100,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 100,
+            )
 
         val longContent = "a".repeat(200)
         val summary = "summary of long content"
@@ -138,12 +143,13 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `produce - обрезает summary если он все еще слишком длинный`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 100,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 100,
+            )
 
         val longContent = "a".repeat(200)
         val tooLongSummary = "b".repeat(150) // Длиннее maxContentChars
@@ -164,12 +170,13 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `produce - проверяет размерность вектора`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+            )
 
         val snapshot = createSnapshot(content = "test")
         val wrongVector = floatArrayOf(1.0f, 2.0f) // Неправильная размерность
@@ -178,23 +185,25 @@ class EmbeddingHandlerTest {
         every { embeddingClient.dim } returns 3
         every { embeddingClient.embed("test") } returns wrongVector
 
-        val exception = assertThrows<IllegalArgumentException> {
-            handler.produce(snapshot)
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                handler.produce(snapshot)
+            }
 
         assertThat(exception.message).contains("Embedding dim 2 != expected 3")
     }
 
     @Test
     fun `produce - retry при EOFException`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-            maxRetryAttempts = 3,
-            initialRetryDelayMs = 10, // Короткая задержка для теста
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+                maxRetryAttempts = 3,
+                initialRetryDelayMs = 10, // Короткая задержка для теста
+            )
 
         val snapshot = createSnapshot(content = "test")
         val expectedVector = floatArrayOf(1.0f, 2.0f)
@@ -217,14 +226,15 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `produce - retry при SocketException`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-            maxRetryAttempts = 3,
-            initialRetryDelayMs = 10,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+                maxRetryAttempts = 3,
+                initialRetryDelayMs = 10,
+            )
 
         val snapshot = createSnapshot(content = "test")
         val expectedVector = floatArrayOf(1.0f, 2.0f)
@@ -249,14 +259,15 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `produce - retry при SocketTimeoutException`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-            maxRetryAttempts = 3,
-            initialRetryDelayMs = 10,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+                maxRetryAttempts = 3,
+                initialRetryDelayMs = 10,
+            )
 
         val snapshot = createSnapshot(content = "test")
         val expectedVector = floatArrayOf(1.0f, 2.0f)
@@ -281,14 +292,15 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `produce - выбрасывает исключение после исчерпания попыток`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-            maxRetryAttempts = 2,
-            initialRetryDelayMs = 10,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+                maxRetryAttempts = 2,
+                initialRetryDelayMs = 10,
+            )
 
         val snapshot = createSnapshot(content = "test")
 
@@ -305,14 +317,15 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `produce - не retry при не-retryable ошибках`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-            maxRetryAttempts = 3,
-            initialRetryDelayMs = 10,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+                maxRetryAttempts = 3,
+                initialRetryDelayMs = 10,
+            )
 
         val snapshot = createSnapshot(content = "test")
 
@@ -329,14 +342,15 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `produce - обрабатывает ошибки с EOF в сообщении`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-            maxRetryAttempts = 3,
-            initialRetryDelayMs = 10,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+                maxRetryAttempts = 3,
+                initialRetryDelayMs = 10,
+            )
 
         val snapshot = createSnapshot(content = "test")
         val expectedVector = floatArrayOf(1.0f, 2.0f)
@@ -361,14 +375,15 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `produce - обрабатывает ошибки с Connection reset в сообщении`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-            maxRetryAttempts = 3,
-            initialRetryDelayMs = 10,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+                maxRetryAttempts = 3,
+                initialRetryDelayMs = 10,
+            )
 
         val snapshot = createSnapshot(content = "test")
         val expectedVector = floatArrayOf(1.0f, 2.0f)
@@ -393,14 +408,15 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `produce - обрабатывает ошибки с Broken pipe в сообщении`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-            maxRetryAttempts = 3,
-            initialRetryDelayMs = 10,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+                maxRetryAttempts = 3,
+                initialRetryDelayMs = 10,
+            )
 
         val snapshot = createSnapshot(content = "test")
         val expectedVector = floatArrayOf(1.0f, 2.0f)
@@ -425,14 +441,15 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `produce - обрабатывает вложенные исключения`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-            maxRetryAttempts = 3,
-            initialRetryDelayMs = 10,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+                maxRetryAttempts = 3,
+                initialRetryDelayMs = 10,
+            )
 
         val snapshot = createSnapshot(content = "test")
         val expectedVector = floatArrayOf(1.0f, 2.0f)
@@ -457,14 +474,15 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `produce - использует экспоненциальную задержку с джиттером`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-            maxRetryAttempts = 3,
-            initialRetryDelayMs = 100,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+                maxRetryAttempts = 3,
+                initialRetryDelayMs = 100,
+            )
 
         val snapshot = createSnapshot(content = "test")
         val expectedVector = floatArrayOf(1.0f, 2.0f)
@@ -490,43 +508,46 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `produce - обрабатывает InterruptedException во время задержки`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 30000,
-            maxRetryAttempts = 3,
-            initialRetryDelayMs = 1000,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 30000,
+                maxRetryAttempts = 3,
+                initialRetryDelayMs = 1000,
+            )
 
         val snapshot = createSnapshot(content = "test")
 
         every { embeddingClient.modelName } returns "test-model"
         every { embeddingClient.dim } returns 2
         every { embeddingClient.embed("test") } throws EOFException("Connection closed")
-        
+
         // Прерываем текущий поток
         Thread.currentThread().interrupt()
 
-        val exception = assertThrows<RuntimeException> {
-            handler.produce(snapshot)
-        }
+        val exception =
+            assertThrows<RuntimeException> {
+                handler.produce(snapshot)
+            }
 
         assertThat(exception.message).contains("Interrupted during retry delay")
         assertThat(exception.cause).isInstanceOf(InterruptedException::class.java)
-        
+
         // Сбрасываем флаг прерывания
         Thread.interrupted()
     }
 
     @Test
     fun `produce - контент на границе maxContentChars не требует summary`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 100,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 100,
+            )
 
         val content = "a".repeat(100) // Ровно maxContentChars
         val snapshot = createSnapshot(content = content)
@@ -545,12 +566,13 @@ class EmbeddingHandlerTest {
 
     @Test
     fun `produce - контент длиннее maxContentChars на 1 символ требует summary`() {
-        handler = EmbeddingHandler(
-            client = embeddingClient,
-            summaryClient = summaryClient,
-            enabled = true,
-            maxContentChars = 100,
-        )
+        handler =
+            EmbeddingHandler(
+                client = embeddingClient,
+                summaryClient = summaryClient,
+                enabled = true,
+                maxContentChars = 100,
+            )
 
         val content = "a".repeat(101) // На 1 больше maxContentChars
         val summary = "summary"
@@ -577,8 +599,8 @@ class EmbeddingHandlerTest {
         embeddingPresent: Boolean = false,
         embedModel: String? = null,
         embedTs: OffsetDateTime? = null,
-    ): ChunkSnapshot {
-        return ChunkSnapshot(
+    ): ChunkSnapshot =
+        ChunkSnapshot(
             id = id,
             content = content,
             contentHash = contentHash,
@@ -587,6 +609,4 @@ class EmbeddingHandlerTest {
             embedModel = embedModel,
             embedTs = embedTs,
         )
-    }
 }
-

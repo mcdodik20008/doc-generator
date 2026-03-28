@@ -15,4 +15,3 @@ data class GitHubProps(
     /** Путь, куда будет клонироваться проект */
     var basePath: String = "./data/repos/github",
 )
-

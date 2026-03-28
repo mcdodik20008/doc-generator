@@ -46,15 +46,16 @@ class ChunkDetailsServiceTest {
         node.name = "Test"
         node.packageName = "com.example"
 
-        val chunk = Chunk(
-            id = 1L,
-            application = app,
-            node = node,
-            source = "doc",
-            kind = "tech",
-            content = "Test content",
-            metadata = mapOf("key" to "value"),
-        )
+        val chunk =
+            Chunk(
+                id = 1L,
+                application = app,
+                node = node,
+                source = "doc",
+                kind = "tech",
+                content = "Test content",
+                metadata = mapOf("key" to "value"),
+            )
         chunk.emb = floatArrayOf(1.0f, 2.0f, 3.0f)
 
         every { chunkRepo.findByNodeId(100L) } returns mutableListOf(chunk)
@@ -93,14 +94,15 @@ class ChunkDetailsServiceTest {
         val dstNode = Node(application = app, fqn = "com.example.Dst", kind = NodeKind.CLASS, lang = Lang.kotlin)
         dstNode.id = 300L
 
-        val chunk = Chunk(
-            id = 1L,
-            application = app,
-            node = node,
-            source = "doc",
-            kind = "tech",
-            content = "Test content",
-        )
+        val chunk =
+            Chunk(
+                id = 1L,
+                application = app,
+                node = node,
+                source = "doc",
+                kind = "tech",
+                content = "Test content",
+            )
 
         val outgoingEdge = Edge(src = node, dst = dstNode, kind = EdgeKind.CALLS)
         outgoingEdge.src.id = 100L
@@ -136,14 +138,15 @@ class ChunkDetailsServiceTest {
         val node = Node(application = app, fqn = "com.example.Test", kind = NodeKind.CLASS, lang = Lang.kotlin)
         node.id = null // null id
 
-        val chunk = Chunk(
-            id = 1L,
-            application = app,
-            node = node,
-            source = "doc",
-            kind = "tech",
-            content = "Test content",
-        )
+        val chunk =
+            Chunk(
+                id = 1L,
+                application = app,
+                node = node,
+                source = "doc",
+                kind = "tech",
+                content = "Test content",
+            )
 
         every { chunkRepo.findByNodeId(any()) } returns mutableListOf(chunk)
 
@@ -177,14 +180,15 @@ class ChunkDetailsServiceTest {
         val node = Node(application = app, fqn = "com.example.Test", kind = NodeKind.CLASS, lang = Lang.kotlin)
         node.id = 100L
 
-        val chunk = Chunk(
-            id = 1L,
-            application = app,
-            node = node,
-            source = "doc",
-            kind = "tech",
-            content = "Test content",
-        )
+        val chunk =
+            Chunk(
+                id = 1L,
+                application = app,
+                node = node,
+                source = "doc",
+                kind = "tech",
+                content = "Test content",
+            )
 
         every { chunkRepo.findByNodeId(100L) } returns mutableListOf(chunk)
         every { nodeRepo.findById(100L) } returns java.util.Optional.of(node)
@@ -207,14 +211,15 @@ class ChunkDetailsServiceTest {
         val node = Node(application = app, fqn = "com.example.Test", kind = NodeKind.CLASS, lang = Lang.kotlin)
         node.id = 100L
 
-        val chunk = Chunk(
-            id = 1L,
-            application = app,
-            node = node,
-            source = "doc",
-            kind = "tech",
-            content = "Test content",
-        )
+        val chunk =
+            Chunk(
+                id = 1L,
+                application = app,
+                node = node,
+                source = "doc",
+                kind = "tech",
+                content = "Test content",
+            )
 
         every { chunkRepo.findByNodeId(100L) } returns mutableListOf(chunk)
         every { nodeRepo.findById(100L) } returns java.util.Optional.empty() // node не найден
@@ -237,14 +242,15 @@ class ChunkDetailsServiceTest {
         val node = Node(application = app, fqn = "com.example.Test", kind = NodeKind.CLASS, lang = Lang.kotlin)
         node.id = null
 
-        val chunk = Chunk(
-            id = 1L,
-            application = app,
-            node = node,
-            source = "doc",
-            kind = null, // null kind
-            content = "Test content",
-        )
+        val chunk =
+            Chunk(
+                id = 1L,
+                application = app,
+                node = node,
+                source = "doc",
+                kind = null, // null kind
+                content = "Test content",
+            )
 
         every { chunkRepo.findByNodeId(any()) } returns mutableListOf(chunk)
 
@@ -263,14 +269,15 @@ class ChunkDetailsServiceTest {
         val node = Node(application = app, fqn = "com.example.Test", kind = NodeKind.CLASS, lang = Lang.kotlin)
         node.id = 100L
 
-        val chunk = Chunk(
-            id = 1L,
-            application = app,
-            node = node,
-            source = "doc",
-            kind = "tech",
-            content = "Test content",
-        )
+        val chunk =
+            Chunk(
+                id = 1L,
+                application = app,
+                node = node,
+                source = "doc",
+                kind = "tech",
+                content = "Test content",
+            )
         chunk.emb = floatArrayOf(1.0f, 2.0f, 3.0f, 4.0f, 5.0f) // 5 элементов
 
         every { chunkRepo.findByNodeId(100L) } returns mutableListOf(chunk)
@@ -297,14 +304,15 @@ class ChunkDetailsServiceTest {
         val dstNode = Node(application = app, fqn = "com.example.Dst", kind = NodeKind.CLASS, lang = Lang.kotlin)
         dstNode.id = 300L
 
-        val chunk = Chunk(
-            id = 1L,
-            application = app,
-            node = node,
-            source = "doc",
-            kind = "tech",
-            content = "Test content",
-        )
+        val chunk =
+            Chunk(
+                id = 1L,
+                application = app,
+                node = node,
+                source = "doc",
+                kind = "tech",
+                content = "Test content",
+            )
 
         val edge = Edge(src = node, dst = dstNode, kind = EdgeKind.READS)
         edge.src.id = 100L
@@ -338,14 +346,15 @@ class ChunkDetailsServiceTest {
         val dstNode = Node(application = app, fqn = "com.example.Dst", kind = NodeKind.CLASS, lang = Lang.kotlin)
         dstNode.id = 300L
 
-        val chunk = Chunk(
-            id = 1L,
-            application = app,
-            node = node,
-            source = "doc",
-            kind = "tech",
-            content = "Test content",
-        )
+        val chunk =
+            Chunk(
+                id = 1L,
+                application = app,
+                node = node,
+                source = "doc",
+                kind = "tech",
+                content = "Test content",
+            )
 
         // outgoing: node -> dstNode
         val outgoingEdge = Edge(src = node, dst = dstNode, kind = EdgeKind.CALLS)
@@ -383,14 +392,15 @@ class ChunkDetailsServiceTest {
         val node = Node(application = app, fqn = "com.example.Test", kind = NodeKind.CLASS, lang = Lang.kotlin)
         node.id = 100L
 
-        val chunk = Chunk(
-            id = 1L,
-            application = app,
-            node = node,
-            source = "doc",
-            kind = "tech",
-            content = "Test content",
-        )
+        val chunk =
+            Chunk(
+                id = 1L,
+                application = app,
+                node = node,
+                source = "doc",
+                kind = "tech",
+                content = "Test content",
+            )
         chunk.emb = null // null embedding
 
         every { chunkRepo.findByNodeId(100L) } returns mutableListOf(chunk)

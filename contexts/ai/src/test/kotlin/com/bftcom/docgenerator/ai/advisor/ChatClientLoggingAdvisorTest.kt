@@ -15,11 +15,11 @@ import org.springframework.ai.chat.messages.AssistantMessage
 import org.springframework.ai.chat.messages.SystemMessage
 import org.springframework.ai.chat.messages.UserMessage
 import org.springframework.ai.chat.metadata.ChatResponseMetadata
+import org.springframework.ai.chat.metadata.Usage
 import org.springframework.ai.chat.model.ChatResponse
 import org.springframework.ai.chat.model.Generation
-import org.springframework.ai.chat.metadata.Usage
-import org.springframework.ai.chat.prompt.Prompt
 import org.springframework.ai.chat.prompt.ChatOptions
+import org.springframework.ai.chat.prompt.Prompt
 
 @ExtendWith(MockitoExtension::class)
 class ChatClientLoggingAdvisorTest {
@@ -46,15 +46,23 @@ class ChatClientLoggingAdvisorTest {
 
     private lateinit var advisor: ChatClientLoggingAdvisor
 
-    private fun defaultProps(coderDebug: Boolean = false, talkerDebug: Boolean = false) =
-        AiClientsProperties(
-            coder = AiClientsProperties.ClientProps(
-                model = "test-coder", system = "sys", debug = coderDebug,
+    private fun defaultProps(
+        coderDebug: Boolean = false,
+        talkerDebug: Boolean = false,
+    ) = AiClientsProperties(
+        coder =
+            AiClientsProperties.ClientProps(
+                model = "test-coder",
+                system = "sys",
+                debug = coderDebug,
             ),
-            talker = AiClientsProperties.ClientProps(
-                model = "test-talker", system = "sys", debug = talkerDebug,
+        talker =
+            AiClientsProperties.ClientProps(
+                model = "test-talker",
+                system = "sys",
+                debug = talkerDebug,
             ),
-        )
+    )
 
     @BeforeEach
     fun setUp() {
@@ -70,7 +78,7 @@ class ChatClientLoggingAdvisorTest {
     fun `before should return same request without modification`() {
         whenever(chatClientRequest.prompt()).thenReturn(prompt)
         whenever(prompt.instructions).thenReturn(
-            listOf(SystemMessage("system"), UserMessage("user prompt"))
+            listOf(SystemMessage("system"), UserMessage("user prompt")),
         )
         whenever(prompt.options).thenReturn(ChatOptions.builder().model("test-model").build())
 

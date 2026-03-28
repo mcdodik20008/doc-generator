@@ -9,7 +9,6 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface ChatSessionRepository : JpaRepository<ChatSession, Long> {
-
     /**
      * Находит все чаты пользователя, отсортированные по дате обновления (новые первыми).
      */
@@ -23,14 +22,20 @@ interface ChatSessionRepository : JpaRepository<ChatSession, Long> {
     /**
      * Находит чат по ID и владельцу (для проверки прав доступа).
      */
-    fun findByIdAndUserId(id: Long, userId: Long): ChatSession?
+    fun findByIdAndUserId(
+        id: Long,
+        userId: Long,
+    ): ChatSession?
 
     /**
      * Удаляет чат только если он принадлежит указанному пользователю.
      */
     @Modifying
     @Query("DELETE FROM ChatSession c WHERE c.id = :id AND c.user.id = :userId")
-    fun deleteByIdAndUserId(@Param("id") id: Long, @Param("userId") userId: Long): Int
+    fun deleteByIdAndUserId(
+        @Param("id") id: Long,
+        @Param("userId") userId: Long,
+    ): Int
 
     /**
      * Проверяет, существует ли чат с указанным session_id.

@@ -39,8 +39,9 @@ class ChunkPostprocessScheduler(
     @Scheduled(fixedDelayString = "\${docgen.post.poll-ms:5000}")
     fun poll() {
         try {
-            val batch = tx.execute { lockBatch() }
-                ?: throw IllegalStateException("Failed to acquire batch lock from database - transaction returned null")
+            val batch =
+                tx.execute { lockBatch() }
+                    ?: throw IllegalStateException("Failed to acquire batch lock from database - transaction returned null")
 
             if (batch.isEmpty()) {
                 return
@@ -74,7 +75,7 @@ class ChunkPostprocessScheduler(
                         errorMsg,
                         ch.application?.id,
                         ch.node?.id,
-                        e
+                        e,
                     )
                 }
             }
@@ -85,12 +86,11 @@ class ChunkPostprocessScheduler(
                     successCount,
                     errorCount,
                     batch.size,
-                    failedChunks.take(10).map { it.first } // Показываем первые 10 для краткости
+                    failedChunks.take(10).map { it.first }, // Показываем первые 10 для краткости
                 )
             } else {
                 log.info("Postprocess batch completed successfully: success={}, total={}", successCount, batch.size)
             }
-
         } catch (e: Exception) {
             log.error("Critical error in postprocess scheduler poll cycle", e)
             // Не пробрасываем исключение, чтобы scheduler продолжил работу

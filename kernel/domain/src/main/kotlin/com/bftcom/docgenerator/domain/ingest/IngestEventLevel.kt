@@ -1,7 +1,10 @@
 package com.bftcom.docgenerator.domain.ingest
 
 enum class IngestEventLevel {
-    INFO, WARN, ERROR;
+    INFO,
+    WARN,
+    ERROR,
+    ;
 
     companion object {
         fun fromString(value: String): IngestEventLevel =

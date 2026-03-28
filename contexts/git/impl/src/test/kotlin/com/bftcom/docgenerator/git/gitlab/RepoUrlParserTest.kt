@@ -32,4 +32,3 @@ class RepoUrlParserTest {
         assertThat(info).isEqualTo(RepoInfo(null, null, null))
     }
 }
-

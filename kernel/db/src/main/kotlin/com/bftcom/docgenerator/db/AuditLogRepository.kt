@@ -10,10 +10,13 @@ import java.time.OffsetDateTime
 
 @Repository
 interface AuditLogRepository : JpaRepository<AuditLog, Long> {
+    fun findByUserIdOrderByCreatedAtDesc(
+        userId: String,
+        pageable: Pageable,
+    ): Page<AuditLog>
 
-    fun findByUserIdOrderByCreatedAtDesc(userId: String, pageable: Pageable): Page<AuditLog>
-
-    @Query("""
+    @Query(
+        """
         SELECT a FROM AuditLog a
         WHERE (:userId IS NULL OR a.userId = :userId)
           AND (:action IS NULL OR a.action = :action)
@@ -21,7 +24,8 @@ interface AuditLogRepository : JpaRepository<AuditLog, Long> {
           AND (:from IS NULL OR a.createdAt >= :from)
           AND (:to IS NULL OR a.createdAt <= :to)
         ORDER BY a.createdAt DESC
-    """)
+    """,
+    )
     fun search(
         userId: String?,
         action: String?,

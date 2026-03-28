@@ -48,37 +48,46 @@ class IngestRunOrchestrator(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    fun startRun(appId: Long, branch: String?, triggeredBy: String?): IngestRunDto {
-        val app = applicationRepository.findById(appId).orElseThrow {
-            ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found: $appId")
-        }
+    fun startRun(
+        appId: Long,
+        branch: String?,
+        triggeredBy: String?,
+    ): IngestRunDto {
+        val app =
+            applicationRepository.findById(appId).orElseThrow {
+                ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found: $appId")
+            }
 
         // Check for active run
-        val activeRun = ingestRunRepository.findFirstByApplicationIdAndStatusOrderByCreatedAtDesc(
-            appId, IngestRunStatus.RUNNING.name
-        )
+        val activeRun =
+            ingestRunRepository.findFirstByApplicationIdAndStatusOrderByCreatedAtDesc(
+                appId,
+                IngestRunStatus.RUNNING.name,
+            )
         if (activeRun != null) {
             throw ResponseStatusException(
                 HttpStatus.CONFLICT,
-                "Application $appId already has an active ingest run: ${activeRun.id}"
+                "Application $appId already has an active ingest run: ${activeRun.id}",
             )
         }
 
-        val run = IngestRun(
-            application = app,
-            status = IngestRunStatus.PENDING.name,
-            triggeredBy = triggeredBy,
-            branch = branch ?: app.defaultBranch,
-        )
+        val run =
+            IngestRun(
+                application = app,
+                status = IngestRunStatus.PENDING.name,
+                triggeredBy = triggeredBy,
+                branch = branch ?: app.defaultBranch,
+            )
         val savedRun = ingestRunRepository.save(run)
 
-        val steps = IngestStepType.entries.map { stepType ->
-            IngestStep(
-                run = savedRun,
-                stepType = stepType.name,
-                status = IngestStepStatus.PENDING.name,
-            )
-        }
+        val steps =
+            IngestStepType.entries.map { stepType ->
+                IngestStep(
+                    run = savedRun,
+                    stepType = stepType.name,
+                    status = IngestStepStatus.PENDING.name,
+                )
+            }
         val savedSteps = ingestStepRepository.saveAll(steps)
 
         executeAsync(savedRun.id!!)
@@ -106,12 +115,13 @@ class IngestRunOrchestrator(
 
     private fun doExecute(runId: Long) {
         // Mark run as RUNNING
-        val run = tx.execute {
-            val r = ingestRunRepository.findById(runId).orElseThrow()
-            r.status = IngestRunStatus.RUNNING.name
-            r.startedAt = OffsetDateTime.now()
-            ingestRunRepository.save(r)
-        }!!
+        val run =
+            tx.execute {
+                val r = ingestRunRepository.findById(runId).orElseThrow()
+                r.status = IngestRunStatus.RUNNING.name
+                r.startedAt = OffsetDateTime.now()
+                ingestRunRepository.save(r)
+            }!!
 
         val app = run.application
         val appId = app.id!!
@@ -133,22 +143,29 @@ class IngestRunOrchestrator(
                 val orchestrator = orchestratorFactory.getOrchestratorByProvider(app.repoProvider)
                 val repoOwner = app.repoOwner.orEmpty()
                 val repoName = app.repoName.orEmpty()
-                val repoPath = if (repoOwner.isNotBlank() && repoName.isNotBlank()) {
-                    "$repoOwner/$repoName"
-                } else {
-                    app.repoUrl ?: throw IllegalStateException("Application ${app.key} has no repository info")
-                }
+                val repoPath =
+                    if (repoOwner.isNotBlank() && repoName.isNotBlank()) {
+                        "$repoOwner/$repoName"
+                    } else {
+                        app.repoUrl ?: throw IllegalStateException("Application ${app.key} has no repository info")
+                    }
 
                 // Use the existing orchestrator's checkout via runOnce, but we need the git service directly.
                 // We use the factory to get the right checkout service based on provider.
-                val gitCheckout = when (app.repoProvider?.lowercase()) {
-                    "github" -> orchestratorFactory.let {
-                        // Access checkout service through the existing ingest orchestrator flow
-                        // We'll call runOnce but we actually need just the checkout step
-                        null // fallback below
+                val gitCheckout =
+                    when (app.repoProvider?.lowercase()) {
+                        "github" -> {
+                            orchestratorFactory.let {
+                                // Access checkout service through the existing ingest orchestrator flow
+                                // We'll call runOnce but we actually need just the checkout step
+                                null // fallback below
+                            }
+                        }
+
+                        else -> {
+                            null
+                        }
                     }
-                    else -> null
-                }
 
                 // Actually, let's use the orchestratorFactory to get the orchestrator and call runOnce
                 // But that does everything at once. Instead, we should use the checkout services directly.
@@ -172,11 +189,12 @@ class IngestRunOrchestrator(
                 // ALTERNATIVE: Call checkout service via Spring context
                 // For simplicity and to match the plan's intent, we'll use the orchestrator's runOnce
                 // which handles checkout + app update in one call.
-                val summary = gitOrchestrator.runOnce(
-                    appKey = app.key,
-                    repoPath = repoPath,
-                    branch = branchName,
-                )
+                val summary =
+                    gitOrchestrator.runOnce(
+                        appKey = app.key,
+                        repoPath = repoPath,
+                        branch = branchName,
+                    )
                 localPath = Path.of(summary.repoPath)
 
                 // Update commit sha
@@ -187,8 +205,12 @@ class IngestRunOrchestrator(
                 }
 
                 completeStep(checkoutStep)
-                emitEvent(runId, IngestStepType.CHECKOUT, IngestEventLevel.INFO,
-                    "Checkout completed: ${summary.headSha}")
+                emitEvent(
+                    runId,
+                    IngestStepType.CHECKOUT,
+                    IngestEventLevel.INFO,
+                    "Checkout completed: ${summary.headSha}",
+                )
             } catch (e: Exception) {
                 failStep(checkoutStep, e)
                 throw e
@@ -199,19 +221,22 @@ class IngestRunOrchestrator(
             startStep(classpathStep)
             try {
                 val sourceRoot = localPath!!
-                val gradleProjectDirs = Files.walk(sourceRoot)
-                    .filter { it.fileName.toString() == "gradlew" || it.fileName.toString() == "gradlew.bat" }
-                    .map { it.parent }
-                    .distinct()
-                    .toList()
-
-                classpath = if (gradleProjectDirs.isEmpty()) {
-                    emptyList()
-                } else {
-                    gradleProjectDirs
-                        .flatMap { projectDir -> gradleResolver.resolveClasspath(projectDir) }
+                val gradleProjectDirs =
+                    Files
+                        .walk(sourceRoot)
+                        .filter { it.fileName.toString() == "gradlew" || it.fileName.toString() == "gradlew.bat" }
+                        .map { it.parent }
                         .distinct()
-                }
+                        .toList()
+
+                classpath =
+                    if (gradleProjectDirs.isEmpty()) {
+                        emptyList()
+                    } else {
+                        gradleProjectDirs
+                            .flatMap { projectDir -> gradleResolver.resolveClasspath(projectDir) }
+                            .distinct()
+                    }
 
                 tx.execute {
                     val step = ingestStepRepository.findById(classpathStep.id!!).orElseThrow()
@@ -220,8 +245,12 @@ class IngestRunOrchestrator(
                 }
 
                 completeStep(classpathStep)
-                emitEvent(runId, IngestStepType.RESOLVE_CLASSPATH, IngestEventLevel.INFO,
-                    "Resolved ${classpath.size} classpath entries")
+                emitEvent(
+                    runId,
+                    IngestStepType.RESOLVE_CLASSPATH,
+                    IngestEventLevel.INFO,
+                    "Resolved ${classpath.size} classpath entries",
+                )
             } catch (e: Exception) {
                 failStep(classpathStep, e)
                 throw e
@@ -241,8 +270,12 @@ class IngestRunOrchestrator(
                 }
 
                 completeStep(libraryStep)
-                emitEvent(runId, IngestStepType.BUILD_LIBRARY, IngestEventLevel.INFO,
-                    "Libraries built: processed=${result.librariesProcessed}, nodes=${result.nodesCreated}, skipped=${result.librariesSkipped}")
+                emitEvent(
+                    runId,
+                    IngestStepType.BUILD_LIBRARY,
+                    IngestEventLevel.INFO,
+                    "Libraries built: processed=${result.librariesProcessed}, nodes=${result.nodesCreated}, skipped=${result.librariesSkipped}",
+                )
             } catch (e: Exception) {
                 failStep(libraryStep, e)
                 throw e
@@ -271,8 +304,12 @@ class IngestRunOrchestrator(
                 }
 
                 completeStep(graphStep)
-                emitEvent(runId, IngestStepType.BUILD_GRAPH, IngestEventLevel.INFO,
-                    "Graph built: nodes=${buildResult.nodes}, edges=${buildResult.edges}")
+                emitEvent(
+                    runId,
+                    IngestStepType.BUILD_GRAPH,
+                    IngestEventLevel.INFO,
+                    "Graph built: nodes=${buildResult.nodes}, edges=${buildResult.edges}",
+                )
             } catch (e: Exception) {
                 failStep(graphStep, e)
 
@@ -296,9 +333,13 @@ class IngestRunOrchestrator(
 
                 // Создаем связи через интеграционные точки (HTTP endpoints, Kafka topics, Camel routes)
                 val integrationResult = integrationPointLinker.linkIntegrationPoints(freshApp)
-                log.info("Integration linking: HTTP={}, Kafka={}, Camel={}, errors={}",
-                    integrationResult.httpEdgesCreated, integrationResult.kafkaEdgesCreated,
-                    integrationResult.camelEdgesCreated, integrationResult.errors.size)
+                log.info(
+                    "Integration linking: HTTP={}, Kafka={}, Camel={}, errors={}",
+                    integrationResult.httpEdgesCreated,
+                    integrationResult.kafkaEdgesCreated,
+                    integrationResult.camelEdgesCreated,
+                    integrationResult.errors.size,
+                )
 
                 completeStep(linkStep)
                 emitEvent(runId, IngestStepType.LINK, IngestEventLevel.INFO, "Linking completed")
@@ -316,7 +357,6 @@ class IngestRunOrchestrator(
             }
 
             emitEvent(runId, null, IngestEventLevel.INFO, "Ingest run completed successfully")
-
         } catch (e: Exception) {
             log.error("Ingest run $runId failed at step execution", e)
 
@@ -348,8 +388,12 @@ class IngestRunOrchestrator(
             s.startedAt = OffsetDateTime.now()
             ingestStepRepository.save(s)
         }
-        emitEvent(step.run.id!!, IngestStepType.fromString(step.stepType), IngestEventLevel.INFO,
-            "Step ${step.stepType} started")
+        emitEvent(
+            step.run.id!!,
+            IngestStepType.fromString(step.stepType),
+            IngestEventLevel.INFO,
+            "Step ${step.stepType} started",
+        )
     }
 
     private fun completeStep(step: IngestStep) {
@@ -361,7 +405,10 @@ class IngestRunOrchestrator(
         }
     }
 
-    private fun failStep(step: IngestStep, error: Exception) {
+    private fun failStep(
+        step: IngestStep,
+        error: Exception,
+    ) {
         tx.execute {
             val s = ingestStepRepository.findById(step.id!!).orElseThrow()
             s.status = IngestStepStatus.FAILED.name
@@ -371,34 +418,43 @@ class IngestRunOrchestrator(
         }
     }
 
-    private fun emitEvent(runId: Long, stepType: IngestStepType?, level: IngestEventLevel, message: String) {
-        val event = tx.execute {
-            val run = ingestRunRepository.getReferenceById(runId)
-            val e = IngestEvent(
-                run = run,
-                stepType = stepType?.name,
-                level = level.name,
-                message = message,
-            )
-            ingestEventRepository.save(e)
-        }!!
+    private fun emitEvent(
+        runId: Long,
+        stepType: IngestStepType?,
+        level: IngestEventLevel,
+        message: String,
+    ) {
+        val event =
+            tx.execute {
+                val run = ingestRunRepository.getReferenceById(runId)
+                val e =
+                    IngestEvent(
+                        run = run,
+                        stepType = stepType?.name,
+                        level = level.name,
+                        message = message,
+                    )
+                ingestEventRepository.save(e)
+            }!!
 
-        val dto = IngestEventDto(
-            eventId = event.id!!,
-            runId = runId,
-            stepType = event.stepType,
-            level = event.level,
-            message = event.message,
-            context = event.context,
-            createdAt = event.createdAt,
-        )
+        val dto =
+            IngestEventDto(
+                eventId = event.id!!,
+                runId = runId,
+                stepType = event.stepType,
+                level = event.level,
+                message = event.message,
+                context = event.context,
+                createdAt = event.createdAt,
+            )
         sseManager.emit(runId, dto)
     }
 
     fun getRunStatus(runId: Long): IngestRunDto {
-        val run = ingestRunRepository.findById(runId).orElseThrow {
-            ResponseStatusException(HttpStatus.NOT_FOUND, "Ingest run not found: $runId")
-        }
+        val run =
+            ingestRunRepository.findById(runId).orElseThrow {
+                ResponseStatusException(HttpStatus.NOT_FOUND, "Ingest run not found: $runId")
+            }
         val steps = ingestStepRepository.findByRunIdOrderByIdAsc(runId)
         return run.toDto(steps)
     }

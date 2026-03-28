@@ -33,35 +33,39 @@ class HypothesisGenerationStep(
         var updatedContext = context
 
         if (hypothesis != null) {
-            updatedContext = updatedContext
-                .setMetadata(QueryMetadataKeys.HYPOTHETICAL_NAMES, hypothesis.names)
-                .setMetadata(QueryMetadataKeys.HYPOTHETICAL_CODE, hypothesis.code)
+            updatedContext =
+                updatedContext
+                    .setMetadata(QueryMetadataKeys.HYPOTHETICAL_NAMES, hypothesis.names)
+                    .setMetadata(QueryMetadataKeys.HYPOTHETICAL_CODE, hypothesis.code)
 
             // Заполняем EXACT_NODE_SEARCH_RESULT с первым гипотетическим именем для ExactSearchStep
             if (hypothesis.names.isNotEmpty()) {
-                updatedContext = updatedContext.setMetadata(
-                    QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-                    mapOf(
-                        "className" to hypothesis.names.first(),
-                        "methodName" to "",
-                    ),
-                )
+                updatedContext =
+                    updatedContext.setMetadata(
+                        QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+                        mapOf(
+                            "className" to hypothesis.names.first(),
+                            "methodName" to "",
+                        ),
+                    )
             }
         }
 
-        updatedContext = updatedContext.addStep(
-            ProcessingStep(
-                advisorName = "HypothesisGenerationStep",
-                input = query,
-                output = if (hypothesis != null) {
-                    "Гипотезы: ${hypothesis.names.joinToString(", ")}"
-                } else {
-                    "Не удалось сгенерировать гипотезы"
-                },
-                stepType = type,
-                status = ProcessingStepStatus.SUCCESS,
-            ),
-        )
+        updatedContext =
+            updatedContext.addStep(
+                ProcessingStep(
+                    advisorName = "HypothesisGenerationStep",
+                    input = query,
+                    output =
+                        if (hypothesis != null) {
+                            "Гипотезы: ${hypothesis.names.joinToString(", ")}"
+                        } else {
+                            "Не удалось сгенерировать гипотезы"
+                        },
+                    stepType = type,
+                    status = ProcessingStepStatus.SUCCESS,
+                ),
+            )
 
         log.info("HYPOTHESIS_GENERATION: query='{}', names={}", query, hypothesis?.names)
         return StepResult(
@@ -72,7 +76,8 @@ class HypothesisGenerationStep(
 
     private fun generateHypothesis(query: String): HypothesisResult? {
         return try {
-            val prompt = """
+            val prompt =
+                """
                 Ты — эксперт по Java/Kotlin/Spring. Для запроса пользователя сгенерируй гипотезы о том, какие классы и методы могут быть связаны с этим запросом в типичном Spring Boot проекте.
 
                 Запрос: "$query"
@@ -88,15 +93,16 @@ class HypothesisGenerationStep(
                 - code: короткий гипотетический фрагмент кода (5-15 строк), который мог бы существовать в проекте
                 - Используй типичные Spring паттерны (Service, Repository, Controller, Config)
                 - Ответь ТОЛЬКО JSON, без пояснений
-            """.trimIndent()
+                """.trimIndent()
 
-            val response = chatClient
-                .prompt()
-                .user(prompt)
-                .call()
-                .content()
-                ?.trim()
-                ?: return null
+            val response =
+                chatClient
+                    .prompt()
+                    .user(prompt)
+                    .call()
+                    .content()
+                    ?.trim()
+                    ?: return null
 
             parseHypothesis(response)
         } catch (e: Exception) {
@@ -105,20 +111,22 @@ class HypothesisGenerationStep(
         }
     }
 
-    private fun parseHypothesis(response: String): HypothesisResult? {
-        return try {
-            val cleaned = response
-                .removePrefix("```json")
-                .removePrefix("```")
-                .removeSuffix("```")
-                .trim()
+    private fun parseHypothesis(response: String): HypothesisResult? =
+        try {
+            val cleaned =
+                response
+                    .removePrefix("```json")
+                    .removePrefix("```")
+                    .removeSuffix("```")
+                    .trim()
 
             val map = objectMapper.readValue(cleaned, Map::class.java) as Map<*, *>
 
-            val names = (map["names"] as? List<*>)
-                ?.filterIsInstance<String>()
-                ?.filter { it.isNotBlank() }
-                ?: emptyList()
+            val names =
+                (map["names"] as? List<*>)
+                    ?.filterIsInstance<String>()
+                    ?.filter { it.isNotBlank() }
+                    ?: emptyList()
 
             val code = (map["code"] as? String)?.takeIf { it.isNotBlank() } ?: ""
 
@@ -131,13 +139,11 @@ class HypothesisGenerationStep(
             log.warn("Не удалось распарсить ответ гипотез: {}", e.message)
             null
         }
-    }
 
-    override fun getTransitions(): Map<String, ProcessingStepType> {
-        return linkedMapOf(
+    override fun getTransitions(): Map<String, ProcessingStepType> =
+        linkedMapOf(
             "SUCCESS" to ProcessingStepType.EXACT_SEARCH,
         )
-    }
 
     private data class HypothesisResult(
         val names: List<String>,

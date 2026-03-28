@@ -6,11 +6,11 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.library.Library
 import com.bftcom.docgenerator.domain.library.LibraryNode
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
-import com.bftcom.docgenerator.shared.node.RawUsage
 import com.bftcom.docgenerator.graph.api.library.LibraryNodeIndex
 import com.bftcom.docgenerator.library.api.integration.IntegrationPoint
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointService
+import com.bftcom.docgenerator.shared.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.RawUsage
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -39,22 +39,24 @@ class LibraryNodeEnricherImplTest {
         val integrationService = mockk<IntegrationPointService>()
         val enricher = LibraryNodeEnricherImpl(index, integrationService)
         val node = createNode(kind = NodeKind.METHOD)
-        val meta = NodeMeta(
-            ownerFqn = "com.app.Owner",
-            rawUsages = listOf(RawUsage.Simple(name = "call", isCall = true)),
-            imports = emptyList(),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.app.Owner",
+                rawUsages = listOf(RawUsage.Simple(name = "call", isCall = true)),
+                imports = emptyList(),
+            )
         val libraryNode = createLibraryNode("com.lib.Client.call")
         every { index.findByMethodFqn("com.app.Owner.call") } returns libraryNode
-        every { integrationService.extractIntegrationPoints(libraryNode) } returns listOf(
-            IntegrationPoint.HttpEndpoint(
-                url = "https://example.test/api",
-                methodId = "com.lib.Client.call",
-                httpMethod = "GET",
-                clientType = "http",
-                hasRetry = true,
-            ),
-        )
+        every { integrationService.extractIntegrationPoints(libraryNode) } returns
+            listOf(
+                IntegrationPoint.HttpEndpoint(
+                    url = "https://example.test/api",
+                    methodId = "com.lib.Client.call",
+                    httpMethod = "GET",
+                    clientType = "http",
+                    hasRetry = true,
+                ),
+            )
 
         val result = enricher.enrichNodeMeta(node, meta)
 
@@ -74,11 +76,12 @@ class LibraryNodeEnricherImplTest {
         val integrationService = mockk<IntegrationPointService>()
         val enricher = LibraryNodeEnricherImpl(index, integrationService)
         val node = createNode(kind = NodeKind.METHOD)
-        val meta = NodeMeta(
-            ownerFqn = null,
-            rawUsages = listOf(RawUsage.Simple(name = "com.lib.Client.call", isCall = true)),
-            imports = emptyList(),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = null,
+                rawUsages = listOf(RawUsage.Simple(name = "com.lib.Client.call", isCall = true)),
+                imports = emptyList(),
+            )
         every { index.findByMethodFqn("com.lib.Client.call") } returns null
 
         val result = enricher.enrichNodeMeta(node, meta)
@@ -91,25 +94,27 @@ class LibraryNodeEnricherImplTest {
     private fun createNode(kind: NodeKind): Node {
         val app = Application(key = "app", name = "App")
         app.id = 1L
-        val node = Node(
-            application = app,
-            fqn = "com.app.Owner.call",
-            name = "call",
-            packageName = "com.app",
-            kind = kind,
-            lang = Lang.kotlin,
-        )
+        val node =
+            Node(
+                application = app,
+                fqn = "com.app.Owner.call",
+                name = "call",
+                packageName = "com.app",
+                kind = kind,
+                lang = Lang.kotlin,
+            )
         node.id = 1L
         return node
     }
 
     private fun createLibraryNode(fqn: String): LibraryNode {
-        val library = Library(
-            coordinate = "com.example:lib:1.0.0",
-            groupId = "com.example",
-            artifactId = "lib",
-            version = "1.0.0",
-        )
+        val library =
+            Library(
+                coordinate = "com.example:lib:1.0.0",
+                groupId = "com.example",
+                artifactId = "lib",
+                version = "1.0.0",
+            )
         library.id = 1L
         return LibraryNode(
             library = library,

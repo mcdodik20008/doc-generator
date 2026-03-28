@@ -57,7 +57,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
         AND n.parent IS NOT NULL
         AND (n.parent.name = :className OR n.parent.fqn LIKE CONCAT('%', :className, '%'))
         ORDER BY n.fqn
-        """
+        """,
     )
     fun findByApplicationIdAndClassNameAndMethodName(
         @Param("applicationId") applicationId: Long,
@@ -77,7 +77,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
         WHERE n.application.id = :applicationId
         AND n.fqn LIKE CONCAT('%', :fqnPattern, '%')
         ORDER BY n.fqn
-        """
+        """,
     )
     fun findByApplicationIdAndFqnContaining(
         @Param("applicationId") applicationId: Long,
@@ -95,7 +95,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
         AND n.kind = :methodKind
         AND n.name = :methodName
         ORDER BY n.fqn
-        """
+        """,
     )
     fun findByApplicationIdAndMethodName(
         @Param("applicationId") applicationId: Long,
@@ -114,7 +114,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
         AND n.kind IN :classKinds
         AND (n.name = :className OR n.fqn LIKE CONCAT('%', :className, '%'))
         ORDER BY n.fqn
-        """
+        """,
     )
     fun findByApplicationIdAndClassName(
         @Param("applicationId") applicationId: Long,
@@ -133,7 +133,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
         AND n.kind IN :classKinds
         AND (LOWER(n.name) = LOWER(:className) OR LOWER(n.fqn) LIKE LOWER(CONCAT('%', :className, '%')))
         ORDER BY n.fqn
-        """
+        """,
     )
     fun findByApplicationIdAndClassNameIgnoreCase(
         @Param("applicationId") applicationId: Long,
@@ -154,7 +154,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
         AND n.parent IS NOT NULL
         AND (LOWER(n.parent.name) = LOWER(:className) OR LOWER(n.parent.fqn) LIKE LOWER(CONCAT('%', :className, '%')))
         ORDER BY n.fqn
-        """
+        """,
     )
     fun findByApplicationIdAndClassNameAndMethodNameIgnoreCase(
         @Param("applicationId") applicationId: Long,
@@ -175,7 +175,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
         AND n.kind = :methodKind
         AND LOWER(n.name) = LOWER(:methodName)
         ORDER BY n.fqn
-        """
+        """,
     )
     fun findByApplicationIdAndMethodNameIgnoreCase(
         @Param("applicationId") applicationId: Long,

@@ -22,12 +22,14 @@ class ConfigPropertyLinker(
     private val log = LoggerFactory.getLogger(javaClass)
 
     companion object {
-        private val VALUE_ANNOTATION_PATTERN = Regex(
-            """@Value\s*\(\s*".*?\$\{([^}:]+)[^}]*\}.*?"\s*\)""",
-        )
-        private val CONFIG_PROPERTIES_PATTERN = Regex(
-            """@ConfigurationProperties\s*\(\s*(?:prefix\s*=\s*)?"([^"]+)"\s*\)""",
-        )
+        private val VALUE_ANNOTATION_PATTERN =
+            Regex(
+                """@Value\s*\(\s*".*?\$\{([^}:]+)[^}]*\}.*?"\s*\)""",
+            )
+        private val CONFIG_PROPERTIES_PATTERN =
+            Regex(
+                """@ConfigurationProperties\s*\(\s*(?:prefix\s*=\s*)?"([^"]+)"\s*\)""",
+            )
         private val CAMEL_TO_KEBAB = Regex("([a-z])([A-Z])")
     }
 
@@ -39,11 +41,12 @@ class ConfigPropertyLinker(
         val appId = requireNotNull(application.id) { "Application must have an ID" }
 
         // 1. Загружаем все INFRASTRUCTURE-ноды
-        val infraNodes = nodeRepo.findAllByApplicationIdAndKindIn(
-            appId,
-            setOf(NodeKind.INFRASTRUCTURE),
-            Pageable.ofSize(10000),
-        )
+        val infraNodes =
+            nodeRepo.findAllByApplicationIdAndKindIn(
+                appId,
+                setOf(NodeKind.INFRASTRUCTURE),
+                Pageable.ofSize(10000),
+            )
 
         if (infraNodes.isEmpty()) {
             log.debug("No INFRASTRUCTURE nodes found for app [id={}]", appId)
@@ -53,9 +56,11 @@ class ConfigPropertyLinker(
         log.info("Found {} INFRASTRUCTURE nodes, searching for code links...", infraNodes.size)
 
         // Индексируем по configPrefix для быстрого поиска
-        val infraByPrefix = infraNodes.associateBy { node ->
-            (node.meta["configPrefix"] as? String) ?: ""
-        }.filter { it.key.isNotBlank() }
+        val infraByPrefix =
+            infraNodes
+                .associateBy { node ->
+                    (node.meta["configPrefix"] as? String) ?: ""
+                }.filter { it.key.isNotBlank() }
 
         var edgesCreated = 0
 
@@ -77,11 +82,12 @@ class ConfigPropertyLinker(
         infraByPrefix: Map<String, Node>,
     ): Int {
         // Загружаем все ноды типа FIELD и METHOD (которые могут содержать @Value)
-        val candidateNodes = nodeRepo.findAllByApplicationIdAndKindIn(
-            appId,
-            setOf(NodeKind.FIELD, NodeKind.METHOD),
-            Pageable.ofSize(50000),
-        )
+        val candidateNodes =
+            nodeRepo.findAllByApplicationIdAndKindIn(
+                appId,
+                setOf(NodeKind.FIELD, NodeKind.METHOD),
+                Pageable.ofSize(50000),
+            )
 
         var count = 0
 
@@ -111,11 +117,12 @@ class ConfigPropertyLinker(
         infraByPrefix: Map<String, Node>,
     ): Int {
         // Загружаем CONFIG-ноды (уже классифицированы парсером)
-        val configNodes = nodeRepo.findAllByApplicationIdAndKindIn(
-            appId,
-            setOf(NodeKind.CONFIG),
-            Pageable.ofSize(10000),
-        )
+        val configNodes =
+            nodeRepo.findAllByApplicationIdAndKindIn(
+                appId,
+                setOf(NodeKind.CONFIG),
+                Pageable.ofSize(10000),
+            )
 
         var count = 0
 
@@ -161,7 +168,11 @@ class ConfigPropertyLinker(
         return null
     }
 
-    private fun createEdge(src: Node, dst: Node, kind: EdgeKind) {
+    private fun createEdge(
+        src: Node,
+        dst: Node,
+        kind: EdgeKind,
+    ) {
         val srcId = src.id ?: return
         val dstId = dst.id ?: return
 

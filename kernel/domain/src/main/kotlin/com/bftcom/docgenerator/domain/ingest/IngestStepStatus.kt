@@ -1,7 +1,12 @@
 package com.bftcom.docgenerator.domain.ingest
 
 enum class IngestStepStatus {
-    PENDING, RUNNING, COMPLETED, FAILED, SKIPPED;
+    PENDING,
+    RUNNING,
+    COMPLETED,
+    FAILED,
+    SKIPPED,
+    ;
 
     companion object {
         fun fromString(value: String): IngestStepStatus =

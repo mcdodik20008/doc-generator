@@ -11,16 +11,18 @@ import org.springframework.stereotype.Component
 @Component
 class HttpEndpointExtractor : ApiMetadataExtractor {
     override fun id() = "http-endpoint"
+
     override fun supports(lang: Lang) = (lang == Lang.kotlin)
 
-    private val mappingToMethod = mapOf(
-        "GetMapping" to "GET",
-        "PostMapping" to "POST",
-        "PutMapping" to "PUT",
-        "DeleteMapping" to "DELETE",
-        "PatchMapping" to "PATCH",
-        "RequestMapping" to "GET"
-    )
+    private val mappingToMethod =
+        mapOf(
+            "GetMapping" to "GET",
+            "PostMapping" to "POST",
+            "PutMapping" to "PUT",
+            "DeleteMapping" to "DELETE",
+            "PatchMapping" to "PATCH",
+            "RequestMapping" to "GET",
+        )
 
     /**
      * Regex 1: Извлекает имя аннотации (группа 1) и содержимое скобок (группа 2).
@@ -48,32 +50,39 @@ class HttpEndpointExtractor : ApiMetadataExtractor {
 
             // 2. Извлекаем путь (если есть скобки и кавычки)
             val parenthesesContent = match.groupValues.getOrNull(2)
-            val extractedPath = parenthesesContent?.let {
-                pathPattern.find(it)?.groupValues?.get(1)
-            }
+            val extractedPath =
+                parenthesesContent?.let {
+                    pathPattern.find(it)?.groupValues?.get(1)
+                }
 
             // 3. Обработка RequestMethod (для RequestMapping)
-            val finalMethod = if (annName == "RequestMapping") {
-                extractMethodFromRequestMapping(ann)
-            } else method
+            val finalMethod =
+                if (annName == "RequestMapping") {
+                    extractMethodFromRequestMapping(ann)
+                } else {
+                    method
+                }
 
             val basePath = ownerType?.let { extractPathFromRaw(it.annotationsRepr) }
 
             return ApiMetadata.HttpEndpoint(
                 method = finalMethod,
                 path = normalizePath(extractedPath ?: "/"),
-                basePath = basePath
+                basePath = basePath,
             )
         }
         return null
     }
 
-    override fun extractTypeMetadata(type: RawType, ctx: NodeKindContext): ApiMetadata? {
+    override fun extractTypeMetadata(
+        type: RawType,
+        ctx: NodeKindContext,
+    ): ApiMetadata? {
         val path = extractPathFromRaw(type.annotationsRepr) ?: return null
         return ApiMetadata.HttpEndpoint(
             method = "*",
             path = path,
-            basePath = path
+            basePath = path,
         )
     }
 

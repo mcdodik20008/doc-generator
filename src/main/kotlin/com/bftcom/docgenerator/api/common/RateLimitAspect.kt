@@ -7,10 +7,10 @@ import org.aspectj.lang.reflect.MethodSignature
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.server.reactive.ServerHttpRequest
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
-import org.springframework.scheduling.annotation.Scheduled
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -28,22 +28,26 @@ class RateLimitAspect {
     private val requestCounts = ConcurrentHashMap<String, RequestCounter>()
 
     @Around("@annotation(rateLimited)")
-    fun checkRateLimit(joinPoint: ProceedingJoinPoint, rateLimited: RateLimited): Any? {
+    fun checkRateLimit(
+        joinPoint: ProceedingJoinPoint,
+        rateLimited: RateLimited,
+    ): Any? {
         val endpoint = (joinPoint.signature as MethodSignature).method.name
 
         // Пробуем извлечь IP из аргументов (ServerWebExchange или ServerHttpRequest)
         val clientIp = extractClientIp(joinPoint) ?: "unknown"
 
         val key = "$clientIp:$endpoint"
-        val counter = requestCounts.computeIfAbsent(key) {
-            RequestCounter(rateLimited.maxRequests, rateLimited.windowSeconds * 1000L)
-        }
+        val counter =
+            requestCounts.computeIfAbsent(key) {
+                RequestCounter(rateLimited.maxRequests, rateLimited.windowSeconds * 1000L)
+            }
 
         if (!counter.allowRequest()) {
             log.warn("Rate limit exceeded for IP=$clientIp on endpoint=$endpoint")
             throw ResponseStatusException(
                 HttpStatus.TOO_MANY_REQUESTS,
-                "Rate limit exceeded. Max ${rateLimited.maxRequests} requests per ${rateLimited.windowSeconds} seconds."
+                "Rate limit exceeded. Max ${rateLimited.maxRequests} requests per ${rateLimited.windowSeconds} seconds.",
             )
         }
 
@@ -53,8 +57,15 @@ class RateLimitAspect {
     private fun extractClientIp(joinPoint: ProceedingJoinPoint): String? {
         for (arg in joinPoint.args) {
             when (arg) {
-                is ServerWebExchange -> return arg.request.remoteAddress?.address?.hostAddress
-                is ServerHttpRequest -> return arg.remoteAddress?.address?.hostAddress
+                is ServerWebExchange -> {
+                    return arg.request.remoteAddress
+                        ?.address
+                        ?.hostAddress
+                }
+
+                is ServerHttpRequest -> {
+                    return arg.remoteAddress?.address?.hostAddress
+                }
             }
         }
         return null

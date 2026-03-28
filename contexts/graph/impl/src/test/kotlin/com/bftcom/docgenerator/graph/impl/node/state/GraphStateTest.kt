@@ -169,8 +169,8 @@ class GraphStateTest {
         assertThat(state.getFilePackage("Test.kt")).isEqualTo("com.example2")
     }
 
-    private fun createPackageNode(fqn: String): Node {
-        return Node(
+    private fun createPackageNode(fqn: String): Node =
+        Node(
             id = 1L,
             application = app,
             fqn = fqn,
@@ -179,10 +179,9 @@ class GraphStateTest {
             kind = NodeKind.PACKAGE,
             lang = Lang.kotlin,
         )
-    }
 
-    private fun createTypeNode(fqn: String): Node {
-        return Node(
+    private fun createTypeNode(fqn: String): Node =
+        Node(
             id = 1L,
             application = app,
             fqn = fqn,
@@ -191,10 +190,9 @@ class GraphStateTest {
             kind = NodeKind.CLASS,
             lang = Lang.kotlin,
         )
-    }
 
-    private fun createFunctionNode(fqn: String): Node {
-        return Node(
+    private fun createFunctionNode(fqn: String): Node =
+        Node(
             id = 1L,
             application = app,
             fqn = fqn,
@@ -203,18 +201,16 @@ class GraphStateTest {
             kind = NodeKind.METHOD,
             lang = Lang.kotlin,
         )
-    }
 
     private fun createRawFileUnit(
         filePath: String,
         pkgFqn: String?,
         imports: List<String> = emptyList(),
-    ): RawFileUnit {
-        return RawFileUnit(
+    ): RawFileUnit =
+        RawFileUnit(
             lang = SrcLang.kotlin,
             filePath = filePath,
             pkgFqn = pkgFqn,
             imports = imports,
         )
-    }
 }

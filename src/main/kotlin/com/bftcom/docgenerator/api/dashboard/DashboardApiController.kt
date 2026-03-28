@@ -35,8 +35,8 @@ class DashboardApiController(
 
     @GetMapping("/stats")
     @Transactional(readOnly = true)
-    fun stats(): DashboardResponse {
-        return try {
+    fun stats(): DashboardResponse =
+        try {
             val global = statsRepo.findGlobalStats()
             val apps = statsRepo.findApplicationStats()
             DashboardResponse(global = global, applications = apps)
@@ -44,12 +44,11 @@ class DashboardApiController(
             log.error("Failed to load dashboard stats", e)
             throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to load dashboard stats")
         }
-    }
 
     @GetMapping("/applications")
     @Transactional(readOnly = true)
-    fun applications(): List<AppBrief> {
-        return try {
+    fun applications(): List<AppBrief> =
+        try {
             applicationRepo.findAll().map { app ->
                 AppBrief(id = app.id!!, key = app.key, name = app.name)
             }
@@ -57,14 +56,16 @@ class DashboardApiController(
             log.error("Failed to load applications list", e)
             throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to load applications")
         }
-    }
 
     @DeleteMapping("/applications/{id}")
     @Transactional
-    fun deleteApplication(@PathVariable id: Long) {
-        val app = applicationRepo.findById(id).orElseThrow {
-            ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found: $id")
-        }
+    fun deleteApplication(
+        @PathVariable id: Long,
+    ) {
+        val app =
+            applicationRepo.findById(id).orElseThrow {
+                ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found: $id")
+            }
         log.info("Deleting application: id={}, key={}, name={}", id, app.key, app.name)
         applicationRepo.delete(app)
         log.info("Application deleted: id={}", id)

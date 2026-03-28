@@ -19,39 +19,46 @@ class RerankingStep(
     override val type: ProcessingStepType = ProcessingStepType.RERANKING
 
     override fun execute(context: QueryProcessingContext): StepResult {
-        val chunks = context.getMetadata<List<*>>(QueryMetadataKeys.CHUNKS)
-            ?.filterIsInstance<SearchResult>()
-            .orEmpty()
+        val chunks =
+            context
+                .getMetadata<List<*>>(QueryMetadataKeys.CHUNKS)
+                ?.filterIsInstance<SearchResult>()
+                .orEmpty()
 
-        val filteredChunks = if (chunks.isNotEmpty()) {
-            val distinctChunks = chunks.distinctBy { it.id }
-            resultFilterService.filterResults(distinctChunks, context)
-        } else {
-            emptyList()
-        }
+        val filteredChunks =
+            if (chunks.isNotEmpty()) {
+                val distinctChunks = chunks.distinctBy { it.id }
+                resultFilterService.filterResults(distinctChunks, context)
+            } else {
+                emptyList()
+            }
 
-        val updatedContext = context
-            .setMetadata(QueryMetadataKeys.FILTERED_CHUNKS, filteredChunks)
-            .addStep(
-                ProcessingStep(
-                    advisorName = "RerankingStep",
-                    input = context.currentQuery,
-                    output = "После фильтрации: ${filteredChunks.size}",
-                    stepType = type,
-                    status = ProcessingStepStatus.SUCCESS,
-                ),
-            )
+        val updatedContext =
+            context
+                .setMetadata(QueryMetadataKeys.FILTERED_CHUNKS, filteredChunks)
+                .addStep(
+                    ProcessingStep(
+                        advisorName = "RerankingStep",
+                        input = context.currentQuery,
+                        output = "После фильтрации: ${filteredChunks.size}",
+                        stepType = type,
+                        status = ProcessingStepStatus.SUCCESS,
+                    ),
+                )
 
         val hasExactNodes = context.hasMetadata(QueryMetadataKeys.EXACT_NODES)
-        val hasGraphText = context.getMetadata<String>(QueryMetadataKeys.GRAPH_RELATIONS_TEXT)
-            ?.isNotBlank() == true
+        val hasGraphText =
+            context
+                .getMetadata<String>(QueryMetadataKeys.GRAPH_RELATIONS_TEXT)
+                ?.isNotBlank() == true
 
-        val transitionKey = if (filteredChunks.isEmpty() && !hasExactNodes && !hasGraphText) {
-            log.info("RERANKING: пустой контекст, завершаем с FAILED")
-            "EMPTY"
-        } else {
-            "SUCCESS"
-        }
+        val transitionKey =
+            if (filteredChunks.isEmpty() && !hasExactNodes && !hasGraphText) {
+                log.info("RERANKING: пустой контекст, завершаем с FAILED")
+                "EMPTY"
+            } else {
+                "SUCCESS"
+            }
 
         log.info("RERANKING: chunks={} -> filtered={}", chunks.size, filteredChunks.size)
         return StepResult(
@@ -60,10 +67,9 @@ class RerankingStep(
         )
     }
 
-    override fun getTransitions(): Map<String, ProcessingStepType> {
-        return linkedMapOf(
+    override fun getTransitions(): Map<String, ProcessingStepType> =
+        linkedMapOf(
             "SUCCESS" to ProcessingStepType.COMPLETED,
             "EMPTY" to ProcessingStepType.FAILED,
         )
-    }
 }

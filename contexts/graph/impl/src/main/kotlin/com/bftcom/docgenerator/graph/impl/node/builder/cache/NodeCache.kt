@@ -16,16 +16,20 @@ class NodeCache {
      * @param compute Функция для вычисления узла, если его нет в кэше
      * @return Узел или null
      */
-    fun getOrCompute(fqn: String, compute: () -> Node?): Node? {
-        return cache.getOrPut(fqn, compute)
-    }
+    fun getOrCompute(
+        fqn: String,
+        compute: () -> Node?,
+    ): Node? = cache.getOrPut(fqn, compute)
 
     /**
      * Обновляет кэш для указанного FQN.
      * @param fqn Полное имя узла
      * @param node Узел для кэширования
      */
-    fun put(fqn: String, node: Node) {
+    fun put(
+        fqn: String,
+        node: Node,
+    ) {
         cache[fqn] = node
     }
 
@@ -43,4 +47,3 @@ class NodeCache {
      */
     fun size(): Int = cache.size
 }
-

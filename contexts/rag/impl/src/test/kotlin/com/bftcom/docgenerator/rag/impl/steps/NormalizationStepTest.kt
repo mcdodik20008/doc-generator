@@ -11,11 +11,12 @@ class NormalizationStepTest {
 
     @Test
     fun `execute - нормализует пробелы и убирает пунктуацию`() {
-        val context = QueryProcessingContext(
-            originalQuery = "  Foo   bar??  ",
-            currentQuery = "  Foo   bar??  ",
-            sessionId = "s-1",
-        )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "  Foo   bar??  ",
+                currentQuery = "  Foo   bar??  ",
+                sessionId = "s-1",
+            )
 
         val result = step.execute(context)
 
@@ -30,11 +31,12 @@ class NormalizationStepTest {
 
     @Test
     fun `execute - не меняет уже нормализованный запрос`() {
-        val context = QueryProcessingContext(
-            originalQuery = "Foo bar",
-            currentQuery = "Foo bar",
-            sessionId = "s-1",
-        )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "Foo bar",
+                currentQuery = "Foo bar",
+                sessionId = "s-1",
+            )
 
         val result = step.execute(context)
 
@@ -46,22 +48,24 @@ class NormalizationStepTest {
 
     @Test
     fun `execute - убирает разные знаки препинания в конце`() {
-        val testCases = listOf(
-            "Test?" to "Test",
-            "Test!" to "Test",
-            "Test." to "Test",
-            "Test," to "Test",
-            "Test;" to "Test",
-            "Test:" to "Test",
-            "Test???" to "Test",
-        )
+        val testCases =
+            listOf(
+                "Test?" to "Test",
+                "Test!" to "Test",
+                "Test." to "Test",
+                "Test," to "Test",
+                "Test;" to "Test",
+                "Test:" to "Test",
+                "Test???" to "Test",
+            )
 
         testCases.forEach { (input, expected) ->
-            val context = QueryProcessingContext(
-                originalQuery = input,
-                currentQuery = input,
-                sessionId = "s-1",
-            )
+            val context =
+                QueryProcessingContext(
+                    originalQuery = input,
+                    currentQuery = input,
+                    sessionId = "s-1",
+                )
 
             val result = step.execute(context)
 

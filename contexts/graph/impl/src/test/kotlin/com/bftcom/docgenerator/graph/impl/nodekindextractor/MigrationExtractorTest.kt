@@ -25,9 +25,10 @@ class MigrationExtractorTest {
 
     @Test
     fun `refineType returns MIGRATION for class extending JavaMigration`() {
-        val raw = createRawType(
-            supertypesRepr = listOf("org.flywaydb.core.api.migration.JavaMigration")
-        )
+        val raw =
+            createRawType(
+                supertypesRepr = listOf("org.flywaydb.core.api.migration.JavaMigration"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -38,9 +39,10 @@ class MigrationExtractorTest {
     @Test
     fun `refineType returns MIGRATION for Flyway migration imports`() {
         val raw = createRawType()
-        val ctx = createContext(
-            imports = listOf("org.flywaydb.core.api.migration.JavaMigration")
-        )
+        val ctx =
+            createContext(
+                imports = listOf("org.flywaydb.core.api.migration.JavaMigration"),
+            )
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
 
@@ -49,9 +51,10 @@ class MigrationExtractorTest {
 
     @Test
     fun `refineType returns MIGRATION for class in migration package`() {
-        val raw = createRawType(
-            pkgFqn = "com.example.migration"
-        )
+        val raw =
+            createRawType(
+                pkgFqn = "com.example.migration",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -61,18 +64,20 @@ class MigrationExtractorTest {
 
     @Test
     fun `refineType returns MIGRATION for name ending with Migration`() {
-        val raw = createRawType(
-            simpleName = "V1_0_0__CreateUsersTable"
-        )
+        val raw =
+            createRawType(
+                simpleName = "V1_0_0__CreateUsersTable",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
 
         // Имя не заканчивается на Migration, но может быть в пакете migration
         // Проверим с правильным именем
-        val raw2 = createRawType(
-            simpleName = "CreateUsersTableMigration"
-        )
+        val raw2 =
+            createRawType(
+                simpleName = "CreateUsersTableMigration",
+            )
         val result2 = extractor.refineType(NodeKind.CLASS, raw2, ctx)
 
         assertThat(result2).isEqualTo(NodeKind.MIGRATION)
@@ -80,10 +85,11 @@ class MigrationExtractorTest {
 
     @Test
     fun `refineType returns null for regular class`() {
-        val raw = createRawType(
-            simpleName = "RegularClass",
-            pkgFqn = "com.example"
-        )
+        val raw =
+            createRawType(
+                simpleName = "RegularClass",
+                pkgFqn = "com.example",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -93,9 +99,10 @@ class MigrationExtractorTest {
 
     @Test
     fun `refineType handles case-insensitive supertype matching`() {
-        val raw = createRawType(
-            supertypesRepr = listOf("org.flywaydb.core.api.migration.JAVAMIGRATION")
-        )
+        val raw =
+            createRawType(
+                supertypesRepr = listOf("org.flywaydb.core.api.migration.JAVAMIGRATION"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -105,9 +112,10 @@ class MigrationExtractorTest {
 
     @Test
     fun `refineType handles case-insensitive name matching`() {
-        val raw = createRawType(
-            simpleName = "MIGRATION"
-        )
+        val raw =
+            createRawType(
+                simpleName = "MIGRATION",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -117,11 +125,12 @@ class MigrationExtractorTest {
 
     @Test
     fun `refineType returns MIGRATION when both supertype and package match`() {
-        val raw = createRawType(
-            simpleName = "MyMigration",
-            pkgFqn = "com.example.migration",
-            supertypesRepr = listOf("org.flywaydb.core.api.migration.JavaMigration")
-        )
+        val raw =
+            createRawType(
+                simpleName = "MyMigration",
+                pkgFqn = "com.example.migration",
+                supertypesRepr = listOf("org.flywaydb.core.api.migration.JavaMigration"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -131,9 +140,10 @@ class MigrationExtractorTest {
 
     @Test
     fun `refineType returns null for class extending other types`() {
-        val raw = createRawType(
-            supertypesRepr = listOf("java.lang.Object")
-        )
+        val raw =
+            createRawType(
+                supertypesRepr = listOf("java.lang.Object"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -144,9 +154,10 @@ class MigrationExtractorTest {
     @Test
     fun `refineType returns null for class with other imports`() {
         val raw = createRawType()
-        val ctx = createContext(
-            imports = listOf("org.springframework.stereotype.Service")
-        )
+        val ctx =
+            createContext(
+                imports = listOf("org.springframework.stereotype.Service"),
+            )
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
 
@@ -155,9 +166,10 @@ class MigrationExtractorTest {
 
     @Test
     fun `refineType returns MIGRATION for name ending with Migration 2`() {
-        val raw = createRawType(
-            simpleName = "V1_0_0__CreateUsersTableMigration"
-        )
+        val raw =
+            createRawType(
+                simpleName = "V1_0_0__CreateUsersTableMigration",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -170,8 +182,8 @@ class MigrationExtractorTest {
         pkgFqn: String? = "com.example",
         supertypesRepr: List<String> = emptyList(),
         annotationsRepr: List<String> = emptyList(),
-    ): RawType {
-        return RawType(
+    ): RawType =
+        RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -182,15 +194,11 @@ class MigrationExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createContext(
-        imports: List<String>? = null,
-    ): NodeKindContext {
-        return NodeKindContext(
+    private fun createContext(imports: List<String>? = null): NodeKindContext =
+        NodeKindContext(
             lang = Lang.kotlin,
             file = null,
             imports = imports,
         )
-    }
 }

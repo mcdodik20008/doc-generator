@@ -125,7 +125,8 @@ class UpsertTypeHandlerTest {
         every { state.getFileImports(any()) } returns null
         every { nodeKindRefiner.forType(any(), any(), any()) } returns NodeKind.CLASS
         every { apiMetadataCollector.extractTypeMetadata(any(), any()) } returns null
-        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns createTypeNode("TestClass")
+        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns
+            createTypeNode("TestClass")
 
         handler.handle(cmd, state, builder)
 
@@ -158,7 +159,8 @@ class UpsertTypeHandlerTest {
         every { state.getFileImports(any()) } returns null
         every { nodeKindRefiner.forType(any(), any(), any()) } returns NodeKind.CLASS
         every { apiMetadataCollector.extractTypeMetadata(any(), any()) } returns null
-        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns createTypeNode("TestClass")
+        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns
+            createTypeNode("TestClass")
 
         handler.handle(cmd, state, builder)
 
@@ -236,7 +238,10 @@ class UpsertTypeHandlerTest {
 
     @ParameterizedTest
     @MethodSource("spanTestCases")
-    fun `handle should process span correctly`(span: LineSpan?, expectedSpan: IntRange?) {
+    fun `handle should process span correctly`(
+        span: LineSpan?,
+        expectedSpan: IntRange?,
+    ) {
         val raw = createRawType(span = span)
         val cmd = UpsertTypeCmd(raw, NodeKind.CLASS)
 
@@ -386,7 +391,8 @@ class UpsertTypeHandlerTest {
         every { state.getFileImports(any()) } returns listOf("java.util.List")
         every { nodeKindRefiner.forType(any(), any(), any()) } returns NodeKind.CLASS
         every { apiMetadataCollector.extractTypeMetadata(any(), any()) } returns null
-        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns createTypeNode("TestClass")
+        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns
+            createTypeNode("TestClass")
 
         handler.handle(cmd, state, builder)
 
@@ -402,7 +408,8 @@ class UpsertTypeHandlerTest {
         every { state.getFileUnit(any()) } returns null
         every { state.getFileImports(any()) } returns null
         every { nodeKindRefiner.forType(any(), any(), any()) } returns NodeKind.CLASS
-        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns createTypeNode("TestClass")
+        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns
+            createTypeNode("TestClass")
 
         handlerWithoutCollector.handle(cmd, state, builder)
 
@@ -420,7 +427,8 @@ class UpsertTypeHandlerTest {
         every { state.getFileImports(any()) } returns null
         every { nodeKindRefiner.forType(any(), any(), any()) } returns NodeKind.INTERFACE
         every { apiMetadataCollector.extractTypeMetadata(any(), any()) } returns null
-        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns createTypeNode("TestClass")
+        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns
+            createTypeNode("TestClass")
 
         handler.handle(cmd, state, builder)
 
@@ -495,20 +503,19 @@ class UpsertTypeHandlerTest {
 
     companion object {
         @JvmStatic
-        fun spanTestCases(): Stream<Arguments> {
-            return Stream.of(
+        fun spanTestCases(): Stream<Arguments> =
+            Stream.of(
                 Arguments.of(LineSpan(1, 10), 1..10),
                 Arguments.of(null, null),
             )
-        }
     }
 
     private fun createRawType(
         pkgFqn: String? = "com.example",
         span: LineSpan? = null,
         attributes: Map<String, Any?> = emptyMap(),
-    ): RawType {
-        return RawType(
+    ): RawType =
+        RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -520,10 +527,9 @@ class UpsertTypeHandlerTest {
             text = "class TestClass",
             attributes = attributes,
         )
-    }
 
-    private fun createTypeNode(fqn: String): Node {
-        return Node(
+    private fun createTypeNode(fqn: String): Node =
+        Node(
             id = 1L,
             application = app,
             fqn = fqn,
@@ -541,10 +547,9 @@ class UpsertTypeHandlerTest {
             codeHash = null,
             meta = emptyMap(),
         )
-    }
 
-    private fun createPackageNode(pkgFqn: String): Node {
-        return Node(
+    private fun createPackageNode(pkgFqn: String): Node =
+        Node(
             id = 1L,
             application = app,
             fqn = pkgFqn,
@@ -562,14 +567,12 @@ class UpsertTypeHandlerTest {
             codeHash = null,
             meta = emptyMap(),
         )
-    }
 
-    private fun createRawFileUnit(): RawFileUnit {
-        return RawFileUnit(
+    private fun createRawFileUnit(): RawFileUnit =
+        RawFileUnit(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = "com.example",
             imports = emptyList(),
         )
-    }
 }

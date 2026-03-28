@@ -25,9 +25,10 @@ class MyBatisMapperExtractorTest {
 
     @Test
     fun `refineType returns MAPPER for Mapper annotation`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.apache.ibatis.annotations.Mapper")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.apache.ibatis.annotations.Mapper"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -37,10 +38,11 @@ class MyBatisMapperExtractorTest {
 
     @Test
     fun `refineType returns MAPPER for class in mapper package`() {
-        val raw = createRawType(
-            simpleName = "SomeClass",
-            pkgFqn = "com.example.mapper"
-        )
+        val raw =
+            createRawType(
+                simpleName = "SomeClass",
+                pkgFqn = "com.example.mapper",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -50,10 +52,11 @@ class MyBatisMapperExtractorTest {
 
     @Test
     fun `refineType returns MAPPER for name ending with Mapper`() {
-        val raw = createRawType(
-            simpleName = "UserMapper",
-            pkgFqn = "com.example"
-        )
+        val raw =
+            createRawType(
+                simpleName = "UserMapper",
+                pkgFqn = "com.example",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -63,10 +66,11 @@ class MyBatisMapperExtractorTest {
 
     @Test
     fun `refineType returns null for regular class`() {
-        val raw = createRawType(
-            simpleName = "RegularClass",
-            pkgFqn = "com.example"
-        )
+        val raw =
+            createRawType(
+                simpleName = "RegularClass",
+                pkgFqn = "com.example",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -76,9 +80,10 @@ class MyBatisMapperExtractorTest {
 
     @Test
     fun `refineType handles case-insensitive annotation matching`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.apache.ibatis.annotations.MAPPER")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.apache.ibatis.annotations.MAPPER"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -88,10 +93,11 @@ class MyBatisMapperExtractorTest {
 
     @Test
     fun `refineType handles case-insensitive name matching`() {
-        val raw = createRawType(
-            simpleName = "USERMAPPER",
-            pkgFqn = "com.example"
-        )
+        val raw =
+            createRawType(
+                simpleName = "USERMAPPER",
+                pkgFqn = "com.example",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -101,11 +107,12 @@ class MyBatisMapperExtractorTest {
 
     @Test
     fun `refineType returns MAPPER when both annotation and package match`() {
-        val raw = createRawType(
-            simpleName = "UserMapper",
-            pkgFqn = "com.example.mapper",
-            annotationsRepr = listOf("org.apache.ibatis.annotations.Mapper")
-        )
+        val raw =
+            createRawType(
+                simpleName = "UserMapper",
+                pkgFqn = "com.example.mapper",
+                annotationsRepr = listOf("org.apache.ibatis.annotations.Mapper"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -115,9 +122,10 @@ class MyBatisMapperExtractorTest {
 
     @Test
     fun `refineType returns null for class with other annotations`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.springframework.stereotype.Service")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.springframework.stereotype.Service"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -129,8 +137,8 @@ class MyBatisMapperExtractorTest {
         simpleName: String = "TestClass",
         pkgFqn: String? = "com.example",
         annotationsRepr: List<String> = emptyList(),
-    ): RawType {
-        return RawType(
+    ): RawType =
+        RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -141,13 +149,11 @@ class MyBatisMapperExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createContext(): NodeKindContext {
-        return NodeKindContext(
+    private fun createContext(): NodeKindContext =
+        NodeKindContext(
             lang = Lang.kotlin,
             file = null,
             imports = null,
         )
-    }
 }

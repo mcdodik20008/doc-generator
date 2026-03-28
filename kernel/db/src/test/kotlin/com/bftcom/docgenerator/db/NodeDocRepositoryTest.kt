@@ -16,7 +16,6 @@ import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper
 import java.time.OffsetDateTime
 
 class NodeDocRepositoryTest : BaseRepositoryTest() {
-
     @Autowired
     private lateinit var nodeDocRepository: NodeDocRepository
 
@@ -39,56 +38,61 @@ class NodeDocRepositoryTest : BaseRepositoryTest() {
     @BeforeEach
     fun setUp() {
         // Given: Создаём Application
-        application = Application(
-            key = "test-app-${System.currentTimeMillis()}",
-            name = "Test Application",
-        )
+        application =
+            Application(
+                key = "test-app-${System.currentTimeMillis()}",
+                name = "Test Application",
+            )
         application = applicationRepository.save(application)
 
         // Given: Создаём несколько Node
-        node1 = Node(
-            application = application,
-            fqn = "com.example.TestClass1",
-            name = "TestClass1",
-            packageName = "com.example",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        node1 =
+            Node(
+                application = application,
+                fqn = "com.example.TestClass1",
+                name = "TestClass1",
+                packageName = "com.example",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         node1 = nodeRepository.save(node1)
 
-        node2 = Node(
-            application = application,
-            fqn = "com.example.TestClass2",
-            name = "TestClass2",
-            packageName = "com.example",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        node2 =
+            Node(
+                application = application,
+                fqn = "com.example.TestClass2",
+                name = "TestClass2",
+                packageName = "com.example",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         node2 = nodeRepository.save(node2)
 
-        node3 = Node(
-            application = application,
-            fqn = "com.example.TestMethod",
-            name = "testMethod",
-            packageName = "com.example",
-            kind = NodeKind.METHOD,
-            lang = Lang.kotlin,
-            parent = node1,
-        )
+        node3 =
+            Node(
+                application = application,
+                fqn = "com.example.TestMethod",
+                name = "testMethod",
+                packageName = "com.example",
+                kind = NodeKind.METHOD,
+                lang = Lang.kotlin,
+                parent = node1,
+            )
         node3 = nodeRepository.save(node3)
     }
 
     @Test
     fun `findDigest - возвращает digest для существующей записи`() {
         // Given: создаём NodeDoc
-        val nodeDoc = NodeDoc(
-            node = node1,
-            locale = "ru",
-            docPublic = "Public documentation",
-            docTech = "Technical documentation",
-            docDigest = "digest-123",
-            modelMeta = mapOf("model" to "gpt-4", "temperature" to 0.7),
-        )
+        val nodeDoc =
+            NodeDoc(
+                node = node1,
+                locale = "ru",
+                docPublic = "Public documentation",
+                docTech = "Technical documentation",
+                docDigest = "digest-123",
+                modelMeta = mapOf("model" to "gpt-4", "temperature" to 0.7),
+            )
         nodeDocRepository.save(nodeDoc)
 
         // When
@@ -110,19 +114,21 @@ class NodeDocRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `upsert - создаёт новую запись при первом вызове`() {
         // Given
-        val modelMetaJson = objectMapper.writeValueAsString(
-            mapOf("model" to "gpt-4", "temperature" to 0.7)
-        )
+        val modelMetaJson =
+            objectMapper.writeValueAsString(
+                mapOf("model" to "gpt-4", "temperature" to 0.7),
+            )
 
         // When
-        val result = nodeDocRepository.upsert(
-            nodeId = node1.id!!,
-            locale = "ru",
-            docPublic = "Public doc",
-            docTech = "Tech doc",
-            docDigest = "digest-1",
-            modelMetaJson = modelMetaJson,
-        )
+        val result =
+            nodeDocRepository.upsert(
+                nodeId = node1.id!!,
+                locale = "ru",
+                docPublic = "Public doc",
+                docTech = "Tech doc",
+                docDigest = "digest-1",
+                modelMetaJson = modelMetaJson,
+            )
 
         // Then
         assertThat(result).isEqualTo(1)
@@ -139,9 +145,10 @@ class NodeDocRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `upsert - обновляет существующую запись при конфликте`() {
         // Given: создаём первую запись
-        val modelMetaJson1 = objectMapper.writeValueAsString(
-            mapOf("model" to "gpt-3.5", "temperature" to 0.5)
-        )
+        val modelMetaJson1 =
+            objectMapper.writeValueAsString(
+                mapOf("model" to "gpt-3.5", "temperature" to 0.5),
+            )
         nodeDocRepository.upsert(
             nodeId = node1.id!!,
             locale = "ru",
@@ -152,17 +159,19 @@ class NodeDocRepositoryTest : BaseRepositoryTest() {
         )
 
         // When: обновляем с теми же nodeId и locale
-        val modelMetaJson2 = objectMapper.writeValueAsString(
-            mapOf("model" to "gpt-4", "temperature" to 0.8)
-        )
-        val result = nodeDocRepository.upsert(
-            nodeId = node1.id!!,
-            locale = "ru",
-            docPublic = "New public doc",
-            docTech = "New tech doc",
-            docDigest = "new-digest",
-            modelMetaJson = modelMetaJson2,
-        )
+        val modelMetaJson2 =
+            objectMapper.writeValueAsString(
+                mapOf("model" to "gpt-4", "temperature" to 0.8),
+            )
+        val result =
+            nodeDocRepository.upsert(
+                nodeId = node1.id!!,
+                locale = "ru",
+                docPublic = "New public doc",
+                docTech = "New tech doc",
+                docDigest = "new-digest",
+                modelMetaJson = modelMetaJson2,
+            )
 
         // Then
         assertThat(result).isEqualTo(1)
@@ -179,16 +188,18 @@ class NodeDocRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `upsert - корректно обрабатывает jsonb поля`() {
         // Given: сложная структура в modelMeta
-        val complexMeta = mapOf(
-            "model" to "gpt-4",
-            "temperature" to 0.7,
-            "maxTokens" to 2000,
-            "params" to mapOf(
-                "topP" to 0.9,
-                "frequencyPenalty" to 0.5,
-            ),
-            "metadata" to listOf("tag1", "tag2"),
-        )
+        val complexMeta =
+            mapOf(
+                "model" to "gpt-4",
+                "temperature" to 0.7,
+                "maxTokens" to 2000,
+                "params" to
+                    mapOf(
+                        "topP" to 0.9,
+                        "frequencyPenalty" to 0.5,
+                    ),
+                "metadata" to listOf("tag1", "tag2"),
+            )
         val modelMetaJson = objectMapper.writeValueAsString(complexMeta)
 
         // When
@@ -250,15 +261,16 @@ class NodeDocRepositoryTest : BaseRepositoryTest() {
         nodeDocRepository.flush()
 
         // Создаём Chunk с более старым updated_at
-        val oldChunk = com.bftcom.docgenerator.domain.chunk.Chunk(
-            application = application,
-            node = node1,
-            source = "doc",
-            kind = "public",
-            langDetected = "ru",
-            content = "Old content",
-            updatedAt = OffsetDateTime.now().minusDays(1),
-        )
+        val oldChunk =
+            com.bftcom.docgenerator.domain.chunk.Chunk(
+                application = application,
+                node = node1,
+                source = "doc",
+                kind = "public",
+                langDetected = "ru",
+                content = "Old content",
+                updatedAt = OffsetDateTime.now().minusDays(1),
+            )
         chunkRepository.save(oldChunk)
         chunkRepository.flush()
 
@@ -297,15 +309,16 @@ class NodeDocRepositoryTest : BaseRepositoryTest() {
         )
         nodeDocRepository.flush()
 
-        val chunk = com.bftcom.docgenerator.domain.chunk.Chunk(
-            application = application,
-            node = node1,
-            source = "doc",
-            kind = "public",
-            langDetected = "ru",
-            content = "Content",
-            updatedAt = OffsetDateTime.now(),
-        )
+        val chunk =
+            com.bftcom.docgenerator.domain.chunk.Chunk(
+                application = application,
+                node = node1,
+                source = "doc",
+                kind = "public",
+                langDetected = "ru",
+                content = "Content",
+                updatedAt = OffsetDateTime.now(),
+            )
         chunkRepository.save(chunk)
         chunkRepository.flush()
 
@@ -367,14 +380,15 @@ class NodeDocRepositoryTest : BaseRepositoryTest() {
         // Given: создаём несколько NodeDoc
         val modelMetaJson = objectMapper.writeValueAsString(mapOf("model" to "gpt-4"))
         for (i in 1..5) {
-            val node = Node(
-                application = application,
-                fqn = "com.example.Class$i",
-                name = "Class$i",
-                packageName = "com.example",
-                kind = NodeKind.CLASS,
-                lang = Lang.kotlin,
-            )
+            val node =
+                Node(
+                    application = application,
+                    fqn = "com.example.Class$i",
+                    name = "Class$i",
+                    packageName = "com.example",
+                    kind = NodeKind.CLASS,
+                    lang = Lang.kotlin,
+                )
             val savedNode = nodeRepository.save(node)
 
             nodeDocRepository.upsert(

@@ -11,7 +11,10 @@ import org.springframework.stereotype.Component
 class CodeNormalizerImpl : CodeNormalizer {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    override fun normalize(sourceCode: String?, maxSize: Int): String? {
+    override fun normalize(
+        sourceCode: String?,
+        maxSize: Int,
+    ): String? {
         if (sourceCode == null) return null
 
         return if (sourceCode.length > maxSize) {
@@ -32,4 +35,3 @@ class CodeNormalizerImpl : CodeNormalizer {
         return sourceCode.replace("\r\n", "\n").count { it == '\n' } + 1
     }
 }
-

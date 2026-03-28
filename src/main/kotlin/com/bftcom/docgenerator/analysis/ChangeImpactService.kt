@@ -7,15 +7,18 @@ import org.springframework.transaction.annotation.Transactional
 
 @Service
 class ChangeImpactService(
-        private val edgeRepository: EdgeRepository,
-        private val nodeRepository: NodeRepository
+    private val edgeRepository: EdgeRepository,
+    private val nodeRepository: NodeRepository,
 ) {
     @Transactional(readOnly = true)
-    fun analyzeImpact(nodeId: Long, maxDepth: Int = 5): ImpactAnalysisResult {
+    fun analyzeImpact(
+        nodeId: Long,
+        maxDepth: Int = 5,
+    ): ImpactAnalysisResult {
         val rootNode =
-                nodeRepository.findById(nodeId).orElseThrow {
-                    IllegalArgumentException("Node with ID $nodeId not found")
-                }
+            nodeRepository.findById(nodeId).orElseThrow {
+                IllegalArgumentException("Node with ID $nodeId not found")
+            }
 
         val visited = mutableSetOf<Long>(nodeId)
         val impactedNodes = mutableListOf<ImpactNode>()
@@ -44,13 +47,13 @@ class ChangeImpactService(
                 nextLevelIds.add(node.id!!)
 
                 impactedNodes.add(
-                        ImpactNode(
-                                id = node.id!!,
-                                fqn = node.fqn,
-                                name = node.name,
-                                kind = node.kind,
-                                depth = depth
-                        )
+                    ImpactNode(
+                        id = node.id!!,
+                        fqn = node.fqn,
+                        name = node.name,
+                        kind = node.kind,
+                        depth = depth,
+                    ),
                 )
             }
 
@@ -59,10 +62,10 @@ class ChangeImpactService(
         }
 
         return ImpactAnalysisResult(
-                rootNodeId = nodeId,
-                totalImpactedNodes = impactedNodes.size,
-                maxDepthReached = actualMaxDepth,
-                impactedNodes = impactedNodes.sortedBy { it.depth }
+            rootNodeId = nodeId,
+            totalImpactedNodes = impactedNodes.size,
+            maxDepthReached = actualMaxDepth,
+            impactedNodes = impactedNodes.sortedBy { it.depth },
         )
     }
 }

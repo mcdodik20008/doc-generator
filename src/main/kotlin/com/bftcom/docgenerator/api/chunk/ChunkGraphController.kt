@@ -18,7 +18,17 @@ class ChunkGraphController(
         @RequestParam(required = false, defaultValue = "") kinds: List<String>,
         @RequestParam(required = false, defaultValue = "500") limit: Int,
         @RequestParam(required = false, defaultValue = "") edgeKinds: List<String>,
-    ): GraphResponse = service.buildGraph(applicationId, kinds.toSet().filter { it.isNotBlank() }.toSet(), limit, edgeKinds.toSet().filter { it.isNotBlank() }.toSet())
+    ): GraphResponse =
+        service.buildGraph(
+            applicationId,
+            kinds
+                .toSet()
+                .filter {
+                    it.isNotBlank()
+                }.toSet(),
+            limit,
+            edgeKinds.toSet().filter { it.isNotBlank() }.toSet(),
+        )
 
     @GetMapping("/expand")
     fun expand(

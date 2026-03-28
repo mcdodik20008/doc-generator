@@ -36,31 +36,54 @@ class GraphVisualizerService(
             prefix: String = "",
             isLast: Boolean = true,
             transition: String = "",
-            currentPath: Set<ProcessingStepType> = emptySet()
+            currentPath: Set<ProcessingStepType> = emptySet(),
         ) {
             val step = stepsMap[type]
-            val connector = if (prefix.isEmpty()) "• " else if (isLast) "└── " else "├── "
+            val connector =
+                if (prefix.isEmpty()) {
+                    "• "
+                } else if (isLast) {
+                    "└── "
+                } else {
+                    "├── "
+                }
 
             // Определяем цвет узла
-            val nodeColor = when (type) {
-                ProcessingStepType.COMPLETED -> GREEN
-                ProcessingStepType.FAILED -> RED
-                ProcessingStepType.EXACT_SEARCH, ProcessingStepType.GRAPH_EXPANSION -> GREEN
-                ProcessingStepType.VECTOR_SEARCH, ProcessingStepType.REWRITING -> YELLOW
-                else -> RESET
-            }
+            val nodeColor =
+                when (type) {
+                    ProcessingStepType.COMPLETED -> GREEN
+                    ProcessingStepType.FAILED -> RED
+                    ProcessingStepType.EXACT_SEARCH, ProcessingStepType.GRAPH_EXPANSION -> GREEN
+                    ProcessingStepType.VECTOR_SEARCH, ProcessingStepType.REWRITING -> YELLOW
+                    else -> RESET
+                }
 
             val transitionLabel = if (transition.isNotEmpty()) " $CYAN◀── ($transition)$RESET" else ""
 
             // Собираем строку с цветами
-            sb.append(".").append(prefix).append(connector)
-                .append(nodeColor).append("[${type.description}]").append(RESET)
-                .append(transitionLabel).append("\n")
+            sb
+                .append(".")
+                .append(prefix)
+                .append(connector)
+                .append(nodeColor)
+                .append("[${type.description}]")
+                .append(RESET)
+                .append(transitionLabel)
+                .append("\n")
 
             if (type in currentPath) return // Защита от циклов
 
             val transitions = step?.getTransitions()?.entries ?: emptyList()
-            val nextPrefix = prefix + (if (prefix.isEmpty()) ".." else if (isLast) "...." else "│...")
+            val nextPrefix =
+                prefix + (
+                    if (prefix.isEmpty()) {
+                        ".."
+                    } else if (isLast) {
+                        "...."
+                    } else {
+                        "│..."
+                    }
+                )
 
             transitions.forEachIndexed { index, entry ->
                 render(entry.value, nextPrefix, index == transitions.size - 1, entry.key, currentPath + type)

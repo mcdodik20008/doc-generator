@@ -18,7 +18,6 @@ import org.junit.jupiter.api.assertThrows
 import java.time.OffsetDateTime
 
 class HandlerChainOrchestratorTest {
-
     private lateinit var repository: ChunkRepository
     private lateinit var handler1: PostprocessHandler
     private lateinit var handler2: PostprocessHandler
@@ -34,12 +33,13 @@ class HandlerChainOrchestratorTest {
 
     @Test
     fun `processOne - вызывает handlers которые поддерживают snapshot`() {
-        val chunk = createChunk(
-            id = 1L,
-            content = "test content",
-            contentHash = null,
-            tokenCount = null,
-        )
+        val chunk =
+            createChunk(
+                id = 1L,
+                content = "test content",
+                contentHash = null,
+                tokenCount = null,
+            )
 
         val mutation1 = PartialMutation().set(FieldKey.CONTENT_HASH, "hash1")
         val mutation2 = PartialMutation().set(FieldKey.TOKEN_COUNT, 100)
@@ -60,10 +60,11 @@ class HandlerChainOrchestratorTest {
 
     @Test
     fun `processOne - пропускает handlers которые не поддерживают snapshot`() {
-        val chunk = createChunk(
-            id = 1L,
-            content = "test content",
-        )
+        val chunk =
+            createChunk(
+                id = 1L,
+                content = "test content",
+            )
 
         val mutation = PartialMutation().set(FieldKey.CONTENT_HASH, "hash1")
 
@@ -82,10 +83,11 @@ class HandlerChainOrchestratorTest {
 
     @Test
     fun `processOne - обрабатывает ошибки в handlers и продолжает работу`() {
-        val chunk = createChunk(
-            id = 1L,
-            content = "test content",
-        )
+        val chunk =
+            createChunk(
+                id = 1L,
+                content = "test content",
+            )
 
         val mutation = PartialMutation().set(FieldKey.CONTENT_HASH, "hash1")
 
@@ -104,15 +106,16 @@ class HandlerChainOrchestratorTest {
 
     @Test
     fun `processOne - использует существующие значения из chunk для initial mutation`() {
-        val chunk = createChunk(
-            id = 1L,
-            content = "test content",
-            contentHash = "existing_hash",
-            tokenCount = 50,
-            embedModel = "existing_model",
-            embedTs = OffsetDateTime.parse("2024-01-01T00:00:00Z"),
-            emb = floatArrayOf(1.0f, 2.0f),
-        )
+        val chunk =
+            createChunk(
+                id = 1L,
+                content = "test content",
+                contentHash = "existing_hash",
+                tokenCount = 50,
+                embedModel = "existing_model",
+                embedTs = OffsetDateTime.parse("2024-01-01T00:00:00Z"),
+                emb = floatArrayOf(1.0f, 2.0f),
+            )
 
         every { handler1.supports(any()) } returns false
         every { handler2.supports(any()) } returns false
@@ -149,12 +152,13 @@ class HandlerChainOrchestratorTest {
 
     @Test
     fun `processOne - вычисляет contentHash если его нет`() {
-        val chunk = createChunk(
-            id = 1L,
-            content = "test content",
-            contentHash = null,
-            tokenCount = null,
-        )
+        val chunk =
+            createChunk(
+                id = 1L,
+                content = "test content",
+                contentHash = null,
+                tokenCount = null,
+            )
 
         every { handler1.supports(any()) } returns false
         every { handler2.supports(any()) } returns false
@@ -176,12 +180,13 @@ class HandlerChainOrchestratorTest {
 
     @Test
     fun `processOne - вычисляет tokenCount если его нет`() {
-        val chunk = createChunk(
-            id = 1L,
-            content = "hello world test",
-            contentHash = "existing_hash",
-            tokenCount = null,
-        )
+        val chunk =
+            createChunk(
+                id = 1L,
+                content = "hello world test",
+                contentHash = "existing_hash",
+                tokenCount = null,
+            )
 
         every { handler1.supports(any()) } returns false
         every { handler2.supports(any()) } returns false
@@ -202,15 +207,17 @@ class HandlerChainOrchestratorTest {
 
     @Test
     fun `processOne - обновляет embedding если он присутствует в merged mutation`() {
-        val chunk = createChunk(
-            id = 1L,
-            content = "test content",
-        )
+        val chunk =
+            createChunk(
+                id = 1L,
+                content = "test content",
+            )
 
-        val mutation = PartialMutation()
-            .set(FieldKey.EMB, floatArrayOf(1.0f, 2.0f, 3.0f))
-            .set(FieldKey.EMBED_MODEL, "new_model")
-            .set(FieldKey.EMBED_TS, OffsetDateTime.parse("2024-01-02T00:00:00Z"))
+        val mutation =
+            PartialMutation()
+                .set(FieldKey.EMB, floatArrayOf(1.0f, 2.0f, 3.0f))
+                .set(FieldKey.EMBED_MODEL, "new_model")
+                .set(FieldKey.EMBED_TS, OffsetDateTime.parse("2024-01-02T00:00:00Z"))
 
         every { handler1.supports(any()) } returns true
         every { handler1.produce(any()) } returns mutation
@@ -239,13 +246,15 @@ class HandlerChainOrchestratorTest {
 
     @Test
     fun `processOne - использует текущее время для embedTs если оно не указано`() {
-        val chunk = createChunk(
-            id = 1L,
-            content = "test content",
-        )
+        val chunk =
+            createChunk(
+                id = 1L,
+                content = "test content",
+            )
 
-        val mutation = PartialMutation()
-            .set(FieldKey.EMB, floatArrayOf(1.0f, 2.0f))
+        val mutation =
+            PartialMutation()
+                .set(FieldKey.EMB, floatArrayOf(1.0f, 2.0f))
 
         every { handler1.supports(any()) } returns true
         every { handler1.produce(any()) } returns mutation
@@ -262,20 +271,22 @@ class HandlerChainOrchestratorTest {
                 contentHash = any(),
                 tokenCount = any(),
                 embedModel = null,
-                embedTs = match {
-                    it is OffsetDateTime && (it.isAfter(beforeTime) || it.isEqual(beforeTime)) && 
-                    (it.isBefore(afterTime) || it.isEqual(afterTime))
-                },
+                embedTs =
+                    match {
+                        it is OffsetDateTime && (it.isAfter(beforeTime) || it.isEqual(beforeTime)) &&
+                            (it.isBefore(afterTime) || it.isEqual(afterTime))
+                    },
             )
         }
     }
 
     @Test
     fun `processOne - выбрасывает исключение при ошибке updateMeta`() {
-        val chunk = createChunk(
-            id = 1L,
-            content = "test content",
-        )
+        val chunk =
+            createChunk(
+                id = 1L,
+                content = "test content",
+            )
 
         every { handler1.supports(any()) } returns false
         every { repository.updateMeta(any(), any(), any(), any(), any()) } throws RuntimeException("DB error")
@@ -289,13 +300,15 @@ class HandlerChainOrchestratorTest {
 
     @Test
     fun `processOne - выбрасывает исключение при ошибке updateEmb`() {
-        val chunk = createChunk(
-            id = 1L,
-            content = "test content",
-        )
+        val chunk =
+            createChunk(
+                id = 1L,
+                content = "test content",
+            )
 
-        val mutation = PartialMutation()
-            .set(FieldKey.EMB, floatArrayOf(1.0f, 2.0f))
+        val mutation =
+            PartialMutation()
+                .set(FieldKey.EMB, floatArrayOf(1.0f, 2.0f))
 
         every { handler1.supports(any()) } returns true
         every { handler1.produce(any()) } returns mutation
@@ -312,10 +325,11 @@ class HandlerChainOrchestratorTest {
     @Test
     fun `processOne - обрабатывает пустой список handlers`() {
         val emptyOrchestrator = HandlerChainOrchestrator(repository, emptyList())
-        val chunk = createChunk(
-            id = 1L,
-            content = "test content",
-        )
+        val chunk =
+            createChunk(
+                id = 1L,
+                content = "test content",
+            )
 
         every { repository.updateMeta(any(), any(), any(), any(), any()) } returns 1
 
@@ -326,14 +340,16 @@ class HandlerChainOrchestratorTest {
 
     @Test
     fun `processOne - не обновляет embedding если его нет в merged mutation`() {
-        val chunk = createChunk(
-            id = 1L,
-            content = "test content",
-        )
+        val chunk =
+            createChunk(
+                id = 1L,
+                content = "test content",
+            )
 
-        val mutation = PartialMutation()
-            .set(FieldKey.CONTENT_HASH, "new_hash")
-            .set(FieldKey.TOKEN_COUNT, 100)
+        val mutation =
+            PartialMutation()
+                .set(FieldKey.CONTENT_HASH, "new_hash")
+                .set(FieldKey.TOKEN_COUNT, 100)
 
         every { handler1.supports(any()) } returns true
         every { handler1.produce(any()) } returns mutation
@@ -347,14 +363,16 @@ class HandlerChainOrchestratorTest {
 
     @Test
     fun `processOne - правильно форматирует embedding literal`() {
-        val chunk = createChunk(
-            id = 1L,
-            content = "test content",
-        )
+        val chunk =
+            createChunk(
+                id = 1L,
+                content = "test content",
+            )
 
         val largeVector = FloatArray(5) { it.toFloat() } // [0.0, 1.0, 2.0, 3.0, 4.0]
-        val mutation = PartialMutation()
-            .set(FieldKey.EMB, largeVector)
+        val mutation =
+            PartialMutation()
+                .set(FieldKey.EMB, largeVector)
 
         every { handler1.supports(any()) } returns true
         every { handler1.produce(any()) } returns mutation
@@ -383,12 +401,13 @@ class HandlerChainOrchestratorTest {
         val app = Application(key = "app1", name = "App1")
         app.id = 1L
 
-        val node = Node(
-            application = app,
-            fqn = "com.example.Test",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        val node =
+            Node(
+                application = app,
+                fqn = "com.example.Test",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         node.id = 100L
 
         return Chunk(

@@ -41,7 +41,6 @@ class DemoDataSeeder(
     private val ingestStepRepo: IngestStepRepository,
     private val ingestEventRepo: IngestEventRepository,
 ) : ApplicationRunner {
-
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional
@@ -62,48 +61,50 @@ class DemoDataSeeder(
 
         log.info(
             "Demo data seeded: 2 apps, {} nodes, edges + chunks + 3 ingest runs",
-            nodes.size
+            nodes.size,
         )
     }
 
     // ── Applications ────────────────────────────────────────────────
 
-    private fun seedApp1(): Application = applicationRepo.save(
-        Application(
-            key = "doc-generator",
-            name = "Doc Generator",
-            description = "Code documentation generator with graph analysis and RAG",
-            repoUrl = "https://github.com/bftcom/doc-generator",
-            repoProvider = "github",
-            repoOwner = "bftcom",
-            repoName = "doc-generator",
-            defaultBranch = "master",
-            lastCommitSha = "bd34b948a1c2f3e4d5a6b7c8d9e0f1a2b3c4d5e6",
-            lastIndexedAt = OffsetDateTime.now().minusHours(2),
-            lastIndexStatus = "success",
-            languages = listOf("kotlin", "sql", "yaml"),
-            tags = listOf("backend", "rag", "graph"),
+    private fun seedApp1(): Application =
+        applicationRepo.save(
+            Application(
+                key = "doc-generator",
+                name = "Doc Generator",
+                description = "Code documentation generator with graph analysis and RAG",
+                repoUrl = "https://github.com/bftcom/doc-generator",
+                repoProvider = "github",
+                repoOwner = "bftcom",
+                repoName = "doc-generator",
+                defaultBranch = "master",
+                lastCommitSha = "bd34b948a1c2f3e4d5a6b7c8d9e0f1a2b3c4d5e6",
+                lastIndexedAt = OffsetDateTime.now().minusHours(2),
+                lastIndexStatus = "success",
+                languages = listOf("kotlin", "sql", "yaml"),
+                tags = listOf("backend", "rag", "graph"),
+            ),
         )
-    )
 
-    private fun seedApp2(): Application = applicationRepo.save(
-        Application(
-            key = "sample-api",
-            name = "Sample REST API",
-            description = "Example microservice for demo purposes",
-            repoUrl = "https://github.com/bftcom/sample-api",
-            repoProvider = "github",
-            repoOwner = "bftcom",
-            repoName = "sample-api",
-            defaultBranch = "main",
-            lastCommitSha = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
-            lastIndexedAt = OffsetDateTime.now().minusDays(1),
-            lastIndexStatus = "failed",
-            lastIndexError = "Build graph failed: OutOfMemoryError",
-            languages = listOf("java", "sql"),
-            tags = listOf("backend", "rest"),
+    private fun seedApp2(): Application =
+        applicationRepo.save(
+            Application(
+                key = "sample-api",
+                name = "Sample REST API",
+                description = "Example microservice for demo purposes",
+                repoUrl = "https://github.com/bftcom/sample-api",
+                repoProvider = "github",
+                repoOwner = "bftcom",
+                repoName = "sample-api",
+                defaultBranch = "main",
+                lastCommitSha = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
+                lastIndexedAt = OffsetDateTime.now().minusDays(1),
+                lastIndexStatus = "failed",
+                lastIndexError = "Build graph failed: OutOfMemoryError",
+                languages = listOf("java", "sql"),
+                tags = listOf("backend", "rest"),
+            ),
         )
-    )
 
     // ── Nodes ───────────────────────────────────────────────────────
 
@@ -125,23 +126,24 @@ class DemoDataSeeder(
             sourceCode: String? = null,
             docComment: String? = null,
         ): Node {
-            val saved = nodeRepo.save(
-                Node(
-                    application = app,
-                    fqn = fqn,
-                    name = name,
-                    kind = kind,
-                    lang = lang,
-                    packageName = pkg,
-                    parent = parentKey?.let { nodes[it] },
-                    filePath = filePath,
-                    lineStart = lineStart,
-                    lineEnd = lineEnd,
-                    signature = signature,
-                    sourceCode = sourceCode,
-                    docComment = docComment,
+            val saved =
+                nodeRepo.save(
+                    Node(
+                        application = app,
+                        fqn = fqn,
+                        name = name,
+                        kind = kind,
+                        lang = lang,
+                        packageName = pkg,
+                        parent = parentKey?.let { nodes[it] },
+                        filePath = filePath,
+                        lineStart = lineStart,
+                        lineEnd = lineEnd,
+                        signature = signature,
+                        sourceCode = sourceCode,
+                        docComment = docComment,
+                    ),
                 )
-            )
             nodes[key] = saved
             return saved
         }
@@ -152,124 +154,208 @@ class DemoDataSeeder(
 
         // Classes in main package
         node(
-            "RagService", "com.bftcom.docgenerator.rag.RagService", "RagService",
-            NodeKind.CLASS, pkg = "com.bftcom.docgenerator.rag", parentKey = "pkg-main",
+            "RagService",
+            "com.bftcom.docgenerator.rag.RagService",
+            "RagService",
+            NodeKind.CLASS,
+            pkg = "com.bftcom.docgenerator.rag",
+            parentKey = "pkg-main",
             filePath = "contexts/rag/impl/src/main/kotlin/com/bftcom/docgenerator/rag/RagService.kt",
-            lineStart = 15, lineEnd = 85,
+            lineStart = 15,
+            lineEnd = 85,
             docComment = "Main RAG service that answers user queries using graph context and vector search",
         )
         node(
-            "RagService.ask", "com.bftcom.docgenerator.rag.RagService.ask", "ask",
-            NodeKind.METHOD, pkg = "com.bftcom.docgenerator.rag", parentKey = "RagService",
+            "RagService.ask",
+            "com.bftcom.docgenerator.rag.RagService.ask",
+            "ask",
+            NodeKind.METHOD,
+            pkg = "com.bftcom.docgenerator.rag",
+            parentKey = "RagService",
             filePath = "contexts/rag/impl/src/main/kotlin/com/bftcom/docgenerator/rag/RagService.kt",
-            lineStart = 28, lineEnd = 52,
+            lineStart = 28,
+            lineEnd = 52,
             signature = "(query: String, sessionId: String): Flux<String>",
             docComment = "Process user query and return streaming LLM response with context from code graph",
         )
         node(
-            "RagService.buildContext", "com.bftcom.docgenerator.rag.RagService.buildContext", "buildContext",
-            NodeKind.METHOD, pkg = "com.bftcom.docgenerator.rag", parentKey = "RagService",
+            "RagService.buildContext",
+            "com.bftcom.docgenerator.rag.RagService.buildContext",
+            "buildContext",
+            NodeKind.METHOD,
+            pkg = "com.bftcom.docgenerator.rag",
+            parentKey = "RagService",
             filePath = "contexts/rag/impl/src/main/kotlin/com/bftcom/docgenerator/rag/RagService.kt",
-            lineStart = 54, lineEnd = 78,
+            lineStart = 54,
+            lineEnd = 78,
             signature = "(query: String): String",
         )
 
         node(
-            "GraphRequestProcessor", "com.bftcom.docgenerator.rag.GraphRequestProcessor", "GraphRequestProcessor",
-            NodeKind.CLASS, pkg = "com.bftcom.docgenerator.rag", parentKey = "pkg-main",
+            "GraphRequestProcessor",
+            "com.bftcom.docgenerator.rag.GraphRequestProcessor",
+            "GraphRequestProcessor",
+            NodeKind.CLASS,
+            pkg = "com.bftcom.docgenerator.rag",
+            parentKey = "pkg-main",
             filePath = "contexts/rag/impl/src/main/kotlin/com/bftcom/docgenerator/rag/GraphRequestProcessor.kt",
-            lineStart = 12, lineEnd = 95,
+            lineStart = 12,
+            lineEnd = 95,
             docComment = "Processes graph queries through a chain of advisors",
         )
         node(
-            "GraphRequestProcessor.process", "com.bftcom.docgenerator.rag.GraphRequestProcessor.process", "process",
-            NodeKind.METHOD, pkg = "com.bftcom.docgenerator.rag", parentKey = "GraphRequestProcessor",
+            "GraphRequestProcessor.process",
+            "com.bftcom.docgenerator.rag.GraphRequestProcessor.process",
+            "process",
+            NodeKind.METHOD,
+            pkg = "com.bftcom.docgenerator.rag",
+            parentKey = "GraphRequestProcessor",
             filePath = "contexts/rag/impl/src/main/kotlin/com/bftcom/docgenerator/rag/GraphRequestProcessor.kt",
-            lineStart = 30, lineEnd = 65,
+            lineStart = 30,
+            lineEnd = 65,
             signature = "(query: String, settings: RagSettings): QueryProcessingContext",
         )
 
         node(
-            "EmbeddingController", "com.bftcom.docgenerator.api.embedding.EmbeddingController", "EmbeddingController",
-            NodeKind.CLASS, pkg = "com.bftcom.docgenerator.api.embedding", parentKey = "pkg-main",
+            "EmbeddingController",
+            "com.bftcom.docgenerator.api.embedding.EmbeddingController",
+            "EmbeddingController",
+            NodeKind.CLASS,
+            pkg = "com.bftcom.docgenerator.api.embedding",
+            parentKey = "pkg-main",
             filePath = "src/main/kotlin/com/bftcom/docgenerator/api/embedding/EmbeddingController.kt",
-            lineStart = 18, lineEnd = 65,
+            lineStart = 18,
+            lineEnd = 65,
         )
         node(
-            "EmbeddingController.process", "com.bftcom.docgenerator.api.embedding.EmbeddingController.process", "process",
-            NodeKind.ENDPOINT, pkg = "com.bftcom.docgenerator.api.embedding", parentKey = "EmbeddingController",
+            "EmbeddingController.process",
+            "com.bftcom.docgenerator.api.embedding.EmbeddingController.process",
+            "process",
+            NodeKind.ENDPOINT,
+            pkg = "com.bftcom.docgenerator.api.embedding",
+            parentKey = "EmbeddingController",
             filePath = "src/main/kotlin/com/bftcom/docgenerator/api/embedding/EmbeddingController.kt",
-            lineStart = 32, lineEnd = 58,
+            lineStart = 32,
+            lineEnd = 58,
             signature = "POST /api/embedding/process",
         )
 
         node(
-            "IngestRunController", "com.bftcom.docgenerator.api.ingest.IngestRunController", "IngestRunController",
-            NodeKind.CLASS, pkg = "com.bftcom.docgenerator.api.ingest", parentKey = "pkg-main",
+            "IngestRunController",
+            "com.bftcom.docgenerator.api.ingest.IngestRunController",
+            "IngestRunController",
+            NodeKind.CLASS,
+            pkg = "com.bftcom.docgenerator.api.ingest",
+            parentKey = "pkg-main",
             filePath = "src/main/kotlin/com/bftcom/docgenerator/api/ingest/IngestRunController.kt",
-            lineStart = 20, lineEnd = 90,
+            lineStart = 20,
+            lineEnd = 90,
         )
         node(
-            "IngestRunController.start", "com.bftcom.docgenerator.api.ingest.IngestRunController.start", "start",
-            NodeKind.ENDPOINT, pkg = "com.bftcom.docgenerator.api.ingest", parentKey = "IngestRunController",
+            "IngestRunController.start",
+            "com.bftcom.docgenerator.api.ingest.IngestRunController.start",
+            "start",
+            NodeKind.ENDPOINT,
+            pkg = "com.bftcom.docgenerator.api.ingest",
+            parentKey = "IngestRunController",
             filePath = "src/main/kotlin/com/bftcom/docgenerator/api/ingest/IngestRunController.kt",
-            lineStart = 35, lineEnd = 52,
+            lineStart = 35,
+            lineEnd = 52,
             signature = "POST /api/ingest/start/{appId}",
         )
         node(
-            "IngestRunController.getRun", "com.bftcom.docgenerator.api.ingest.IngestRunController.getRun", "getRun",
-            NodeKind.ENDPOINT, pkg = "com.bftcom.docgenerator.api.ingest", parentKey = "IngestRunController",
+            "IngestRunController.getRun",
+            "com.bftcom.docgenerator.api.ingest.IngestRunController.getRun",
+            "getRun",
+            NodeKind.ENDPOINT,
+            pkg = "com.bftcom.docgenerator.api.ingest",
+            parentKey = "IngestRunController",
             filePath = "src/main/kotlin/com/bftcom/docgenerator/api/ingest/IngestRunController.kt",
-            lineStart = 54, lineEnd = 68,
+            lineStart = 54,
+            lineEnd = 68,
             signature = "GET /api/ingest/runs/{runId}",
         )
 
         node(
-            "DashboardApiController", "com.bftcom.docgenerator.api.DashboardApiController", "DashboardApiController",
-            NodeKind.CLASS, pkg = "com.bftcom.docgenerator.api", parentKey = "pkg-main",
+            "DashboardApiController",
+            "com.bftcom.docgenerator.api.DashboardApiController",
+            "DashboardApiController",
+            NodeKind.CLASS,
+            pkg = "com.bftcom.docgenerator.api",
+            parentKey = "pkg-main",
             filePath = "src/main/kotlin/com/bftcom/docgenerator/api/DashboardApiController.kt",
-            lineStart = 14, lineEnd = 48,
+            lineStart = 14,
+            lineEnd = 48,
         )
         node(
-            "DashboardApiController.stats", "com.bftcom.docgenerator.api.DashboardApiController.stats", "stats",
-            NodeKind.ENDPOINT, pkg = "com.bftcom.docgenerator.api", parentKey = "DashboardApiController",
+            "DashboardApiController.stats",
+            "com.bftcom.docgenerator.api.DashboardApiController.stats",
+            "stats",
+            NodeKind.ENDPOINT,
+            pkg = "com.bftcom.docgenerator.api",
+            parentKey = "DashboardApiController",
             filePath = "src/main/kotlin/com/bftcom/docgenerator/api/DashboardApiController.kt",
-            lineStart = 28, lineEnd = 42,
+            lineStart = 28,
+            lineEnd = 42,
             signature = "GET /api/dashboard/stats",
         )
 
         node(
-            "NodeRepository", "com.bftcom.docgenerator.db.NodeRepository", "NodeRepository",
-            NodeKind.INTERFACE, pkg = "com.bftcom.docgenerator.db", parentKey = "pkg-main",
+            "NodeRepository",
+            "com.bftcom.docgenerator.db.NodeRepository",
+            "NodeRepository",
+            NodeKind.INTERFACE,
+            pkg = "com.bftcom.docgenerator.db",
+            parentKey = "pkg-main",
             filePath = "kernel/db/src/main/kotlin/com/bftcom/docgenerator/db/NodeRepository.kt",
-            lineStart = 10, lineEnd = 55,
+            lineStart = 10,
+            lineEnd = 55,
         )
         node(
-            "NodeRepository.findByApplicationId", "com.bftcom.docgenerator.db.NodeRepository.findByApplicationId", "findByApplicationId",
-            NodeKind.METHOD, pkg = "com.bftcom.docgenerator.db", parentKey = "NodeRepository",
+            "NodeRepository.findByApplicationId",
+            "com.bftcom.docgenerator.db.NodeRepository.findByApplicationId",
+            "findByApplicationId",
+            NodeKind.METHOD,
+            pkg = "com.bftcom.docgenerator.db",
+            parentKey = "NodeRepository",
             signature = "(appId: Long, pageable: Pageable): List<Node>",
         )
 
         // Domain classes
         node(
-            "Application", "com.bftcom.docgenerator.domain.application.Application", "Application",
-            NodeKind.CLASS, pkg = "com.bftcom.docgenerator.domain.application", parentKey = "pkg-domain",
+            "Application",
+            "com.bftcom.docgenerator.domain.application.Application",
+            "Application",
+            NodeKind.CLASS,
+            pkg = "com.bftcom.docgenerator.domain.application",
+            parentKey = "pkg-domain",
             filePath = "kernel/domain/src/main/kotlin/com/bftcom/docgenerator/domain/application/Application.kt",
-            lineStart = 13, lineEnd = 88,
+            lineStart = 13,
+            lineEnd = 88,
             docComment = "Application/microservice registry entity with repo, indexing state, and RAG settings",
         )
         node(
-            "Node", "com.bftcom.docgenerator.domain.node.Node", "Node",
-            NodeKind.CLASS, pkg = "com.bftcom.docgenerator.domain.node", parentKey = "pkg-domain",
+            "Node",
+            "com.bftcom.docgenerator.domain.node.Node",
+            "Node",
+            NodeKind.CLASS,
+            pkg = "com.bftcom.docgenerator.domain.node",
+            parentKey = "pkg-domain",
             filePath = "kernel/domain/src/main/kotlin/com/bftcom/docgenerator/domain/node/Node.kt",
-            lineStart = 26, lineEnd = 98,
+            lineStart = 26,
+            lineEnd = 98,
             docComment = "Graph node: class/method/table/endpoint etc. with hierarchy via parent_id",
         )
         node(
-            "Edge", "com.bftcom.docgenerator.domain.edge.Edge", "Edge",
-            NodeKind.CLASS, pkg = "com.bftcom.docgenerator.domain.edge", parentKey = "pkg-domain",
+            "Edge",
+            "com.bftcom.docgenerator.domain.edge.Edge",
+            "Edge",
+            NodeKind.CLASS,
+            pkg = "com.bftcom.docgenerator.domain.edge",
+            parentKey = "pkg-domain",
             filePath = "kernel/domain/src/main/kotlin/com/bftcom/docgenerator/domain/edge/Edge.kt",
-            lineStart = 22, lineEnd = 64,
+            lineStart = 22,
+            lineEnd = 64,
             docComment = "Graph edge between nodes (src -> dst) with edge kind and evidence",
         )
 
@@ -279,7 +365,13 @@ class DemoDataSeeder(
     // ── Edges ───────────────────────────────────────────────────────
 
     private fun seedEdges(nodes: Map<String, Node>) {
-        fun edge(srcKey: String, dstKey: String, kind: EdgeKind, confidence: Double? = null, strength: String? = null) {
+        fun edge(
+            srcKey: String,
+            dstKey: String,
+            kind: EdgeKind,
+            confidence: Double? = null,
+            strength: String? = null,
+        ) {
             val src = nodes[srcKey] ?: return
             val dst = nodes[dstKey] ?: return
             edgeRepo.save(
@@ -289,7 +381,7 @@ class DemoDataSeeder(
                     kind = kind,
                     confidence = confidence?.let { BigDecimal.valueOf(it) },
                     relationStrength = strength ?: "normal",
-                )
+                ),
             )
         }
 
@@ -323,8 +415,16 @@ class DemoDataSeeder(
 
     // ── Chunks ──────────────────────────────────────────────────────
 
-    private fun seedChunks(app: Application, nodes: Map<String, Node>) {
-        fun chunk(nodeKey: String, sourceType: String, kind: String, content: String) {
+    private fun seedChunks(
+        app: Application,
+        nodes: Map<String, Node>,
+    ) {
+        fun chunk(
+            nodeKey: String,
+            sourceType: String,
+            kind: String,
+            content: String,
+        ) {
             val node = nodes[nodeKey] ?: return
             chunkRepo.save(
                 Chunk(
@@ -333,108 +433,133 @@ class DemoDataSeeder(
                     source = sourceType,
                     kind = kind,
                     content = content,
-                    contentHash = content.hashCode().toUInt().toString(16).padStart(16, '0'),
+                    contentHash =
+                        content
+                            .hashCode()
+                            .toUInt()
+                            .toString(16)
+                            .padStart(16, '0'),
                     tokenCount = content.split(" ").size,
-                )
+                ),
             )
         }
 
         chunk(
-            "RagService.ask", "code", "summary",
+            "RagService.ask",
+            "code",
+            "summary",
             "Method ask() in RagService processes user queries by building context from the code graph " +
                 "and streaming responses from the LLM. It uses GraphRequestProcessor to find relevant nodes " +
-                "and constructs a prompt with code context for accurate answers."
+                "and constructs a prompt with code context for accurate answers.",
         )
         chunk(
-            "RagService.buildContext", "code", "summary",
+            "RagService.buildContext",
+            "code",
+            "summary",
             "Method buildContext() collects relevant code snippets from the graph database, " +
                 "including related nodes, edges, and documentation chunks, to build a comprehensive " +
-                "context string for the LLM prompt."
+                "context string for the LLM prompt.",
         )
         chunk(
-            "GraphRequestProcessor.process", "code", "summary",
+            "GraphRequestProcessor.process",
+            "code",
+            "summary",
             "Method process() executes a chain of QueryProcessingAdvisors to enrich the query " +
                 "with graph data, embeddings, and metadata before passing it to the LLM. " +
-                "Returns a QueryProcessingContext with all gathered information."
+                "Returns a QueryProcessingContext with all gathered information.",
         )
         chunk(
-            "EmbeddingController.process", "code", "summary",
+            "EmbeddingController.process",
+            "code",
+            "summary",
             "Endpoint POST /api/embedding/process triggers embedding generation for code chunks. " +
-                "It validates the request, finds unprocessed chunks, and sends them to the embedding model."
+                "It validates the request, finds unprocessed chunks, and sends them to the embedding model.",
         )
         chunk(
-            "Application", "doc", "public",
+            "Application",
+            "doc",
+            "public",
             "Application entity represents a registered microservice or repository in the system. " +
                 "It stores repository URL, indexing status, RAG settings, and organization metadata. " +
-                "Each application has its own set of nodes, edges, and chunks."
+                "Each application has its own set of nodes, edges, and chunks.",
         )
     }
 
     // ── Ingest Runs ─────────────────────────────────────────────────
 
-    private fun seedIngestRuns(app1: Application, app2: Application) {
+    private fun seedIngestRuns(
+        app1: Application,
+        app2: Application,
+    ) {
         val now = OffsetDateTime.now()
 
         // Run 1: completed (app1) — all 5 steps done
-        val run1 = ingestRunRepo.save(
-            IngestRun(
-                application = app1,
-                status = IngestRunStatus.COMPLETED.name,
-                triggeredBy = "manual",
-                branch = "master",
-                commitSha = "bd34b948a1c2",
-                startedAt = now.minusHours(3),
-                finishedAt = now.minusHours(2).minusMinutes(45),
-                createdAt = now.minusHours(3),
+        val run1 =
+            ingestRunRepo.save(
+                IngestRun(
+                    application = app1,
+                    status = IngestRunStatus.COMPLETED.name,
+                    triggeredBy = "manual",
+                    branch = "master",
+                    commitSha = "bd34b948a1c2",
+                    startedAt = now.minusHours(3),
+                    finishedAt = now.minusHours(2).minusMinutes(45),
+                    createdAt = now.minusHours(3),
+                ),
             )
-        )
         seedCompletedRunSteps(run1, now.minusHours(3))
         seedCompletedRunEvents(run1)
 
         // Run 2: failed (app1) — CHECKOUT+CLASSPATH done, BUILD_GRAPH failed
-        val run2 = ingestRunRepo.save(
-            IngestRun(
-                application = app1,
-                status = IngestRunStatus.FAILED.name,
-                triggeredBy = "manual",
-                branch = "feature/new-parser",
-                commitSha = "e574d3c1a2b3",
-                errorMessage = "BUILD_GRAPH failed: OutOfMemoryError: Java heap space",
-                startedAt = now.minusDays(1),
-                finishedAt = now.minusDays(1).plusMinutes(8),
-                createdAt = now.minusDays(1),
+        val run2 =
+            ingestRunRepo.save(
+                IngestRun(
+                    application = app1,
+                    status = IngestRunStatus.FAILED.name,
+                    triggeredBy = "manual",
+                    branch = "feature/new-parser",
+                    commitSha = "e574d3c1a2b3",
+                    errorMessage = "BUILD_GRAPH failed: OutOfMemoryError: Java heap space",
+                    startedAt = now.minusDays(1),
+                    finishedAt = now.minusDays(1).plusMinutes(8),
+                    createdAt = now.minusDays(1),
+                ),
             )
-        )
         seedFailedRunSteps(run2, now.minusDays(1))
         seedFailedRunEvents(run2)
 
         // Run 3: completed (app2)
-        val run3 = ingestRunRepo.save(
-            IngestRun(
-                application = app2,
-                status = IngestRunStatus.COMPLETED.name,
-                triggeredBy = "webhook",
-                branch = "main",
-                commitSha = "a1b2c3d4e5f6",
-                startedAt = now.minusDays(2),
-                finishedAt = now.minusDays(2).plusMinutes(12),
-                createdAt = now.minusDays(2),
+        val run3 =
+            ingestRunRepo.save(
+                IngestRun(
+                    application = app2,
+                    status = IngestRunStatus.COMPLETED.name,
+                    triggeredBy = "webhook",
+                    branch = "main",
+                    commitSha = "a1b2c3d4e5f6",
+                    startedAt = now.minusDays(2),
+                    finishedAt = now.minusDays(2).plusMinutes(12),
+                    createdAt = now.minusDays(2),
+                ),
             )
-        )
         seedCompletedRunSteps(run3, now.minusDays(2))
     }
 
-    private fun seedCompletedRunSteps(run: IngestRun, baseTime: OffsetDateTime) {
+    private fun seedCompletedRunSteps(
+        run: IngestRun,
+        baseTime: OffsetDateTime,
+    ) {
         val steps = IngestStepType.entries
         var t = baseTime
         for (step in steps) {
-            val duration = when (step) {
-                IngestStepType.CHECKOUT -> 15L
-                IngestStepType.RESOLVE_CLASSPATH -> 45L
-                IngestStepType.BUILD_LIBRARY -> 30L
-                IngestStepType.BUILD_GRAPH -> 120L
-                IngestStepType.LINK -> 60L
-            }
+            val duration =
+                when (step) {
+                    IngestStepType.CHECKOUT -> 15L
+                    IngestStepType.RESOLVE_CLASSPATH -> 45L
+                    IngestStepType.BUILD_LIBRARY -> 30L
+                    IngestStepType.BUILD_GRAPH -> 120L
+                    IngestStepType.LINK -> 60L
+                }
             val stepEnd = t.plusSeconds(duration)
             ingestStepRepo.save(
                 IngestStep(
@@ -445,13 +570,16 @@ class DemoDataSeeder(
                     itemsTotal = (10..50).random(),
                     startedAt = t,
                     finishedAt = stepEnd,
-                )
+                ),
             )
             t = stepEnd
         }
     }
 
-    private fun seedFailedRunSteps(run: IngestRun, baseTime: OffsetDateTime) {
+    private fun seedFailedRunSteps(
+        run: IngestRun,
+        baseTime: OffsetDateTime,
+    ) {
         // CHECKOUT — completed
         ingestStepRepo.save(
             IngestStep(
@@ -462,7 +590,7 @@ class DemoDataSeeder(
                 itemsTotal = 1,
                 startedAt = baseTime,
                 finishedAt = baseTime.plusSeconds(12),
-            )
+            ),
         )
         // RESOLVE_CLASSPATH — completed
         ingestStepRepo.save(
@@ -474,7 +602,7 @@ class DemoDataSeeder(
                 itemsTotal = 23,
                 startedAt = baseTime.plusSeconds(12),
                 finishedAt = baseTime.plusSeconds(55),
-            )
+            ),
         )
         // BUILD_LIBRARY — completed
         ingestStepRepo.save(
@@ -486,7 +614,7 @@ class DemoDataSeeder(
                 itemsTotal = 8,
                 startedAt = baseTime.plusSeconds(55),
                 finishedAt = baseTime.plusMinutes(2),
-            )
+            ),
         )
         // BUILD_GRAPH — failed
         ingestStepRepo.save(
@@ -499,7 +627,7 @@ class DemoDataSeeder(
                 itemsTotal = 500,
                 startedAt = baseTime.plusMinutes(2),
                 finishedAt = baseTime.plusMinutes(7),
-            )
+            ),
         )
         // LINK — skipped
         ingestStepRepo.save(
@@ -507,22 +635,23 @@ class DemoDataSeeder(
                 run = run,
                 stepType = IngestStepType.LINK.name,
                 status = IngestStepStatus.SKIPPED.name,
-            )
+            ),
         )
     }
 
     private fun seedCompletedRunEvents(run: IngestRun) {
         val base = run.startedAt ?: OffsetDateTime.now()
-        val events = listOf(
-            Triple(IngestEventLevel.INFO, IngestStepType.CHECKOUT, "Cloning repository from https://github.com/bftcom/doc-generator"),
-            Triple(IngestEventLevel.INFO, IngestStepType.CHECKOUT, "Checked out branch master at bd34b94"),
-            Triple(IngestEventLevel.INFO, IngestStepType.RESOLVE_CLASSPATH, "Resolving Gradle classpath for 16 modules"),
-            Triple(IngestEventLevel.WARN, IngestStepType.RESOLVE_CLASSPATH, "Module 'e2e' skipped: not a JVM module"),
-            Triple(IngestEventLevel.INFO, IngestStepType.BUILD_LIBRARY, "Analyzing 12 library dependencies"),
-            Triple(IngestEventLevel.INFO, IngestStepType.BUILD_GRAPH, "Building code graph: 342 files, 1847 symbols"),
-            Triple(IngestEventLevel.INFO, IngestStepType.BUILD_GRAPH, "Graph built: 1847 nodes, 3291 edges"),
-            Triple(IngestEventLevel.INFO, IngestStepType.LINK, "Linking cross-module references: 156 links resolved"),
-        )
+        val events =
+            listOf(
+                Triple(IngestEventLevel.INFO, IngestStepType.CHECKOUT, "Cloning repository from https://github.com/bftcom/doc-generator"),
+                Triple(IngestEventLevel.INFO, IngestStepType.CHECKOUT, "Checked out branch master at bd34b94"),
+                Triple(IngestEventLevel.INFO, IngestStepType.RESOLVE_CLASSPATH, "Resolving Gradle classpath for 16 modules"),
+                Triple(IngestEventLevel.WARN, IngestStepType.RESOLVE_CLASSPATH, "Module 'e2e' skipped: not a JVM module"),
+                Triple(IngestEventLevel.INFO, IngestStepType.BUILD_LIBRARY, "Analyzing 12 library dependencies"),
+                Triple(IngestEventLevel.INFO, IngestStepType.BUILD_GRAPH, "Building code graph: 342 files, 1847 symbols"),
+                Triple(IngestEventLevel.INFO, IngestStepType.BUILD_GRAPH, "Graph built: 1847 nodes, 3291 edges"),
+                Triple(IngestEventLevel.INFO, IngestStepType.LINK, "Linking cross-module references: 156 links resolved"),
+            )
         for ((i, triple) in events.withIndex()) {
             val (level, stepType, message) = triple
             ingestEventRepo.save(
@@ -532,21 +661,26 @@ class DemoDataSeeder(
                     level = level.name,
                     message = message,
                     createdAt = base.plusSeconds(i * 20L),
-                )
+                ),
             )
         }
     }
 
     private fun seedFailedRunEvents(run: IngestRun) {
         val base = run.startedAt ?: OffsetDateTime.now()
-        val events = listOf(
-            Triple(IngestEventLevel.INFO, IngestStepType.CHECKOUT, "Cloning repository from https://github.com/bftcom/doc-generator"),
-            Triple(IngestEventLevel.INFO, IngestStepType.CHECKOUT, "Checked out branch feature/new-parser at e574d3c"),
-            Triple(IngestEventLevel.INFO, IngestStepType.RESOLVE_CLASSPATH, "Resolving Gradle classpath for 16 modules"),
-            Triple(IngestEventLevel.INFO, IngestStepType.BUILD_LIBRARY, "Analyzing 12 library dependencies"),
-            Triple(IngestEventLevel.INFO, IngestStepType.BUILD_GRAPH, "Building code graph: 500 files"),
-            Triple(IngestEventLevel.ERROR, IngestStepType.BUILD_GRAPH, "OutOfMemoryError: Java heap space — processed 142 of 500 files"),
-        )
+        val events =
+            listOf(
+                Triple(IngestEventLevel.INFO, IngestStepType.CHECKOUT, "Cloning repository from https://github.com/bftcom/doc-generator"),
+                Triple(IngestEventLevel.INFO, IngestStepType.CHECKOUT, "Checked out branch feature/new-parser at e574d3c"),
+                Triple(IngestEventLevel.INFO, IngestStepType.RESOLVE_CLASSPATH, "Resolving Gradle classpath for 16 modules"),
+                Triple(IngestEventLevel.INFO, IngestStepType.BUILD_LIBRARY, "Analyzing 12 library dependencies"),
+                Triple(IngestEventLevel.INFO, IngestStepType.BUILD_GRAPH, "Building code graph: 500 files"),
+                Triple(
+                    IngestEventLevel.ERROR,
+                    IngestStepType.BUILD_GRAPH,
+                    "OutOfMemoryError: Java heap space — processed 142 of 500 files",
+                ),
+            )
         for ((i, triple) in events.withIndex()) {
             val (level, stepType, message) = triple
             ingestEventRepo.save(
@@ -556,7 +690,7 @@ class DemoDataSeeder(
                     level = level.name,
                     message = message,
                     createdAt = base.plusSeconds(i * 25L),
-                )
+                ),
             )
         }
     }

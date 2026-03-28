@@ -7,11 +7,11 @@ import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
-import com.bftcom.docgenerator.shared.node.NodeMeta
-import com.bftcom.docgenerator.shared.node.RawUsage
 import com.bftcom.docgenerator.library.api.integration.IntegrationPoint
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointLinker
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointService
+import com.bftcom.docgenerator.shared.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.RawUsage
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
@@ -142,9 +142,18 @@ class IntegrationPointLinkerImpl(
                 if (srcId != null && dstId != null) {
                     edgeRepo.upsert(srcId, dstId, kind.name)
                     when (kind) {
-                        EdgeKind.CALLS_HTTP -> httpEdgesCreated++
-                        EdgeKind.PRODUCES, EdgeKind.CONSUMES -> kafkaEdgesCreated++
-                        EdgeKind.CALLS_CAMEL -> camelEdgesCreated++
+                        EdgeKind.CALLS_HTTP -> {
+                            httpEdgesCreated++
+                        }
+
+                        EdgeKind.PRODUCES, EdgeKind.CONSUMES -> {
+                            kafkaEdgesCreated++
+                        }
+
+                        EdgeKind.CALLS_CAMEL -> {
+                            camelEdgesCreated++
+                        }
+
                         else -> {}
                     }
                 }
@@ -177,10 +186,12 @@ class IntegrationPointLinkerImpl(
                     val method = point.httpMethod ?: "UNKNOWN"
                     Triple("infra:http:$method:$url", NodeKind.ENDPOINT, "$method $url")
                 }
+
                 is IntegrationPoint.KafkaTopic -> {
                     val topic = point.topic ?: "unknown"
                     Triple("infra:kafka:topic:$topic", NodeKind.TOPIC, topic)
                 }
+
                 is IntegrationPoint.CamelRoute -> {
                     val uri = point.uri ?: "unknown"
                     Triple("infra:camel:uri:$uri", NodeKind.ENDPOINT, uri)
@@ -244,6 +255,7 @@ class IntegrationPointLinkerImpl(
                         }?.let { "$it.${usage.name}" }
                     ?: if (usage.name.contains('.')) usage.name else null
             }
+
             is RawUsage.Dot -> {
                 val receiverFqn =
                     if (usage.receiver.contains('.')) {

@@ -21,7 +21,6 @@ import org.mockito.kotlin.verify
 import org.springframework.data.domain.PageRequest
 
 class ArchitectureProfileBuilderTest {
-
     private val app = Application(id = 1L, key = "test-app", name = "Test App")
     private lateinit var nodeRepo: NodeRepository
     private lateinit var edgeRepo: EdgeRepository
@@ -38,13 +37,14 @@ class ArchitectureProfileBuilderTest {
 
     @Test
     fun `builds profile with layer counts`() {
-        val nodes = listOf(
-            makeNode(1, NodeKind.MODULE, "core"),
-            makeNode(2, NodeKind.CLASS, "UserService"),
-            makeNode(3, NodeKind.CLASS, "OrderService"),
-            makeNode(4, NodeKind.METHOD, "getUser"),
-            makeNode(5, NodeKind.ENDPOINT, "POST /users", meta = mapOf("httpMethod" to "POST", "path" to "/users")),
-        )
+        val nodes =
+            listOf(
+                makeNode(1, NodeKind.MODULE, "core"),
+                makeNode(2, NodeKind.CLASS, "UserService"),
+                makeNode(3, NodeKind.CLASS, "OrderService"),
+                makeNode(4, NodeKind.METHOD, "getUser"),
+                makeNode(5, NodeKind.ENDPOINT, "POST /users", meta = mapOf("httpMethod" to "POST", "path" to "/users")),
+            )
         `when`(nodeRepo.findAllByApplicationId(eq(1L), any())).thenReturn(nodes)
         `when`(edgeRepo.findAllBySrcIdIn(any<Set<Long>>())).thenReturn(emptyList())
         `when`(edgeRepo.findAllByDstIdIn(any())).thenReturn(emptyList())
@@ -60,10 +60,11 @@ class ArchitectureProfileBuilderTest {
 
     @Test
     fun `includes API surface with endpoints`() {
-        val nodes = listOf(
-            makeNode(1, NodeKind.ENDPOINT, "getUsers", meta = mapOf("httpMethod" to "GET", "path" to "/api/users")),
-            makeNode(2, NodeKind.ENDPOINT, "createUser", meta = mapOf("httpMethod" to "POST", "path" to "/api/users")),
-        )
+        val nodes =
+            listOf(
+                makeNode(1, NodeKind.ENDPOINT, "getUsers", meta = mapOf("httpMethod" to "GET", "path" to "/api/users")),
+                makeNode(2, NodeKind.ENDPOINT, "createUser", meta = mapOf("httpMethod" to "POST", "path" to "/api/users")),
+            )
         `when`(nodeRepo.findAllByApplicationId(eq(1L), any())).thenReturn(nodes)
         `when`(edgeRepo.findAllBySrcIdIn(any<Set<Long>>())).thenReturn(emptyList())
 
@@ -80,11 +81,12 @@ class ArchitectureProfileBuilderTest {
         val service = makeNode(20, NodeKind.CLASS, "UserService")
         val nodes = listOf(table, service)
 
-        val readEdge = Edge(
-            src = service,
-            dst = table,
-            kind = EdgeKind.READS,
-        )
+        val readEdge =
+            Edge(
+                src = service,
+                dst = table,
+                kind = EdgeKind.READS,
+            )
         `when`(nodeRepo.findAllByApplicationId(eq(1L), any())).thenReturn(nodes)
         `when`(edgeRepo.findAllByDstIdIn(any())).thenReturn(listOf(readEdge))
         `when`(edgeRepo.findAllBySrcIdIn(any<Set<Long>>())).thenReturn(emptyList())
@@ -129,8 +131,8 @@ class ArchitectureProfileBuilderTest {
         kind: NodeKind,
         name: String,
         meta: Map<String, Any> = emptyMap(),
-    ): Node {
-        return Node(
+    ): Node =
+        Node(
             id = id,
             application = app,
             fqn = "com.example.$name",
@@ -139,5 +141,4 @@ class ArchitectureProfileBuilderTest {
             lang = Lang.KOTLIN,
             meta = meta,
         )
-    }
 }

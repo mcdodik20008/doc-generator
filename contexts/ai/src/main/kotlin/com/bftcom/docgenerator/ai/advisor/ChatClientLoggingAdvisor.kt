@@ -21,14 +21,14 @@ import org.springframework.stereotype.Component
 class ChatClientLoggingAdvisor(
     props: AiClientsProperties,
 ) : BaseAdvisor {
-
     private val log = LoggerFactory.getLogger(javaClass)
 
     /** Множество моделей, для которых включён debug-лог. */
-    private val debugModels: Set<String> = buildSet {
-        if (props.coder.debug) add(props.coder.model)
-        if (props.talker.debug) add(props.talker.model)
-    }
+    private val debugModels: Set<String> =
+        buildSet {
+            if (props.coder.debug) add(props.coder.model)
+            if (props.talker.debug) add(props.talker.model)
+        }
 
     companion object {
         private val requestStartTime = ThreadLocal<Long>()
@@ -41,27 +41,29 @@ class ChatClientLoggingAdvisor(
 
     override fun before(
         chatClientRequest: ChatClientRequest,
-        advisorChain: AdvisorChain
+        advisorChain: AdvisorChain,
     ): ChatClientRequest {
         val now = System.currentTimeMillis()
         requestStartTime.set(now)
 
         val prompt = chatClientRequest.prompt()
 
-        val model = try {
-            prompt.options.model
-        } catch (_: Exception) {
-            null
-        } ?: "<unknown>"
+        val model =
+            try {
+                prompt.options.model
+            } catch (_: Exception) {
+                null
+            } ?: "<unknown>"
 
         val systemChars: Int
         val userChars: Int
         val userText: String
         try {
             val messages = prompt.instructions
-            systemChars = messages
-                .filter { it.messageType == MessageType.SYSTEM }
-                .sumOf { it.text?.length ?: 0 }
+            systemChars =
+                messages
+                    .filter { it.messageType == MessageType.SYSTEM }
+                    .sumOf { it.text?.length ?: 0 }
             val userMessages = messages.filter { it.messageType == MessageType.USER }
             userChars = userMessages.sumOf { it.text?.length ?: 0 }
             userText = userMessages.joinToString("\n") { it.text ?: "" }
@@ -90,7 +92,7 @@ class ChatClientLoggingAdvisor(
 
     override fun after(
         chatClientResponse: ChatClientResponse,
-        advisorChain: AdvisorChain
+        advisorChain: AdvisorChain,
     ): ChatClientResponse {
         val now = System.currentTimeMillis()
         val startedAt = requestStartTime.get()
@@ -100,31 +102,35 @@ class ChatClientLoggingAdvisor(
         val durationMs = startedAt?.let { now - it }
 
         val chatResponse = chatClientResponse.chatResponse()
-        val metadata = try {
-            chatResponse?.metadata
-        } catch (ex: Exception) {
-            log.warn("Failed to extract ChatResponse metadata for LLM logging: {}", ex.message)
-            null
-        }
+        val metadata =
+            try {
+                chatResponse?.metadata
+            } catch (ex: Exception) {
+                log.warn("Failed to extract ChatResponse metadata for LLM logging: {}", ex.message)
+                null
+            }
 
-        val model = try {
-            metadata?.model
-        } catch (_: Exception) {
-            null
-        } ?: "<unknown>"
+        val model =
+            try {
+                metadata?.model
+            } catch (_: Exception) {
+                null
+            } ?: "<unknown>"
 
-        val responseText = try {
-            chatResponse?.result?.output?.text ?: ""
-        } catch (ex: Exception) {
-            log.warn("Failed to extract response content for LLM logging: {}", ex.message)
-            ""
-        }
+        val responseText =
+            try {
+                chatResponse?.result?.output?.text ?: ""
+            } catch (ex: Exception) {
+                log.warn("Failed to extract response content for LLM logging: {}", ex.message)
+                ""
+            }
 
-        val usage = try {
-            metadata?.usage
-        } catch (_: Exception) {
-            null
-        }
+        val usage =
+            try {
+                metadata?.usage
+            } catch (_: Exception) {
+                null
+            }
 
         val promptTokens = usage?.promptTokens
         val completionTokens = usage?.completionTokens

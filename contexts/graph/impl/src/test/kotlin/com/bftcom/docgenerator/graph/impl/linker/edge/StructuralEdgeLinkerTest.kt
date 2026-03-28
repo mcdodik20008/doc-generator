@@ -5,8 +5,8 @@ import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.impl.linker.NodeIndexFactory
+import com.bftcom.docgenerator.shared.node.NodeMeta
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -51,16 +51,17 @@ class StructuralEdgeLinkerTest {
     @Test
     fun `linkContains - создает CONTAINS для всех TYPE_KINDS`() {
         val pkg = node(fqn = "com.example", name = "com.example", pkg = "com.example", kind = NodeKind.PACKAGE)
-        val classes = listOf(
-            node(fqn = "com.example.Interface", name = "Interface", pkg = "com.example", kind = NodeKind.INTERFACE),
-            node(fqn = "com.example.Service", name = "Service", pkg = "com.example", kind = NodeKind.SERVICE),
-            node(fqn = "com.example.Record", name = "Record", pkg = "com.example", kind = NodeKind.RECORD),
-            node(fqn = "com.example.Mapper", name = "Mapper", pkg = "com.example", kind = NodeKind.MAPPER),
-            node(fqn = "com.example.Endpoint", name = "Endpoint", pkg = "com.example", kind = NodeKind.ENDPOINT),
-            node(fqn = "com.example.Class", name = "Class", pkg = "com.example", kind = NodeKind.CLASS),
-            node(fqn = "com.example.Enum", name = "Enum", pkg = "com.example", kind = NodeKind.ENUM),
-            node(fqn = "com.example.Config", name = "Config", pkg = "com.example", kind = NodeKind.CONFIG),
-        )
+        val classes =
+            listOf(
+                node(fqn = "com.example.Interface", name = "Interface", pkg = "com.example", kind = NodeKind.INTERFACE),
+                node(fqn = "com.example.Service", name = "Service", pkg = "com.example", kind = NodeKind.SERVICE),
+                node(fqn = "com.example.Record", name = "Record", pkg = "com.example", kind = NodeKind.RECORD),
+                node(fqn = "com.example.Mapper", name = "Mapper", pkg = "com.example", kind = NodeKind.MAPPER),
+                node(fqn = "com.example.Endpoint", name = "Endpoint", pkg = "com.example", kind = NodeKind.ENDPOINT),
+                node(fqn = "com.example.Class", name = "Class", pkg = "com.example", kind = NodeKind.CLASS),
+                node(fqn = "com.example.Enum", name = "Enum", pkg = "com.example", kind = NodeKind.ENUM),
+                node(fqn = "com.example.Config", name = "Config", pkg = "com.example", kind = NodeKind.CONFIG),
+            )
 
         val all = listOf(pkg) + classes
         val index = NodeIndexFactory().create(all)
@@ -75,13 +76,14 @@ class StructuralEdgeLinkerTest {
     @Test
     fun `linkContains - создает CONTAINS для всех MEMBER_KINDS`() {
         val type = node(fqn = "com.example.Service", name = "Service", pkg = "com.example", kind = NodeKind.CLASS)
-        val members = listOf(
-            node(fqn = "com.example.Service.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD),
-            node(fqn = "com.example.Service.field", name = "field", pkg = "com.example", kind = NodeKind.FIELD),
-            node(fqn = "com.example.Service.endpoint", name = "endpoint", pkg = "com.example", kind = NodeKind.ENDPOINT),
-            node(fqn = "com.example.Service.job", name = "job", pkg = "com.example", kind = NodeKind.JOB),
-            node(fqn = "com.example.Service.topic", name = "topic", pkg = "com.example", kind = NodeKind.TOPIC),
-        )
+        val members =
+            listOf(
+                node(fqn = "com.example.Service.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD),
+                node(fqn = "com.example.Service.field", name = "field", pkg = "com.example", kind = NodeKind.FIELD),
+                node(fqn = "com.example.Service.endpoint", name = "endpoint", pkg = "com.example", kind = NodeKind.ENDPOINT),
+                node(fqn = "com.example.Service.job", name = "job", pkg = "com.example", kind = NodeKind.JOB),
+                node(fqn = "com.example.Service.topic", name = "topic", pkg = "com.example", kind = NodeKind.TOPIC),
+            )
 
         val all = listOf(type) + members
         val index = NodeIndexFactory().create(all)
@@ -204,4 +206,3 @@ class StructuralEdgeLinkerTest {
             lang = Lang.kotlin,
         ).also { it.parent = parent }
 }
-

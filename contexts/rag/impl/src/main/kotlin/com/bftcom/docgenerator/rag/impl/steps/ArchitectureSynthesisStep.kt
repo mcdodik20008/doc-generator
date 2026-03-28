@@ -40,42 +40,44 @@ class ArchitectureSynthesisStep(
         val appId = context.getMetadata<Long>(QueryMetadataKeys.APPLICATION_ID)
         val query = context.currentQuery.lowercase()
 
-        val archText = buildString {
+        val archText =
+            buildString {
+                if (appId != null) {
+                    val topic = detectTopic(query)
+                    when (topic) {
+                        Topic.SECURITY -> appendSecurityContext(appId)
+                        Topic.INTEGRATION -> appendIntegrationContext(appId)
+                        Topic.DATA -> appendDataContext(appId)
+                        Topic.GENERAL -> appendGeneralContext(appId)
+                    }
+                } else {
+                    append("Не указан applicationId — невозможно собрать архитектурный контекст.")
+                }
+            }
+
+        val exactNodes =
             if (appId != null) {
-                val topic = detectTopic(query)
-                when (topic) {
-                    Topic.SECURITY -> appendSecurityContext(appId)
-                    Topic.INTEGRATION -> appendIntegrationContext(appId)
-                    Topic.DATA -> appendDataContext(appId)
-                    Topic.GENERAL -> appendGeneralContext(appId)
-                }
+                collectArchitectureNodes(appId, detectTopic(query))
             } else {
-                append("Не указан applicationId — невозможно собрать архитектурный контекст.")
+                emptyList()
             }
-        }
 
-        val exactNodes = if (appId != null) {
-            collectArchitectureNodes(appId, detectTopic(query))
-        } else {
-            emptyList()
-        }
-
-        val updatedContext = context
-            .setMetadata(QueryMetadataKeys.ARCHITECTURE_CONTEXT_TEXT, archText)
-            .apply {
-                if (exactNodes.isNotEmpty()) {
-                    setMetadata(QueryMetadataKeys.EXACT_NODES, exactNodes)
-                }
-            }
-            .addStep(
-                ProcessingStep(
-                    advisorName = "ArchitectureSynthesisStep",
-                    input = context.currentQuery,
-                    output = "Архитектурный контекст: ${archText.length} символов, узлов: ${exactNodes.size}",
-                    stepType = type,
-                    status = ProcessingStepStatus.SUCCESS,
-                ),
-            )
+        val updatedContext =
+            context
+                .setMetadata(QueryMetadataKeys.ARCHITECTURE_CONTEXT_TEXT, archText)
+                .apply {
+                    if (exactNodes.isNotEmpty()) {
+                        setMetadata(QueryMetadataKeys.EXACT_NODES, exactNodes)
+                    }
+                }.addStep(
+                    ProcessingStep(
+                        advisorName = "ArchitectureSynthesisStep",
+                        input = context.currentQuery,
+                        output = "Архитектурный контекст: ${archText.length} символов, узлов: ${exactNodes.size}",
+                        stepType = type,
+                        status = ProcessingStepStatus.SUCCESS,
+                    ),
+                )
 
         log.info("ARCHITECTURE_SYNTHESIS: context_length={}, nodes={}", archText.length, exactNodes.size)
         return StepResult(context = updatedContext, transitionKey = "SUCCESS")
@@ -83,14 +85,13 @@ class ArchitectureSynthesisStep(
 
     private enum class Topic { GENERAL, SECURITY, INTEGRATION, DATA }
 
-    private fun detectTopic(query: String): Topic {
-        return when {
+    private fun detectTopic(query: String): Topic =
+        when {
             SECURITY_KEYWORDS.any { query.contains(it) } -> Topic.SECURITY
             INTEGRATION_KEYWORDS.any { query.contains(it) } -> Topic.INTEGRATION
             DATA_KEYWORDS.any { query.contains(it) } -> Topic.DATA
             else -> Topic.GENERAL
         }
-    }
 
     private fun StringBuilder.appendGeneralContext(appId: Long) {
         val kindCounts = countNodesByKind(appId)
@@ -131,10 +132,11 @@ class ArchitectureSynthesisStep(
 
         // Ищем INFRASTRUCTURE с типом auth/oauth
         val infraNodes = loadNodes(appId, setOf(NodeKind.INFRASTRUCTURE), 100)
-        val authInfra = infraNodes.filter {
-            val type = (it.meta["integrationType"] as? String)?.lowercase() ?: ""
-            type.contains("auth") || type.contains("oauth") || type.contains("security")
-        }
+        val authInfra =
+            infraNodes.filter {
+                val type = (it.meta["integrationType"] as? String)?.lowercase() ?: ""
+                type.contains("auth") || type.contains("oauth") || type.contains("security")
+            }
         if (authInfra.isNotEmpty()) {
             appendLine("Инфраструктура безопасности:")
             for (node in authInfra) {
@@ -146,14 +148,16 @@ class ArchitectureSynthesisStep(
         // Ищем аннотации @PreAuthorize, @Secured
         val allNodeIds = nodeRepository.findAllByApplicationId(appId, LARGE_PAGE).mapNotNull { it.id }.toSet()
         if (allNodeIds.isNotEmpty()) {
-            val annotationEdges = edgeRepository.findAllBySrcIdIn(allNodeIds)
-                .filter { it.kind == EdgeKind.ANNOTATED_WITH }
-                .filter {
-                    val dstName = it.dst.name ?: it.dst.fqn
-                    dstName.contains("PreAuthorize", true) ||
-                        dstName.contains("Secured", true) ||
-                        dstName.contains("RolesAllowed", true)
-                }
+            val annotationEdges =
+                edgeRepository
+                    .findAllBySrcIdIn(allNodeIds)
+                    .filter { it.kind == EdgeKind.ANNOTATED_WITH }
+                    .filter {
+                        val dstName = it.dst.name ?: it.dst.fqn
+                        dstName.contains("PreAuthorize", true) ||
+                            dstName.contains("Secured", true) ||
+                            dstName.contains("RolesAllowed", true)
+                    }
             if (annotationEdges.isNotEmpty()) {
                 appendLine("Защищённые методы (${annotationEdges.size} шт.):")
                 for (edge in annotationEdges.take(15)) {
@@ -210,8 +214,10 @@ class ArchitectureSynthesisStep(
         }
 
         val tableIds = tables.mapNotNull { it.id }.toSet()
-        val edges = edgeRepository.findAllByDstIdIn(tableIds)
-            .filter { it.kind in setOf(EdgeKind.READS, EdgeKind.WRITES) }
+        val edges =
+            edgeRepository
+                .findAllByDstIdIn(tableIds)
+                .filter { it.kind in setOf(EdgeKind.READS, EdgeKind.WRITES) }
         val accessMap = edges.groupBy { it.dst.id }
 
         for (table in tables) {
@@ -231,27 +237,34 @@ class ArchitectureSynthesisStep(
 
     private fun countNodesByKind(appId: Long): Map<NodeKind, Int> {
         val nodes = nodeRepository.findAllByApplicationId(appId, LARGE_PAGE)
-        return nodes.groupBy { it.kind }.mapValues { it.value.size }
+        return nodes
+            .groupBy { it.kind }
+            .mapValues { it.value.size }
             .toSortedMap()
     }
 
-    private fun loadNodes(appId: Long, kinds: Set<NodeKind>, limit: Int): List<Node> {
-        return nodeRepository.findAllByApplicationIdAndKindIn(appId, kinds, PageRequest.of(0, limit))
-    }
+    private fun loadNodes(
+        appId: Long,
+        kinds: Set<NodeKind>,
+        limit: Int,
+    ): List<Node> = nodeRepository.findAllByApplicationIdAndKindIn(appId, kinds, PageRequest.of(0, limit))
 
-    private fun collectArchitectureNodes(appId: Long, topic: Topic): List<Node> {
-        val kinds = when (topic) {
-            Topic.SECURITY -> setOf(NodeKind.INFRASTRUCTURE, NodeKind.CONFIG)
-            Topic.INTEGRATION -> setOf(NodeKind.CLIENT, NodeKind.INFRASTRUCTURE, NodeKind.TOPIC)
-            Topic.DATA -> setOf(NodeKind.DB_TABLE, NodeKind.DB_VIEW)
-            Topic.GENERAL -> setOf(NodeKind.ENDPOINT, NodeKind.MODULE, NodeKind.INFRASTRUCTURE)
-        }
+    private fun collectArchitectureNodes(
+        appId: Long,
+        topic: Topic,
+    ): List<Node> {
+        val kinds =
+            when (topic) {
+                Topic.SECURITY -> setOf(NodeKind.INFRASTRUCTURE, NodeKind.CONFIG)
+                Topic.INTEGRATION -> setOf(NodeKind.CLIENT, NodeKind.INFRASTRUCTURE, NodeKind.TOPIC)
+                Topic.DATA -> setOf(NodeKind.DB_TABLE, NodeKind.DB_VIEW)
+                Topic.GENERAL -> setOf(NodeKind.ENDPOINT, NodeKind.MODULE, NodeKind.INFRASTRUCTURE)
+            }
         return loadNodes(appId, kinds, 10)
     }
 
-    override fun getTransitions(): Map<String, ProcessingStepType> {
-        return linkedMapOf(
+    override fun getTransitions(): Map<String, ProcessingStepType> =
+        linkedMapOf(
             "SUCCESS" to ProcessingStepType.VECTOR_SEARCH,
         )
-    }
 }

@@ -18,9 +18,10 @@ class GraphRequestProcessorTest {
         every { step.execute(any()) } answers {
             StepResult(firstArg(), "SUCCESS")
         }
-        every { step.getTransitions() } returns mapOf(
-            "SUCCESS" to ProcessingStepType.COMPLETED,
-        )
+        every { step.getTransitions() } returns
+            mapOf(
+                "SUCCESS" to ProcessingStepType.COMPLETED,
+            )
 
         val processor = GraphRequestProcessor(listOf(step))
         val result = processor.process("query", "session")
@@ -36,9 +37,10 @@ class GraphRequestProcessorTest {
         every { step.execute(any()) } answers {
             StepResult(firstArg(), "FOUND")
         }
-        every { step.getTransitions() } returns mapOf(
-            "FOUND" to ProcessingStepType.NORMALIZATION, // Цикл
-        )
+        every { step.getTransitions() } returns
+            mapOf(
+                "FOUND" to ProcessingStepType.NORMALIZATION, // Цикл
+            )
 
         val processor = GraphRequestProcessor(listOf(step))
         val result = processor.process("query", "session")
@@ -70,9 +72,10 @@ class GraphRequestProcessorTest {
         every { step.execute(any()) } answers {
             StepResult(firstArg(), "UNKNOWN_KEY")
         }
-        every { step.getTransitions() } returns mapOf(
-            "SUCCESS" to ProcessingStepType.COMPLETED,
-        )
+        every { step.getTransitions() } returns
+            mapOf(
+                "SUCCESS" to ProcessingStepType.COMPLETED,
+            )
 
         val processor = GraphRequestProcessor(listOf(step))
         val result = processor.process("query", "session")

@@ -28,7 +28,7 @@ class TestClassExtractorTest {
     @CsvSource(
         "UserServiceTest",
         "PaymentControllerIT",
-        "OrderRepositorySpec"
+        "OrderRepositorySpec",
     )
     fun `refineType returns TEST for classes ending with Test, IT, or Spec`(className: String) {
         val raw = createRawType(simpleName = className)
@@ -41,10 +41,11 @@ class TestClassExtractorTest {
 
     @Test
     fun `refineType returns TEST for package containing test`() {
-        val raw = createRawType(
-            simpleName = "SomeClass",
-            pkgFqn = "com.example.test"
-        )
+        val raw =
+            createRawType(
+                simpleName = "SomeClass",
+                pkgFqn = "com.example.test",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -57,7 +58,7 @@ class TestClassExtractorTest {
         "org.junit.jupiter.api.Test",
         "junit.jupiter.api.Test",
         "io.kotest.core.spec.style.DescribeSpec",
-        "io.mockk.MockK"
+        "io.mockk.MockK",
     )
     fun `refineType returns TEST when imports contain test frameworks`(importName: String) {
         val raw = createRawType(simpleName = "SomeClass")
@@ -70,10 +71,11 @@ class TestClassExtractorTest {
 
     @Test
     fun `refineType returns null for regular class without test indicators`() {
-        val raw = createRawType(
-            simpleName = "RegularClass",
-            pkgFqn = "com.example.service"
-        )
+        val raw =
+            createRawType(
+                simpleName = "RegularClass",
+                pkgFqn = "com.example.service",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -94,8 +96,8 @@ class TestClassExtractorTest {
     private fun createRawType(
         simpleName: String = "TestClass",
         pkgFqn: String? = "com.example",
-    ): RawType {
-        return RawType(
+    ): RawType =
+        RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -106,13 +108,11 @@ class TestClassExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createContext(imports: List<String>? = null): NodeKindContext {
-        return NodeKindContext(
+    private fun createContext(imports: List<String>? = null): NodeKindContext =
+        NodeKindContext(
             lang = Lang.kotlin,
             file = null,
             imports = imports,
         )
-    }
 }

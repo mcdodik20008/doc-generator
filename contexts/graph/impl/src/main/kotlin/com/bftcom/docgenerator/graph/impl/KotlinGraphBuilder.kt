@@ -15,10 +15,10 @@ import com.bftcom.docgenerator.graph.api.node.NodeValidator
 import com.bftcom.docgenerator.graph.impl.apimetadata.ApiMetadataCollector
 import com.bftcom.docgenerator.graph.impl.config.ConfigPropertyLinker
 import com.bftcom.docgenerator.graph.impl.config.YamlConfigScanner
-import com.bftcom.docgenerator.graph.impl.profile.ArchitectureProfileBuilder
 import com.bftcom.docgenerator.graph.impl.node.CommandExecutorImpl
 import com.bftcom.docgenerator.graph.impl.node.KotlinSourceWalker
 import com.bftcom.docgenerator.graph.impl.node.KotlinToDomainVisitor
+import com.bftcom.docgenerator.graph.impl.profile.ArchitectureProfileBuilder
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service

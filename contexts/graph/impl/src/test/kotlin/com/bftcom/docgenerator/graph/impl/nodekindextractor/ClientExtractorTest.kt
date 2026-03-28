@@ -26,9 +26,10 @@ class ClientExtractorTest {
 
     @Test
     fun `refineType returns CLIENT for FeignClient annotation`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.springframework.cloud.openfeign.FeignClient")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.springframework.cloud.openfeign.FeignClient"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.INTERFACE, raw, ctx)
@@ -39,7 +40,7 @@ class ClientExtractorTest {
     @ParameterizedTest
     @CsvSource(
         "io.grpc.stub.AbstractStub",
-        "net.devh.boot.grpc.client.inject.GrpcClient"
+        "net.devh.boot.grpc.client.inject.GrpcClient",
     )
     fun `refineType returns CLIENT when imports contain gRPC packages`(importName: String) {
         val raw = createRawType()
@@ -52,10 +53,11 @@ class ClientExtractorTest {
 
     @Test
     fun `refineType returns null for regular class`() {
-        val raw = createRawType(
-            simpleName = "RegularClass",
-            pkgFqn = "com.example.service"
-        )
+        val raw =
+            createRawType(
+                simpleName = "RegularClass",
+                pkgFqn = "com.example.service",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -65,9 +67,10 @@ class ClientExtractorTest {
 
     @Test
     fun `refineType handles case-insensitive annotations`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.springframework.cloud.openfeign.FEIGNCLIENT")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.springframework.cloud.openfeign.FEIGNCLIENT"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.INTERFACE, raw, ctx)
@@ -80,8 +83,8 @@ class ClientExtractorTest {
         pkgFqn: String? = "com.example",
         annotationsRepr: List<String> = emptyList(),
         supertypesRepr: List<String> = emptyList(),
-    ): RawType {
-        return RawType(
+    ): RawType =
+        RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -92,13 +95,11 @@ class ClientExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createContext(imports: List<String>? = null): NodeKindContext {
-        return NodeKindContext(
+    private fun createContext(imports: List<String>? = null): NodeKindContext =
+        NodeKindContext(
             lang = Lang.kotlin,
             file = null,
             imports = imports,
         )
-    }
 }

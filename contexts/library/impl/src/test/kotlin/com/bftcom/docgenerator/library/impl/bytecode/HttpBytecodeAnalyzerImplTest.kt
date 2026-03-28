@@ -7,7 +7,9 @@ import java.nio.file.Path
 
 class HttpBytecodeAnalyzerImplTest {
     @Test
-    fun `analyzeJar - находит http kafka camel и строит callGraph`(@TempDir dir: Path) {
+    fun `analyzeJar - находит http kafka camel и строит callGraph`(
+        @TempDir dir: Path,
+    ) {
         val jar =
             TestJarUtils.writeJar(
                 dir.resolve("lib.jar"),
@@ -32,7 +34,9 @@ class HttpBytecodeAnalyzerImplTest {
     }
 
     @Test
-    fun `analyzeJar - non-jar file returns empty result`(@TempDir dir: Path) {
+    fun `analyzeJar - non-jar file returns empty result`(
+        @TempDir dir: Path,
+    ) {
         val file = dir.resolve("x.txt").toFile().apply { writeText("x") }
         val res = HttpBytecodeAnalyzerImpl().analyzeJar(file)
         assertThat(res.httpCallSites).isEmpty()
@@ -41,4 +45,3 @@ class HttpBytecodeAnalyzerImplTest {
         assertThat(res.methodSummaries).isEmpty()
     }
 }
-

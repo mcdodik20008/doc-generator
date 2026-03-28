@@ -35,7 +35,8 @@ class RewritingStep(
             )
         }
 
-        val rewritePrompt = """
+        val rewritePrompt =
+            """
             Переформулируй следующий запрос пользователя для лучшего поиска информации в технической документации и коде.
             
             ВАЖНО:
@@ -49,38 +50,40 @@ class RewritingStep(
             Оригинальный запрос: $originalQuery
             
             Переформулированный запрос:
-        """.trimIndent()
+            """.trimIndent()
 
-        val rewrittenQuery = try {
-            chatClient
-                .prompt()
-                .user(rewritePrompt)
-                .call()
-                .content()
-                ?.trim()
-                ?: originalQuery
-        } catch (e: Exception) {
-            log.warn("Ошибка при переформулировке запроса: {}", e.message)
-            originalQuery
-        }
+        val rewrittenQuery =
+            try {
+                chatClient
+                    .prompt()
+                    .user(rewritePrompt)
+                    .call()
+                    .content()
+                    ?.trim()
+                    ?: originalQuery
+            } catch (e: Exception) {
+                log.warn("Ошибка при переформулировке запроса: {}", e.message)
+                originalQuery
+            }
 
-        val updatedContext = if (rewrittenQuery != originalQuery) {
-            context
-                .updateQuery(rewrittenQuery)
-                .setMetadata(QueryMetadataKeys.REWRITTEN, true)
-                .setMetadata(QueryMetadataKeys.REWRITTEN_QUERY, rewrittenQuery)
-                .addStep(
-                    ProcessingStep(
-                        advisorName = "RewritingStep",
-                        input = originalQuery,
-                        output = rewrittenQuery,
-                        stepType = type,
-                        status = ProcessingStepStatus.SUCCESS,
-                    ),
-                )
-        } else {
-            context
-        }
+        val updatedContext =
+            if (rewrittenQuery != originalQuery) {
+                context
+                    .updateQuery(rewrittenQuery)
+                    .setMetadata(QueryMetadataKeys.REWRITTEN, true)
+                    .setMetadata(QueryMetadataKeys.REWRITTEN_QUERY, rewrittenQuery)
+                    .addStep(
+                        ProcessingStep(
+                            advisorName = "RewritingStep",
+                            input = originalQuery,
+                            output = rewrittenQuery,
+                            stepType = type,
+                            status = ProcessingStepStatus.SUCCESS,
+                        ),
+                    )
+            } else {
+                context
+            }
 
         // После переформулировки переходим к EXPANSION
         return StepResult(
@@ -89,9 +92,8 @@ class RewritingStep(
         )
     }
 
-    override fun getTransitions(): Map<String, ProcessingStepType> {
-        return linkedMapOf(
+    override fun getTransitions(): Map<String, ProcessingStepType> =
+        linkedMapOf(
             "SUCCESS" to ProcessingStepType.EXPANSION,
         )
-    }
 }

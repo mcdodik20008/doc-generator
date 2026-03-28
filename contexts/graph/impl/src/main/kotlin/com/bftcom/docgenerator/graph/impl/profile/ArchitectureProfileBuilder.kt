@@ -56,13 +56,20 @@ class ArchitectureProfileBuilder(
     /**
      * Сохраняет профиль как Chunk, привязанный к REPO-ноде приложения.
      */
-    fun persistAsChunk(application: Application, profileText: String) {
+    fun persistAsChunk(
+        application: Application,
+        profileText: String,
+    ) {
         val appId = application.id ?: return
         if (profileText.isBlank()) return
 
-        val repoNode = nodeRepo.findAllByApplicationIdAndKindIn(
-            appId, setOf(NodeKind.REPO), PageRequest.of(0, 1)
-        ).firstOrNull()
+        val repoNode =
+            nodeRepo
+                .findAllByApplicationIdAndKindIn(
+                    appId,
+                    setOf(NodeKind.REPO),
+                    PageRequest.of(0, 1),
+                ).firstOrNull()
 
         if (repoNode == null) {
             log.warn("No REPO node found for application {}, skipping profile persistence", appId)
@@ -88,13 +95,27 @@ class ArchitectureProfileBuilder(
         appendLine("## Состав системы")
         appendLine()
 
-        val relevantKinds = listOf(
-            NodeKind.MODULE, NodeKind.PACKAGE, NodeKind.CLASS, NodeKind.INTERFACE,
-            NodeKind.METHOD, NodeKind.ENDPOINT, NodeKind.SERVICE, NodeKind.CLIENT,
-            NodeKind.TOPIC, NodeKind.JOB, NodeKind.DB_TABLE, NodeKind.DB_VIEW,
-            NodeKind.INFRASTRUCTURE, NodeKind.CONFIG, NodeKind.EXCEPTION,
-            NodeKind.MAPPER, NodeKind.TEST, NodeKind.MIGRATION,
-        )
+        val relevantKinds =
+            listOf(
+                NodeKind.MODULE,
+                NodeKind.PACKAGE,
+                NodeKind.CLASS,
+                NodeKind.INTERFACE,
+                NodeKind.METHOD,
+                NodeKind.ENDPOINT,
+                NodeKind.SERVICE,
+                NodeKind.CLIENT,
+                NodeKind.TOPIC,
+                NodeKind.JOB,
+                NodeKind.DB_TABLE,
+                NodeKind.DB_VIEW,
+                NodeKind.INFRASTRUCTURE,
+                NodeKind.CONFIG,
+                NodeKind.EXCEPTION,
+                NodeKind.MAPPER,
+                NodeKind.TEST,
+                NodeKind.MIGRATION,
+            )
 
         for (kind in relevantKinds) {
             val count = nodesByKind[kind]?.size ?: 0
@@ -113,9 +134,10 @@ class ArchitectureProfileBuilder(
         for (ep in endpoints.take(50)) {
             val method = ep.meta["httpMethod"] ?: ""
             val path = ep.meta["path"] ?: ep.meta["url"] ?: ""
-            val label = listOfNotNull(method.toString().takeIf { it.isNotBlank() }, path.toString().takeIf { it.isNotBlank() })
-                .joinToString(" ")
-                .ifBlank { ep.name ?: ep.fqn }
+            val label =
+                listOfNotNull(method.toString().takeIf { it.isNotBlank() }, path.toString().takeIf { it.isNotBlank() })
+                    .joinToString(" ")
+                    .ifBlank { ep.name ?: ep.fqn }
             appendLine("- $label")
         }
         if (endpoints.size > 50) {
@@ -165,7 +187,10 @@ class ArchitectureProfileBuilder(
         }
     }
 
-    private fun StringBuilder.appendDataModel(nodesByKind: Map<NodeKind, List<Node>>, appId: Long) {
+    private fun StringBuilder.appendDataModel(
+        nodesByKind: Map<NodeKind, List<Node>>,
+        appId: Long,
+    ) {
         val tables = nodesByKind[NodeKind.DB_TABLE].orEmpty()
         val views = nodesByKind[NodeKind.DB_VIEW].orEmpty()
         if (tables.isEmpty() && views.isEmpty()) return
@@ -177,12 +202,14 @@ class ArchitectureProfileBuilder(
         val dataNodeIds = allDataNodes.mapNotNull { it.id }.toSet()
 
         // Находим кто читает/пишет в таблицы
-        val edges = if (dataNodeIds.isNotEmpty()) {
-            edgeRepo.findAllByDstIdIn(dataNodeIds)
-                .filter { it.kind in setOf(EdgeKind.READS, EdgeKind.WRITES) }
-        } else {
-            emptyList()
-        }
+        val edges =
+            if (dataNodeIds.isNotEmpty()) {
+                edgeRepo
+                    .findAllByDstIdIn(dataNodeIds)
+                    .filter { it.kind in setOf(EdgeKind.READS, EdgeKind.WRITES) }
+            } else {
+                emptyList()
+            }
 
         val accessMap = edges.groupBy { it.dst.id }
 
@@ -205,26 +232,39 @@ class ArchitectureProfileBuilder(
         appendLine()
     }
 
-    private fun StringBuilder.appendCrossCuttingPatterns(allNodes: List<Node>, appId: Long) {
+    private fun StringBuilder.appendCrossCuttingPatterns(
+        allNodes: List<Node>,
+        appId: Long,
+    ) {
         val nodeIds = allNodes.mapNotNull { it.id }.toSet()
         if (nodeIds.isEmpty()) return
 
-        val annotationEdges = edgeRepo.findAllBySrcIdIn(nodeIds)
-            .filter { it.kind == EdgeKind.ANNOTATED_WITH }
+        val annotationEdges =
+            edgeRepo
+                .findAllBySrcIdIn(nodeIds)
+                .filter { it.kind == EdgeKind.ANNOTATED_WITH }
 
         if (annotationEdges.isEmpty()) return
 
-        val interestingAnnotations = setOf(
-            "PreAuthorize", "Secured", "RolesAllowed",
-            "Transactional",
-            "Async",
-            "Cacheable", "CacheEvict", "CachePut",
-            "Scheduled", "Retryable", "CircuitBreaker",
-        )
+        val interestingAnnotations =
+            setOf(
+                "PreAuthorize",
+                "Secured",
+                "RolesAllowed",
+                "Transactional",
+                "Async",
+                "Cacheable",
+                "CacheEvict",
+                "CachePut",
+                "Scheduled",
+                "Retryable",
+                "CircuitBreaker",
+            )
 
-        val grouped = annotationEdges
-            .groupBy { it.dst.name ?: it.dst.fqn.substringAfterLast('.') }
-            .filter { (name, _) -> interestingAnnotations.any { ann -> name.contains(ann, ignoreCase = true) } }
+        val grouped =
+            annotationEdges
+                .groupBy { it.dst.name ?: it.dst.fqn.substringAfterLast('.') }
+                .filter { (name, _) -> interestingAnnotations.any { ann -> name.contains(ann, ignoreCase = true) } }
 
         if (grouped.isEmpty()) return
 

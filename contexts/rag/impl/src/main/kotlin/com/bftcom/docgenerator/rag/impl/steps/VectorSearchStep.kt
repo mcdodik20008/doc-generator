@@ -20,8 +20,10 @@ class VectorSearchStep(
 
     override fun execute(context: QueryProcessingContext): StepResult {
         val originalQuery = context.originalQuery
-        val rewrittenQuery = context.getMetadata<String>(QueryMetadataKeys.REWRITTEN_QUERY)
-            ?.takeIf { it.isNotBlank() && it != originalQuery }
+        val rewrittenQuery =
+            context
+                .getMetadata<String>(QueryMetadataKeys.REWRITTEN_QUERY)
+                ?.takeIf { it.isNotBlank() && it != originalQuery }
         val applicationId = context.getMetadata<Long>(QueryMetadataKeys.APPLICATION_ID)
 
         val results = mutableListOf<SearchResult>()
@@ -38,28 +40,34 @@ class VectorSearchStep(
         }
 
         val mergedResults = results.distinctBy { it.id }
-        val updatedContext = context
-            .setMetadata(QueryMetadataKeys.CHUNKS, mergedResults)
-            .addStep(
-                ProcessingStep(
-                    advisorName = "VectorSearchStep",
-                    input = rewrittenQuery ?: originalQuery,
-                    output = "Найдено чанков: ${mergedResults.size}",
-                    stepType = type,
-                    status = ProcessingStepStatus.SUCCESS,
-                ),
-            )
+        val updatedContext =
+            context
+                .setMetadata(QueryMetadataKeys.CHUNKS, mergedResults)
+                .addStep(
+                    ProcessingStep(
+                        advisorName = "VectorSearchStep",
+                        input = rewrittenQuery ?: originalQuery,
+                        output = "Найдено чанков: ${mergedResults.size}",
+                        stepType = type,
+                        status = ProcessingStepStatus.SUCCESS,
+                    ),
+                )
 
-        log.info("VECTOR_SEARCH: original='{}', rewritten='{}', hyde={}, chunks={}", originalQuery, rewrittenQuery, hypotheticalCode != null, mergedResults.size)
+        log.info(
+            "VECTOR_SEARCH: original='{}', rewritten='{}', hyde={}, chunks={}",
+            originalQuery,
+            rewrittenQuery,
+            hypotheticalCode != null,
+            mergedResults.size,
+        )
         return StepResult(
             context = updatedContext,
             transitionKey = "SUCCESS",
         )
     }
 
-    override fun getTransitions(): Map<String, ProcessingStepType> {
-        return linkedMapOf(
+    override fun getTransitions(): Map<String, ProcessingStepType> =
+        linkedMapOf(
             "SUCCESS" to ProcessingStepType.RERANKING,
         )
-    }
 }

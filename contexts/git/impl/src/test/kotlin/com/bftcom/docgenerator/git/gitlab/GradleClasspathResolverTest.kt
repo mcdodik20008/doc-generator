@@ -8,13 +8,17 @@ import java.nio.file.Path
 
 class GradleClasspathResolverTest {
     @Test
-    fun `resolveClasspath - возвращает empty если gradlew не найден`(@TempDir dir: Path) {
+    fun `resolveClasspath - возвращает empty если gradlew не найден`(
+        @TempDir dir: Path,
+    ) {
         val resolver = GradleClasspathResolver()
         assertThat(resolver.resolveClasspath(dir)).isEmpty()
     }
 
     @Test
-    fun `resolveClasspath - парсит CLASSPATH_ENTRY из gradlew bat`(@TempDir dir: Path) {
+    fun `resolveClasspath - парсит CLASSPATH_ENTRY из gradlew bat`(
+        @TempDir dir: Path,
+    ) {
         // создаём gradlew.bat (на Windows это и будет выбранный файл)
         val gradlew = dir.resolve("gradlew.bat")
 
@@ -43,4 +47,3 @@ class GradleClasspathResolverTest {
         )
     }
 }
-

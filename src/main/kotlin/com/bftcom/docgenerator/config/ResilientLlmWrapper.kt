@@ -42,30 +42,36 @@ class ResilientLlmWrapper(
         fallback: T,
         operation: () -> T,
     ): T {
-        val decoratedSupplier = Bulkhead.decorateSupplier(bulkhead,
-            CircuitBreaker.decorateSupplier(circuitBreaker,
-                Retry.decorateSupplier(retry, Supplier { operation() })
+        val decoratedSupplier =
+            Bulkhead.decorateSupplier(
+                bulkhead,
+                CircuitBreaker.decorateSupplier(
+                    circuitBreaker,
+                    Retry.decorateSupplier(retry, Supplier { operation() }),
+                ),
             )
-        )
 
         return try {
             decoratedSupplier.get()
         } catch (e: CallNotPermittedException) {
             log.warn(
                 "Circuit breaker OPEN for operation '{}'. State: {}. Returning fallback.",
-                operationName, circuitBreaker.state
+                operationName,
+                circuitBreaker.state,
             )
             fallback
         } catch (e: io.github.resilience4j.bulkhead.BulkheadFullException) {
             log.warn(
                 "Bulkhead full for operation '{}'. Max concurrent calls reached. Returning fallback.",
-                operationName
+                operationName,
             )
             fallback
         } catch (e: Exception) {
             log.error(
                 "LLM call '{}' failed after retries. Circuit state: {}. Error: {}",
-                operationName, circuitBreaker.state, e.message
+                operationName,
+                circuitBreaker.state,
+                e.message,
             )
             fallback
         }
@@ -74,9 +80,10 @@ class ResilientLlmWrapper(
     /**
      * Execute a string-returning LLM call with empty string fallback.
      */
-    override fun executeString(operationName: String, operation: () -> String): String {
-        return execute(operationName, "", operation)
-    }
+    override fun executeString(
+        operationName: String,
+        operation: () -> String,
+    ): String = execute(operationName, "", operation)
 
     /**
      * Get current circuit breaker state.

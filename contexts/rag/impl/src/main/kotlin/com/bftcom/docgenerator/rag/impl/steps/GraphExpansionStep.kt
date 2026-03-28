@@ -24,28 +24,32 @@ class GraphExpansionStep(
     override val type: ProcessingStepType = ProcessingStepType.GRAPH_EXPANSION
 
     override fun execute(context: QueryProcessingContext): StepResult {
-        val exactNodes = context.getMetadata<List<*>>(QueryMetadataKeys.EXACT_NODES)
-            ?.filterIsInstance<Node>()
-            .orEmpty()
+        val exactNodes =
+            context
+                .getMetadata<List<*>>(QueryMetadataKeys.EXACT_NODES)
+                ?.filterIsInstance<Node>()
+                .orEmpty()
 
         if (exactNodes.isEmpty()) {
-            val updatedContext = context.addStep(
-                ProcessingStep(
-                    advisorName = "GraphExpansionStep",
-                    input = context.currentQuery,
-                    output = "Нет точных узлов для расширения, переходим к VECTOR_SEARCH",
-                    stepType = type,
-                    status = ProcessingStepStatus.SUCCESS,
-                ),
-            )
+            val updatedContext =
+                context.addStep(
+                    ProcessingStep(
+                        advisorName = "GraphExpansionStep",
+                        input = context.currentQuery,
+                        output = "Нет точных узлов для расширения, переходим к VECTOR_SEARCH",
+                        stepType = type,
+                        status = ProcessingStepStatus.SUCCESS,
+                    ),
+                )
             return StepResult(
                 context = updatedContext,
                 transitionKey = "NO_NODES",
             )
         }
 
-        val radius = (context.getMetadata<Int>(QueryMetadataKeys.NEIGHBOR_EXPANSION_RADIUS) ?: 1)
-            .coerceIn(1, 2)
+        val radius =
+            (context.getMetadata<Int>(QueryMetadataKeys.NEIGHBOR_EXPANSION_RADIUS) ?: 1)
+                .coerceIn(1, 2)
 
         val seedIds = exactNodes.mapNotNull { it.id }.toSet()
         val visitedIds = seedIds.toMutableSet()
@@ -63,25 +67,27 @@ class GraphExpansionStep(
         }
 
         val neighborIds = (visitedIds - seedIds)
-        val neighborNodes = if (neighborIds.isNotEmpty()) {
-            nodeRepository.findAllByIdInBatched(neighborIds)
-        } else {
-            emptyList()
-        }
+        val neighborNodes =
+            if (neighborIds.isNotEmpty()) {
+                nodeRepository.findAllByIdInBatched(neighborIds)
+            } else {
+                emptyList()
+            }
 
         val graphText = buildGraphRelationsText(collectedEdges, exactNodes, neighborNodes)
-        val updatedContext = context
-            .setMetadata(QueryMetadataKeys.NEIGHBOR_NODES, neighborNodes)
-            .setMetadata(QueryMetadataKeys.GRAPH_RELATIONS_TEXT, graphText)
-            .addStep(
-                ProcessingStep(
-                    advisorName = "GraphExpansionStep",
-                    input = context.currentQuery,
-                    output = "Ребер: ${collectedEdges.size}, соседних узлов: ${neighborNodes.size}",
-                    stepType = type,
-                    status = ProcessingStepStatus.SUCCESS,
-                ),
-            )
+        val updatedContext =
+            context
+                .setMetadata(QueryMetadataKeys.NEIGHBOR_NODES, neighborNodes)
+                .setMetadata(QueryMetadataKeys.GRAPH_RELATIONS_TEXT, graphText)
+                .addStep(
+                    ProcessingStep(
+                        advisorName = "GraphExpansionStep",
+                        input = context.currentQuery,
+                        output = "Ребер: ${collectedEdges.size}, соседних узлов: ${neighborNodes.size}",
+                        stepType = type,
+                        status = ProcessingStepStatus.SUCCESS,
+                    ),
+                )
 
         log.info("GRAPH_EXPANSION: edges={}, neighbors={}", collectedEdges.size, neighborNodes.size)
         return StepResult(
@@ -108,17 +114,18 @@ class GraphExpansionStep(
         }
 
         val allNodes = (exactNodes + neighborNodes).associateBy { it.id }
-        val lines = edges.mapNotNull { edge ->
-            val srcId = edge.src.id
-            val dstId = edge.dst.id
-            val srcLabel = nodeLabel(allNodes[srcId], srcId)
-            val dstLabel = nodeLabel(allNodes[dstId], dstId)
-            if (srcLabel.isBlank() || dstLabel.isBlank()) {
-                null
-            } else {
-                "- [$srcLabel] ${relationVerb(edge.kind)} [$dstLabel] (Тип: ${edge.kind})"
+        val lines =
+            edges.mapNotNull { edge ->
+                val srcId = edge.src.id
+                val dstId = edge.dst.id
+                val srcLabel = nodeLabel(allNodes[srcId], srcId)
+                val dstLabel = nodeLabel(allNodes[dstId], dstId)
+                if (srcLabel.isBlank() || dstLabel.isBlank()) {
+                    null
+                } else {
+                    "- [$srcLabel] ${relationVerb(edge.kind)} [$dstLabel] (Тип: ${edge.kind})"
+                }
             }
-        }
 
         if (lines.isEmpty()) {
             return ""
@@ -130,7 +137,10 @@ class GraphExpansionStep(
         }
     }
 
-    private fun nodeLabel(node: Node?, fallbackId: Long?): String {
+    private fun nodeLabel(
+        node: Node?,
+        fallbackId: Long?,
+    ): String {
         if (node == null) {
             return fallbackId?.let { "Node#$it" } ?: ""
         }
@@ -143,8 +153,8 @@ class GraphExpansionStep(
         }
     }
 
-    private fun relationVerb(kind: EdgeKind): String {
-        return when (kind) {
+    private fun relationVerb(kind: EdgeKind): String =
+        when (kind) {
             EdgeKind.CALLS_CODE -> "вызывает"
             EdgeKind.DEPENDS_ON -> "зависит от"
             EdgeKind.IMPLEMENTS -> "реализует"
@@ -152,22 +162,21 @@ class GraphExpansionStep(
             EdgeKind.WRITES -> "пишет в"
             else -> "связан с"
         }
-    }
 
-    override fun getTransitions(): Map<String, ProcessingStepType> {
-        return linkedMapOf(
+    override fun getTransitions(): Map<String, ProcessingStepType> =
+        linkedMapOf(
             "SUCCESS" to ProcessingStepType.VECTOR_SEARCH,
             "NO_NODES" to ProcessingStepType.VECTOR_SEARCH,
         )
-    }
 
     companion object {
-        private val ALLOWED_EDGE_KINDS = setOf(
-            EdgeKind.CALLS_CODE,
-            EdgeKind.DEPENDS_ON,
-            EdgeKind.IMPLEMENTS,
-            EdgeKind.READS,
-            EdgeKind.WRITES,
-        )
+        private val ALLOWED_EDGE_KINDS =
+            setOf(
+                EdgeKind.CALLS_CODE,
+                EdgeKind.DEPENDS_ON,
+                EdgeKind.IMPLEMENTS,
+                EdgeKind.READS,
+                EdgeKind.WRITES,
+            )
     }
 }

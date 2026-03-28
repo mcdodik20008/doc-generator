@@ -6,4 +6,3 @@ data class NodeDocId(
     var node: Long? = null,
     var locale: String? = null,
 ) : Serializable
-

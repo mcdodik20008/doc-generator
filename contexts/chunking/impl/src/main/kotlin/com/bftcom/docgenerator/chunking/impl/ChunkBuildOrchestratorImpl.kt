@@ -41,8 +41,9 @@ class ChunkBuildOrchestratorImpl(
         require(req.applicationId > 0) { "applicationId must be positive, got ${req.applicationId}" }
         require(req.strategy.isNotBlank()) { "strategy must not be blank" }
 
-        val strategy = strategies[req.strategy]
-            ?: throw IllegalArgumentException("Unknown chunk strategy: '${req.strategy}'. Available: ${strategies.keys}")
+        val strategy =
+            strategies[req.strategy]
+                ?: throw IllegalArgumentException("Unknown chunk strategy: '${req.strategy}'. Available: ${strategies.keys}")
         val run = runStore.create(req.applicationId, req.strategy)
 
         MDC.put("runId", run.runId)
@@ -103,16 +104,18 @@ class ChunkBuildOrchestratorImpl(
                 )
 
                 // Чтобы не ловить N+1 — читаем рёбра батчем для всех узлов страницы:
-                val edgesBySrc = if (req.withEdgesRelations) {
-                    val ids = nodes.mapNotNull { it.id }
-                    // findAllBySrcIdIn обычно сам отлично обрабатывает пустой список,
-                    // но groupBy на пустом списке тоже выдаст пустую карту.
-                    edgeRepo.findAllBySrcIdIn(ids)
-                        .mapNotNull { e -> e.src.id?.let { id -> id to e } }
-                        .groupBy({ it.first }, { it.second })
-                } else {
-                    emptyMap()
-                }
+                val edgesBySrc =
+                    if (req.withEdgesRelations) {
+                        val ids = nodes.mapNotNull { it.id }
+                        // findAllBySrcIdIn обычно сам отлично обрабатывает пустой список,
+                        // но groupBy на пустом списке тоже выдаст пустую карту.
+                        edgeRepo
+                            .findAllBySrcIdIn(ids)
+                            .mapNotNull { e -> e.src.id?.let { id -> id to e } }
+                            .groupBy({ it.first }, { it.second })
+                    } else {
+                        emptyMap()
+                    }
 
                 // Строим планы и сохраняем пачками (на узел несколько планов ок):
                 val plansBuffer = mutableListOf<ChunkPlan>()

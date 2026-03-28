@@ -112,18 +112,19 @@ class BytecodeParserImpl : BytecodeParser {
 
     companion object {
         /** Аннотации, для которых извлекаем параметры */
-        private val ANNOTATIONS_WITH_PARAMS = setOf(
-            "org.springframework.cloud.openfeign.FeignClient",
-            "org.springframework.boot.context.properties.ConfigurationProperties",
-            "org.springframework.web.bind.annotation.RequestMapping",
-            "org.springframework.beans.factory.annotation.Value",
-            "org.springframework.web.bind.annotation.GetMapping",
-            "org.springframework.web.bind.annotation.PostMapping",
-            "org.springframework.web.bind.annotation.PutMapping",
-            "org.springframework.web.bind.annotation.DeleteMapping",
-            "org.springframework.web.bind.annotation.PatchMapping",
-            "org.springframework.kafka.annotation.KafkaListener",
-        )
+        private val ANNOTATIONS_WITH_PARAMS =
+            setOf(
+                "org.springframework.cloud.openfeign.FeignClient",
+                "org.springframework.boot.context.properties.ConfigurationProperties",
+                "org.springframework.web.bind.annotation.RequestMapping",
+                "org.springframework.beans.factory.annotation.Value",
+                "org.springframework.web.bind.annotation.GetMapping",
+                "org.springframework.web.bind.annotation.PostMapping",
+                "org.springframework.web.bind.annotation.PutMapping",
+                "org.springframework.web.bind.annotation.DeleteMapping",
+                "org.springframework.web.bind.annotation.PatchMapping",
+                "org.springframework.kafka.annotation.KafkaListener",
+            )
     }
 
     /**
@@ -135,7 +136,10 @@ class BytecodeParserImpl : BytecodeParser {
     ) : AnnotationVisitor(Opcodes.ASM9) {
         private val params = mutableMapOf<String, Any>()
 
-        override fun visit(name: String?, value: Any?) {
+        override fun visit(
+            name: String?,
+            value: Any?,
+        ) {
             if (name != null && value != null) {
                 params[name] = value
             }
@@ -147,7 +151,11 @@ class BytecodeParserImpl : BytecodeParser {
             return ArrayCollector(list)
         }
 
-        override fun visitEnum(name: String?, descriptor: String?, value: String?) {
+        override fun visitEnum(
+            name: String?,
+            descriptor: String?,
+            value: String?,
+        ) {
             if (name != null && value != null) {
                 params[name] = value
             }
@@ -166,11 +174,18 @@ class BytecodeParserImpl : BytecodeParser {
     private class ArrayCollector(
         private val list: MutableList<Any>,
     ) : AnnotationVisitor(Opcodes.ASM9) {
-        override fun visit(name: String?, value: Any?) {
+        override fun visit(
+            name: String?,
+            value: Any?,
+        ) {
             if (value != null) list.add(value)
         }
 
-        override fun visitEnum(name: String?, descriptor: String?, value: String?) {
+        override fun visitEnum(
+            name: String?,
+            descriptor: String?,
+            value: String?,
+        ) {
             if (value != null) list.add(value)
         }
     }
@@ -302,7 +317,10 @@ class BytecodeParserImpl : BytecodeParser {
 
             // Возвращаем FieldVisitor для сбора аннотаций полей
             return object : FieldVisitor(Opcodes.ASM9) {
-                override fun visitAnnotation(descriptor: String, visible: Boolean): AnnotationVisitor? {
+                override fun visitAnnotation(
+                    descriptor: String,
+                    visible: Boolean,
+                ): AnnotationVisitor? {
                     val annotationFqn = Type.getType(descriptor).className
                     fieldAnnotations.add(annotationFqn)
 
@@ -381,7 +399,10 @@ class BytecodeParserImpl : BytecodeParser {
             val methodAnnotationParams = mutableMapOf<String, Map<String, Any>>()
 
             return object : MethodVisitor(Opcodes.ASM9) {
-                override fun visitAnnotation(descriptor: String, visible: Boolean): AnnotationVisitor? {
+                override fun visitAnnotation(
+                    descriptor: String,
+                    visible: Boolean,
+                ): AnnotationVisitor? {
                     val annotationFqn = Type.getType(descriptor).className
                     methodAnnotations.add(annotationFqn)
 

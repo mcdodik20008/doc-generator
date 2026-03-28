@@ -8,7 +8,6 @@ import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.library.Library
 import com.bftcom.docgenerator.domain.library.LibraryNode
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.linker.detector.EdgeProposal
 import com.bftcom.docgenerator.graph.api.linker.sink.GraphSink
 import com.bftcom.docgenerator.graph.api.linker.sink.LibraryNodeEdgeProposal
@@ -20,6 +19,7 @@ import com.bftcom.docgenerator.graph.impl.linker.edge.IntegrationEdgeLinker
 import com.bftcom.docgenerator.graph.impl.linker.edge.SignatureDependencyLinker
 import com.bftcom.docgenerator.graph.impl.linker.edge.StructuralEdgeLinker
 import com.bftcom.docgenerator.graph.impl.linker.edge.ThrowEdgeLinker
+import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.mockk.every
@@ -238,4 +238,3 @@ class GraphLinkerImplTest {
         @Suppress("UNCHECKED_CAST")
         (objectMapper.convertValue(meta, Map::class.java) as Map<String, Any>)
 }
-

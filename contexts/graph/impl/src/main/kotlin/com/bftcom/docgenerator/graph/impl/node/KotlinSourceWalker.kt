@@ -1,6 +1,5 @@
 package com.bftcom.docgenerator.graph.impl.node
 
-import com.bftcom.docgenerator.shared.node.RawUsage
 import com.bftcom.docgenerator.graph.api.model.RawAttrKey
 import com.bftcom.docgenerator.graph.api.model.rawdecl.LineSpan
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawField
@@ -11,6 +10,7 @@ import com.bftcom.docgenerator.graph.api.model.rawdecl.SrcLang
 import com.bftcom.docgenerator.graph.api.node.KDocFetcher
 import com.bftcom.docgenerator.graph.api.node.SourceVisitor
 import com.bftcom.docgenerator.graph.api.node.SourceWalker
+import com.bftcom.docgenerator.shared.node.RawUsage
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
@@ -161,15 +161,22 @@ class KotlinSourceWalker(
 
             val kindRepr =
                 when (decl) {
-                    is KtObjectDeclaration -> "object"
-                    is KtClass ->
+                    is KtObjectDeclaration -> {
+                        "object"
+                    }
+
+                    is KtClass -> {
                         when {
                             decl.isEnum() -> "enum"
                             decl.isInterface() -> "interface"
                             decl.isData() -> "record"
                             else -> "class"
                         }
-                    else -> "class"
+                    }
+
+                    else -> {
+                        "class"
+                    }
                 }
 
             val fqn = listOfNotNull(pkgFqn, name).joinToString(".")
@@ -266,9 +273,13 @@ class KotlinSourceWalker(
                         name = funDecl.name ?: return@forEach,
                         signatureRepr = fsig,
                         paramNames = funDecl.valueParameters.map { it.name ?: "_" },
-                        paramTypeNames = funDecl.valueParameters.mapNotNull {
-                            it.typeReference?.text?.substringBefore('<')?.substringAfterLast('.')
-                        },
+                        paramTypeNames =
+                            funDecl.valueParameters.mapNotNull {
+                                it.typeReference
+                                    ?.text
+                                    ?.substringBefore('<')
+                                    ?.substringAfterLast('.')
+                            },
                         annotationsRepr = annotationsFun,
                         rawUsages = rawUsages,
                         throwsRepr = throwsRepr,
@@ -319,9 +330,13 @@ class KotlinSourceWalker(
                     name = funDecl.name ?: return@forEach,
                     signatureRepr = sig,
                     paramNames = funDecl.valueParameters.map { it.name ?: "_" },
-                    paramTypeNames = funDecl.valueParameters.mapNotNull {
-                        it.typeReference?.text?.substringBefore('<')?.substringAfterLast('.')
-                    },
+                    paramTypeNames =
+                        funDecl.valueParameters.mapNotNull {
+                            it.typeReference
+                                ?.text
+                                ?.substringBefore('<')
+                                ?.substringAfterLast('.')
+                        },
                     annotationsRepr = annotations,
                     rawUsages = rawUsages,
                     throwsRepr = throwsRepr,
@@ -419,8 +434,11 @@ class KotlinSourceWalker(
         var i = start
         while (i < text.length) {
             when (text[i]) {
-                ' ', '\t', '\r', '\n' -> i++
-                '/' ->
+                ' ', '\t', '\r', '\n' -> {
+                    i++
+                }
+
+                '/' -> {
                     if (i + 1 < text.length) {
                         val n = text[i + 1]
                         if (n == '/') {
@@ -436,7 +454,11 @@ class KotlinSourceWalker(
                     } else {
                         return i
                     }
-                else -> return i
+                }
+
+                else -> {
+                    return i
+                }
             }
         }
         return i
@@ -571,10 +593,14 @@ class KotlinSourceWalker(
             object : KtTreeVisitorVoid() {
                 override fun visitThrowExpression(expression: KtThrowExpression) {
                     when (val thrown = expression.thrownExpression) {
-                        is KtNameReferenceExpression ->
+                        is KtNameReferenceExpression -> {
                             throwsTypes.add(thrown.getReferencedName())
-                        is KtCallExpression ->
+                        }
+
+                        is KtCallExpression -> {
                             thrown.calleeExpression?.text?.let { throwsTypes.add(it) }
+                        }
+
                         is KtDotQualifiedExpression -> {
                             val receiver = thrown.receiverExpression.text
                             val selector = thrown.selectorExpression
@@ -590,6 +616,7 @@ class KotlinSourceWalker(
                                 throwsTypes.add(typeName)
                             }
                         }
+
                         else -> {
                             thrown?.text?.let { text ->
                                 val typeMatch = """\b([A-Z][A-Za-z0-9_]*)\b""".toRegex().find(text)

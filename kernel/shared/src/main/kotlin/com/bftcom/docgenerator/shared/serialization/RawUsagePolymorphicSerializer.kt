@@ -19,6 +19,7 @@ class RawUsagePolymorphicSerializer : JsonSerializer<RawUsage>() {
                 gen.writeStringField("member", value.member)
                 gen.writeBooleanField("isCall", value.isCall)
             }
+
             is RawUsage.Simple -> {
                 gen.writeStringField("@type", "simple")
                 gen.writeStringField("name", value.name)

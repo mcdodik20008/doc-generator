@@ -11,19 +11,19 @@ import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 
 class ExpansionStepTest {
-
     private val synonymRepo = mockk<SynonymDictionaryRepository>()
     private val embeddingClient = mockk<EmbeddingClient>()
 
     private val topK = 3
     private val threshold = 0.7
 
-    private val step = ExpansionStep(
-        synonymRepo = synonymRepo,
-        embeddingClient = embeddingClient,
-        topK = topK,
-        similarityThreshold = threshold
-    )
+    private val step =
+        ExpansionStep(
+            synonymRepo = synonymRepo,
+            embeddingClient = embeddingClient,
+            topK = topK,
+            similarityThreshold = threshold,
+        )
 
     private val query = "Как настроить авторизацию?"
     private val mockVector = floatArrayOf(0.1f, 0.2f)
@@ -82,8 +82,9 @@ class ExpansionStepTest {
     @DisplayName("Пропуск шага: если в контексте уже стоит флаг EXPANDED")
     fun `execute - skips if already expanded`() {
         // Arrange
-        val context = QueryProcessingContext(query, query, "sid-1")
-            .setMetadata(QueryMetadataKeys.EXPANDED, true)
+        val context =
+            QueryProcessingContext(query, query, "sid-1")
+                .setMetadata(QueryMetadataKeys.EXPANDED, true)
 
         // Act
         val result = step.execute(context)
@@ -132,13 +133,16 @@ class ExpansionStepTest {
     }
 
     // Вспомогательный метод для генерации мока интерфейса проекции
-    private fun createMockSynonym(id: Long, term: String, desc: String): SynonymDictionaryRepository.SynonymWithSimilarity {
-        return mockk {
+    private fun createMockSynonym(
+        id: Long,
+        term: String,
+        desc: String,
+    ): SynonymDictionaryRepository.SynonymWithSimilarity =
+        mockk {
             every { getId() } returns id
             every { getTerm() } returns term
             every { getDescription() } returns desc
             every { getSourceNodeId() } returns 100L
             every { getModelName() } returns "test-model"
         }
-    }
 }

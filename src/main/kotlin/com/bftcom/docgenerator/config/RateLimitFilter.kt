@@ -33,7 +33,6 @@ class RateLimitFilter(
     private val redisTemplate: ReactiveStringRedisTemplate,
     @Value("\${docgen.rate-limit.enabled:true}") private val rateLimitEnabled: Boolean,
 ) : WebFilter {
-
     private val log = LoggerFactory.getLogger(javaClass)
 
     companion object {
@@ -43,21 +42,26 @@ class RateLimitFilter(
         private const val MUTATION_LIMIT = 10
 
         // High-load endpoints (CPU/memory intensive)
-        private val HIGH_LOAD_PATHS = setOf(
-            "/api/rag/ask",
-            "/api/embedding/search",
-            "/api/embedding/documents"
-        )
+        private val HIGH_LOAD_PATHS =
+            setOf(
+                "/api/rag/ask",
+                "/api/embedding/search",
+                "/api/embedding/documents",
+            )
 
         // Mutation endpoints (write operations)
-        private val MUTATION_PATHS = setOf(
-            "/api/ingest/reindex",
-            "/api/ingest/start",
-            "/api/embedding/clear-postprocess"
-        )
+        private val MUTATION_PATHS =
+            setOf(
+                "/api/ingest/reindex",
+                "/api/ingest/start",
+                "/api/embedding/clear-postprocess",
+            )
     }
 
-    override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
+    override fun filter(
+        exchange: ServerWebExchange,
+        chain: WebFilterChain,
+    ): Mono<Void> {
         if (!rateLimitEnabled) {
             return chain.filter(exchange)
         }
@@ -69,7 +73,8 @@ class RateLimitFilter(
             return chain.filter(exchange)
         }
 
-        return ReactiveSecurityContextHolder.getContext()
+        return ReactiveSecurityContextHolder
+            .getContext()
             .map { it.authentication?.name ?: "anonymous" }
             .defaultIfEmpty("anonymous")
             .flatMap { userId ->
@@ -95,7 +100,10 @@ class RateLimitFilter(
      * Check if request is within rate limit using Redis.
      * Uses sliding window counter approach with sorted sets.
      */
-    private fun checkRateLimit(key: String, limit: Int): Mono<Boolean> {
+    private fun checkRateLimit(
+        key: String,
+        limit: Int,
+    ): Mono<Boolean> {
         val now = System.currentTimeMillis()
         val windowStart = now - Duration.ofMinutes(1).toMillis()
 
@@ -104,12 +112,14 @@ class RateLimitFilter(
         val oldRange = Range.closed(0.0, windowStart.toDouble())
 
         // Remove old entries and count current window
-        return zSetOps.removeRangeByScore(key, oldRange)
+        return zSetOps
+            .removeRangeByScore(key, oldRange)
             .then(zSetOps.count(key, windowRange))
             .flatMap { count ->
                 if (count != null && count < limit) {
                     // Add current request timestamp
-                    zSetOps.add(key, now.toString(), now.toDouble())
+                    zSetOps
+                        .add(key, now.toString(), now.toDouble())
                         .then(redisTemplate.expire(key, Duration.ofMinutes(2)))
                         .thenReturn(true)
                 } else if (count == null || count >= limit) {
@@ -117,8 +127,7 @@ class RateLimitFilter(
                 } else {
                     Mono.just(true)
                 }
-            }
-            .onErrorResume { error ->
+            }.onErrorResume { error ->
                 // On Redis error, allow the request (fail open)
                 log.error("Rate limit check failed for key '{}': {}", key, error.message)
                 Mono.just(true)
@@ -128,11 +137,10 @@ class RateLimitFilter(
     /**
      * Determine rate limit based on endpoint path.
      */
-    private fun determineLimit(path: String): Int {
-        return when {
+    private fun determineLimit(path: String): Int =
+        when {
             MUTATION_PATHS.any { path.startsWith(it) } -> MUTATION_LIMIT
             HIGH_LOAD_PATHS.any { path.startsWith(it) } -> HIGH_LOAD_LIMIT
             else -> DEFAULT_LIMIT
         }
-    }
 }

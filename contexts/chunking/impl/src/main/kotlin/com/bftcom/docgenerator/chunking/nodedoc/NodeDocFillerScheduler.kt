@@ -50,7 +50,10 @@ class NodeDocFillerScheduler(
         }
     }
 
-    internal fun processBatch(label: String, batch: List<Node>) {
+    internal fun processBatch(
+        label: String,
+        batch: List<Node>,
+    ) {
         var success = 0
         var failed = 0
 

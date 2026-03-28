@@ -8,35 +8,37 @@ import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
-import java.util.Optional
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
+import java.util.Optional
 
 class ChangeImpactServiceTest {
-
     private val edgeRepository: EdgeRepository = mock()
     private val nodeRepository: NodeRepository = mock()
     private val changeImpactService = ChangeImpactService(edgeRepository, nodeRepository)
 
     // Helper to create mocked nodes
-    private fun createNode(id: Long, fqn: String): Node {
+    private fun createNode(
+        id: Long,
+        fqn: String,
+    ): Node {
         val app =
-                Application(
-                        id = 1L,
-                        key = "test-app",
-                        name = "test-app",
-                        defaultBranch = "main",
-                        repoUrl = "http"
-                )
+            Application(
+                id = 1L,
+                key = "test-app",
+                name = "test-app",
+                defaultBranch = "main",
+                repoUrl = "http",
+            )
         return Node(
-                id = id,
-                application = app,
-                fqn = fqn,
-                name = fqn.substringAfterLast("."),
-                kind = NodeKind.CLASS,
-                lang = Lang.kotlin
+            id = id,
+            application = app,
+            fqn = fqn,
+            name = fqn.substringAfterLast("."),
+            kind = NodeKind.CLASS,
+            lang = Lang.kotlin,
         )
     }
 

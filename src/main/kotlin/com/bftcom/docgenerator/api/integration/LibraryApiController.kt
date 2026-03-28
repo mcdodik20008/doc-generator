@@ -11,8 +11,10 @@ class LibraryApiController(
     private val libraryRepository: LibraryRepository,
 ) {
     @GetMapping
-    fun list(): List<LibraryBrief> =
-        libraryRepository.findAll().map { LibraryBrief(it.id!!, it.coordinate) }
+    fun list(): List<LibraryBrief> = libraryRepository.findAll().map { LibraryBrief(it.id!!, it.coordinate) }
 
-    data class LibraryBrief(val id: Long, val coordinate: String)
+    data class LibraryBrief(
+        val id: Long,
+        val coordinate: String,
+    )
 }

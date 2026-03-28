@@ -16,7 +16,7 @@ repositories {
 
 dependencies {
     api(platform("org.springframework.ai:spring-ai-bom:1.0.3"))
-    
+
     implementation(projects.kernel.domain)
 
     implementation("org.springframework.ai:spring-ai-starter-model-ollama")

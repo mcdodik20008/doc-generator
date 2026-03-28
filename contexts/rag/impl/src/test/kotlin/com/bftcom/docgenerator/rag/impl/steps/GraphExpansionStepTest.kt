@@ -24,22 +24,24 @@ class GraphExpansionStepTest {
     @Test
     fun `execute - находит соседей и формирует текст связей`() {
         val app = Application(id = 1L, key = "app", name = "App")
-        val seed = Node(
-            id = 100L,
-            application = app,
-            fqn = "com.example.UserService.getUser",
-            name = "getUser",
-            kind = NodeKind.METHOD,
-            lang = Lang.kotlin,
-        )
-        val neighbor = Node(
-            id = 200L,
-            application = app,
-            fqn = "com.example.UserRepository.find",
-            name = "find",
-            kind = NodeKind.METHOD,
-            lang = Lang.kotlin,
-        )
+        val seed =
+            Node(
+                id = 100L,
+                application = app,
+                fqn = "com.example.UserService.getUser",
+                name = "getUser",
+                kind = NodeKind.METHOD,
+                lang = Lang.kotlin,
+            )
+        val neighbor =
+            Node(
+                id = 200L,
+                application = app,
+                fqn = "com.example.UserRepository.find",
+                name = "find",
+                kind = NodeKind.METHOD,
+                lang = Lang.kotlin,
+            )
 
         val edge = Edge(src = seed, dst = neighbor, kind = EdgeKind.CALLS_CODE)
 
@@ -47,11 +49,12 @@ class GraphExpansionStepTest {
         every { edgeRepository.findAllByDstIdIn(setOf(100L)) } returns emptyList()
         every { nodeRepository.findAllByIdIn(setOf(200L)) } returns listOf(neighbor)
 
-        val context = QueryProcessingContext(
-            originalQuery = "getUser",
-            currentQuery = "getUser",
-            sessionId = "s-1",
-        ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(seed))
+        val context =
+            QueryProcessingContext(
+                originalQuery = "getUser",
+                currentQuery = "getUser",
+                sessionId = "s-1",
+            ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(seed))
 
         val result = step.execute(context)
 
@@ -64,11 +67,12 @@ class GraphExpansionStepTest {
 
     @Test
     fun `execute - пропускает если нет EXACT_NODES`() {
-        val context = QueryProcessingContext(
-            originalQuery = "test",
-            currentQuery = "test",
-            sessionId = "s-1",
-        )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "test",
+                currentQuery = "test",
+                sessionId = "s-1",
+            )
 
         val result = step.execute(context)
 
@@ -79,14 +83,15 @@ class GraphExpansionStepTest {
     @Test
     fun `execute - фильтрует только важные типы ребер`() {
         val app = Application(id = 1L, key = "app", name = "App")
-        val seed = Node(
-            id = 100L,
-            application = app,
-            fqn = "com.example.UserService",
-            name = "UserService",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        val seed =
+            Node(
+                id = 100L,
+                application = app,
+                fqn = "com.example.UserService",
+                name = "UserService",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
 
         val importantEdge = Edge(src = seed, dst = seed, kind = EdgeKind.CALLS_CODE)
         val unimportantEdge = Edge(src = seed, dst = seed, kind = EdgeKind.CONTAINS)
@@ -95,11 +100,12 @@ class GraphExpansionStepTest {
         every { edgeRepository.findAllByDstIdIn(setOf(100L)) } returns emptyList()
         every { nodeRepository.findAllByIdIn(any()) } returns emptyList()
 
-        val context = QueryProcessingContext(
-            originalQuery = "UserService",
-            currentQuery = "UserService",
-            sessionId = "s-1",
-        ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(seed))
+        val context =
+            QueryProcessingContext(
+                originalQuery = "UserService",
+                currentQuery = "UserService",
+                sessionId = "s-1",
+            ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(seed))
 
         val result = step.execute(context)
 

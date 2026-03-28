@@ -36,12 +36,11 @@ class RememberFileUnitHandlerTest {
         }.doesNotThrowAnyException()
     }
 
-    private fun createRawFileUnit(): RawFileUnit {
-        return RawFileUnit(
+    private fun createRawFileUnit(): RawFileUnit =
+        RawFileUnit(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = "com.example",
             imports = emptyList(),
         )
-    }
 }

@@ -17,7 +17,10 @@ class OllamaCoderClient(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    fun generate(context: String, systemPrompt: String): String {
+    fun generate(
+        context: String,
+        systemPrompt: String,
+    ): String {
         require(context.isNotBlank()) { "Context cannot be blank" }
         require(systemPrompt.isNotBlank()) { "System prompt cannot be blank" }
 

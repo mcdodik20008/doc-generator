@@ -4,13 +4,13 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 class IntegrationDetectorTest {
-
     @Test
     fun `detects HTTP integration from url property with URL value`() {
-        val props = mapOf(
-            "rr.ups-client.api-url" to "\${UPS_SERVICE_API_URL:https://k8s.supercode.ru:3300/bpm/user-profile-service}",
-            "rr.ups-client.timeout" to "5000",
-        )
+        val props =
+            mapOf(
+                "rr.ups-client.api-url" to "\${UPS_SERVICE_API_URL:https://k8s.supercode.ru:3300/bpm/user-profile-service}",
+                "rr.ups-client.timeout" to "5000",
+            )
 
         val result = IntegrationDetector.detect(props)
 
@@ -26,12 +26,13 @@ class IntegrationDetectorTest {
 
     @Test
     fun `detects database integration from spring datasource`() {
-        val props = mapOf(
-            "spring.datasource.url" to "jdbc:postgresql://localhost:5432/mydb",
-            "spring.datasource.username" to "user",
-            "spring.datasource.password" to "pass",
-            "spring.datasource.driver-class-name" to "org.postgresql.Driver",
-        )
+        val props =
+            mapOf(
+                "spring.datasource.url" to "jdbc:postgresql://localhost:5432/mydb",
+                "spring.datasource.username" to "user",
+                "spring.datasource.password" to "pass",
+                "spring.datasource.driver-class-name" to "org.postgresql.Driver",
+            )
 
         val result = IntegrationDetector.detect(props)
 
@@ -44,11 +45,12 @@ class IntegrationDetectorTest {
 
     @Test
     fun `detects Kafka integration from bootstrap-servers`() {
-        val props = mapOf(
-            "spring.kafka.bootstrap-servers" to "\${KAFKA_SERVERS:localhost:9092}",
-            "spring.kafka.consumer.group-id" to "my-group",
-            "spring.kafka.consumer.auto-offset-reset" to "earliest",
-        )
+        val props =
+            mapOf(
+                "spring.kafka.bootstrap-servers" to "\${KAFKA_SERVERS:localhost:9092}",
+                "spring.kafka.consumer.group-id" to "my-group",
+                "spring.kafka.consumer.auto-offset-reset" to "earliest",
+            )
 
         val result = IntegrationDetector.detect(props)
 
@@ -62,12 +64,13 @@ class IntegrationDetectorTest {
 
     @Test
     fun `detects RabbitMQ integration from host+port+exchange`() {
-        val props = mapOf(
-            "rr.users.camel-rabbit-consumer-settings.host" to "\${RABBIT_HOST:localhost}",
-            "rr.users.camel-rabbit-consumer-settings.port" to "5672",
-            "rr.users.camel-rabbit-consumer-settings.exchange" to "users-exchange",
-            "rr.users.camel-rabbit-consumer-settings.queue" to "users-queue",
-        )
+        val props =
+            mapOf(
+                "rr.users.camel-rabbit-consumer-settings.host" to "\${RABBIT_HOST:localhost}",
+                "rr.users.camel-rabbit-consumer-settings.port" to "5672",
+                "rr.users.camel-rabbit-consumer-settings.exchange" to "users-exchange",
+                "rr.users.camel-rabbit-consumer-settings.queue" to "users-queue",
+            )
 
         val result = IntegrationDetector.detect(props)
 
@@ -79,9 +82,10 @@ class IntegrationDetectorTest {
 
     @Test
     fun `extracts default value from placeholder`() {
-        val (envVar, defaultUrl) = IntegrationDetector.extractEnvAndDefault(
-            "\${MY_URL:https://example.com/api}",
-        )
+        val (envVar, defaultUrl) =
+            IntegrationDetector.extractEnvAndDefault(
+                "\${MY_URL:https://example.com/api}",
+            )
 
         assertThat(envVar).isEqualTo("MY_URL")
         assertThat(defaultUrl).isEqualTo("https://example.com/api")
@@ -97,11 +101,12 @@ class IntegrationDetectorTest {
 
     @Test
     fun `groups related properties under common prefix`() {
-        val props = mapOf(
-            "rr.unsi.client.rest-uri" to "\${UNSI_URL:https://unsi.example.com}",
-            "rr.unsi.client.timeout" to "3000",
-            "rr.unsi.client.retry-count" to "3",
-        )
+        val props =
+            mapOf(
+                "rr.unsi.client.rest-uri" to "\${UNSI_URL:https://unsi.example.com}",
+                "rr.unsi.client.timeout" to "3000",
+                "rr.unsi.client.retry-count" to "3",
+            )
 
         val result = IntegrationDetector.detect(props)
 
@@ -112,12 +117,13 @@ class IntegrationDetectorTest {
 
     @Test
     fun `skips non-integration properties`() {
-        val props = mapOf(
-            "spring.jmx.enabled" to "false",
-            "debug" to "true",
-            "server.port" to "8080",
-            "logging.level.root" to "INFO",
-        )
+        val props =
+            mapOf(
+                "spring.jmx.enabled" to "false",
+                "debug" to "true",
+                "server.port" to "8080",
+                "logging.level.root" to "INFO",
+            )
 
         val result = IntegrationDetector.detect(props)
 
@@ -126,10 +132,11 @@ class IntegrationDetectorTest {
 
     @Test
     fun `detects Camunda integration`() {
-        val props = mapOf(
-            "camunda.bpm.client.base-url" to "\${CAMUNDA_URL:http://localhost:8080/engine-rest}",
-            "camunda.bpm.client.worker-id" to "worker-1",
-        )
+        val props =
+            mapOf(
+                "camunda.bpm.client.base-url" to "\${CAMUNDA_URL:http://localhost:8080/engine-rest}",
+                "camunda.bpm.client.worker-id" to "worker-1",
+            )
 
         val result = IntegrationDetector.detect(props)
 
@@ -140,11 +147,12 @@ class IntegrationDetectorTest {
 
     @Test
     fun `detects OAuth2 auth integration`() {
-        val props = mapOf(
-            "spring.security.oauth2.client.provider.avanpost.issuer-uri" to "https://auth.example.com",
-            "spring.security.oauth2.client.provider.avanpost.token-uri" to "https://auth.example.com/token",
-            "spring.security.oauth2.client.registration.avanpost.client-id" to "my-app",
-        )
+        val props =
+            mapOf(
+                "spring.security.oauth2.client.provider.avanpost.issuer-uri" to "https://auth.example.com",
+                "spring.security.oauth2.client.provider.avanpost.token-uri" to "https://auth.example.com/token",
+                "spring.security.oauth2.client.registration.avanpost.client-id" to "my-app",
+            )
 
         val result = IntegrationDetector.detect(props)
 
@@ -154,10 +162,11 @@ class IntegrationDetectorTest {
 
     @Test
     fun `detects Config Server integration`() {
-        val props = mapOf(
-            "spring.cloud.config.uri" to "\${CONFIG_SERVER_URI:http://localhost:8888}",
-            "spring.cloud.config.fail-fast" to "true",
-        )
+        val props =
+            mapOf(
+                "spring.cloud.config.uri" to "\${CONFIG_SERVER_URI:http://localhost:8888}",
+                "spring.cloud.config.fail-fast" to "true",
+            )
 
         val result = IntegrationDetector.detect(props)
 
@@ -168,13 +177,14 @@ class IntegrationDetectorTest {
 
     @Test
     fun `detects multiple integrations from mixed config`() {
-        val props = mapOf(
-            "spring.datasource.url" to "jdbc:postgresql://localhost:5432/db",
-            "spring.datasource.username" to "user",
-            "spring.kafka.bootstrap-servers" to "localhost:9092",
-            "rr.ups-client.api-url" to "https://ups.example.com",
-            "rr.ups-client.timeout" to "5000",
-        )
+        val props =
+            mapOf(
+                "spring.datasource.url" to "jdbc:postgresql://localhost:5432/db",
+                "spring.datasource.username" to "user",
+                "spring.kafka.bootstrap-servers" to "localhost:9092",
+                "rr.ups-client.api-url" to "https://ups.example.com",
+                "rr.ups-client.timeout" to "5000",
+            )
 
         val result = IntegrationDetector.detect(props)
 

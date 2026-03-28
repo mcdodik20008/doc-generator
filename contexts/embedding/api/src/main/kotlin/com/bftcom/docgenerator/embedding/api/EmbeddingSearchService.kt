@@ -11,8 +11,11 @@ interface EmbeddingSearchService {
      * @param applicationId опциональный ID приложения для фильтрации
      * @return список найденных документов с метаданными
      */
-    fun searchByText(query: String, topK: Int = 10, applicationId: Long? = null): List<SearchResult>
-
+    fun searchByText(
+        query: String,
+        topK: Int = 10,
+        applicationId: Long? = null,
+    ): List<SearchResult>
 }
 
 /**
@@ -24,4 +27,3 @@ data class SearchResult(
     val metadata: Map<String, Any>,
     val similarity: Double,
 )
-

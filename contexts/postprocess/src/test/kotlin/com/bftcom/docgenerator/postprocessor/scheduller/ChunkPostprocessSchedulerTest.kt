@@ -25,13 +25,14 @@ class ChunkPostprocessSchedulerTest {
     fun setUp() {
         repository = mockk()
         orchestrator = mockk()
-        scheduler = ChunkPostprocessScheduler(
-            txManager = mockk(relaxed = true),
-            repo = repository,
-            orchestrator = orchestrator,
-            batchSize = 2,
-            embedEnabled = true,
-        )
+        scheduler =
+            ChunkPostprocessScheduler(
+                txManager = mockk(relaxed = true),
+                repo = repository,
+                orchestrator = orchestrator,
+                batchSize = 2,
+                embedEnabled = true,
+            )
     }
 
     @Test
@@ -70,13 +71,14 @@ class ChunkPostprocessSchedulerTest {
     private fun createChunk(id: Long): Chunk {
         val app = Application(key = "app", name = "App")
         app.id = 1L
-        val node = Node(
-            application = app,
-            fqn = "com.example.Test",
-            kind = NodeKind.METHOD,
-            lang = Lang.kotlin,
-            packageName = "com.example",
-        )
+        val node =
+            Node(
+                application = app,
+                fqn = "com.example.Test",
+                kind = NodeKind.METHOD,
+                lang = Lang.kotlin,
+                packageName = "com.example",
+            )
         node.id = 10L
 
         return Chunk(

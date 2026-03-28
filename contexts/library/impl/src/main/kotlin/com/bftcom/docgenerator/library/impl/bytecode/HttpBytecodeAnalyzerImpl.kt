@@ -283,6 +283,7 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                     "append" -> {
                         stackInterpreter.visitStringBuilderAppend(descriptor)
                     }
+
                     "toString" -> {
                         stackInterpreter.visitStringBuilderToString()
                         // После toString() можем извлечь URL если это строка
@@ -331,8 +332,14 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                     }
                     // Проверяем методы цепочки
                     when (name) {
-                        "retry" -> hasRetry = true
-                        "timeout" -> hasTimeout = true
+                        "retry" -> {
+                            hasRetry = true
+                        }
+
+                        "timeout" -> {
+                            hasTimeout = true
+                        }
+
                         "uri" -> {
                             // URL из стека
                             val urlFromStack = stackInterpreter.popStringArg()
@@ -342,6 +349,7 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                         }
                     }
                 }
+
                 owner == restTemplateOwner -> {
                     currentClientType = "RestTemplate"
                     // RestTemplate методы: getForObject, postForObject и т.д.
@@ -359,6 +367,7 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                         currentUrl = urlFromStack
                     }
                 }
+
                 // OkHttp Request.Builder
                 owner == okHttpRequestBuilderOwner -> {
                     currentClientType = "OkHttp"
@@ -370,22 +379,26 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                                 currentUrl = urlFromStack
                             }
                         }
+
                         "get", "post", "put", "delete", "patch", "head" -> {
                             // HTTP-метод определяется по имени метода
                             currentHttpMethod = name.uppercase()
                         }
                     }
                 }
+
                 // OkHttp Request
                 owner == okHttpRequestOwner && name == "newBuilder" -> {
                     currentClientType = "OkHttp"
                 }
+
                 // OkHttp Call.execute() или enqueue()
                 owner == okHttpCallOwner -> {
                     if (currentClientType == null) {
                         currentClientType = "OkHttp"
                     }
                 }
+
                 // Apache HttpClient - HttpGet
                 owner == apacheHttpGetOwner -> {
                     currentClientType = "ApacheHttpClient"
@@ -396,6 +409,7 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                         currentUrl = urlFromStack
                     }
                 }
+
                 // Apache HttpClient - HttpPost
                 owner == apacheHttpPostOwner -> {
                     currentClientType = "ApacheHttpClient"
@@ -405,6 +419,7 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                         currentUrl = urlFromStack
                     }
                 }
+
                 // Apache HttpClient - HttpPut
                 owner == apacheHttpPutOwner -> {
                     currentClientType = "ApacheHttpClient"
@@ -414,6 +429,7 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                         currentUrl = urlFromStack
                     }
                 }
+
                 // Apache HttpClient - HttpDelete
                 owner == apacheHttpDeleteOwner -> {
                     currentClientType = "ApacheHttpClient"
@@ -423,6 +439,7 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                         currentUrl = urlFromStack
                     }
                 }
+
                 // Apache HttpClient - HttpPatch
                 owner == apacheHttpPatchOwner -> {
                     currentClientType = "ApacheHttpClient"
@@ -432,6 +449,7 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                         currentUrl = urlFromStack
                     }
                 }
+
                 // Kafka Producer
                 owner == kafkaProducerOwner -> {
                     currentKafkaClientType = "KafkaProducer"
@@ -440,6 +458,7 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                         // Топик будет в параметрах, но без интерпретации стека сложно извлечь
                     }
                 }
+
                 // Kafka Consumer
                 owner == kafkaConsumerOwner -> {
                     currentKafkaClientType = "KafkaConsumer"
@@ -448,28 +467,33 @@ class HttpBytecodeAnalyzerImpl : HttpBytecodeAnalyzer {
                         "subscribe" -> {
                             // Топик будет в параметрах
                         }
+
                         "poll" -> {
                             // Операция чтения
                         }
                     }
                 }
+
                 // Camel RouteBuilder
                 owner == camelRouteBuilderOwner -> {
                     when (name) {
                         "from" -> {
                             currentCamelDirection = "FROM"
                         }
+
                         "to" -> {
                             currentCamelDirection = "TO"
                         }
                     }
                 }
+
                 // Camel endpoints (from/to могут быть вызваны на Route)
                 owner in camelEndpointOwners -> {
                     when (name) {
                         "from" -> {
                             currentCamelDirection = "FROM"
                         }
+
                         "to" -> {
                             currentCamelDirection = "TO"
                         }

@@ -29,16 +29,17 @@ class CrossAppGraphController(
     fun getCrossAppGraph(
         @RequestParam(required = false, defaultValue = "") applicationIds: List<Long>,
         @RequestParam(required = false, defaultValue = "") integrationTypes: List<String>,
-        @RequestParam(required = false, defaultValue = "1000") limit: Int
+        @RequestParam(required = false, defaultValue = "1000") limit: Int,
     ): CrossAppGraphResponse {
-        val types = integrationTypes
-            .mapNotNull { IntegrationType.fromString(it) }
-            .toSet()
+        val types =
+            integrationTypes
+                .mapNotNull { IntegrationType.fromString(it) }
+                .toSet()
 
         return crossAppGraphService.buildCrossAppGraph(
             applicationIds = applicationIds.filter { it > 0 },
             integrationTypes = types,
-            limit = limit
+            limit = limit,
         )
     }
 
@@ -57,7 +58,7 @@ class CrossAppGraphController(
                 id = appId,
                 key = app.key,
                 name = app.name ?: app.key,
-                description = app.description
+                description = app.description,
             )
         }
     }
@@ -70,5 +71,5 @@ data class ApplicationIntegrationInfo(
     val id: Long,
     val key: String,
     val name: String,
-    val description: String?
+    val description: String?,
 )

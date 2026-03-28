@@ -33,25 +33,28 @@ class IntegrationPointLinkerImplTest {
         val linker = IntegrationPointLinkerImpl(nodeRepo, libNodeRepo, edgeRepo, integrationService, testMapper)
         val app = Application(id = 1L, key = "app", name = "App")
 
-        val appMethod = Node(
-            id = 10L,
-            application = app,
-            fqn = "com.app.Service.doWork",
-            kind = NodeKind.METHOD,
-            lang = Lang.kotlin,
-            meta = mapOf(
-                "pkgFqn" to "com.app.service",
-                "ownerFqn" to "com.lib.Client",
-                "imports" to listOf("com.lib.Client"),
-                "rawUsages" to listOf(
+        val appMethod =
+            Node(
+                id = 10L,
+                application = app,
+                fqn = "com.app.Service.doWork",
+                kind = NodeKind.METHOD,
+                lang = Lang.kotlin,
+                meta =
                     mapOf(
-                        "name" to "call",
-                        "isCall" to true,
-                        "@type" to "simple"
-                    )
-                )
+                        "pkgFqn" to "com.app.service",
+                        "ownerFqn" to "com.lib.Client",
+                        "imports" to listOf("com.lib.Client"),
+                        "rawUsages" to
+                            listOf(
+                                mapOf(
+                                    "name" to "call",
+                                    "isCall" to true,
+                                    "@type" to "simple",
+                                ),
+                            ),
+                    ),
             )
-        )
 
         val lib = Library(id = 1L, coordinate = "c", groupId = "g", artifactId = "a", version = "1")
         val libEntry =
@@ -73,17 +76,17 @@ class IntegrationPointLinkerImplTest {
                 meta =
                     mapOf(
                         "integrationAnalysis" to
-                                mapOf(
-                                    "kafkaTopics" to listOf("orders"),
-                                    "kafkaCalls" to
-                                            listOf(
-                                                mapOf(
-                                                    "topic" to "orders",
-                                                    "operation" to "PRODUCE",
-                                                    "clientType" to "KafkaProducer",
-                                                ),
-                                            ),
-                                ),
+                            mapOf(
+                                "kafkaTopics" to listOf("orders"),
+                                "kafkaCalls" to
+                                    listOf(
+                                        mapOf(
+                                            "topic" to "orders",
+                                            "operation" to "PRODUCE",
+                                            "clientType" to "KafkaProducer",
+                                        ),
+                                    ),
+                            ),
                     ),
             )
 
@@ -113,4 +116,3 @@ class IntegrationPointLinkerImplTest {
         verify(exactly = 1) { edgeRepo.upsert(10L, 200L, "PRODUCES") }
     }
 }
-

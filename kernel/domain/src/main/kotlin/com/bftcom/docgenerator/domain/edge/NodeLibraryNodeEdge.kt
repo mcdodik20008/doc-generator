@@ -89,4 +89,3 @@ data class NodeLibraryNodeEdgeId(
     var libraryNode: Long? = null,
     var kind: EdgeKind? = null,
 ) : java.io.Serializable
-

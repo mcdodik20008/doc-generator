@@ -33,14 +33,16 @@ class ApiKeyAuthenticationFilter(
     private val apiKeyRepository: ApiKeyRepository,
     @Value("\${docgen.security.enabled:true}") private val securityEnabled: Boolean,
 ) : WebFilter {
-
     private val log = LoggerFactory.getLogger(javaClass)
 
     companion object {
         const val API_KEY_HEADER = "X-API-Key"
     }
 
-    override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
+    override fun filter(
+        exchange: ServerWebExchange,
+        chain: WebFilterChain,
+    ): Mono<Void> {
         val path = exchange.request.uri.path
 
         // Only intercept /api/ paths
@@ -50,10 +52,14 @@ class ApiKeyAuthenticationFilter(
 
         // If security is disabled, pass through with anonymous auth
         if (!securityEnabled) {
-            val anonymousAuth = UsernamePasswordAuthenticationToken(
-                "anonymous", null, listOf(SimpleGrantedAuthority("ROLE_ADMIN"))
-            )
-            return chain.filter(exchange)
+            val anonymousAuth =
+                UsernamePasswordAuthenticationToken(
+                    "anonymous",
+                    null,
+                    listOf(SimpleGrantedAuthority("ROLE_ADMIN")),
+                )
+            return chain
+                .filter(exchange)
                 .contextWrite(ReactiveSecurityContextHolder.withAuthentication(anonymousAuth))
         }
 
@@ -68,10 +74,10 @@ class ApiKeyAuthenticationFilter(
 
         val keyHash = hashApiKey(apiKeyRaw)
 
-        return Mono.fromCallable {
-            apiKeyRepository.findByKeyHash(keyHash)
-        }
-            .subscribeOn(Schedulers.boundedElastic())
+        return Mono
+            .fromCallable {
+                apiKeyRepository.findByKeyHash(keyHash)
+            }.subscribeOn(Schedulers.boundedElastic())
             .flatMap { apiKey ->
                 if (apiKey == null) {
                     log.warn("Invalid API key attempt for path: {}", path)
@@ -86,32 +92,38 @@ class ApiKeyAuthenticationFilter(
                 }
 
                 // Update last_used_at asynchronously
-                Mono.fromRunnable<Void> {
-                    try {
-                        apiKey.lastUsedAt = OffsetDateTime.now()
-                        apiKeyRepository.save(apiKey)
-                    } catch (e: Exception) {
-                        log.debug("Failed to update last_used_at for key '{}': {}", apiKey.name, e.message)
-                    }
-                }
-                    .subscribeOn(Schedulers.boundedElastic())
+                Mono
+                    .fromRunnable<Void> {
+                        try {
+                            apiKey.lastUsedAt = OffsetDateTime.now()
+                            apiKeyRepository.save(apiKey)
+                        } catch (e: Exception) {
+                            log.debug("Failed to update last_used_at for key '{}': {}", apiKey.name, e.message)
+                        }
+                    }.subscribeOn(Schedulers.boundedElastic())
                     .subscribe()
 
                 // Build authorities from scopes
-                val authorities = apiKey.scopes.map { SimpleGrantedAuthority("SCOPE_$it") } +
-                    SimpleGrantedAuthority("ROLE_API_USER")
+                val authorities =
+                    apiKey.scopes.map { SimpleGrantedAuthority("SCOPE_$it") } +
+                        SimpleGrantedAuthority("ROLE_API_USER")
 
-                val authentication = UsernamePasswordAuthenticationToken(
-                    apiKey.name, null, authorities
-                )
+                val authentication =
+                    UsernamePasswordAuthenticationToken(
+                        apiKey.name,
+                        null,
+                        authorities,
+                    )
 
-                chain.filter(exchange)
+                chain
+                    .filter(exchange)
                     .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication))
-            }
-            .switchIfEmpty(Mono.defer {
-                exchange.response.statusCode = HttpStatus.UNAUTHORIZED
-                exchange.response.setComplete()
-            })
+            }.switchIfEmpty(
+                Mono.defer {
+                    exchange.response.statusCode = HttpStatus.UNAUTHORIZED
+                    exchange.response.setComplete()
+                },
+            )
     }
 
     /**

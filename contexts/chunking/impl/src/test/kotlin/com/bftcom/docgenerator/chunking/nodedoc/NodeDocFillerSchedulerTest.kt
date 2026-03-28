@@ -25,12 +25,13 @@ class NodeDocFillerSchedulerTest {
 
     @BeforeEach
     fun setUp() {
-        txManager = mockk {
-            val status = mockk<TransactionStatus>(relaxed = true)
-            every { getTransaction(any()) } returns status
-            every { commit(status) } just Runs
-            every { rollback(status) } just Runs
-        }
+        txManager =
+            mockk {
+                val status = mockk<TransactionStatus>(relaxed = true)
+                every { getTransaction(any()) } returns status
+                every { commit(status) } just Runs
+                every { rollback(status) } just Runs
+            }
         nodeRepo = mockk(relaxed = true)
         generator = mockk(relaxed = true)
 
@@ -42,12 +43,19 @@ class NodeDocFillerSchedulerTest {
             )
     }
 
-    private fun node(id: Long, kind: NodeKind = NodeKind.METHOD, fqn: String = "com.example.Node$id") =
-        Node(application = app, fqn = fqn, kind = kind, lang = Lang.kotlin).apply { this.id = id }
+    private fun node(
+        id: Long,
+        kind: NodeKind = NodeKind.METHOD,
+        fqn: String = "com.example.Node$id",
+    ) = Node(application = app, fqn = fqn, kind = kind, lang = Lang.kotlin).apply { this.id = id }
 
-    private fun doc(label: String = "") = NodeDocGenerator.GeneratedDoc(
-        docTech = "tech $label", docPublic = "public $label", docDigest = "digest $label", modelMeta = emptyMap(),
-    )
+    private fun doc(label: String = "") =
+        NodeDocGenerator.GeneratedDoc(
+            docTech = "tech $label",
+            docPublic = "public $label",
+            docDigest = "digest $label",
+            modelMeta = emptyMap(),
+        )
 
     // === poll() tests ===
 

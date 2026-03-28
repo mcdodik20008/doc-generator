@@ -17,23 +17,26 @@ class RerankingStepTest {
 
     @Test
     fun `execute - фильтрует чанки и переходит к COMPLETED`() {
-        val chunks = listOf(
-            createSearchResult("1", "Content 1", 0.9),
-            createSearchResult("2", "Content 2", 0.85),
-            createSearchResult("3", "Content 3", 0.8),
-        )
-        val filteredChunks = listOf(
-            createSearchResult("1", "Content 1", 0.9),
-            createSearchResult("2", "Content 2", 0.85),
-        )
+        val chunks =
+            listOf(
+                createSearchResult("1", "Content 1", 0.9),
+                createSearchResult("2", "Content 2", 0.85),
+                createSearchResult("3", "Content 3", 0.8),
+            )
+        val filteredChunks =
+            listOf(
+                createSearchResult("1", "Content 1", 0.9),
+                createSearchResult("2", "Content 2", 0.85),
+            )
 
         every { resultFilterService.filterResults(chunks, any()) } returns filteredChunks
 
-        val context = QueryProcessingContext(
-            originalQuery = "test",
-            currentQuery = "test",
-            sessionId = "s-1",
-        ).setMetadata(QueryMetadataKeys.CHUNKS, chunks)
+        val context =
+            QueryProcessingContext(
+                originalQuery = "test",
+                currentQuery = "test",
+                sessionId = "s-1",
+            ).setMetadata(QueryMetadataKeys.CHUNKS, chunks)
 
         val result = step.execute(context)
 
@@ -46,11 +49,12 @@ class RerankingStepTest {
 
     @Test
     fun `execute - переходит к FAILED если нет данных`() {
-        val context = QueryProcessingContext(
-            originalQuery = "test",
-            currentQuery = "test",
-            sessionId = "s-1",
-        )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "test",
+                currentQuery = "test",
+                sessionId = "s-1",
+            )
 
         val result = step.execute(context)
 
@@ -62,11 +66,12 @@ class RerankingStepTest {
         val app = mockk<com.bftcom.docgenerator.domain.application.Application>()
         val node = mockk<Node>()
 
-        val context = QueryProcessingContext(
-            originalQuery = "test",
-            currentQuery = "test",
-            sessionId = "s-1",
-        ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(node))
+        val context =
+            QueryProcessingContext(
+                originalQuery = "test",
+                currentQuery = "test",
+                sessionId = "s-1",
+            ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(node))
 
         val result = step.execute(context)
 
@@ -75,11 +80,12 @@ class RerankingStepTest {
 
     @Test
     fun `execute - переходит к COMPLETED если есть GRAPH_RELATIONS_TEXT даже без чанков`() {
-        val context = QueryProcessingContext(
-            originalQuery = "test",
-            currentQuery = "test",
-            sessionId = "s-1",
-        ).setMetadata(QueryMetadataKeys.GRAPH_RELATIONS_TEXT, "Связи в графе")
+        val context =
+            QueryProcessingContext(
+                originalQuery = "test",
+                currentQuery = "test",
+                sessionId = "s-1",
+            ).setMetadata(QueryMetadataKeys.GRAPH_RELATIONS_TEXT, "Связи в графе")
 
         val result = step.execute(context)
 
@@ -88,11 +94,12 @@ class RerankingStepTest {
 
     @Test
     fun `execute - удаляет дубликаты перед фильтрацией`() {
-        val chunks = listOf(
-            createSearchResult("1", "Content 1", 0.9),
-            createSearchResult("1", "Content 1", 0.9), // Дубликат
-            createSearchResult("2", "Content 2", 0.85),
-        )
+        val chunks =
+            listOf(
+                createSearchResult("1", "Content 1", 0.9),
+                createSearchResult("1", "Content 1", 0.9), // Дубликат
+                createSearchResult("2", "Content 2", 0.85),
+            )
         val filteredChunks = listOf(createSearchResult("1", "Content 1", 0.9))
 
         every { resultFilterService.filterResults(any(), any()) } answers {
@@ -100,11 +107,12 @@ class RerankingStepTest {
             results.distinctBy { it.id }
         }
 
-        val context = QueryProcessingContext(
-            originalQuery = "test",
-            currentQuery = "test",
-            sessionId = "s-1",
-        ).setMetadata(QueryMetadataKeys.CHUNKS, chunks)
+        val context =
+            QueryProcessingContext(
+                originalQuery = "test",
+                currentQuery = "test",
+                sessionId = "s-1",
+            ).setMetadata(QueryMetadataKeys.CHUNKS, chunks)
 
         val result = step.execute(context)
 
@@ -112,12 +120,15 @@ class RerankingStepTest {
         io.mockk.verify { resultFilterService.filterResults(any(), any()) }
     }
 
-    private fun createSearchResult(id: String, content: String, similarity: Double): SearchResult {
-        return SearchResult(
+    private fun createSearchResult(
+        id: String,
+        content: String,
+        similarity: Double,
+    ): SearchResult =
+        SearchResult(
             id = id,
             content = content,
             metadata = emptyMap(),
             similarity = similarity,
         )
-    }
 }

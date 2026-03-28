@@ -39,75 +39,89 @@ class YamlConfigScannerTest {
     fun `parses flat YAML and detects HTTP integration`() {
         val resourcesDir = createResourcesDir()
         writeYaml(
-            resourcesDir, "application.yml", """
+            resourcesDir,
+            "application.yml",
+            """
             rr:
               ups-client:
                 api-url: ${'$'}{UPS_SERVICE_API_URL:https://k8s.supercode.ru:3300/bpm/user-profile-service}
                 timeout: 5000
-        """.trimIndent(),
+            """.trimIndent(),
         )
 
         val count = scanner.scan(app, tempDir)
 
         assertThat(count).isEqualTo(1)
-        verify(nodeRepo).save(argThat<Node> { node ->
-            node.kind == NodeKind.INFRASTRUCTURE &&
-                node.fqn == "infra:yaml:http:rr.ups-client" &&
-                (node.meta["integrationType"] as String) == "HTTP" &&
-                (node.meta["defaultUrl"] as String) == "https://k8s.supercode.ru:3300/bpm/user-profile-service"
-        })
+        verify(nodeRepo).save(
+            argThat<Node> { node ->
+                node.kind == NodeKind.INFRASTRUCTURE &&
+                    node.fqn == "infra:yaml:http:rr.ups-client" &&
+                    (node.meta["integrationType"] as String) == "HTTP" &&
+                    (node.meta["defaultUrl"] as String) == "https://k8s.supercode.ru:3300/bpm/user-profile-service"
+            },
+        )
     }
 
     @Test
     fun `detects database integration from spring datasource`() {
         val resourcesDir = createResourcesDir()
         writeYaml(
-            resourcesDir, "application.yml", """
+            resourcesDir,
+            "application.yml",
+            """
             spring:
               datasource:
                 url: jdbc:postgresql://localhost:5432/mydb
                 username: user
                 password: pass
-        """.trimIndent(),
+            """.trimIndent(),
         )
 
         val count = scanner.scan(app, tempDir)
 
         assertThat(count).isEqualTo(1)
-        verify(nodeRepo).save(argThat<Node> { node ->
-            node.kind == NodeKind.INFRASTRUCTURE &&
-                node.fqn == "infra:yaml:database:spring.datasource" &&
-                (node.meta["integrationType"] as String) == "DATABASE"
-        })
+        verify(nodeRepo).save(
+            argThat<Node> { node ->
+                node.kind == NodeKind.INFRASTRUCTURE &&
+                    node.fqn == "infra:yaml:database:spring.datasource" &&
+                    (node.meta["integrationType"] as String) == "DATABASE"
+            },
+        )
     }
 
     @Test
     fun `detects Kafka integration`() {
         val resourcesDir = createResourcesDir()
         writeYaml(
-            resourcesDir, "application.yml", """
+            resourcesDir,
+            "application.yml",
+            """
             spring:
               kafka:
                 bootstrap-servers: ${'$'}{KAFKA_SERVERS:localhost:9092}
                 consumer:
                   group-id: my-group
-        """.trimIndent(),
+            """.trimIndent(),
         )
 
         val count = scanner.scan(app, tempDir)
 
         assertThat(count).isEqualTo(1)
-        verify(nodeRepo).save(argThat<Node> { node ->
-            node.fqn == "infra:yaml:kafka:spring.kafka" &&
-                (node.meta["integrationType"] as String) == "KAFKA"
-        })
+        verify(nodeRepo).save(
+            argThat<Node> { node ->
+                node.fqn == "infra:yaml:kafka:spring.kafka" &&
+                    (node.meta["integrationType"] as String) == "KAFKA"
+            },
+        )
     }
 
     @Test
     fun `detects RabbitMQ integration from host+port+exchange`() {
         val resourcesDir = createResourcesDir()
         writeYaml(
-            resourcesDir, "application.yml", """
+            resourcesDir,
+            "application.yml",
+            """
             rr:
               users:
                 camel-rabbit-consumer-settings:
@@ -115,34 +129,40 @@ class YamlConfigScannerTest {
                   port: 5672
                   exchange: users-exchange
                   queue: users-queue
-        """.trimIndent(),
+            """.trimIndent(),
         )
 
         val count = scanner.scan(app, tempDir)
 
         assertThat(count).isEqualTo(1)
-        verify(nodeRepo).save(argThat<Node> { node ->
-            (node.meta["integrationType"] as String) == "RABBIT"
-        })
+        verify(nodeRepo).save(
+            argThat<Node> { node ->
+                (node.meta["integrationType"] as String) == "RABBIT"
+            },
+        )
     }
 
     @Test
     fun `handles multiple YAML files`() {
         val resourcesDir = createResourcesDir()
         writeYaml(
-            resourcesDir, "application.yml", """
+            resourcesDir,
+            "application.yml",
+            """
             spring:
               datasource:
                 url: jdbc:postgresql://localhost:5432/db
                 username: user
-        """.trimIndent(),
+            """.trimIndent(),
         )
         writeYaml(
-            resourcesDir, "application-dev.yml", """
+            resourcesDir,
+            "application-dev.yml",
+            """
             rr:
               client:
                 api-url: https://dev.example.com/api
-        """.trimIndent(),
+            """.trimIndent(),
         )
 
         val count = scanner.scan(app, tempDir)
@@ -154,7 +174,9 @@ class YamlConfigScannerTest {
     fun `skips non-integration properties`() {
         val resourcesDir = createResourcesDir()
         writeYaml(
-            resourcesDir, "application.yml", """
+            resourcesDir,
+            "application.yml",
+            """
             server:
               port: 8080
             logging:
@@ -163,7 +185,7 @@ class YamlConfigScannerTest {
             spring:
               jmx:
                 enabled: false
-        """.trimIndent(),
+            """.trimIndent(),
         )
 
         val count = scanner.scan(app, tempDir)
@@ -176,19 +198,22 @@ class YamlConfigScannerTest {
     fun `does not create duplicate node if already exists`() {
         val resourcesDir = createResourcesDir()
         writeYaml(
-            resourcesDir, "application.yml", """
+            resourcesDir,
+            "application.yml",
+            """
             rr:
               ups-client:
                 api-url: https://example.com/api
-        """.trimIndent(),
+            """.trimIndent(),
         )
 
-        val existingNode = Node(
-            application = app,
-            fqn = "infra:yaml:http:rr.ups-client",
-            kind = NodeKind.INFRASTRUCTURE,
-            lang = com.bftcom.docgenerator.domain.enums.Lang.yaml,
-        )
+        val existingNode =
+            Node(
+                application = app,
+                fqn = "infra:yaml:http:rr.ups-client",
+                kind = NodeKind.INFRASTRUCTURE,
+                lang = com.bftcom.docgenerator.domain.enums.Lang.yaml,
+            )
         `when`(nodeRepo.findByApplicationIdAndFqn(1L, "infra:yaml:http:rr.ups-client"))
             .thenReturn(existingNode)
 
@@ -217,15 +242,18 @@ class YamlConfigScannerTest {
     @Test
     fun `parseYamlFile flattens nested structure`() {
         val resourcesDir = createResourcesDir()
-        val yamlFile = writeYaml(
-            resourcesDir, "application.yml", """
-            spring:
-              datasource:
-                url: jdbc:postgresql://localhost:5432/db
-              kafka:
-                bootstrap-servers: localhost:9092
-        """.trimIndent(),
-        )
+        val yamlFile =
+            writeYaml(
+                resourcesDir,
+                "application.yml",
+                """
+                spring:
+                  datasource:
+                    url: jdbc:postgresql://localhost:5432/db
+                  kafka:
+                    bootstrap-servers: localhost:9092
+                """.trimIndent(),
+            )
 
         val props = scanner.parseYamlFile(yamlFile)
 
@@ -247,7 +275,11 @@ class YamlConfigScannerTest {
         return resourcesDir
     }
 
-    private fun writeYaml(dir: Path, filename: String, content: String): Path {
+    private fun writeYaml(
+        dir: Path,
+        filename: String,
+        content: String,
+    ): Path {
         val file = dir.resolve(filename)
         Files.writeString(file, content)
         return file

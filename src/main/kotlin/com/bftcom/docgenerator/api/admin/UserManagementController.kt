@@ -38,19 +38,20 @@ class UserManagementController(
      */
     @GetMapping
     @RateLimited(maxRequests = 100, windowSeconds = 60)
-    fun getAllUsers(): List<UserDto> {
-        return userRepository.findAll().map { toDto(it) }
-    }
+    fun getAllUsers(): List<UserDto> = userRepository.findAll().map { toDto(it) }
 
     /**
      * Получает конкретного пользователя по ID.
      */
     @GetMapping("/{id}")
     @RateLimited(maxRequests = 100, windowSeconds = 60)
-    fun getUser(@PathVariable id: Long): UserDto {
-        val user = userRepository.findById(id).orElseThrow {
-            IllegalArgumentException("User not found: $id")
-        }
+    fun getUser(
+        @PathVariable id: Long,
+    ): UserDto {
+        val user =
+            userRepository.findById(id).orElseThrow {
+                IllegalArgumentException("User not found: $id")
+            }
         return toDto(user)
     }
 
@@ -59,19 +60,22 @@ class UserManagementController(
      */
     @PostMapping
     @RateLimited(maxRequests = 20, windowSeconds = 60)
-    fun createUser(@Valid @RequestBody request: CreateUserRequest): UserDto {
+    fun createUser(
+        @Valid @RequestBody request: CreateUserRequest,
+    ): UserDto {
         // Проверяем что username уникален
         if (userRepository.existsByUsername(request.username)) {
             throw IllegalArgumentException("Username already exists: ${request.username}")
         }
 
-        val user = User(
-            username = request.username,
-            passwordHash = passwordEncoder.encode(request.password),
-            email = request.email,
-            enabled = request.enabled ?: true,
-            roles = request.roles?.toTypedArray() ?: arrayOf("USER"),
-        )
+        val user =
+            User(
+                username = request.username,
+                passwordHash = passwordEncoder.encode(request.password),
+                email = request.email,
+                enabled = request.enabled ?: true,
+                roles = request.roles?.toTypedArray() ?: arrayOf("USER"),
+            )
 
         val saved = userRepository.save(user)
         log.info("Created new user: id={}, username={}, roles={}", saved.id, saved.username, saved.roles.contentToString())
@@ -85,11 +89,12 @@ class UserManagementController(
     @RateLimited(maxRequests = 50, windowSeconds = 60)
     fun updateUser(
         @PathVariable id: Long,
-        @Valid @RequestBody request: UpdateUserRequest
+        @Valid @RequestBody request: UpdateUserRequest,
     ): UserDto {
-        val user = userRepository.findById(id).orElseThrow {
-            IllegalArgumentException("User not found: $id")
-        }
+        val user =
+            userRepository.findById(id).orElseThrow {
+                IllegalArgumentException("User not found: $id")
+            }
 
         request.email?.let { user.email = it }
         request.enabled?.let { user.enabled = it }
@@ -101,8 +106,13 @@ class UserManagementController(
         }
 
         val updated = userRepository.save(user)
-        log.info("Updated user: id={}, username={}, enabled={}, roles={}",
-            updated.id, updated.username, updated.enabled, updated.roles.contentToString())
+        log.info(
+            "Updated user: id={}, username={}, enabled={}, roles={}",
+            updated.id,
+            updated.username,
+            updated.enabled,
+            updated.roles.contentToString(),
+        )
         return toDto(updated)
     }
 
@@ -111,17 +121,20 @@ class UserManagementController(
      */
     @DeleteMapping("/{id}")
     @RateLimited(maxRequests = 20, windowSeconds = 60)
-    fun deleteUser(@PathVariable id: Long): Map<String, Any> {
-        val user = userRepository.findById(id).orElseThrow {
-            IllegalArgumentException("User not found: $id")
-        }
+    fun deleteUser(
+        @PathVariable id: Long,
+    ): Map<String, Any> {
+        val user =
+            userRepository.findById(id).orElseThrow {
+                IllegalArgumentException("User not found: $id")
+            }
 
         userRepository.delete(user)
         log.warn("Deleted user: id={}, username={}", id, user.username)
 
         return mapOf(
             "success" to true,
-            "message" to "User deleted successfully"
+            "message" to "User deleted successfully",
         )
     }
 
@@ -139,7 +152,7 @@ class UserManagementController(
             "totalUsers" to totalUsers,
             "enabledUsers" to enabledUsers,
             "adminUsers" to adminUsers,
-            "disabledUsers" to (totalUsers - enabledUsers)
+            "disabledUsers" to (totalUsers - enabledUsers),
         )
     }
 
@@ -174,27 +187,20 @@ data class CreateUserRequest(
     @field:NotBlank(message = "Username cannot be blank")
     @field:Size(min = 3, max = 100, message = "Username must be between 3 and 100 characters")
     val username: String,
-
     @field:NotBlank(message = "Password cannot be blank")
     @field:Size(min = 6, message = "Password must be at least 6 characters")
     val password: String,
-
     @field:Email(message = "Invalid email format")
     val email: String?,
-
     val enabled: Boolean? = true,
-
     val roles: List<String>? = null,
 )
 
 data class UpdateUserRequest(
     @field:Email(message = "Invalid email format")
     val email: String? = null,
-
     val enabled: Boolean? = null,
-
     val roles: List<String>? = null,
-
     @field:Size(min = 6, message = "Password must be at least 6 characters")
     val password: String? = null,
 )
