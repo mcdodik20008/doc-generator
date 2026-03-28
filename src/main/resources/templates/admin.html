@@ -552,6 +552,106 @@
         .empty-state .empty-subtitle {
             font-size: 14px;
         }
+
+        /* ======== Embedding Tab ======== */
+        .emb-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .emb-section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .emb-form-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .emb-form-row .form-group {
+            margin-bottom: 0;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .similarity-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .similarity-bar-bg {
+            flex: 1;
+            height: 8px;
+            background: var(--surface2);
+            border-radius: 4px;
+            overflow: hidden;
+            min-width: 60px;
+        }
+
+        .similarity-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: var(--accent);
+            transition: width 0.3s;
+        }
+
+        .similarity-pct {
+            font-size: 13px;
+            font-weight: 600;
+            min-width: 45px;
+            text-align: right;
+        }
+
+        .content-preview {
+            font-size: 13px;
+            color: var(--text-muted);
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-warning {
+            background: #eab308;
+            color: #1a1a2e;
+        }
+
+        .btn-warning:hover {
+            background: #ca8a04;
+        }
     </style>
 </head>
 <body>
@@ -596,6 +696,14 @@
                 <div class="value" th:text="${totalChats}">0</div>
                 <div class="label">Total Chats</div>
             </div>
+            <div class="stat-card">
+                <div class="value" id="statAdmins">—</div>
+                <div class="label">Administrators</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="statDisabled">—</div>
+                <div class="label">Disabled</div>
+            </div>
         </div>
 
         <!-- Tab Navigation -->
@@ -603,6 +711,7 @@
             <button class="admin-tab active" onclick="switchTab('users')">Users</button>
             <button class="admin-tab" onclick="switchTab('api-keys')">API Keys</button>
             <button class="admin-tab" onclick="switchTab('audit-logs')">Audit Logs</button>
+            <button class="admin-tab" onclick="switchTab('embeddings')">Embeddings</button>
         </div>
 
         <!-- ==================== TAB: Users ==================== -->
@@ -726,6 +835,82 @@
 
             <div class="audit-pagination" id="auditPagination" style="display:none"></div>
         </div>
+
+        <!-- ==================== TAB: Embeddings ==================== -->
+        <div class="tab-content" id="tab-embeddings">
+            <div class="section-header">
+                <div class="section-title">Embeddings</div>
+                <button class="btn btn-danger" onclick="confirmClearPostprocess()">Clear All Embeddings</button>
+            </div>
+
+            <!-- Search -->
+            <div class="emb-section">
+                <div class="emb-section-title">Search</div>
+                <div class="emb-form-row">
+                    <div class="form-group" style="flex:1;min-width:250px">
+                        <label>Query</label>
+                        <input type="text" id="embSearchQuery" placeholder="Enter search text..."/>
+                    </div>
+                    <div class="form-group" style="width:100px">
+                        <label>Top K</label>
+                        <input type="number" id="embSearchTopK" value="10" min="1" max="100"/>
+                    </div>
+                    <button class="btn btn-primary" onclick="searchEmbeddings()" style="height:38px">Search</button>
+                </div>
+
+                <div id="embSearchLoading" class="loading" style="display:none">Searching...</div>
+                <div id="embSearchEmpty" class="empty-state" style="display:none;padding:20px">
+                    <div class="empty-title">No results</div>
+                    <div class="empty-subtitle">Try a different query.</div>
+                </div>
+
+                <div class="users-table-container" id="embSearchResults" style="display:none;margin-top:16px">
+                    <table class="users-table">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Similarity</th>
+                            <th>Content</th>
+                            <th>Metadata</th>
+                        </tr>
+                        </thead>
+                        <tbody id="embSearchBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Add Document -->
+            <div class="emb-section">
+                <div class="emb-section-title">Add Document</div>
+                <form id="embAddForm" onsubmit="addDocument(event)">
+                    <div class="form-group">
+                        <label>Document ID</label>
+                        <input type="text" id="embDocId" required placeholder="e.g. doc-123"/>
+                    </div>
+                    <div class="form-group">
+                        <label>Content</label>
+                        <textarea id="embDocContent" required placeholder="Document content..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Metadata (JSON, optional)</label>
+                        <textarea id="embDocMeta" placeholder='{"key": "value"}' style="min-height:50px"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Document</button>
+                </form>
+            </div>
+
+            <!-- Delete Document -->
+            <div class="emb-section">
+                <div class="emb-section-title">Delete Document</div>
+                <div class="emb-form-row">
+                    <div class="form-group" style="flex:1">
+                        <label>Document ID</label>
+                        <input type="text" id="embDeleteId" placeholder="e.g. doc-123"/>
+                    </div>
+                    <button class="btn btn-danger" onclick="deleteDocument()" style="height:38px">Delete</button>
+                </div>
+            </div>
+        </div>
     </div>
 </main>
 
@@ -827,7 +1012,7 @@
     let users = [];
     let apiKeys = [];
     let auditData = null;
-    let tabLoaded = { users: false, 'api-keys': false, 'audit-logs': false };
+    let tabLoaded = { users: false, 'api-keys': false, 'audit-logs': false, embeddings: false };
     let confirmCallback = null;
 
     // ======== Tab Switching ========
@@ -846,6 +1031,9 @@
         if (name === 'audit-logs' && !tabLoaded['audit-logs']) {
             tabLoaded['audit-logs'] = true;
             loadAuditLogs(0);
+        }
+        if (name === 'embeddings' && !tabLoaded['embeddings']) {
+            tabLoaded['embeddings'] = true;
         }
     }
 
@@ -1295,9 +1483,170 @@
         loadAuditLogs(0);
     }
 
+    // ==================== EMBEDDINGS ====================
+    async function searchEmbeddings() {
+        const query = document.getElementById('embSearchQuery').value.trim();
+        const topK = parseInt(document.getElementById('embSearchTopK').value) || 10;
+
+        if (!query) { showToast('Enter a search query', 'error'); return; }
+
+        document.getElementById('embSearchLoading').style.display = 'block';
+        document.getElementById('embSearchEmpty').style.display = 'none';
+        document.getElementById('embSearchResults').style.display = 'none';
+
+        try {
+            const response = await fetch('/api/embedding/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, topK }),
+            });
+
+            if (!response.ok) {
+                const err = await response.text();
+                throw new Error(err || 'HTTP ' + response.status);
+            }
+
+            const results = await response.json();
+            document.getElementById('embSearchLoading').style.display = 'none';
+
+            if (!results || results.length === 0) {
+                document.getElementById('embSearchEmpty').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('embSearchResults').style.display = 'block';
+            const tbody = document.getElementById('embSearchBody');
+            tbody.innerHTML = '';
+
+            results.forEach(r => {
+                const pct = Math.round((r.similarity || r.score || 0) * 100);
+                const content = (r.content || '').substring(0, 200);
+                const meta = r.metadata ? JSON.stringify(r.metadata) : '';
+                const tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td style="font-family:Consolas,monospace;font-size:12px">' + esc(r.id || '') + '</td>' +
+                    '<td><div class="similarity-bar">' +
+                        '<div class="similarity-bar-bg"><div class="similarity-bar-fill" style="width:' + pct + '%"></div></div>' +
+                        '<span class="similarity-pct">' + pct + '%</span>' +
+                    '</div></td>' +
+                    '<td><div class="content-preview" title="' + esc(content) + '">' + esc(content) + '</div></td>' +
+                    '<td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(meta) + '">' + esc(meta) + '</td>';
+                tbody.appendChild(tr);
+            });
+        } catch (error) {
+            console.error('Embedding search failed:', error);
+            document.getElementById('embSearchLoading').style.display = 'none';
+            showToast('Search failed: ' + error.message, 'error');
+        }
+    }
+
+    async function addDocument(e) {
+        e.preventDefault();
+        const id = document.getElementById('embDocId').value.trim();
+        const content = document.getElementById('embDocContent').value.trim();
+        const metaRaw = document.getElementById('embDocMeta').value.trim();
+
+        let metadata = {};
+        if (metaRaw) {
+            try {
+                metadata = JSON.parse(metaRaw);
+            } catch {
+                showToast('Invalid JSON in metadata', 'error');
+                return;
+            }
+        }
+
+        try {
+            const response = await fetch('/api/embedding/documents', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, content, metadata }),
+            });
+
+            if (response.ok) {
+                showToast('Document added', 'success');
+                document.getElementById('embAddForm').reset();
+            } else {
+                const err = await response.text();
+                showToast('Error: ' + err, 'error');
+            }
+        } catch (error) {
+            console.error('Add document failed:', error);
+            showToast('Failed to add document', 'error');
+        }
+    }
+
+    async function deleteDocument() {
+        const id = document.getElementById('embDeleteId').value.trim();
+        if (!id) { showToast('Enter a document ID', 'error'); return; }
+
+        try {
+            const response = await fetch('/api/embedding/documents/' + encodeURIComponent(id), {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                showToast('Document deleted', 'success');
+                document.getElementById('embDeleteId').value = '';
+            } else {
+                const err = await response.text();
+                showToast('Error: ' + err, 'error');
+            }
+        } catch (error) {
+            console.error('Delete document failed:', error);
+            showToast('Failed to delete document', 'error');
+        }
+    }
+
+    function confirmClearPostprocess() {
+        showConfirm(
+            'Clear All Embeddings',
+            'This will permanently delete all postprocess embedding data. This action cannot be undone.',
+            clearPostprocess
+        );
+    }
+
+    async function clearPostprocess() {
+        try {
+            const response = await fetch('/api/embedding/clear-postprocess', {
+                method: 'POST',
+                headers: { 'X-Confirmation-Token': 'CONFIRM_CLEAR_POSTPROCESS_DATA' },
+            });
+
+            if (response.ok) {
+                showToast('All embeddings cleared', 'success');
+            } else {
+                const err = await response.text();
+                showToast('Error: ' + err, 'error');
+            }
+        } catch (error) {
+            console.error('Clear postprocess failed:', error);
+            showToast('Failed to clear embeddings', 'error');
+        }
+    }
+
+    // ==================== USER STATS ====================
+    async function loadUserStats() {
+        try {
+            const response = await fetch('/api/admin/users/stats');
+            if (!response.ok) return;
+            const stats = await response.json();
+
+            if (stats.adminCount != null) {
+                document.getElementById('statAdmins').textContent = stats.adminCount;
+            }
+            if (stats.disabledCount != null) {
+                document.getElementById('statDisabled').textContent = stats.disabledCount;
+            }
+        } catch (error) {
+            console.error('Failed to load user stats:', error);
+        }
+    }
+
     // ======== Init ========
     tabLoaded.users = true;
     loadUsers();
+    loadUserStats();
 </script>
 </body>
 </html>

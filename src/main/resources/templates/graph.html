@@ -372,6 +372,57 @@
             transition: width 0.3s ease;
         }
 
+        /* ---- Impact Analysis Modal ---- */
+        .impact-modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 1000;
+            align-items: center; justify-content: center;
+        }
+        .impact-modal-overlay.active { display: flex; }
+        .impact-modal {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 28px; max-width: 700px; width: 90%; max-height: 80vh;
+            display: flex; flex-direction: column;
+        }
+        .impact-modal h2 {
+            font-size: 18px; font-weight: 700; margin-bottom: 4px;
+        }
+        .impact-summary {
+            font-size: 13px; color: var(--text-muted); margin-bottom: 16px;
+            display: flex; gap: 16px; flex-wrap: wrap;
+        }
+        .impact-summary span { color: var(--accent); font-weight: 600; }
+        .impact-table-wrap {
+            flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px;
+        }
+        .impact-table {
+            width: 100%; border-collapse: collapse; font-size: 13px;
+        }
+        .impact-table th {
+            background: var(--surface2); padding: 10px 12px; text-align: left;
+            font-size: 11px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--text-muted);
+            border-bottom: 1px solid var(--border); position: sticky; top: 0;
+        }
+        .impact-table td {
+            padding: 8px 12px; border-bottom: 1px solid var(--border);
+        }
+        .impact-table tr:last-child td { border-bottom: none; }
+        .impact-table tr:hover { background: var(--surface2); }
+        .depth-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 11px; font-weight: 600;
+            background: var(--accent-dim); color: var(--accent);
+        }
+        .impact-actions {
+            display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px;
+        }
+        .impact-actions button {
+            padding: 8px 18px; border-radius: 6px; font-size: 13px;
+            font-weight: 600; cursor: pointer; border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
         /* ---- Full-screen mode ---- */
         #app.fullscreen { grid-template-rows: 1fr; }
         #app.fullscreen .graph-nav { display: none; }
@@ -615,6 +666,31 @@
             </div>
 
         </div><!-- /panel-body -->
+    </div>
+</div>
+
+<!-- Impact Analysis Modal -->
+<div id="impactModalOverlay" class="impact-modal-overlay" onclick="if(event.target===this)closeImpactModal()">
+    <div class="impact-modal">
+        <h2 id="impactTitle">Impact Analysis</h2>
+        <div class="impact-summary" id="impactSummary"></div>
+        <div class="impact-table-wrap">
+            <table class="impact-table">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>FQN</th>
+                    <th>Kind</th>
+                    <th>Depth</th>
+                </tr>
+                </thead>
+                <tbody id="impactBody"></tbody>
+            </table>
+        </div>
+        <div class="impact-actions">
+            <button onclick="closeImpactModal()" style="background:var(--surface2);color:var(--text)">Close</button>
+            <button id="impactHighlightBtn" onclick="highlightImpactedNodes()" style="background:var(--accent);color:var(--bg);border-color:var(--accent)">Highlight on Graph</button>
+        </div>
     </div>
 </div>
 
@@ -1281,6 +1357,7 @@ async function showNodeDetails(cyNode) {
         const fqn = d.title || cyNode.data('label');
         let html = '<div class="detail-header">';
         html += '<h2>' + escapeHtml(fqn) + '<button class="copy-fqn-btn" onclick="copyFqn(this)" data-fqn="' + escapeHtml(fqn) + '" title="Copy FQN">&#128203;</button></h2>';
+        html += '<div style="margin:8px 0"><button onclick="analyzeImpact(\'' + escapeHtml(cyNode.id()) + '\', \'' + escapeHtml(cyNode.data('label') || cyNode.id()) + '\')" style="padding:6px 14px;background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">Impact Analysis</button></div>';
         html += '<div class="detail-meta">';
         if (d.node) {
             html += '<span style="color:' + (NODE_COLORS[d.node.kind] || DEFAULT_NODE_COLOR) + '">' + escapeHtml(d.node.kind) + '</span>';
@@ -2094,6 +2171,93 @@ function showCrossAppNodeDetails(cyNode) {
     }
 
     detailsEl.innerHTML = html;
+}
+
+// ============================================================
+//  IMPACT ANALYSIS
+// ============================================================
+let lastImpactNodeIds = [];
+
+async function analyzeImpact(nodeId, nodeName) {
+    const overlay = document.getElementById('impactModalOverlay');
+    document.getElementById('impactTitle').textContent = 'Impact Analysis: ' + nodeName;
+    document.getElementById('impactSummary').innerHTML = '<div class="spinner" style="width:18px;height:18px;margin-right:8px"></div> Loading...';
+    document.getElementById('impactBody').innerHTML = '';
+    document.getElementById('impactHighlightBtn').disabled = true;
+    lastImpactNodeIds = [];
+    overlay.classList.add('active');
+
+    try {
+        const res = await fetch('/api/analysis/impact?nodeId=' + encodeURIComponent(nodeId) + '&maxDepth=5');
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            throw new Error(text || 'HTTP ' + res.status);
+        }
+        const data = await res.json();
+        renderImpactResults(data);
+    } catch (e) {
+        console.error('Impact analysis failed:', e);
+        document.getElementById('impactSummary').innerHTML = '<span style="color:var(--red)">Error: ' + escapeHtml(e.message) + '</span>';
+    }
+}
+
+function renderImpactResults(data) {
+    const nodes = data.impactedNodes || data.nodes || [];
+    const totalImpacted = data.totalImpactedNodes || nodes.length;
+    const maxDepthReached = data.maxDepthReached || false;
+
+    document.getElementById('impactSummary').innerHTML =
+        'Total impacted: <span>' + totalImpacted + '</span>' +
+        (maxDepthReached ? ' &bull; <span style="color:var(--yellow,#eab308)">Max depth reached</span>' : '');
+
+    const tbody = document.getElementById('impactBody');
+    tbody.innerHTML = '';
+
+    lastImpactNodeIds = nodes.map(n => n.id || n.nodeId);
+
+    nodes.forEach(n => {
+        const kind = n.kind || '';
+        const color = NODE_COLORS[kind] || DEFAULT_NODE_COLOR;
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td>' + escapeHtml(n.name || n.label || '') + '</td>' +
+            '<td style="font-family:Consolas,monospace;font-size:11px;color:var(--text-muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escapeHtml(n.fqn || '') + '">' + escapeHtml(n.fqn || '') + '</td>' +
+            '<td><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:' + color + '22;color:' + color + '">' + escapeHtml(kind) + '</span></td>' +
+            '<td><span class="depth-badge">' + (n.depth != null ? n.depth : '—') + '</span></td>';
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('impactHighlightBtn').disabled = lastImpactNodeIds.length === 0;
+}
+
+function highlightImpactedNodes() {
+    closeImpactModal();
+    if (!cy || lastImpactNodeIds.length === 0) return;
+
+    clearHighlights();
+    cy.elements().addClass('dimmed');
+
+    let highlighted = cy.collection();
+    lastImpactNodeIds.forEach(id => {
+        const n = cy.getElementById(id);
+        if (n.length > 0) {
+            n.removeClass('dimmed').addClass('highlighted');
+            n.connectedEdges().removeClass('dimmed');
+            highlighted = highlighted.union(n);
+        }
+    });
+
+    if (highlighted.length > 0) {
+        cy.animate({ fit: { eles: highlighted, padding: 50 } }, { duration: 500 });
+        showToast(highlighted.length + ' impacted node(s) highlighted', 'success');
+    } else {
+        showToast('No impacted nodes found on current graph', 'error');
+        clearHighlights();
+    }
+}
+
+function closeImpactModal() {
+    document.getElementById('impactModalOverlay').classList.remove('active');
 }
 
 // ============================================================

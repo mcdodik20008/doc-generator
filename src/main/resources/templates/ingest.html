@@ -308,6 +308,65 @@
         </div>
     </div>
 </div>
+
+<!-- ======== Section 4: Chunk Build ======== -->
+<div class="section" id="chunkBuildSection">
+    <div class="section-title">Chunk Build</div>
+    <div class="pipeline-panel">
+        <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
+            <div style="flex:1;min-width:200px">
+                <label style="display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:4px">Application</label>
+                <select id="chunkAppSelect" class="start-form" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px">
+                    <option value="">Select application...</option>
+                </select>
+            </div>
+            <div style="width:140px">
+                <label style="display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:4px">Strategy</label>
+                <select id="chunkStrategy" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px">
+                    <option value="per-node">per-node</option>
+                </select>
+            </div>
+            <div style="width:100px">
+                <label style="display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:4px">Batch Size</label>
+                <input type="number" id="chunkBatchSize" value="100" min="1" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px"/>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;padding-bottom:2px">
+                <input type="checkbox" id="chunkDryRun" style="accent-color:var(--accent);width:16px;height:16px"/>
+                <label style="font-size:13px;color:var(--text);margin:0" for="chunkDryRun">Dry Run</label>
+            </div>
+            <button class="btn btn-sm btn-accent" id="chunkStartBtn" onclick="startChunkBuild()" style="padding:8px 20px">Start</button>
+        </div>
+
+        <div id="chunkStatusPanel" style="display:none">
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                    <div style="font-size:14px;font-weight:600">
+                        Status: <span id="chunkState" class="status-badge">—</span>
+                    </div>
+                    <div id="chunkDuration" class="elapsed-timer"></div>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px">
+                    <div style="text-align:center">
+                        <div style="font-size:24px;font-weight:700;color:var(--accent)" id="chunkProcessed">0</div>
+                        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Processed</div>
+                    </div>
+                    <div style="text-align:center">
+                        <div style="font-size:24px;font-weight:700;color:var(--green,#22c55e)" id="chunkWritten">0</div>
+                        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Written</div>
+                    </div>
+                    <div style="text-align:center">
+                        <div style="font-size:24px;font-weight:700;color:var(--text-muted)" id="chunkSkipped">0</div>
+                        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Skipped</div>
+                    </div>
+                    <div style="text-align:center">
+                        <div style="font-size:24px;font-weight:700;color:var(--red,#ef4444)" id="chunkErrors">0</div>
+                        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Errors</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 </main>
 
 <script>
@@ -366,6 +425,8 @@
 
             document.getElementById('lastUpdated').textContent =
                 'Updated: ' + new Date().toLocaleTimeString('ru-RU');
+
+            populateChunkAppSelect();
         } catch (e) {
             loading.style.display = 'none';
             console.error('Load error:', e);
@@ -407,6 +468,11 @@
                     (isRunning ? 'disabled' : '') +
                     ' onclick="startIngest(' + app.applicationId + ')">' +
                     (isRunning ? 'Running...' : 'Ingest') +
+                '</button>' +
+                '<button class="btn btn-sm" style="background:rgba(234,179,8,0.15);color:#eab308;border-color:#eab308" ' +
+                    'id="reindex-btn-' + app.applicationId + '" ' +
+                    'onclick="reindexApp(' + app.applicationId + ', \'' + esc(app.applicationName) + '\')">' +
+                    'Reindex' +
                 '</button>' +
                 '<button class="btn btn-sm" onclick="showHistory(' + app.applicationId + ', \'' + esc(app.applicationName) + '\')">' +
                     'History' +
@@ -843,6 +909,137 @@
         }
     }
 
+    // ========== Reindex ==========
+    async function reindexApp(appId, appName) {
+        if (!confirm('Are you sure you want to reindex "' + appName + '"? This may take several minutes.')) return;
+
+        const btn = document.getElementById('reindex-btn-' + appId);
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Reindexing...';
+        }
+
+        try {
+            const res = await fetch('/api/ingest/reindex/' + appId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!res.ok) {
+                const body = await res.text();
+                throw new Error(body || ('HTTP ' + res.status));
+            }
+
+            const result = await res.json();
+            showToast('Reindex completed for "' + appName + '"', 'success');
+            loadApps();
+        } catch (e) {
+            console.error('Reindex error:', e);
+            showToast('Reindex failed: ' + e.message, 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Reindex';
+            }
+        }
+    }
+
+    // ========== Chunk Build ==========
+    let chunkPollTimer = null;
+
+    function populateChunkAppSelect() {
+        const select = document.getElementById('chunkAppSelect');
+        if (!lastLoadedApps || lastLoadedApps.length === 0) return;
+        select.innerHTML = '<option value="">Select application...</option>';
+        lastLoadedApps.forEach(app => {
+            const opt = document.createElement('option');
+            opt.value = app.applicationId;
+            opt.textContent = app.applicationName + ' (' + app.applicationKey + ')';
+            select.appendChild(opt);
+        });
+    }
+
+    async function startChunkBuild() {
+        const appId = document.getElementById('chunkAppSelect').value;
+        if (!appId) { showToast('Please select an application', 'error'); return; }
+
+        const strategy = document.getElementById('chunkStrategy').value;
+        const batchSize = parseInt(document.getElementById('chunkBatchSize').value) || 100;
+        const dryRun = document.getElementById('chunkDryRun').checked;
+
+        const btn = document.getElementById('chunkStartBtn');
+        btn.disabled = true;
+        btn.textContent = 'Starting...';
+
+        try {
+            const res = await fetch('/internal/chunks/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ applicationId: parseInt(appId), strategy, batchSize, dryRun }),
+            });
+
+            if (!res.ok) {
+                const body = await res.text();
+                throw new Error(body || ('HTTP ' + res.status));
+            }
+
+            const result = await res.json();
+            const runId = result.runId || result.id;
+
+            showToast('Chunk build started (run ' + runId + ')', 'success');
+            document.getElementById('chunkStatusPanel').style.display = 'block';
+            pollChunkBuildStatus(runId);
+        } catch (e) {
+            console.error('Chunk build start error:', e);
+            showToast('Failed to start chunk build: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Start';
+        }
+    }
+
+    function pollChunkBuildStatus(runId) {
+        if (chunkPollTimer) clearInterval(chunkPollTimer);
+
+        async function poll() {
+            try {
+                const res = await fetch('/internal/chunks/status/' + runId);
+                if (!res.ok) return;
+                const status = await res.json();
+
+                const stateEl = document.getElementById('chunkState');
+                stateEl.textContent = status.state || '—';
+                stateEl.className = 'status-badge ' + getStatusClass(status.state);
+
+                document.getElementById('chunkProcessed').textContent = status.processedNodes || 0;
+                document.getElementById('chunkWritten').textContent = status.writtenChunks || 0;
+                document.getElementById('chunkSkipped').textContent = status.skippedChunks || 0;
+                document.getElementById('chunkErrors').textContent = status.errors || 0;
+
+                if (status.duration) {
+                    document.getElementById('chunkDuration').textContent = status.duration;
+                }
+
+                const state = (status.state || '').toUpperCase();
+                if (state === 'COMPLETED' || state === 'FAILED' || state === 'CANCELLED') {
+                    clearInterval(chunkPollTimer);
+                    chunkPollTimer = null;
+                    if (state === 'COMPLETED') {
+                        showToast('Chunk build completed!', 'success');
+                    } else if (state === 'FAILED') {
+                        showToast('Chunk build failed', 'error');
+                    }
+                    loadApps();
+                }
+            } catch (e) {
+                console.error('Chunk status poll error:', e);
+            }
+        }
+
+        poll();
+        chunkPollTimer = setInterval(poll, 3000);
+    }
+
     // ========== Auto-refresh ==========
     function startAutoRefresh() {
         if (autoRefreshTimer) clearInterval(autoRefreshTimer);
@@ -852,7 +1049,7 @@
     }
 
     // ========== Init ==========
-    loadApps();
+    loadApps().then(() => populateChunkAppSelect());
     startAutoRefresh();
 </script>
 

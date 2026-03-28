@@ -266,6 +266,32 @@
 </div>
 
 <script>
+    async function loadChatStats() {
+        try {
+            const response = await fetch('/api/chat/sessions/stats');
+            if (!response.ok) return;
+            const stats = await response.json();
+
+            // Update "Total Chats" stat if available
+            const statValues = document.querySelectorAll('.stat-item');
+            statValues.forEach(item => {
+                const label = item.querySelector('.stat-label');
+                const value = item.querySelector('.stat-value');
+                if (label && value && label.textContent.trim() === 'Total Chats') {
+                    if (stats.totalChats != null) {
+                        value.textContent = stats.totalChats;
+                    } else if (stats.totalSessions != null) {
+                        value.textContent = stats.totalSessions;
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Failed to load chat stats:', error);
+        }
+    }
+
+    loadChatStats();
+
     function createNewChat() {
         window.location.href = '/chat';
     }
