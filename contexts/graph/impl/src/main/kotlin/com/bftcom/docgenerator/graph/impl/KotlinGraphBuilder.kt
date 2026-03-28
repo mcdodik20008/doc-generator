@@ -15,6 +15,7 @@ import com.bftcom.docgenerator.graph.api.node.NodeValidator
 import com.bftcom.docgenerator.graph.impl.apimetadata.ApiMetadataCollector
 import com.bftcom.docgenerator.graph.impl.config.ConfigPropertyLinker
 import com.bftcom.docgenerator.graph.impl.config.YamlConfigScanner
+import com.bftcom.docgenerator.graph.impl.profile.ArchitectureProfileBuilder
 import com.bftcom.docgenerator.graph.impl.node.CommandExecutorImpl
 import com.bftcom.docgenerator.graph.impl.node.KotlinSourceWalker
 import com.bftcom.docgenerator.graph.impl.node.KotlinToDomainVisitor
@@ -44,6 +45,7 @@ class KotlinGraphBuilder(
     private val apiMetadataCollector: ApiMetadataCollector? = null,
     private val yamlConfigScanner: YamlConfigScanner? = null,
     private val configPropertyLinker: ConfigPropertyLinker? = null,
+    private val architectureProfileBuilder: ArchitectureProfileBuilder? = null,
 ) : GraphBuilder {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -101,6 +103,14 @@ class KotlinGraphBuilder(
         // --- ФАЗА 2.5: линковка config → code ---
         if (configPropertyLinker != null) {
             tt.execute { configPropertyLinker.link(application) }
+        }
+
+        // --- ФАЗА 3: архитектурный профиль ---
+        if (architectureProfileBuilder != null) {
+            tt.execute {
+                val profile = architectureProfileBuilder.buildProfile(application)
+                architectureProfileBuilder.persistAsChunk(application, profile)
+            }
         }
 
         val nodesAfter = nodeRepo.count()

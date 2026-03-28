@@ -141,8 +141,20 @@ class RagServiceImpl(
         }
 
         val graphRelationsText = processingContext.getMetadata<String>(QueryMetadataKeys.GRAPH_RELATIONS_TEXT)
+        val archContext = processingContext.getMetadata<String>(QueryMetadataKeys.ARCHITECTURE_CONTEXT_TEXT)
+        val stacktraceContext = processingContext.getMetadata<String>(QueryMetadataKeys.STACKTRACE_ANALYSIS_TEXT)
 
         val context = buildString {
+            if (!archContext.isNullOrBlank()) {
+                append("=== АРХИТЕКТУРНЫЙ КОНТЕКСТ ===\n")
+                append(archContext)
+                append("\n\n")
+            }
+            if (!stacktraceContext.isNullOrBlank()) {
+                append("=== АНАЛИЗ СТЕКТРЕЙСА ===\n")
+                append(stacktraceContext)
+                append("\n\n")
+            }
             if (exactNodesContext.isNotEmpty()) {
                 append("=== ТОЧНО НАЙДЕННЫЕ УЗЛЫ ===\n")
                 append(exactNodesContext)
@@ -177,13 +189,31 @@ class RagServiceImpl(
             context
         }
 
+        val queryIntent = processingContext.getMetadata<String>(QueryMetadataKeys.QUERY_INTENT)
+        val systemPrompt = when (queryIntent) {
+            "ARCHITECTURE" -> """
+                Ты — архитектурный эксперт. Ответь на вопрос об архитектуре, используя предоставленный контекст.
+                Описывай слои, компоненты, интеграции и паттерны, которые видишь в контексте.
+                Если в контексте нет информации, так и скажи.
+                ОБЯЗАТЕЛЬНО указывай источники информации в формате [ID].
+            """.trimIndent()
+            "STACKTRACE" -> """
+                Ты — эксперт по отладке Java/Kotlin. Проанализируй стектрейс и контекст кода.
+                Объясни причину ошибки и предложи исправление. Укажи конкретные файлы и строки.
+                Если в контексте нет информации, так и скажи.
+                ОБЯЗАТЕЛЬНО указывай источники информации в формате [ID].
+            """.trimIndent()
+            else -> """
+                Ты — умный ассистент разработчика. Ответь на вопрос, используя только предоставленный контекст.
+                Если в контексте нет информации, так и скажи.
+                ОБЯЗАТЕЛЬНО указывай источники информации в формате [ID], где ID — это идентификатор источника из контекста.
+                Пример: "Этот метод используется в классе Foo [123]".
+            """.trimIndent()
+        }
+
         val prompt =
             """
-            Ты — умный ассистент разработчика. Ответь на вопрос, используя только предоставленный контекст.
-            Если в контексте нет информации, так и скажи.
-
-            ОБЯЗАТЕЛЬНО указывай источники информации в формате [ID], где ID — это идентификатор источника из контекста.
-            Пример: "Этот метод используется в классе Foo [123]".
+            $systemPrompt
 
             Контекст:
             $truncatedContext

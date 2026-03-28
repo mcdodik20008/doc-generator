@@ -13,6 +13,10 @@ enum class ProcessingStepType(val description: String) {
     REWRITING("Уточнение формулировки"),
     EXPANSION("Обогащение синонимами"),
 
+    ARCHITECTURE_SYNTHESIS("Анализ архитектуры"),
+    STACKTRACE_PARSING("Разбор стектрейса"),
+    STACKTRACE_ANALYSIS("Анализ ошибки"),
+
     VECTOR_SEARCH("Поиск по контексту"),
     RERANKING("Отбор лучших чанков"),
 

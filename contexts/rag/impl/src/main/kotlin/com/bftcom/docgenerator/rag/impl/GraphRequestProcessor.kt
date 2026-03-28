@@ -208,6 +208,21 @@ class GraphRequestProcessor(
                                 StepEventStatus.COMPLETED -> "Граф построен"
                                 else -> "Построение графа"
                         }
+                        ProcessingStepType.ARCHITECTURE_SYNTHESIS -> when (status) {
+                                StepEventStatus.STARTED -> "Анализ архитектуры..."
+                                StepEventStatus.COMPLETED -> "Архитектурный контекст собран"
+                                else -> "Анализ архитектуры"
+                        }
+                        ProcessingStepType.STACKTRACE_PARSING -> when (status) {
+                                StepEventStatus.STARTED -> "Разбор стектрейса..."
+                                StepEventStatus.COMPLETED -> "Стектрейс разобран"
+                                else -> "Разбор стектрейса"
+                        }
+                        ProcessingStepType.STACKTRACE_ANALYSIS -> when (status) {
+                                StepEventStatus.STARTED -> "Анализ ошибки по графу..."
+                                StepEventStatus.COMPLETED -> "Ошибка проанализирована"
+                                else -> "Анализ ошибки"
+                        }
                         ProcessingStepType.RERANKING -> when (status) {
                                 StepEventStatus.STARTED -> "Ранжирование результатов..."
                                 StepEventStatus.COMPLETED -> "Результаты ранжированы"

@@ -47,6 +47,16 @@ class IntentClassificationStep(
     }
 
     private fun classifyIntent(query: String): String {
+        // Быстрая эвристика: стектрейс — наивысший приоритет
+        if (hasStacktracePattern(query)) {
+            return "STACKTRACE"
+        }
+
+        // Эвристика: архитектурные вопросы
+        if (hasArchitectureKeywords(query)) {
+            return "ARCHITECTURE"
+        }
+
         // Быстрая эвристика: если в запросе есть CamelCase или явные маркеры — сразу EXACT
         if (hasCamelCaseIdentifier(query) || hasExplicitClassMethodMarker(query)) {
             return "EXACT"
@@ -59,11 +69,13 @@ class IntentClassificationStep(
                 Типы:
                 - EXACT — запрос про конкретный класс, метод или функцию (есть имена в CamelCase, упоминание "класс", "метод", пакет)
                 - CONCEPTUAL — семантический вопрос без конкретных имён ("где настройки", "как работает авторизация", "что отвечает за кэширование")
+                - ARCHITECTURE — вопрос об архитектуре, обзоре системы, слоях, интеграциях, технологиях ("какая архитектура", "обзор системы", "какие слои", "как устроен проект")
+                - STACKTRACE — запрос содержит стектрейс Java/Kotlin исключения (строки "at ...()", "Caused by:", "Exception:")
                 - DEFAULT — неясный запрос, не относящийся к коду, или слишком общий
 
                 Запрос: $query
 
-                Ответ (EXACT, CONCEPTUAL или DEFAULT):
+                Ответ (EXACT, CONCEPTUAL, ARCHITECTURE, STACKTRACE или DEFAULT):
             """.trimIndent()
 
             val response = chatClient
@@ -76,6 +88,8 @@ class IntentClassificationStep(
                 ?: "DEFAULT"
 
             when {
+                response.contains("STACKTRACE") -> "STACKTRACE"
+                response.contains("ARCHITECTURE") -> "ARCHITECTURE"
                 response.contains("EXACT") -> "EXACT"
                 response.contains("CONCEPTUAL") -> "CONCEPTUAL"
                 else -> "DEFAULT"
@@ -103,8 +117,30 @@ class IntentClassificationStep(
         return markers.any { it.containsMatchIn(query) }
     }
 
+    private fun hasStacktracePattern(query: String): Boolean {
+        val framePattern = Regex("""at\s+[\w.$]+\.\w+\([^)]*:\d+\)""")
+        val frameCount = framePattern.findAll(query).count()
+        if (frameCount >= 2) return true
+
+        val hasExceptionHeader = Regex("""[\w.]+Exception\s*:""").containsMatchIn(query) ||
+            query.contains("Caused by:")
+        return frameCount >= 1 && hasExceptionHeader
+    }
+
+    private fun hasArchitectureKeywords(query: String): Boolean {
+        val lower = query.lowercase()
+        val keywords = listOf(
+            "архитектур", "как устроен", "обзор систем", "какие слои",
+            "интеграци", "технологи", "структура проект", "из чего состоит",
+            "architecture", "overview", "layers", "system design",
+        )
+        return keywords.any { lower.contains(it) }
+    }
+
     override fun getTransitions(): Map<String, ProcessingStepType> {
         return linkedMapOf(
+            "STACKTRACE" to ProcessingStepType.STACKTRACE_PARSING,
+            "ARCHITECTURE" to ProcessingStepType.ARCHITECTURE_SYNTHESIS,
             "EXACT" to ProcessingStepType.EXTRACTION,
             "CONCEPTUAL" to ProcessingStepType.HYPOTHESIS_GENERATION,
             "DEFAULT" to ProcessingStepType.REWRITING,

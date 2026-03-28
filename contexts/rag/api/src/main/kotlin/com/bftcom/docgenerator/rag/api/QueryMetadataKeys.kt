@@ -60,6 +60,17 @@ enum class QueryMetadataKeys(val key: String) {
         HYPOTHETICAL_NAMES("hypotheticalNames"),
         HYPOTHETICAL_CODE("hypotheticalCode"),
 
+        // Архитектурный контекст
+        ARCHITECTURE_CONTEXT_TEXT("architectureContextText"),
+
+        // Стектрейс-анализ
+        STACKTRACE_FRAMES("stacktraceFrames"),
+        STACKTRACE_APP_FRAMES("stacktraceAppFrames"),
+        STACKTRACE_EXCEPTION_TYPE("stacktraceExceptionType"),
+        STACKTRACE_EXCEPTION_MESSAGE("stacktraceExceptionMessage"),
+        STACKTRACE_ROOT_CAUSE_FRAME("stacktraceRootCauseFrame"),
+        STACKTRACE_ANALYSIS_TEXT("stacktraceAnalysisText"),
+
         // Статус обработки
         PROCESSING_STATUS("processingStatus"),
 }
