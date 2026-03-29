@@ -263,6 +263,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
                 WHEN 'SERVICE'   THEN 2
                 WHEN 'MAPPER'    THEN 2
                 WHEN 'CONFIG'    THEN 2
+                WHEN 'SCHEMA'    THEN 2
                 WHEN 'EXCEPTION' THEN 2
                 WHEN 'TEST'      THEN 2
                 WHEN 'PACKAGE'   THEN 3
@@ -307,6 +308,7 @@ interface NodeRepository : JpaRepository<Node, Long> {
                 WHEN 'SERVICE'   THEN 2
                 WHEN 'MAPPER'    THEN 2
                 WHEN 'CONFIG'    THEN 2
+                WHEN 'SCHEMA'    THEN 2
                 WHEN 'EXCEPTION' THEN 2
                 WHEN 'TEST'      THEN 2
                 WHEN 'PACKAGE'   THEN 3

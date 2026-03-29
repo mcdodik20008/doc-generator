@@ -10,7 +10,7 @@ import com.bftcom.docgenerator.graph.impl.util.NkxUtil
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 
-@Order(10)
+@Order(5)
 @Component
 class EndpointClassExtractor : NodeKindExtractor {
     override fun id() = "endpoint-class"

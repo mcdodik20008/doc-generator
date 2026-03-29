@@ -22,6 +22,13 @@ class SchemaModelExtractor : NodeKindExtractor {
         ctx: NodeKindContext,
     ): NodeKind? {
         val a = NkxUtil.anns(raw.annotationsRepr)
+
+        // Контроллеры часто импортируют Swagger-аннотации для документирования API,
+        // но их нельзя классифицировать как SCHEMA
+        if (NkxUtil.hasAnyAnn(a, "RestController", "Controller", "FeignClient", "GrpcService")) {
+            return null
+        }
+
         val imps = NkxUtil.imps(ctx.imports)
         val pkg = NkxUtil.pkg(raw.pkgFqn)
 

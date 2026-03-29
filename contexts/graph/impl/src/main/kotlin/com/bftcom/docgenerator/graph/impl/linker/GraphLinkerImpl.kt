@@ -301,6 +301,7 @@ class GraphLinkerImpl(
                             NodeKind.SERVICE,
                             NodeKind.MAPPER,
                             NodeKind.CONFIG,
+                            NodeKind.SCHEMA,
                     )
 
     private fun Node.isFunctionNode(): Boolean =

@@ -66,6 +66,7 @@ class StructuralEdgeLinker {
             NodeKind.CLASS,
             NodeKind.ENUM,
             NodeKind.CONFIG,
+            NodeKind.SCHEMA,
         )
 
         private val MEMBER_KINDS = setOf(
