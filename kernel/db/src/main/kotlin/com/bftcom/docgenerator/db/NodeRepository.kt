@@ -251,9 +251,10 @@ interface NodeRepository : JpaRepository<Node, Long> {
               ))
             ORDER BY
               CASE n.kind
-                WHEN 'FIELD'     THEN 0
-                WHEN 'ENDPOINT'  THEN 0
-                WHEN 'TOPIC'     THEN 0
+                WHEN 'FIELD'           THEN 0
+                WHEN 'ENDPOINT'        THEN 0
+                WHEN 'TOPIC'           THEN 0
+                WHEN 'INFRASTRUCTURE'  THEN 0
                 WHEN 'METHOD'    THEN 1
                 WHEN 'CLASS'     THEN 2
                 WHEN 'INTERFACE' THEN 2
@@ -294,9 +295,10 @@ interface NodeRepository : JpaRepository<Node, Long> {
             )
             ORDER BY
               CASE n.kind
-                WHEN 'FIELD'     THEN 0
-                WHEN 'ENDPOINT'  THEN 0
-                WHEN 'TOPIC'     THEN 0
+                WHEN 'FIELD'           THEN 0
+                WHEN 'ENDPOINT'        THEN 0
+                WHEN 'TOPIC'           THEN 0
+                WHEN 'INFRASTRUCTURE'  THEN 0
                 WHEN 'METHOD'    THEN 1
                 WHEN 'CLASS'     THEN 2
                 WHEN 'INTERFACE' THEN 2

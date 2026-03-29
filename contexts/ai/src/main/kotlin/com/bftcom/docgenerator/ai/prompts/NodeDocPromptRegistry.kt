@@ -155,6 +155,31 @@ class NodeDocPromptRegistry {
             """.trimIndent(),
         )
 
+    private val promptInfrastructure =
+        NodeDocPrompt(
+            id = "node-doc-infrastructure-v1",
+            systemPrompt = """
+                Ты — строгий инженер-документатор. Опиши интеграционный компонент (внешняя система из YAML-конфигурации).
+                Пиши ТОЛЬКО на русском языке.
+
+                КРИТИЧЕСКИЕ ПРАВИЛА:
+                1. ЗАПРЕЩЕНО использовать заголовки первого уровня (#).
+                2. ЗАПРЕЩЕНО любое вступление или приветствие.
+                3. Начинай СРАЗУ с содержания, используя заголовки второго уровня (##).
+                4. Если данных недостаточно — не выдумывай, укажи на это прямо.
+                5. Используй только факты из предоставленного контекста интеграции.
+                6. Если раздел не подтверждается контекстом — напиши "Нет данных".
+
+                Формат ответа: Markdown, без лишних вступлений.
+                Структура:
+                ## Назначение
+                ## Тип интеграции (HTTP/DATABASE/KAFKA/RABBIT/AUTH/...)
+                ## Конфигурация (ключевые свойства, значения по умолчанию)
+                ## Переменные окружения (если есть)
+                ## Нюансы/ограничения
+            """.trimIndent(),
+        )
+
     private val promptLeafWithCode =
         NodeDocPrompt(
             id = "node-doc-leaf-with-code-v1",
@@ -221,6 +246,7 @@ class NodeDocPromptRegistry {
                 } else {
                     promptContainerNoChildren
                 }
+            NodeKind.INFRASTRUCTURE -> promptInfrastructure
             else ->
                 if (profile.hasCode) {
                     promptLeafWithCode

@@ -39,6 +39,7 @@ class NodeDocContextBuilder(
             NodeKind.PACKAGE -> buildContainer(node, locale, containerKind = "PACKAGE")
             NodeKind.MODULE -> buildContainer(node, locale, containerKind = "MODULE")
             NodeKind.REPO -> buildContainer(node, locale, containerKind = "REPO")
+            NodeKind.INFRASTRUCTURE -> buildInfrastructure(node)
             else -> buildLeaf(node)
         }
 
@@ -254,6 +255,63 @@ class NodeDocContextBuilder(
             childrenCount = children.size,
             hasKdoc = false,
             hasCode = false,
+        )
+    }
+
+    private fun buildInfrastructure(node: Node): BuildResult {
+        val nodeId = node.id ?: error("node.id is null")
+        val meta = node.meta
+
+        val integrationType = meta["integrationType"]?.toString() ?: "UNKNOWN"
+        val configPrefix = meta["configPrefix"]?.toString().orEmpty()
+        val defaultUrl = meta["defaultUrl"]?.toString()
+        val envVar = meta["envVar"]?.toString()
+
+        @Suppress("UNCHECKED_CAST")
+        val properties = meta["properties"] as? Map<String, Any> ?: emptyMap()
+
+        val code = (node.sourceCode ?: "").trim()
+
+        val ctx =
+            buildString {
+                appendLine("## Node")
+                appendLine("kind=INFRASTRUCTURE")
+                appendLine("fqn=${node.fqn}")
+                node.name?.let { appendLine("name=$it") }
+                appendLine()
+
+                appendLine("## Integration")
+                appendLine("type=$integrationType")
+                if (configPrefix.isNotBlank()) appendLine("configPrefix=$configPrefix")
+                defaultUrl?.let { appendLine("defaultUrl=$it") }
+                envVar?.let { appendLine("envVar=$it") }
+                appendLine()
+
+                if (properties.isNotEmpty()) {
+                    appendLine("## Configuration Properties")
+                    for ((key, value) in properties) {
+                        appendLine("$key: $value")
+                    }
+                    appendLine()
+                }
+
+                if (code.isNotBlank()) {
+                    appendLine("## Source (YAML)")
+                    appendLine("```yaml")
+                    appendLine(code)
+                    appendLine("```")
+                }
+            }
+
+        return BuildResult(
+            context = ctx,
+            depsMissing = false,
+            depsForDigest = emptyList(),
+            included = listOf(mapOf("node_id" to nodeId, "kind" to node.kind.name, "level" to "self")),
+            depsCount = 0,
+            childrenCount = 0,
+            hasKdoc = false,
+            hasCode = code.isNotBlank(),
         )
     }
 

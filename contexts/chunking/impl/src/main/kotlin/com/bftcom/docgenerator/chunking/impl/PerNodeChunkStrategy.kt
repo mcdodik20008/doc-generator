@@ -98,7 +98,7 @@ class PerNodeChunkStrategy : ChunkStrategy {
 
     private fun priorityFor(node: Node): Int =
         when (node.kind.name) {
-            "ENDPOINT", "METHOD" -> 10
+            "ENDPOINT", "METHOD", "INFRASTRUCTURE" -> 10
             "CLASS" -> 5
             else -> 0
         }
