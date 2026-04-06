@@ -10,19 +10,18 @@ import org.springframework.jdbc.core.JdbcTemplate
 
 @Configuration
 class CustomPgVectorStoreConfig {
-
     @Bean
     @Primary
     fun customPgVectorStore(
         jdbcTemplate: JdbcTemplate,
-        embeddingModel: EmbeddingModel
-    ): PgVectorStore {
-        return PgVectorStore.builder(jdbcTemplate, embeddingModel)
+        embeddingModel: EmbeddingModel,
+    ): PgVectorStore =
+        PgVectorStore
+            .builder(jdbcTemplate, embeddingModel)
             .schemaName("doc_generator")
             .vectorTableName("chunk")
             .distanceType(PgDistanceType.COSINE_DISTANCE)
             .initializeSchema(false)
             .dimensions(1024)
             .build()
-    }
 }

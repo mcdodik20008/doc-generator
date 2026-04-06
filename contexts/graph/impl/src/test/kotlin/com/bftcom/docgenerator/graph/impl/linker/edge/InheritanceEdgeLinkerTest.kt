@@ -5,8 +5,8 @@ import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.impl.linker.NodeIndexFactory
+import com.bftcom.docgenerator.shared.node.NodeMeta
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -68,11 +68,12 @@ class InheritanceEdgeLinkerTest {
         val child = node(fqn = "com.example.Child", name = "Child", pkg = "com.example", kind = NodeKind.CLASS)
         val index = NodeIndexFactory().create(listOf(child))
 
-        val edges = InheritanceEdgeLinker().link(
-            child,
-            NodeMeta(supertypesSimple = listOf("UnknownBase"), imports = emptyList()),
-            index,
-        )
+        val edges =
+            InheritanceEdgeLinker().link(
+                child,
+                NodeMeta(supertypesSimple = listOf("UnknownBase"), imports = emptyList()),
+                index,
+            )
 
         assertThat(edges).isEmpty()
     }
@@ -84,11 +85,12 @@ class InheritanceEdgeLinkerTest {
         val child = node(fqn = "com.example.Child", name = "Child", pkg = "com.example", kind = NodeKind.CLASS)
 
         val index = NodeIndexFactory().create(listOf(base1, base2, child))
-        val meta = NodeMeta(
-            imports = listOf("com.base.Base1", "com.base.Base2"),
-            supertypesResolved = listOf("Base1"),
-            supertypesSimple = listOf("Base2"),
-        )
+        val meta =
+            NodeMeta(
+                imports = listOf("com.base.Base1", "com.base.Base2"),
+                supertypesResolved = listOf("Base1"),
+                supertypesSimple = listOf("Base2"),
+            )
 
         val edges = InheritanceEdgeLinker().link(child, meta, index)
 
@@ -102,11 +104,12 @@ class InheritanceEdgeLinkerTest {
         val child = node(fqn = "com.example.Child", name = "Child", pkg = "com.example", kind = NodeKind.CLASS)
         val index = NodeIndexFactory().create(listOf(child))
 
-        val edges = InheritanceEdgeLinker().link(
-            child,
-            NodeMeta(supertypesResolved = emptyList(), supertypesSimple = emptyList()),
-            index,
-        )
+        val edges =
+            InheritanceEdgeLinker().link(
+                child,
+                NodeMeta(supertypesResolved = emptyList(), supertypesSimple = emptyList()),
+                index,
+            )
 
         assertThat(edges).isEmpty()
     }
@@ -120,16 +123,18 @@ class InheritanceEdgeLinkerTest {
         val index = NodeIndexFactory().create(listOf(classA, classB))
 
         // A наследуется от B
-        val metaA = NodeMeta(
-            imports = listOf("com.example.B"),
-            supertypesSimple = listOf("B"),
-        )
+        val metaA =
+            NodeMeta(
+                imports = listOf("com.example.B"),
+                supertypesSimple = listOf("B"),
+            )
 
         // B наследуется от A
-        val metaB = NodeMeta(
-            imports = listOf("com.example.A"),
-            supertypesSimple = listOf("A"),
-        )
+        val metaB =
+            NodeMeta(
+                imports = listOf("com.example.A"),
+                supertypesSimple = listOf("A"),
+            )
 
         // when
         val edgesA = InheritanceEdgeLinker().link(classA, metaA, index)
@@ -150,22 +155,25 @@ class InheritanceEdgeLinkerTest {
         val index = NodeIndexFactory().create(listOf(classA, classB, classC))
 
         // A наследуется от B
-        val metaA = NodeMeta(
-            imports = listOf("com.example.B"),
-            supertypesSimple = listOf("B"),
-        )
+        val metaA =
+            NodeMeta(
+                imports = listOf("com.example.B"),
+                supertypesSimple = listOf("B"),
+            )
 
         // B наследуется от C
-        val metaB = NodeMeta(
-            imports = listOf("com.example.C"),
-            supertypesSimple = listOf("C"),
-        )
+        val metaB =
+            NodeMeta(
+                imports = listOf("com.example.C"),
+                supertypesSimple = listOf("C"),
+            )
 
         // C наследуется от A
-        val metaC = NodeMeta(
-            imports = listOf("com.example.A"),
-            supertypesSimple = listOf("A"),
-        )
+        val metaC =
+            NodeMeta(
+                imports = listOf("com.example.A"),
+                supertypesSimple = listOf("A"),
+            )
 
         // when
         val edgesA = InheritanceEdgeLinker().link(classA, metaA, index)
@@ -188,22 +196,25 @@ class InheritanceEdgeLinkerTest {
         val index = NodeIndexFactory().create(listOf(base, child1, child2))
 
         // Child1 наследуется от Base
-        val meta1 = NodeMeta(
-            imports = listOf("com.example.Base"),
-            supertypesSimple = listOf("Base"),
-        )
+        val meta1 =
+            NodeMeta(
+                imports = listOf("com.example.Base"),
+                supertypesSimple = listOf("Base"),
+            )
 
         // Child2 наследуется от Base и Child1 (множественное наследование через супертипы)
-        val meta2 = NodeMeta(
-            imports = listOf("com.example.Base", "com.example.Child1"),
-            supertypesSimple = listOf("Base", "Child1"),
-        )
+        val meta2 =
+            NodeMeta(
+                imports = listOf("com.example.Base", "com.example.Child1"),
+                supertypesSimple = listOf("Base", "Child1"),
+            )
 
         // Base наследуется от Child2 (цикл!)
-        val metaBase = NodeMeta(
-            imports = listOf("com.example.Child2"),
-            supertypesSimple = listOf("Child2"),
-        )
+        val metaBase =
+            NodeMeta(
+                imports = listOf("com.example.Child2"),
+                supertypesSimple = listOf("Child2"),
+            )
 
         // when
         val edges1 = InheritanceEdgeLinker().link(child1, meta1, index)
@@ -224,10 +235,11 @@ class InheritanceEdgeLinkerTest {
         val enum = node(fqn = "com.example.MyEnum", name = "MyEnum", pkg = "com.example", kind = NodeKind.ENUM)
 
         val index = NodeIndexFactory().create(listOf(base, enum))
-        val meta = NodeMeta(
-            imports = listOf("com.base.Base"),
-            supertypesSimple = listOf("Base"),
-        )
+        val meta =
+            NodeMeta(
+                imports = listOf("com.base.Base"),
+                supertypesSimple = listOf("Base"),
+            )
 
         val edges = InheritanceEdgeLinker().link(enum, meta, index)
 
@@ -243,10 +255,11 @@ class InheritanceEdgeLinkerTest {
         val record = node(fqn = "com.example.MyRecord", name = "MyRecord", pkg = "com.example", kind = NodeKind.RECORD)
 
         val index = NodeIndexFactory().create(listOf(base, record))
-        val meta = NodeMeta(
-            imports = listOf("com.base.Base"),
-            supertypesSimple = listOf("Base"),
-        )
+        val meta =
+            NodeMeta(
+                imports = listOf("com.base.Base"),
+                supertypesSimple = listOf("Base"),
+            )
 
         val edges = InheritanceEdgeLinker().link(record, meta, index)
 
@@ -262,10 +275,11 @@ class InheritanceEdgeLinkerTest {
         val service = node(fqn = "com.example.MyService", name = "MyService", pkg = "com.example", kind = NodeKind.SERVICE)
 
         val index = NodeIndexFactory().create(listOf(iface, service))
-        val meta = NodeMeta(
-            imports = listOf("com.other.I"),
-            supertypesSimple = listOf("I"),
-        )
+        val meta =
+            NodeMeta(
+                imports = listOf("com.other.I"),
+                supertypesSimple = listOf("I"),
+            )
 
         val edges = InheritanceEdgeLinker().link(service, meta, index)
 
@@ -281,10 +295,11 @@ class InheritanceEdgeLinkerTest {
         val child = node(fqn = "com.example.Child", name = "Child", pkg = "com.example", kind = NodeKind.CLASS)
 
         val index = NodeIndexFactory().create(listOf(base, child))
-        val meta = NodeMeta(
-            imports = emptyList(),
-            supertypesSimple = listOf("Base"),
-        )
+        val meta =
+            NodeMeta(
+                imports = emptyList(),
+                supertypesSimple = listOf("Base"),
+            )
 
         val edges = InheritanceEdgeLinker().link(child, meta, index)
 
@@ -300,10 +315,11 @@ class InheritanceEdgeLinkerTest {
         val child = node(fqn = "com.example.Child", name = "Child", pkg = "com.example", kind = NodeKind.CLASS)
 
         val index = NodeIndexFactory().create(listOf(base, child))
-        val meta = NodeMeta(
-            imports = null,
-            supertypesSimple = listOf("Base"),
-        )
+        val meta =
+            NodeMeta(
+                imports = null,
+                supertypesSimple = listOf("Base"),
+            )
 
         val edges = InheritanceEdgeLinker().link(child, meta, index)
 
@@ -319,10 +335,11 @@ class InheritanceEdgeLinkerTest {
         val child = node(fqn = "com.example.Child", name = "Child", pkg = null, kind = NodeKind.CLASS)
 
         val index = NodeIndexFactory().create(listOf(base, child))
-        val meta = NodeMeta(
-            imports = listOf("com.example.Base"),
-            supertypesSimple = listOf("Base"),
-        )
+        val meta =
+            NodeMeta(
+                imports = listOf("com.example.Base"),
+                supertypesSimple = listOf("Base"),
+            )
 
         val edges = InheritanceEdgeLinker().link(child, meta, index)
 
@@ -348,4 +365,3 @@ class InheritanceEdgeLinkerTest {
             lang = Lang.kotlin,
         )
 }
-

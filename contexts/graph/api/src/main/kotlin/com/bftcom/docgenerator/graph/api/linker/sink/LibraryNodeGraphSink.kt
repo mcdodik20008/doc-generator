@@ -22,4 +22,3 @@ data class LibraryNodeEdgeProposal(
     val node: Node,
     val libraryNode: LibraryNode,
 )
-

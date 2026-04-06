@@ -29,19 +29,22 @@ class ExactSearchStep(
 
         if (className.isNullOrBlank() && methodName.isNullOrBlank()) {
             // Проверяем, есть ли гипотетические имена для поиска
-            val hypotheticalNames = context.getMetadata<List<*>>(QueryMetadataKeys.HYPOTHETICAL_NAMES)
-                ?.filterIsInstance<String>()
+            val hypotheticalNames =
+                context
+                    .getMetadata<List<*>>(QueryMetadataKeys.HYPOTHETICAL_NAMES)
+                    ?.filterIsInstance<String>()
 
             if (hypotheticalNames.isNullOrEmpty()) {
-                val updatedContext = context.addStep(
-                    ProcessingStep(
-                        advisorName = "ExactSearchStep",
-                        input = context.currentQuery,
-                        output = "Нет извлеченных классов/методов, переходим к REWRITING",
-                        stepType = type,
-                        status = ProcessingStepStatus.SUCCESS,
-                    ),
-                )
+                val updatedContext =
+                    context.addStep(
+                        ProcessingStep(
+                            advisorName = "ExactSearchStep",
+                            input = context.currentQuery,
+                            output = "Нет извлеченных классов/методов, переходим к REWRITING",
+                            stepType = type,
+                            status = ProcessingStepStatus.SUCCESS,
+                        ),
+                    )
                 return StepResult(
                     context = updatedContext,
                     transitionKey = "NO_DATA",
@@ -54,17 +57,20 @@ class ExactSearchStep(
 
         // Если не нашли по точным именам — пробуем гипотетические имена
         if (foundNodes.isEmpty()) {
-            val hypotheticalNames = context.getMetadata<List<*>>(QueryMetadataKeys.HYPOTHETICAL_NAMES)
-                ?.filterIsInstance<String>()
+            val hypotheticalNames =
+                context
+                    .getMetadata<List<*>>(QueryMetadataKeys.HYPOTHETICAL_NAMES)
+                    ?.filterIsInstance<String>()
             if (!hypotheticalNames.isNullOrEmpty()) {
                 val appIds = getApplicationIds(appIdFromContext)
                 for (name in hypotheticalNames) {
                     for (appId in appIds) {
-                        val byFqn = nodeRepository.findByApplicationIdAndFqnContaining(
-                            applicationId = appId,
-                            fqnPattern = name,
-                            pageable = PageRequest.of(0, 3),
-                        )
+                        val byFqn =
+                            nodeRepository.findByApplicationIdAndFqnContaining(
+                                applicationId = appId,
+                                fqnPattern = name,
+                                pageable = PageRequest.of(0, 3),
+                            )
                         foundNodes.addAll(byFqn)
                     }
                     if (foundNodes.isNotEmpty()) break
@@ -73,35 +79,37 @@ class ExactSearchStep(
         }
 
         val distinctNodes = foundNodes.distinctBy { it.id }
-        val updatedContext = if (distinctNodes.isNotEmpty()) {
-            context
-                .setMetadata(QueryMetadataKeys.EXACT_NODES, distinctNodes)
-                .addStep(
+        val updatedContext =
+            if (distinctNodes.isNotEmpty()) {
+                context
+                    .setMetadata(QueryMetadataKeys.EXACT_NODES, distinctNodes)
+                    .addStep(
+                        ProcessingStep(
+                            advisorName = "ExactSearchStep",
+                            input = context.currentQuery,
+                            output = "Найдено узлов: ${distinctNodes.size}",
+                            stepType = type,
+                            status = ProcessingStepStatus.SUCCESS,
+                        ),
+                    )
+            } else {
+                context.addStep(
                     ProcessingStep(
                         advisorName = "ExactSearchStep",
                         input = context.currentQuery,
-                        output = "Найдено узлов: ${distinctNodes.size}",
+                        output = "Узлы не найдены",
                         stepType = type,
                         status = ProcessingStepStatus.SUCCESS,
                     ),
                 )
-        } else {
-            context.addStep(
-                ProcessingStep(
-                    advisorName = "ExactSearchStep",
-                    input = context.currentQuery,
-                    output = "Узлы не найдены",
-                    stepType = type,
-                    status = ProcessingStepStatus.SUCCESS,
-                ),
-            )
-        }
+            }
 
-        val transitionKey = if (distinctNodes.isNotEmpty()) {
-            "HAS_DATA"
-        } else {
-            "NO_DATA"
-        }
+        val transitionKey =
+            if (distinctNodes.isNotEmpty()) {
+                "HAS_DATA"
+            } else {
+                "NO_DATA"
+            }
 
         log.info("EXACT_SEARCH: class='{}', method='{}', nodes={}", className, methodName, distinctNodes.size)
         return StepResult(
@@ -110,15 +118,18 @@ class ExactSearchStep(
         )
     }
 
-    private fun getApplicationIds(appIdFromContext: Long?): List<Long> {
-        return if (appIdFromContext != null) {
+    private fun getApplicationIds(appIdFromContext: Long?): List<Long> =
+        if (appIdFromContext != null) {
             listOf(appIdFromContext)
         } else {
             applicationRepository.findAll().mapNotNull { it.id }
         }
-    }
 
-    private fun findNodes(className: String?, methodName: String?, appIdFromContext: Long?): List<Node> {
+    private fun findNodes(
+        className: String?,
+        methodName: String?,
+        appIdFromContext: Long?,
+    ): List<Node> {
         val foundNodes = mutableListOf<Node>()
         val appIds = getApplicationIds(appIdFromContext)
 
@@ -129,30 +140,33 @@ class ExactSearchStep(
 
         if (className != null && methodName != null) {
             for (appId in appIds) {
-                val nodes = nodeRepository.findByApplicationIdAndClassNameAndMethodNameIgnoreCase(
-                    applicationId = appId,
-                    className = className,
-                    methodName = methodName,
-                    methodKind = NodeKind.METHOD,
-                )
+                val nodes =
+                    nodeRepository.findByApplicationIdAndClassNameAndMethodNameIgnoreCase(
+                        applicationId = appId,
+                        className = className,
+                        methodName = methodName,
+                        methodKind = NodeKind.METHOD,
+                    )
                 foundNodes.addAll(nodes)
             }
         } else if (className != null) {
             for (appId in appIds) {
-                val nodes = nodeRepository.findByApplicationIdAndClassNameIgnoreCase(
-                    applicationId = appId,
-                    className = className,
-                    classKinds = setOf(NodeKind.CLASS, NodeKind.INTERFACE),
-                )
+                val nodes =
+                    nodeRepository.findByApplicationIdAndClassNameIgnoreCase(
+                        applicationId = appId,
+                        className = className,
+                        classKinds = setOf(NodeKind.CLASS, NodeKind.INTERFACE),
+                    )
                 foundNodes.addAll(nodes)
             }
         } else if (methodName != null) {
             for (appId in appIds) {
-                val nodes = nodeRepository.findByApplicationIdAndMethodNameIgnoreCase(
-                    applicationId = appId,
-                    methodName = methodName,
-                    methodKind = NodeKind.METHOD,
-                )
+                val nodes =
+                    nodeRepository.findByApplicationIdAndMethodNameIgnoreCase(
+                        applicationId = appId,
+                        methodName = methodName,
+                        methodKind = NodeKind.METHOD,
+                    )
                 foundNodes.addAll(nodes)
             }
         }
@@ -160,10 +174,9 @@ class ExactSearchStep(
         return foundNodes.distinctBy { it.id }
     }
 
-    override fun getTransitions(): Map<String, ProcessingStepType> {
-        return linkedMapOf(
+    override fun getTransitions(): Map<String, ProcessingStepType> =
+        linkedMapOf(
             "HAS_DATA" to ProcessingStepType.GRAPH_EXPANSION,
             "NO_DATA" to ProcessingStepType.REWRITING,
         )
-    }
 }

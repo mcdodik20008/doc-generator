@@ -12,6 +12,7 @@ fun NodeRepository.findAllByIdInBatched(ids: Set<Long>): List<Node> {
     if (ids.size <= BATCH_SIZE) {
         return findAllByIdIn(ids)
     }
-    return ids.chunked(BATCH_SIZE)
+    return ids
+        .chunked(BATCH_SIZE)
         .flatMap { batch -> findAllByIdIn(batch.toSet()) }
 }

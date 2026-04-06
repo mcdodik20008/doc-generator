@@ -17,18 +17,20 @@ class VectorSearchStepTest {
     @Test
     fun `execute - выполняет поиск по оригинальному запросу`() {
         val query = "Что делает метод process?"
-        val results = listOf(
-            createSearchResult("1", "Content 1", 0.9),
-            createSearchResult("2", "Content 2", 0.85),
-        )
+        val results =
+            listOf(
+                createSearchResult("1", "Content 1", 0.9),
+                createSearchResult("2", "Content 2", 0.85),
+            )
 
         every { embeddingSearchService.searchByText(query, topK = 5, applicationId = null) } returns results
 
-        val context = QueryProcessingContext(
-            originalQuery = query,
-            currentQuery = query,
-            sessionId = "s-1",
-        )
+        val context =
+            QueryProcessingContext(
+                originalQuery = query,
+                currentQuery = query,
+                sessionId = "s-1",
+            )
 
         val result = step.execute(context)
 
@@ -43,23 +45,26 @@ class VectorSearchStepTest {
     fun `execute - объединяет результаты оригинального и переформулированного запроса`() {
         val originalQuery = "что делает process"
         val rewrittenQuery = "Что делает метод process?"
-        val originalResults = listOf(
-            createSearchResult("1", "Content 1", 0.9),
-            createSearchResult("2", "Content 2", 0.85),
-        )
-        val rewrittenResults = listOf(
-            createSearchResult("2", "Content 2", 0.85), // Дубликат
-            createSearchResult("3", "Content 3", 0.8),
-        )
+        val originalResults =
+            listOf(
+                createSearchResult("1", "Content 1", 0.9),
+                createSearchResult("2", "Content 2", 0.85),
+            )
+        val rewrittenResults =
+            listOf(
+                createSearchResult("2", "Content 2", 0.85), // Дубликат
+                createSearchResult("3", "Content 3", 0.8),
+            )
 
         every { embeddingSearchService.searchByText(originalQuery, topK = 5, applicationId = null) } returns originalResults
         every { embeddingSearchService.searchByText(rewrittenQuery, topK = 5, applicationId = null) } returns rewrittenResults
 
-        val context = QueryProcessingContext(
-            originalQuery = originalQuery,
-            currentQuery = rewrittenQuery,
-            sessionId = "s-1",
-        ).setMetadata(QueryMetadataKeys.REWRITTEN_QUERY, rewrittenQuery)
+        val context =
+            QueryProcessingContext(
+                originalQuery = originalQuery,
+                currentQuery = rewrittenQuery,
+                sessionId = "s-1",
+            ).setMetadata(QueryMetadataKeys.REWRITTEN_QUERY, rewrittenQuery)
 
         val result = step.execute(context)
 
@@ -77,11 +82,12 @@ class VectorSearchStepTest {
 
         every { embeddingSearchService.searchByText(query, topK = 5, applicationId = null) } returns results
 
-        val context = QueryProcessingContext(
-            originalQuery = query,
-            currentQuery = query,
-            sessionId = "s-1",
-        ).setMetadata(QueryMetadataKeys.REWRITTEN_QUERY, query) // Совпадает с оригинальным
+        val context =
+            QueryProcessingContext(
+                originalQuery = query,
+                currentQuery = query,
+                sessionId = "s-1",
+            ).setMetadata(QueryMetadataKeys.REWRITTEN_QUERY, query) // Совпадает с оригинальным
 
         val result = step.execute(context)
 
@@ -92,12 +98,15 @@ class VectorSearchStepTest {
         assertThat(chunks!!).hasSize(1)
     }
 
-    private fun createSearchResult(id: String, content: String, similarity: Double): SearchResult {
-        return SearchResult(
+    private fun createSearchResult(
+        id: String,
+        content: String,
+        similarity: Double,
+    ): SearchResult =
+        SearchResult(
             id = id,
             content = content,
             metadata = emptyMap(),
             similarity = similarity,
         )
-    }
 }

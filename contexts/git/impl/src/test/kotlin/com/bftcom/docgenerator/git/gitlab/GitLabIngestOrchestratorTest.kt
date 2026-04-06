@@ -19,7 +19,9 @@ import java.time.OffsetDateTime
 
 class GitLabIngestOrchestratorTest {
     @Test
-    fun `runOnce - создает app, резолвит classpath и публикует событие`(@TempDir dir: Path) {
+    fun `runOnce - создает app, резолвит classpath и публикует событие`(
+        @TempDir dir: Path,
+    ) {
         val localPath = dir.resolve("checkout").also { Files.createDirectories(it) }
         // имитируем gradle проект (достаточно файла gradlew.bat)
         Files.writeString(localPath.resolve("gradlew.bat"), "@echo off\r\necho ok\r\n")
@@ -66,4 +68,3 @@ class GitLabIngestOrchestratorTest {
         verify(atLeast = 2) { appRepo.save(any()) }
     }
 }
-

@@ -44,10 +44,17 @@ class EndpointClassExtractor : NodeKindExtractor {
     ): NodeKind? {
         val a = NkxUtil.anns(raw.annotationsRepr.toList())
         if (NkxUtil.hasAnyAnn(
-                a, "GetMapping", "PostMapping", "PutMapping",
-                "DeleteMapping", "PatchMapping", "RequestMapping",
+                a,
+                "GetMapping",
+                "PostMapping",
+                "PutMapping",
+                "DeleteMapping",
+                "PatchMapping",
+                "RequestMapping",
             )
-        ) return NodeKind.ENDPOINT
+        ) {
+            return NodeKind.ENDPOINT
+        }
         return null
     }
 }

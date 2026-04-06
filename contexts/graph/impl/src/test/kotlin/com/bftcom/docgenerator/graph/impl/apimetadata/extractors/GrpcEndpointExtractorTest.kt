@@ -25,9 +25,10 @@ class GrpcEndpointExtractorTest {
 
     @Test
     fun `extractFunctionMetadata returns GrpcEndpoint for GrpcMethod annotation`() {
-        val function = createRawFunction(
-            annotationsRepr = setOf("net.devh.boot.grpc.server.service.GrpcMethod")
-        )
+        val function =
+            createRawFunction(
+                annotationsRepr = setOf("net.devh.boot.grpc.server.service.GrpcMethod"),
+            )
         val ownerType = createRawType(simpleName = "UserService")
         val ctx = createContext()
 
@@ -53,10 +54,11 @@ class GrpcEndpointExtractorTest {
     @Test
     fun `extractFunctionMetadata returns GrpcEndpoint when owner type has GrpcService annotation`() {
         val function = createRawFunction()
-        val ownerType = createRawType(
-            simpleName = "UserService",
-            annotationsRepr = listOf("net.devh.boot.grpc.server.service.GrpcService")
-        )
+        val ownerType =
+            createRawType(
+                simpleName = "UserService",
+                annotationsRepr = listOf("net.devh.boot.grpc.server.service.GrpcService"),
+            )
         val ctx = createContext()
 
         val result = extractor.extractFunctionMetadata(function, ownerType, ctx)
@@ -79,9 +81,10 @@ class GrpcEndpointExtractorTest {
 
     @Test
     fun `extractFunctionMetadata uses package name when owner type is null`() {
-        val function = createRawFunction(
-            pkgFqn = "com.example.UserService"
-        )
+        val function =
+            createRawFunction(
+                pkgFqn = "com.example.UserService",
+            )
         val ctx = createContext(imports = listOf("io.grpc.stub.AbstractStub"))
 
         val result = extractor.extractFunctionMetadata(function, null, ctx)
@@ -105,10 +108,11 @@ class GrpcEndpointExtractorTest {
 
     @Test
     fun `extractTypeMetadata returns GrpcEndpoint for GrpcService annotation`() {
-        val type = createRawType(
-            simpleName = "UserService",
-            annotationsRepr = listOf("net.devh.boot.grpc.server.service.GrpcService")
-        )
+        val type =
+            createRawType(
+                simpleName = "UserService",
+                annotationsRepr = listOf("net.devh.boot.grpc.server.service.GrpcService"),
+            )
         val ctx = createContext()
 
         val result = extractor.extractTypeMetadata(type, ctx)
@@ -142,8 +146,8 @@ class GrpcEndpointExtractorTest {
     private fun createRawFunction(
         annotationsRepr: Set<String> = emptySet(),
         pkgFqn: String? = "com.example",
-    ): RawFunction {
-        return RawFunction(
+    ): RawFunction =
+        RawFunction(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -158,13 +162,12 @@ class GrpcEndpointExtractorTest {
             span = null,
             text = null,
         )
-    }
 
     private fun createRawType(
         simpleName: String = "TestClass",
         annotationsRepr: List<String> = emptyList(),
-    ): RawType {
-        return RawType(
+    ): RawType =
+        RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = "com.example",
@@ -175,13 +178,11 @@ class GrpcEndpointExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createContext(imports: List<String>? = null): NodeKindContext {
-        return NodeKindContext(
+    private fun createContext(imports: List<String>? = null): NodeKindContext =
+        NodeKindContext(
             lang = Lang.kotlin,
             file = null,
             imports = imports,
         )
-    }
 }

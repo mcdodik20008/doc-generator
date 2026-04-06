@@ -2,13 +2,13 @@ package com.bftcom.docgenerator.graph.impl.node.handlers
 
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
-import com.bftcom.docgenerator.shared.node.KDocMeta
-import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.declplanner.UpsertFieldCmd
 import com.bftcom.docgenerator.graph.api.node.NodeKindRefiner
 import com.bftcom.docgenerator.graph.impl.node.builder.FqnBuilder
 import com.bftcom.docgenerator.graph.impl.node.builder.NodeBuilder
 import com.bftcom.docgenerator.graph.impl.node.state.GraphState
+import com.bftcom.docgenerator.shared.node.KDocMeta
+import com.bftcom.docgenerator.shared.node.NodeMeta
 
 /**
  * Обработчик команды UpsertFieldCmd - создает/обновляет ноду поля/свойства.

@@ -33,11 +33,8 @@ class SecurityConfig(
     private val userDetailsService: ReactiveUserDetailsService,
     @Value("\${docgen.security.enabled:true}") private val securityEnabled: Boolean,
 ) {
-
     @Bean
-    fun passwordEncoder(): PasswordEncoder {
-        return BCryptPasswordEncoder()
-    }
+    fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder()
 
     @Bean
     fun authenticationManager(): ReactiveAuthenticationManager {
@@ -47,54 +44,54 @@ class SecurityConfig(
     }
 
     @Bean
-    fun securityFilterChain(http: ServerHttpSecurity): SecurityWebFilterChain {
-        return http
+    fun securityFilterChain(http: ServerHttpSecurity): SecurityWebFilterChain =
+        http
             .authorizeExchange { exchanges ->
                 exchanges
                     // === Public: Login page and auth endpoints ===
-                    .pathMatchers("/login", "/logout").permitAll()
-
+                    .pathMatchers("/login", "/logout")
+                    .permitAll()
                     // === Public: Static resources ===
-                    .pathMatchers("/static/**", "/css/**", "/js/**", "/favicon.svg").permitAll()
-
+                    .pathMatchers("/static/**", "/css/**", "/js/**", "/favicon.svg")
+                    .permitAll()
                     // === Public: Swagger / OpenAPI ===
-                    .pathMatchers("/swagger/**", "/swagger-ui/**", "/swagger-ui.html",
-                        "/v3/api-docs/**", "/webjars/**").permitAll()
-
+                    .pathMatchers(
+                        "/swagger/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/v3/api-docs/**",
+                        "/webjars/**",
+                    ).permitAll()
                     // === Public: Actuator (health, metrics, etc.) ===
-                    .pathMatchers("/actuator/**").permitAll()
-
+                    .pathMatchers("/actuator/**")
+                    .permitAll()
                     // === Public: Internal endpoints ===
-                    .pathMatchers("/internal/**").permitAll()
-
+                    .pathMatchers("/internal/**")
+                    .permitAll()
                     // === Public: OPTIONS for CORS preflight ===
-                    .pathMatchers(HttpMethod.OPTIONS).permitAll()
-
+                    .pathMatchers(HttpMethod.OPTIONS)
+                    .permitAll()
                     // === Protected: All API endpoints require API key authentication ===
-                    .pathMatchers("/api/**").authenticated()
-
+                    .pathMatchers("/api/**")
+                    .authenticated()
                     // === Protected: All web pages require form login ===
-                    .anyExchange().authenticated()
-            }
-            .formLogin { formLogin ->
+                    .anyExchange()
+                    .authenticated()
+            }.formLogin { formLogin ->
                 formLogin
                     .loginPage("/login")
                     .authenticationManager(authenticationManager())
                     .authenticationSuccessHandler(RedirectServerAuthenticationSuccessHandler("/"))
-            }
-            .logout { logout ->
+            }.logout { logout ->
                 logout
                     .logoutUrl("/logout")
                     .logoutSuccessHandler(logoutSuccessHandler())
-            }
-            .csrf { csrf ->
+            }.csrf { csrf ->
                 // Отключаем CSRF для API endpoints, оставляем для веб-форм
                 csrf.disable()
-            }
-            .httpBasic { it.disable() }
+            }.httpBasic { it.disable() }
             .addFilterBefore(apiKeyAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
             .build()
-    }
 
     private fun logoutSuccessHandler(): ServerLogoutSuccessHandler {
         val handler = RedirectServerLogoutSuccessHandler()

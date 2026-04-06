@@ -17,17 +17,17 @@ import org.springframework.stereotype.Component
 class CircuitBreakerHealthIndicator(
     private val resilientLlmWrapper: ResilientLlmWrapper,
 ) : HealthIndicator {
-
     override fun health(): Health {
         val metrics = resilientLlmWrapper.getMetrics()
         val state = resilientLlmWrapper.getState()
 
-        val builder = when (state.name) {
-            "CLOSED" -> Health.up()
-            "HALF_OPEN" -> Health.up()
-            "OPEN" -> Health.down()
-            else -> Health.unknown()
-        }
+        val builder =
+            when (state.name) {
+                "CLOSED" -> Health.up()
+                "HALF_OPEN" -> Health.up()
+                "OPEN" -> Health.down()
+                else -> Health.unknown()
+            }
 
         return builder
             .withDetails(metrics)

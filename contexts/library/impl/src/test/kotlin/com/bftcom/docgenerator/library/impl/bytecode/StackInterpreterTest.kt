@@ -55,4 +55,3 @@ class StackInterpreterTest {
         assertThat(si.size()).isEqualTo(0)
     }
 }
-

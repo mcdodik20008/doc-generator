@@ -52,14 +52,15 @@ class ChunkWriterImplTest {
     @Test
     fun `savePlan - обновляет существующий chunk когда existing не null`() {
         // given
-        val existing = Chunk(
-            id = 1L,
-            application = app,
-            node = node(fqn = "com.example.Test", name = "Test", packageName = "com.example", kind = NodeKind.CLASS),
-            source = "code",
-            kind = "snippet",
-            content = "old content",
-        )
+        val existing =
+            Chunk(
+                id = 1L,
+                application = app,
+                node = node(fqn = "com.example.Test", name = "Test", packageName = "com.example", kind = NodeKind.CLASS),
+                source = "code",
+                kind = "snippet",
+                content = "old content",
+            )
 
         val node = existing.node
         node.id = 100L
@@ -226,11 +227,12 @@ class ChunkWriterImplTest {
     @Test
     fun `savePlan - сохраняет несколько планов`() {
         // given
-        val plans = (1..5).map { i ->
-            val node = node(fqn = "com.example.Test$i", name = "Test$i", packageName = "com.example", kind = NodeKind.CLASS)
-            node.id = (100 + i).toLong()
-            plan(node, source = "code", kind = "snippet")
-        }
+        val plans =
+            (1..5).map { i ->
+                val node = node(fqn = "com.example.Test$i", name = "Test$i", packageName = "com.example", kind = NodeKind.CLASS)
+                node.id = (100 + i).toLong()
+                plan(node, source = "code", kind = "snippet")
+            }
 
         every { chunkRepo.findTopByNodeIdOrderByCreatedAtDesc(any()) } returns null
         every { chunkRepo.save(any()) } returns mockk<Chunk>()
@@ -309,11 +311,12 @@ class ChunkWriterImplTest {
             title = node.fqn,
             sectionPath = emptyList(),
             relations = emptyList(),
-            pipeline = PipelinePlan(
-                stages = emptyList(),
-                params = emptyMap(),
-                service = ServiceMeta(strategy = "per-node", priority = 0),
-            ),
+            pipeline =
+                PipelinePlan(
+                    stages = emptyList(),
+                    params = emptyMap(),
+                    service = ServiceMeta(strategy = "per-node", priority = 0),
+                ),
             node = node,
         )
 }

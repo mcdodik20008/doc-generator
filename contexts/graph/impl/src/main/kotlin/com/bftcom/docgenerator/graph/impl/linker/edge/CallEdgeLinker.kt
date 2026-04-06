@@ -2,10 +2,10 @@ package com.bftcom.docgenerator.graph.impl.linker.edge
 
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
-import com.bftcom.docgenerator.shared.node.RawUsage
 import com.bftcom.docgenerator.graph.api.linker.EdgeLinker
 import com.bftcom.docgenerator.graph.api.linker.indexing.NodeIndex
+import com.bftcom.docgenerator.shared.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.RawUsage
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
@@ -16,16 +16,23 @@ import org.springframework.stereotype.Component
 class CallEdgeLinker : EdgeLinker {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    override fun link(node: Node, meta: NodeMeta, index: NodeIndex): List<Triple<Node, Node, EdgeKind>> {
-        return try {
+    override fun link(
+        node: Node,
+        meta: NodeMeta,
+        index: NodeIndex,
+    ): List<Triple<Node, Node, EdgeKind>> =
+        try {
             doLink(node, meta, index)
         } catch (e: Exception) {
             log.error("Error linking CALLS_CODE edges for node fqn={}: {}", node.fqn, e.message, e)
             emptyList()
         }
-    }
 
-    private fun doLink(node: Node, meta: NodeMeta, index: NodeIndex): List<Triple<Node, Node, EdgeKind>> {
+    private fun doLink(
+        node: Node,
+        meta: NodeMeta,
+        index: NodeIndex,
+    ): List<Triple<Node, Node, EdgeKind>> {
         val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
         val usages = meta.rawUsages ?: return emptyList()
         val imports = meta.imports ?: emptyList()
@@ -59,6 +66,7 @@ class CallEdgeLinker : EdgeLinker {
                         }
                     }
                 }
+
                 is RawUsage.Dot -> {
                     val recvType =
                         if (u.receiver.firstOrNull()?.isUpperCase() == true) {
@@ -67,7 +75,12 @@ class CallEdgeLinker : EdgeLinker {
                             owner
                         }
                     if (recvType == null) {
-                        log.trace("Could not resolve receiver type for dot usage: receiver={}, member={}, node={}", u.receiver, u.member, node.fqn)
+                        log.trace(
+                            "Could not resolve receiver type for dot usage: receiver={}, member={}, node={}",
+                            u.receiver,
+                            u.member,
+                            node.fqn,
+                        )
                     }
                     recvType?.let { r ->
                         val baseFqn = "${r.fqn}.${u.member}"

@@ -20,8 +20,22 @@ class EmbeddingSearchServiceImplTest {
         val objectMapper = ObjectMapper()
         val service = EmbeddingSearchServiceImpl(store, jdbcTemplate, embeddingModel, objectMapper)
 
-        val d1 = Document.builder().id("1").text("t1").score(0.9).metadata(mapOf("k" to "v")).build()
-        val d2 = Document.builder().id("2").text("t2").score(0.0).metadata(emptyMap<String, Any>()).build()
+        val d1 =
+            Document
+                .builder()
+                .id("1")
+                .text("t1")
+                .score(0.9)
+                .metadata(mapOf("k" to "v"))
+                .build()
+        val d2 =
+            Document
+                .builder()
+                .id("2")
+                .text("t2")
+                .score(0.0)
+                .metadata(emptyMap<String, Any>())
+                .build()
 
         every { store.similaritySearch(any<SearchRequest>()) } returns listOf(d1, d2)
 
@@ -38,4 +52,3 @@ class EmbeddingSearchServiceImplTest {
         assertThat(res[1].similarity).isEqualTo(0.0)
     }
 }
-

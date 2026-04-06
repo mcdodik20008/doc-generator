@@ -72,19 +72,21 @@ class NodeUpdateStrategyImplTest {
 
     @Test
     fun `update - обновляет все поля когда они изменились`() {
-        val existing = node(
-            fqn = "com.example.Foo",
-            codeHash = "oldHash",
-            sourceCode = "old code",
-            lineStart = 1,
-            lineEnd = 10,
-        )
-        val newData = updateData(
-            codeHash = "newHash",
-            sourceCode = "new code",
-            lineStart = 5,
-            lineEnd = 15,
-        )
+        val existing =
+            node(
+                fqn = "com.example.Foo",
+                codeHash = "oldHash",
+                sourceCode = "old code",
+                lineStart = 1,
+                lineEnd = 10,
+            )
+        val newData =
+            updateData(
+                codeHash = "newHash",
+                sourceCode = "new code",
+                lineStart = 5,
+                lineEnd = 15,
+            )
 
         val updated = strategy.update(existing, newData)
 
@@ -96,15 +98,17 @@ class NodeUpdateStrategyImplTest {
 
     @Test
     fun `update - не обновляет sourceCode когда codeHash не изменился`() {
-        val existing = node(
-            fqn = "com.example.Foo",
-            codeHash = "sameHash",
-            sourceCode = "original code",
-        )
-        val newData = updateData(
-            codeHash = "sameHash",
-            sourceCode = "different code",
-        )
+        val existing =
+            node(
+                fqn = "com.example.Foo",
+                codeHash = "sameHash",
+                sourceCode = "original code",
+            )
+        val newData =
+            updateData(
+                codeHash = "sameHash",
+                sourceCode = "different code",
+            )
 
         val updated = strategy.update(existing, newData)
 
@@ -113,17 +117,19 @@ class NodeUpdateStrategyImplTest {
 
     @Test
     fun `update - обновляет lineStart и lineEnd когда codeHash изменился`() {
-        val existing = node(
-            fqn = "com.example.Foo",
-            codeHash = "oldHash",
-            lineStart = 1,
-            lineEnd = 10,
-        )
-        val newData = updateData(
-            codeHash = "newHash",
-            lineStart = 5,
-            lineEnd = 15,
-        )
+        val existing =
+            node(
+                fqn = "com.example.Foo",
+                codeHash = "oldHash",
+                lineStart = 1,
+                lineEnd = 10,
+            )
+        val newData =
+            updateData(
+                codeHash = "newHash",
+                lineStart = 5,
+                lineEnd = 15,
+            )
 
         val updated = strategy.update(existing, newData)
 
@@ -133,17 +139,19 @@ class NodeUpdateStrategyImplTest {
 
     @Test
     fun `update - обновляет lineStart и lineEnd когда они явно указаны даже при том же codeHash`() {
-        val existing = node(
-            fqn = "com.example.Foo",
-            codeHash = "sameHash",
-            lineStart = 1,
-            lineEnd = 10,
-        )
-        val newData = updateData(
-            codeHash = "sameHash",
-            lineStart = 5,
-            lineEnd = 15,
-        )
+        val existing =
+            node(
+                fqn = "com.example.Foo",
+                codeHash = "sameHash",
+                lineStart = 1,
+                lineEnd = 10,
+            )
+        val newData =
+            updateData(
+                codeHash = "sameHash",
+                lineStart = 5,
+                lineEnd = 15,
+            )
 
         val updated = strategy.update(existing, newData)
 
@@ -153,17 +161,19 @@ class NodeUpdateStrategyImplTest {
 
     @Test
     fun `update - не обновляет lineStart и lineEnd когда codeHash не изменился и они не указаны`() {
-        val existing = node(
-            fqn = "com.example.Foo",
-            codeHash = "sameHash",
-            lineStart = 1,
-            lineEnd = 10,
-        )
-        val newData = updateData(
-            codeHash = "sameHash",
-            lineStart = null,
-            lineEnd = null,
-        )
+        val existing =
+            node(
+                fqn = "com.example.Foo",
+                codeHash = "sameHash",
+                lineStart = 1,
+                lineEnd = 10,
+            )
+        val newData =
+            updateData(
+                codeHash = "sameHash",
+                lineStart = null,
+                lineEnd = null,
+            )
 
         val updated = strategy.update(existing, newData)
 
@@ -174,12 +184,14 @@ class NodeUpdateStrategyImplTest {
     @Test
     fun `update - сохраняет непустые коллекции в meta`() {
         val existing = node(fqn = "com.example.Foo", meta = emptyMap())
-        val newData = updateData(
-            meta = mapOf(
-                "list" to listOf("a", "b"),
-                "map" to mapOf("key" to "value"),
-            ),
-        )
+        val newData =
+            updateData(
+                meta =
+                    mapOf(
+                        "list" to listOf("a", "b"),
+                        "map" to mapOf("key" to "value"),
+                    ),
+            )
 
         val updated = strategy.update(existing, newData)
 
@@ -221,19 +233,21 @@ class NodeUpdateStrategyImplTest {
 
     @Test
     fun `hasChanges - все поля одинаковые - false`() {
-        val existing = node(
-            fqn = "com.example.Foo",
-            codeHash = "hash",
-            name = "Foo",
-            packageName = "com.example",
-            kind = NodeKind.CLASS,
-        )
-        val newData = updateData(
-            codeHash = "hash",
-            name = "Foo",
-            packageName = "com.example",
-            kind = NodeKind.CLASS,
-        )
+        val existing =
+            node(
+                fqn = "com.example.Foo",
+                codeHash = "hash",
+                name = "Foo",
+                packageName = "com.example",
+                kind = NodeKind.CLASS,
+            )
+        val newData =
+            updateData(
+                codeHash = "hash",
+                name = "Foo",
+                packageName = "com.example",
+                kind = NodeKind.CLASS,
+            )
 
         assertThat(strategy.hasChanges(existing, newData)).isFalse()
     }
@@ -294,4 +308,3 @@ class NodeUpdateStrategyImplTest {
         )
     }
 }
-

@@ -137,4 +137,3 @@ class VirtualNodeFactoryTest {
         assertThat(created).isFalse()
     }
 }
-

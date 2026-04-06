@@ -5,7 +5,6 @@ import com.bftcom.docgenerator.domain.application.Application
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.node.CodeHasher
 import com.bftcom.docgenerator.graph.api.node.CodeNormalizer
 import com.bftcom.docgenerator.graph.api.node.NodeUpdateData
@@ -14,6 +13,7 @@ import com.bftcom.docgenerator.graph.api.node.NodeValidator
 import com.bftcom.docgenerator.graph.impl.node.builder.cache.NodeCache
 import com.bftcom.docgenerator.graph.impl.node.builder.stats.NodeBuilderStats
 import com.bftcom.docgenerator.graph.impl.node.builder.stats.NodeBuilderStatsManager
+import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 
@@ -162,12 +162,12 @@ class NodeBuilder(
             // Обновляем кэш
             nodeCache.put(fqn, newNode)
             statsManager.incrementCreated()
-            
+
             // Проверяем, что id установлен после сохранения
             if (newNode.id == null) {
                 log.warn("Node saved but id is still null: kind={}, fqn={}. This may cause issues with child nodes.", kind, fqn)
             }
-            
+
             log.trace("Node created: id={}, fqn={}, hash={}", newNode.id, fqn, codeHash?.take(8))
             return newNode
         } catch (e: Exception) {
@@ -257,6 +257,5 @@ class NodeBuilder(
         nodeCache.clear()
     }
 
-    private fun toMetaMap(meta: NodeMeta): Map<String, Any> =
-        objectMapper.convertValue(meta, Map::class.java) as Map<String, Any>
+    private fun toMetaMap(meta: NodeMeta): Map<String, Any> = objectMapper.convertValue(meta, Map::class.java) as Map<String, Any>
 }

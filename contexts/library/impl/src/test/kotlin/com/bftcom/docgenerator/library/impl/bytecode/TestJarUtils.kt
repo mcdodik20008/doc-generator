@@ -35,7 +35,14 @@ internal object TestJarUtils {
         cw.visitAnnotation("Lorg/springframework/stereotype/Service;", true).visitEnd()
 
         // public static final String CONST = "x";
-        cw.visitField(Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC or Opcodes.ACC_FINAL, "CONST", Type.getDescriptor(String::class.java), null, "x").visitEnd()
+        cw
+            .visitField(
+                Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC or Opcodes.ACC_FINAL,
+                "CONST",
+                Type.getDescriptor(String::class.java),
+                null,
+                "x",
+            ).visitEnd()
 
         // default ctor
         run {
@@ -230,4 +237,3 @@ internal object TestJarUtils {
         return cw.toByteArray()
     }
 }
-

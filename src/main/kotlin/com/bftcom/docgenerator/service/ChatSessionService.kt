@@ -34,7 +34,10 @@ class ChatSessionService(
     /**
      * Получает последние N чатов пользователя.
      */
-    fun getRecentChats(userId: Long, limit: Int = 10): List<ChatSessionDto> {
+    fun getRecentChats(
+        userId: Long,
+        limit: Int = 10,
+    ): List<ChatSessionDto> {
         val sessions = chatSessionRepository.findTop10ByUserIdOrderByUpdatedAtDesc(userId)
         return sessions.map { toDto(it) }
     }
@@ -42,18 +45,24 @@ class ChatSessionService(
     /**
      * Создает новый чат для пользователя.
      */
-    fun createChat(userId: Long, title: String, applicationId: Long? = null): ChatSessionDto {
-        val user = userRepository.findById(userId).orElseThrow {
-            IllegalArgumentException("User not found: $userId")
-        }
+    fun createChat(
+        userId: Long,
+        title: String,
+        applicationId: Long? = null,
+    ): ChatSessionDto {
+        val user =
+            userRepository.findById(userId).orElseThrow {
+                IllegalArgumentException("User not found: $userId")
+            }
 
-        val session = ChatSession(
-            user = user,
-            sessionId = UUID.randomUUID().toString(),
-            title = title,
-            messages = "[]",
-            applicationId = applicationId,
-        )
+        val session =
+            ChatSession(
+                user = user,
+                sessionId = UUID.randomUUID().toString(),
+                title = title,
+                messages = "[]",
+                applicationId = applicationId,
+            )
 
         val saved = chatSessionRepository.save(session)
         log.info("Created new chat session: id={}, userId={}, title={}", saved.id, userId, title)
@@ -63,9 +72,13 @@ class ChatSessionService(
     /**
      * Получает чат по ID с проверкой прав доступа.
      */
-    fun getChat(chatId: Long, userId: Long): ChatSessionDto {
-        val session = chatSessionRepository.findByIdAndUserId(chatId, userId)
-            ?: throw IllegalArgumentException("Chat not found or access denied: chatId=$chatId, userId=$userId")
+    fun getChat(
+        chatId: Long,
+        userId: Long,
+    ): ChatSessionDto {
+        val session =
+            chatSessionRepository.findByIdAndUserId(chatId, userId)
+                ?: throw IllegalArgumentException("Chat not found or access denied: chatId=$chatId, userId=$userId")
         return toDto(session)
     }
 
@@ -80,9 +93,14 @@ class ChatSessionService(
     /**
      * Добавляет сообщение в чат.
      */
-    fun addMessage(sessionId: String, userId: Long, message: ChatMessageDto): ChatSessionDto {
-        val session = chatSessionRepository.findBySessionId(sessionId)
-            ?: throw IllegalArgumentException("Chat session not found: $sessionId")
+    fun addMessage(
+        sessionId: String,
+        userId: Long,
+        message: ChatMessageDto,
+    ): ChatSessionDto {
+        val session =
+            chatSessionRepository.findBySessionId(sessionId)
+                ?: throw IllegalArgumentException("Chat session not found: $sessionId")
 
         // Проверка прав доступа
         if (session.user.id != userId) {
@@ -90,11 +108,12 @@ class ChatSessionService(
         }
 
         // Парсим существующие сообщения
-        val messages = if (session.messages.isBlank() || session.messages == "[]") {
-            mutableListOf<ChatMessageDto>()
-        } else {
-            objectMapper.readValue<MutableList<ChatMessageDto>>(session.messages)
-        }
+        val messages =
+            if (session.messages.isBlank() || session.messages == "[]") {
+                mutableListOf<ChatMessageDto>()
+            } else {
+                objectMapper.readValue<MutableList<ChatMessageDto>>(session.messages)
+            }
 
         // Добавляем новое сообщение
         messages.add(message)
@@ -111,9 +130,14 @@ class ChatSessionService(
     /**
      * Обновляет название чата.
      */
-    fun updateChatTitle(chatId: Long, userId: Long, newTitle: String): ChatSessionDto {
-        val session = chatSessionRepository.findByIdAndUserId(chatId, userId)
-            ?: throw IllegalArgumentException("Chat not found or access denied: chatId=$chatId, userId=$userId")
+    fun updateChatTitle(
+        chatId: Long,
+        userId: Long,
+        newTitle: String,
+    ): ChatSessionDto {
+        val session =
+            chatSessionRepository.findByIdAndUserId(chatId, userId)
+                ?: throw IllegalArgumentException("Chat not found or access denied: chatId=$chatId, userId=$userId")
 
         session.title = newTitle
         session.updatedAt = OffsetDateTime.now()
@@ -126,7 +150,10 @@ class ChatSessionService(
     /**
      * Удаляет чат пользователя.
      */
-    fun deleteChat(chatId: Long, userId: Long): Boolean {
+    fun deleteChat(
+        chatId: Long,
+        userId: Long,
+    ): Boolean {
         val deleted = chatSessionRepository.deleteByIdAndUserId(chatId, userId)
         if (deleted > 0) {
             log.info("Deleted chat session: id={}, userId={}", chatId, userId)
@@ -138,22 +165,28 @@ class ChatSessionService(
     /**
      * Получает количество чатов пользователя.
      */
-    fun getUserChatCount(userId: Long): Long {
-        return chatSessionRepository.countByUserId(userId)
-    }
+    fun getUserChatCount(userId: Long): Long = chatSessionRepository.countByUserId(userId)
 
     /**
      * Создает или получает существующий чат по session_id.
      * Используется при миграции с localStorage.
      */
-    fun getOrCreateChat(sessionId: String, userId: Long, title: String = "New Chat"): ChatSessionDto {
+    fun getOrCreateChat(
+        sessionId: String,
+        userId: Long,
+        title: String = "New Chat",
+    ): ChatSessionDto {
         // Проверяем существует ли чат с таким session_id
         val existing = chatSessionRepository.findBySessionId(sessionId)
         if (existing != null) {
             // Проверяем права доступа
             if (existing.user.id != userId) {
-                log.warn("Session ID collision: sessionId={}, existingUserId={}, requestUserId={}",
-                    sessionId, existing.user.id, userId)
+                log.warn(
+                    "Session ID collision: sessionId={}, existingUserId={}, requestUserId={}",
+                    sessionId,
+                    existing.user.id,
+                    userId,
+                )
                 // Создаем новый чат с новым UUID
                 return createChat(userId, title)
             }
@@ -161,16 +194,18 @@ class ChatSessionService(
         }
 
         // Создаем новый чат с указанным session_id
-        val user = userRepository.findById(userId).orElseThrow {
-            IllegalArgumentException("User not found: $userId")
-        }
+        val user =
+            userRepository.findById(userId).orElseThrow {
+                IllegalArgumentException("User not found: $userId")
+            }
 
-        val session = ChatSession(
-            user = user,
-            sessionId = sessionId,
-            title = title,
-            messages = "[]",
-        )
+        val session =
+            ChatSession(
+                user = user,
+                sessionId = sessionId,
+                title = title,
+                messages = "[]",
+            )
 
         val saved = chatSessionRepository.save(session)
         log.info("Created chat session with provided sessionId: id={}, userId={}, sessionId={}", saved.id, userId, sessionId)
@@ -178,11 +213,12 @@ class ChatSessionService(
     }
 
     private fun toDto(session: ChatSession): ChatSessionDto {
-        val messages = if (session.messages.isBlank() || session.messages == "[]") {
-            emptyList()
-        } else {
-            objectMapper.readValue<List<ChatMessageDto>>(session.messages)
-        }
+        val messages =
+            if (session.messages.isBlank() || session.messages == "[]") {
+                emptyList()
+            } else {
+                objectMapper.readValue<List<ChatMessageDto>>(session.messages)
+            }
 
         return ChatSessionDto(
             id = session.id!!,
@@ -214,7 +250,7 @@ data class ChatSessionDto(
  * Совместимо с форматом localStorage на фронтенде.
  */
 data class ChatMessageDto(
-    val role: String,  // "user" или "assistant"
-    val data: Map<String, Any>,  // { query: "...", answer: "...", sources: [...], metadata: {...} }
+    val role: String, // "user" или "assistant"
+    val data: Map<String, Any>, // { query: "...", answer: "...", sources: [...], metadata: {...} }
     val timestamp: Long,
 )

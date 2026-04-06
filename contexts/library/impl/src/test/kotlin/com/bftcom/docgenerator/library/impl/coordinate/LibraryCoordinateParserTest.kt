@@ -6,17 +6,16 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import org.objectweb.asm.ClassWriter
+import org.objectweb.asm.Opcodes
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.jar.Attributes
 import java.util.jar.JarOutputStream
 import java.util.jar.Manifest
-import org.objectweb.asm.ClassWriter
-import org.objectweb.asm.Opcodes
 
 class LibraryCoordinateParserTest {
-
     private val parser = LibraryCoordinateParser()
 
     // ============================================================
@@ -24,43 +23,55 @@ class LibraryCoordinateParserTest {
     // ============================================================
     @Nested
     inner class PomPropertiesStrategy {
-
         @Test
-        fun `читает координаты из pom_properties`(@TempDir dir: Path) {
+        fun `читает координаты из pom_properties`(
+            @TempDir dir: Path,
+        ) {
             val jarPath = dir.resolve("lib.jar")
-            val props = """
+            val props =
+                """
                 groupId=com.bftcom
                 artifactId=my-lib
                 version=1.2.3
-            """.trimIndent().toByteArray()
+                """.trimIndent().toByteArray()
 
-            val jar = TestJarUtils.writeJar(
-                jarPath,
-                mapOf("META-INF/maven/com.bftcom/my-lib/pom.properties" to props),
-            )
+            val jar =
+                TestJarUtils.writeJar(
+                    jarPath,
+                    mapOf("META-INF/maven/com.bftcom/my-lib/pom.properties" to props),
+                )
 
             val c = parser.parseCoordinate(jar)
             assertThat(c).isEqualTo(LibraryCoordinate("com.bftcom", "my-lib", "1.2.3"))
         }
 
         @Test
-        fun `pom_properties имеет приоритет над другими стратегиями`(@TempDir dir: Path) {
-            val pomPropsPath = dir.resolve(".m2")
-                .resolve("repository").resolve("wrong").resolve("group")
-                .resolve("other-lib").resolve("9.9.9")
-                .resolve("other-lib-9.9.9.jar")
+        fun `pom_properties имеет приоритет над другими стратегиями`(
+            @TempDir dir: Path,
+        ) {
+            val pomPropsPath =
+                dir
+                    .resolve(".m2")
+                    .resolve("repository")
+                    .resolve("wrong")
+                    .resolve("group")
+                    .resolve("other-lib")
+                    .resolve("9.9.9")
+                    .resolve("other-lib-9.9.9.jar")
 
             Files.createDirectories(pomPropsPath.parent)
-            val props = """
+            val props =
+                """
                 groupId=com.bftcom
                 artifactId=my-lib
                 version=1.2.3
-            """.trimIndent().toByteArray()
+                """.trimIndent().toByteArray()
 
-            val jar = TestJarUtils.writeJar(
-                pomPropsPath,
-                mapOf("META-INF/maven/com.bftcom/my-lib/pom.properties" to props),
-            )
+            val jar =
+                TestJarUtils.writeJar(
+                    pomPropsPath,
+                    mapOf("META-INF/maven/com.bftcom/my-lib/pom.properties" to props),
+                )
 
             val c = parser.parseCoordinate(jar)
             // pom.properties должен победить, а не Maven-путь
@@ -73,31 +84,37 @@ class LibraryCoordinateParserTest {
     // ============================================================
     @Nested
     inner class PomXmlInsideJarStrategy {
-
         @Test
-        fun `читает координаты из pom_xml внутри JAR`(@TempDir dir: Path) {
-            val pomXml = """
+        fun `читает координаты из pom_xml внутри JAR`(
+            @TempDir dir: Path,
+        ) {
+            val pomXml =
+                """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project>
                     <groupId>com.bftcom</groupId>
                     <artifactId>core-lib</artifactId>
                     <version>2.0.0</version>
                 </project>
-            """.trimIndent().toByteArray()
+                """.trimIndent().toByteArray()
 
             val jarPath = dir.resolve("core-lib.jar")
-            val jar = TestJarUtils.writeJar(
-                jarPath,
-                mapOf("META-INF/maven/com.bftcom/core-lib/pom.xml" to pomXml),
-            )
+            val jar =
+                TestJarUtils.writeJar(
+                    jarPath,
+                    mapOf("META-INF/maven/com.bftcom/core-lib/pom.xml" to pomXml),
+                )
 
             val c = parser.parseCoordinate(jar)
             assertThat(c).isEqualTo(LibraryCoordinate("com.bftcom", "core-lib", "2.0.0"))
         }
 
         @Test
-        fun `наследует groupId из parent в pom_xml`(@TempDir dir: Path) {
-            val pomXml = """
+        fun `наследует groupId из parent в pom_xml`(
+            @TempDir dir: Path,
+        ) {
+            val pomXml =
+                """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project>
                     <parent>
@@ -107,13 +124,14 @@ class LibraryCoordinateParserTest {
                     </parent>
                     <artifactId>child-lib</artifactId>
                 </project>
-            """.trimIndent().toByteArray()
+                """.trimIndent().toByteArray()
 
             val jarPath = dir.resolve("child-lib.jar")
-            val jar = TestJarUtils.writeJar(
-                jarPath,
-                mapOf("META-INF/maven/com.bftcom/child-lib/pom.xml" to pomXml),
-            )
+            val jar =
+                TestJarUtils.writeJar(
+                    jarPath,
+                    mapOf("META-INF/maven/com.bftcom/child-lib/pom.xml" to pomXml),
+                )
 
             val c = parser.parseCoordinate(jar)
             assertThat(c).isNotNull
@@ -123,20 +141,24 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `пропускает Maven property references в pom_xml`(@TempDir dir: Path) {
-            val pomXml = """
+        fun `пропускает Maven property references в pom_xml`(
+            @TempDir dir: Path,
+        ) {
+            val pomXml =
+                """
                 <project>
                     <groupId>${"$"}{project.groupId}</groupId>
                     <artifactId>some-lib</artifactId>
                     <version>1.0</version>
                 </project>
-            """.trimIndent().toByteArray()
+                """.trimIndent().toByteArray()
 
             val jarPath = dir.resolve("some-lib.jar")
-            val jar = TestJarUtils.writeJar(
-                jarPath,
-                mapOf("META-INF/maven/x/some-lib/pom.xml" to pomXml),
-            )
+            val jar =
+                TestJarUtils.writeJar(
+                    jarPath,
+                    mapOf("META-INF/maven/x/some-lib/pom.xml" to pomXml),
+                )
 
             // groupId is a property ref, no parent → should return null from pom.xml strategy
             val c = parser.parseCoordinate(jar)
@@ -147,8 +169,11 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `pom_xml с комментариями`(@TempDir dir: Path) {
-            val pomXml = """
+        fun `pom_xml с комментариями`(
+            @TempDir dir: Path,
+        ) {
+            val pomXml =
+                """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <!-- This is a comment -->
                 <project>
@@ -157,13 +182,14 @@ class LibraryCoordinateParserTest {
                     <artifactId>correct-lib</artifactId>
                     <version>3.1.0</version>
                 </project>
-            """.trimIndent().toByteArray()
+                """.trimIndent().toByteArray()
 
             val jarPath = dir.resolve("correct-lib.jar")
-            val jar = TestJarUtils.writeJar(
-                jarPath,
-                mapOf("META-INF/maven/ru.bftcom/correct-lib/pom.xml" to pomXml),
-            )
+            val jar =
+                TestJarUtils.writeJar(
+                    jarPath,
+                    mapOf("META-INF/maven/ru.bftcom/correct-lib/pom.xml" to pomXml),
+                )
 
             val c = parser.parseCoordinate(jar)
             assertThat(c).isEqualTo(LibraryCoordinate("ru.bftcom", "correct-lib", "3.1.0"))
@@ -175,27 +201,32 @@ class LibraryCoordinateParserTest {
     // ============================================================
     @Nested
     inner class ManifestStrategy {
-
         @Test
-        fun `Implementation-Vendor-Id + Title + Version`(@TempDir dir: Path) {
+        fun `Implementation-Vendor-Id + Title + Version`(
+            @TempDir dir: Path,
+        ) {
             val jarPath = dir.resolve("impl-lib.jar")
-            val jar = writeJarWithManifest(jarPath) { attrs ->
-                attrs.putValue("Implementation-Vendor-Id", "com.bftcom")
-                attrs.putValue("Implementation-Title", "impl-lib")
-                attrs.putValue("Implementation-Version", "4.0.0")
-            }
+            val jar =
+                writeJarWithManifest(jarPath) { attrs ->
+                    attrs.putValue("Implementation-Vendor-Id", "com.bftcom")
+                    attrs.putValue("Implementation-Title", "impl-lib")
+                    attrs.putValue("Implementation-Version", "4.0.0")
+                }
 
             val c = parser.parseCoordinate(jar)
             assertThat(c).isEqualTo(LibraryCoordinate("com.bftcom", "impl-lib", "4.0.0"))
         }
 
         @Test
-        fun `Bundle-SymbolicName + Bundle-Version (OSGi)`(@TempDir dir: Path) {
+        fun `Bundle-SymbolicName + Bundle-Version (OSGi)`(
+            @TempDir dir: Path,
+        ) {
             val jarPath = dir.resolve("osgi-lib.jar")
-            val jar = writeJarWithManifest(jarPath) { attrs ->
-                attrs.putValue("Bundle-SymbolicName", "com.bftcom.mylib")
-                attrs.putValue("Bundle-Version", "2.1.0")
-            }
+            val jar =
+                writeJarWithManifest(jarPath) { attrs ->
+                    attrs.putValue("Bundle-SymbolicName", "com.bftcom.mylib")
+                    attrs.putValue("Bundle-Version", "2.1.0")
+                }
 
             val c = parser.parseCoordinate(jar)
             assertThat(c).isNotNull
@@ -205,12 +236,15 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `Bundle-SymbolicName с директивами (singleton)`(@TempDir dir: Path) {
+        fun `Bundle-SymbolicName с директивами (singleton)`(
+            @TempDir dir: Path,
+        ) {
             val jarPath = dir.resolve("osgi-singleton.jar")
-            val jar = writeJarWithManifest(jarPath) { attrs ->
-                attrs.putValue("Bundle-SymbolicName", "com.bftcom.core;singleton:=true")
-                attrs.putValue("Bundle-Version", "1.0.0")
-            }
+            val jar =
+                writeJarWithManifest(jarPath) { attrs ->
+                    attrs.putValue("Bundle-SymbolicName", "com.bftcom.core;singleton:=true")
+                    attrs.putValue("Bundle-Version", "1.0.0")
+                }
 
             val c = parser.parseCoordinate(jar)
             assertThat(c).isNotNull
@@ -219,12 +253,15 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `Automatic-Module-Name + Implementation-Version`(@TempDir dir: Path) {
+        fun `Automatic-Module-Name + Implementation-Version`(
+            @TempDir dir: Path,
+        ) {
             val jarPath = dir.resolve("module-lib.jar")
-            val jar = writeJarWithManifest(jarPath) { attrs ->
-                attrs.putValue("Automatic-Module-Name", "com.bftcom.utils")
-                attrs.putValue("Implementation-Version", "5.0.0")
-            }
+            val jar =
+                writeJarWithManifest(jarPath) { attrs ->
+                    attrs.putValue("Automatic-Module-Name", "com.bftcom.utils")
+                    attrs.putValue("Implementation-Version", "5.0.0")
+                }
 
             val c = parser.parseCoordinate(jar)
             assertThat(c).isNotNull
@@ -234,12 +271,15 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `не распознаёт слишком короткое имя (менее 3 сегментов)`(@TempDir dir: Path) {
+        fun `не распознаёт слишком короткое имя (менее 3 сегментов)`(
+            @TempDir dir: Path,
+        ) {
             val jarPath = dir.resolve("short.jar")
-            val jar = writeJarWithManifest(jarPath) { attrs ->
-                attrs.putValue("Bundle-SymbolicName", "mylib")
-                attrs.putValue("Bundle-Version", "1.0.0")
-            }
+            val jar =
+                writeJarWithManifest(jarPath) { attrs ->
+                    attrs.putValue("Bundle-SymbolicName", "mylib")
+                    attrs.putValue("Bundle-Version", "1.0.0")
+                }
 
             val c = parser.parseCoordinate(jar)
             // "mylib" не может быть разбит на groupId.artifactId → null от MANIFEST стратегии
@@ -253,15 +293,22 @@ class LibraryCoordinateParserTest {
     // ============================================================
     @Nested
     inner class GradleCachePathStrategy {
-
         @Test
-        fun `распознаёт путь в кэше Gradle`(@TempDir dir: Path) {
+        fun `распознаёт путь в кэше Gradle`(
+            @TempDir dir: Path,
+        ) {
             // .gradle/caches/modules-2/files-2.1/com.bftcom/my-lib/1.0.0/abc123/my-lib-1.0.0.jar
-            val jarPath = dir.resolve(".gradle")
-                .resolve("caches").resolve("modules-2").resolve("files-2.1")
-                .resolve("com.bftcom").resolve("my-lib").resolve("1.0.0")
-                .resolve("abc123def")
-                .resolve("my-lib-1.0.0.jar")
+            val jarPath =
+                dir
+                    .resolve(".gradle")
+                    .resolve("caches")
+                    .resolve("modules-2")
+                    .resolve("files-2.1")
+                    .resolve("com.bftcom")
+                    .resolve("my-lib")
+                    .resolve("1.0.0")
+                    .resolve("abc123def")
+                    .resolve("my-lib-1.0.0.jar")
 
             Files.createDirectories(jarPath.parent)
             val jar = TestJarUtils.emptyJar(jarPath)
@@ -274,12 +321,20 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `распознаёт Gradle cache с многосегментным groupId`(@TempDir dir: Path) {
-            val jarPath = dir.resolve(".gradle")
-                .resolve("caches").resolve("modules-2").resolve("files-2.1")
-                .resolve("org.springframework.boot").resolve("spring-boot-starter").resolve("3.2.0")
-                .resolve("hash1234")
-                .resolve("spring-boot-starter-3.2.0.jar")
+        fun `распознаёт Gradle cache с многосегментным groupId`(
+            @TempDir dir: Path,
+        ) {
+            val jarPath =
+                dir
+                    .resolve(".gradle")
+                    .resolve("caches")
+                    .resolve("modules-2")
+                    .resolve("files-2.1")
+                    .resolve("org.springframework.boot")
+                    .resolve("spring-boot-starter")
+                    .resolve("3.2.0")
+                    .resolve("hash1234")
+                    .resolve("spring-boot-starter-3.2.0.jar")
 
             Files.createDirectories(jarPath.parent)
             val jar = TestJarUtils.emptyJar(jarPath)
@@ -297,9 +352,10 @@ class LibraryCoordinateParserTest {
     // ============================================================
     @Nested
     inner class NearbyPomStrategy {
-
         @Test
-        fun `читает pom файл рядом с JAR`(@TempDir dir: Path) {
+        fun `читает pom файл рядом с JAR`(
+            @TempDir dir: Path,
+        ) {
             val jarDir = dir.resolve("repo")
             Files.createDirectories(jarDir)
 
@@ -307,13 +363,14 @@ class LibraryCoordinateParserTest {
             val jar = TestJarUtils.emptyJar(jarDir.resolve("my-lib-1.0.0.jar"))
 
             // .pom файл рядом
-            val pomContent = """
+            val pomContent =
+                """
                 <project>
                     <groupId>com.bftcom</groupId>
                     <artifactId>my-lib</artifactId>
                     <version>1.0.0</version>
                 </project>
-            """.trimIndent()
+                """.trimIndent()
             Files.writeString(jarDir.resolve("my-lib-1.0.0.pom"), pomContent)
 
             val c = parser.parseCoordinate(jar)
@@ -321,20 +378,23 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `читает единственный pom в директории`(@TempDir dir: Path) {
+        fun `читает единственный pom в директории`(
+            @TempDir dir: Path,
+        ) {
             val jarDir = dir.resolve("repo")
             Files.createDirectories(jarDir)
 
             val jar = TestJarUtils.emptyJar(jarDir.resolve("custom-name.jar"))
 
             // .pom с другим именем, но единственный в директории
-            val pomContent = """
+            val pomContent =
+                """
                 <project>
                     <groupId>ru.bftcom</groupId>
                     <artifactId>custom</artifactId>
                     <version>2.0.0</version>
                 </project>
-            """.trimIndent()
+                """.trimIndent()
             Files.writeString(jarDir.resolve("artifact.pom"), pomContent)
 
             val c = parser.parseCoordinate(jar)
@@ -347,15 +407,17 @@ class LibraryCoordinateParserTest {
     // ============================================================
     @Nested
     inner class GradleModuleMetadataStrategy {
-
         @Test
-        fun `читает module файл рядом с JAR`(@TempDir dir: Path) {
+        fun `читает module файл рядом с JAR`(
+            @TempDir dir: Path,
+        ) {
             val jarDir = dir.resolve("modules")
             Files.createDirectories(jarDir)
 
             val jar = TestJarUtils.emptyJar(jarDir.resolve("my-lib-1.0.0.jar"))
 
-            val moduleJson = """
+            val moduleJson =
+                """
                 {
                   "formatVersion": "1.1",
                   "component": {
@@ -365,7 +427,7 @@ class LibraryCoordinateParserTest {
                   },
                   "variants": []
                 }
-            """.trimIndent()
+                """.trimIndent()
             Files.writeString(jarDir.resolve("my-lib-1.0.0.module"), moduleJson)
 
             val c = parser.parseCoordinate(jar)
@@ -373,7 +435,9 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `ищет module в соседней hash-директории (Gradle cache)`(@TempDir dir: Path) {
+        fun `ищет module в соседней hash-директории (Gradle cache)`(
+            @TempDir dir: Path,
+        ) {
             // Структура Gradle cache:
             // <version>/hash1/my-lib-1.0.0.jar
             // <version>/hash2/my-lib-1.0.0.module
@@ -385,7 +449,8 @@ class LibraryCoordinateParserTest {
 
             val jar = TestJarUtils.emptyJar(hash1Dir.resolve("my-lib-1.0.0.jar"))
 
-            val moduleJson = """
+            val moduleJson =
+                """
                 {
                   "formatVersion": "1.1",
                   "component": {
@@ -394,7 +459,7 @@ class LibraryCoordinateParserTest {
                     "version": "3.0.0"
                   }
                 }
-            """.trimIndent()
+                """.trimIndent()
             Files.writeString(hash2Dir.resolve("ext-lib-3.0.0.module"), moduleJson)
 
             val c = parser.parseCoordinate(jar)
@@ -410,14 +475,20 @@ class LibraryCoordinateParserTest {
     // ============================================================
     @Nested
     inner class MavenRepoPathStrategy {
-
         @Test
-        fun `fallback по имени файла и Maven-пути`(@TempDir dir: Path) {
+        fun `fallback по имени файла и Maven-пути`(
+            @TempDir dir: Path,
+        ) {
             // .m2/repository/com/bftcom/my-lib/1.2.3/my-lib-1.2.3.jar
-            val jarPath = dir.resolve(".m2")
-                .resolve("repository").resolve("com").resolve("bftcom")
-                .resolve("my-lib").resolve("1.2.3")
-                .resolve("my-lib-1.2.3.jar")
+            val jarPath =
+                dir
+                    .resolve(".m2")
+                    .resolve("repository")
+                    .resolve("com")
+                    .resolve("bftcom")
+                    .resolve("my-lib")
+                    .resolve("1.2.3")
+                    .resolve("my-lib-1.2.3.jar")
 
             Files.createDirectories(jarPath.parent)
             val jar = TestJarUtils.emptyJar(jarPath)
@@ -429,11 +500,19 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `многосегментный groupId из Maven-пути`(@TempDir dir: Path) {
-            val jarPath = dir.resolve(".m2")
-                .resolve("repository").resolve("com").resolve("bftcom").resolve("platform")
-                .resolve("platform-core").resolve("5.0.1")
-                .resolve("platform-core-5.0.1.jar")
+        fun `многосегментный groupId из Maven-пути`(
+            @TempDir dir: Path,
+        ) {
+            val jarPath =
+                dir
+                    .resolve(".m2")
+                    .resolve("repository")
+                    .resolve("com")
+                    .resolve("bftcom")
+                    .resolve("platform")
+                    .resolve("platform-core")
+                    .resolve("5.0.1")
+                    .resolve("platform-core-5.0.1.jar")
 
             Files.createDirectories(jarPath.parent)
             val jar = TestJarUtils.emptyJar(jarPath)
@@ -450,9 +529,10 @@ class LibraryCoordinateParserTest {
     // ============================================================
     @Nested
     inner class GradleProjectStrategy {
-
         @Test
-        fun `читает group из gradle_properties`(@TempDir dir: Path) {
+        fun `читает group из gradle_properties`(
+            @TempDir dir: Path,
+        ) {
             // project/build/libs/my-app-1.0.0.jar
             val projectDir = dir.resolve("project")
             val buildLibsDir = projectDir.resolve("build").resolve("libs")
@@ -476,7 +556,9 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `читает group из build_gradle_kts`(@TempDir dir: Path) {
+        fun `читает group из build_gradle_kts`(
+            @TempDir dir: Path,
+        ) {
             val projectDir = dir.resolve("project2")
             val buildLibsDir = projectDir.resolve("build").resolve("libs")
             Files.createDirectories(buildLibsDir)
@@ -486,9 +568,9 @@ class LibraryCoordinateParserTest {
             Files.writeString(
                 projectDir.resolve("build.gradle.kts"),
                 """
-                    plugins { kotlin("jvm") }
-                    group = "ru.bftcom"
-                    version = "2.0.0"
+                plugins { kotlin("jvm") }
+                group = "ru.bftcom"
+                version = "2.0.0"
                 """.trimIndent(),
             )
             Files.writeString(projectDir.resolve("settings.gradle.kts"), "")
@@ -501,7 +583,9 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `читает group из build_gradle (Groovy)`(@TempDir dir: Path) {
+        fun `читает group из build_gradle (Groovy)`(
+            @TempDir dir: Path,
+        ) {
             val projectDir = dir.resolve("project3")
             val buildLibsDir = projectDir.resolve("build").resolve("libs")
             Files.createDirectories(buildLibsDir)
@@ -511,9 +595,9 @@ class LibraryCoordinateParserTest {
             Files.writeString(
                 projectDir.resolve("build.gradle"),
                 """
-                    apply plugin: 'java'
-                    group 'com.bftcom.platform'
-                    version '3.0.0'
+                apply plugin: 'java'
+                group 'com.bftcom.platform'
+                version '3.0.0'
                 """.trimIndent(),
             )
             Files.writeString(projectDir.resolve("settings.gradle"), "")
@@ -525,7 +609,9 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `JAR без версии в имени — version = unspecified`(@TempDir dir: Path) {
+        fun `JAR без версии в имени — version = unspecified`(
+            @TempDir dir: Path,
+        ) {
             val projectDir = dir.resolve("project4")
             val buildLibsDir = projectDir.resolve("build").resolve("libs")
             Files.createDirectories(buildLibsDir)
@@ -546,7 +632,9 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `ищет group в родительской директории (multi-module)`(@TempDir dir: Path) {
+        fun `ищет group в родительской директории (multi-module)`(
+            @TempDir dir: Path,
+        ) {
             // root-project/submodule/build/libs/submodule-1.0.0.jar
             val rootDir = dir.resolve("root-project")
             val submoduleDir = rootDir.resolve("submodule")
@@ -574,9 +662,10 @@ class LibraryCoordinateParserTest {
     // ============================================================
     @Nested
     inner class PackageScanStrategy {
-
         @Test
-        fun `определяет groupId по общему префиксу пакетов`(@TempDir dir: Path) {
+        fun `определяет groupId по общему префиксу пакетов`(
+            @TempDir dir: Path,
+        ) {
             val jarPath = dir.resolve("unknown-lib-1.0.0.jar")
 
             // Создаём JAR с классами в пакете com.bftcom.mylib
@@ -584,14 +673,15 @@ class LibraryCoordinateParserTest {
             val class2 = generateMinimalClass("com/bftcom/mylib/model/ModelB")
             val class3 = generateMinimalClass("com/bftcom/mylib/util/UtilC")
 
-            val jar = TestJarUtils.writeJar(
-                jarPath,
-                mapOf(
-                    "com/bftcom/mylib/service/ServiceA.class" to class1,
-                    "com/bftcom/mylib/model/ModelB.class" to class2,
-                    "com/bftcom/mylib/util/UtilC.class" to class3,
-                ),
-            )
+            val jar =
+                TestJarUtils.writeJar(
+                    jarPath,
+                    mapOf(
+                        "com/bftcom/mylib/service/ServiceA.class" to class1,
+                        "com/bftcom/mylib/model/ModelB.class" to class2,
+                        "com/bftcom/mylib/util/UtilC.class" to class3,
+                    ),
+                )
 
             val c = parser.parseCoordinate(jar)
             assertThat(c).isNotNull
@@ -601,19 +691,22 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `общий префикс из двух сегментов`(@TempDir dir: Path) {
+        fun `общий префикс из двух сегментов`(
+            @TempDir dir: Path,
+        ) {
             val jarPath = dir.resolve("lib-2.0.0.jar")
 
             val class1 = generateMinimalClass("ru/bftcom/moduleA/Foo")
             val class2 = generateMinimalClass("ru/bftcom/moduleB/Bar")
 
-            val jar = TestJarUtils.writeJar(
-                jarPath,
-                mapOf(
-                    "ru/bftcom/moduleA/Foo.class" to class1,
-                    "ru/bftcom/moduleB/Bar.class" to class2,
-                ),
-            )
+            val jar =
+                TestJarUtils.writeJar(
+                    jarPath,
+                    mapOf(
+                        "ru/bftcom/moduleA/Foo.class" to class1,
+                        "ru/bftcom/moduleB/Bar.class" to class2,
+                    ),
+                )
 
             val c = parser.parseCoordinate(jar)
             assertThat(c).isNotNull
@@ -621,7 +714,9 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `пустой JAR без классов — null`(@TempDir dir: Path) {
+        fun `пустой JAR без классов — null`(
+            @TempDir dir: Path,
+        ) {
             val jarPath = dir.resolve("empty-1.0.0.jar")
             val jar = TestJarUtils.emptyJar(jarPath)
 
@@ -630,15 +725,18 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `один пакет — используется как groupId`(@TempDir dir: Path) {
+        fun `один пакет — используется как groupId`(
+            @TempDir dir: Path,
+        ) {
             val jarPath = dir.resolve("single-pkg-1.0.jar")
 
             val classBytes = generateMinimalClass("com/bftcom/special/Tool")
 
-            val jar = TestJarUtils.writeJar(
-                jarPath,
-                mapOf("com/bftcom/special/Tool.class" to classBytes),
-            )
+            val jar =
+                TestJarUtils.writeJar(
+                    jarPath,
+                    mapOf("com/bftcom/special/Tool.class" to classBytes),
+                )
 
             val c = parser.parseCoordinate(jar)
             assertThat(c).isNotNull
@@ -651,9 +749,10 @@ class LibraryCoordinateParserTest {
     // ============================================================
     @Nested
     inner class GeneralCases {
-
         @Test
-        fun `non-jar returns null`(@TempDir dir: Path) {
+        fun `non-jar returns null`(
+            @TempDir dir: Path,
+        ) {
             val f = dir.resolve("x.txt").toFile().apply { writeText("x") }
             assertThat(parser.parseCoordinate(f)).isNull()
         }
@@ -665,7 +764,9 @@ class LibraryCoordinateParserTest {
         }
 
         @Test
-        fun `JAR без каких-либо метаданных и без классов — null`(@TempDir dir: Path) {
+        fun `JAR без каких-либо метаданных и без классов — null`(
+            @TempDir dir: Path,
+        ) {
             val jarPath = dir.resolve("mystery.jar")
             val jar = TestJarUtils.emptyJar(jarPath)
             assertThat(parser.parseCoordinate(jar)).isNull()
@@ -684,10 +785,11 @@ class LibraryCoordinateParserTest {
         configureAttrs: (Attributes) -> Unit,
     ): File {
         Files.createDirectories(jarPath.parent)
-        val manifest = Manifest().apply {
-            mainAttributes[Attributes.Name.MANIFEST_VERSION] = "1.0"
-            configureAttrs(mainAttributes)
-        }
+        val manifest =
+            Manifest().apply {
+                mainAttributes[Attributes.Name.MANIFEST_VERSION] = "1.0"
+                configureAttrs(mainAttributes)
+            }
         JarOutputStream(Files.newOutputStream(jarPath), manifest).use { /* empty JAR */ }
         return jarPath.toFile()
     }

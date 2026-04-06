@@ -12,14 +12,14 @@ import org.mockito.kotlin.*
 
 @ExtendWith(MockitoExtension::class)
 class OllamaTalkerClientTest {
-
     @Mock
     private lateinit var directLlm: DirectLlmClient
 
-    private val props = AiClientsProperties(
-        coder = AiClientsProperties.ClientProps(model = "test-coder"),
-        talker = AiClientsProperties.ClientProps(model = "test-talker", temperature = 0.7, topP = 0.95, seed = 10),
-    )
+    private val props =
+        AiClientsProperties(
+            coder = AiClientsProperties.ClientProps(model = "test-coder"),
+            talker = AiClientsProperties.ClientProps(model = "test-talker", temperature = 0.7, topP = 0.95, seed = 10),
+        )
 
     @Test
     fun `rewrite should call DirectLlmClient with talker model and user prompt`() {
@@ -27,11 +27,12 @@ class OllamaTalkerClientTest {
         val captor = argumentCaptor<DirectLlmClient.LlmRequest>()
         whenever(directLlm.call(any())).thenReturn("Human readable description")
 
-        val request = TalkerRewriteRequest(
-            nodeFqn = "com.example.Test",
-            language = "ru",
-            rawContent = "Technical description",
-        )
+        val request =
+            TalkerRewriteRequest(
+                nodeFqn = "com.example.Test",
+                language = "ru",
+                rawContent = "Technical description",
+            )
         val result = client.rewrite(request)
 
         assertThat(result).isEqualTo("Human readable description")
@@ -49,7 +50,9 @@ class OllamaTalkerClientTest {
     @Test
     fun `rewrite should remove think tags from response`() {
         val client = OllamaTalkerClient(directLlm, props)
-        whenever(directLlm.call(any())).thenReturn("<think>Some reasoning here</think>\nHuman readable description\n<think>More reasoning</think>")
+        whenever(
+            directLlm.call(any()),
+        ).thenReturn("<think>Some reasoning here</think>\nHuman readable description\n<think>More reasoning</think>")
 
         val result = client.rewrite(TalkerRewriteRequest("fqn", "ru", "content"))
 

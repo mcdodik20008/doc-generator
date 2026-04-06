@@ -1,7 +1,12 @@
 package com.bftcom.docgenerator.domain.ingest
 
 enum class IngestStepType {
-    CHECKOUT, RESOLVE_CLASSPATH, BUILD_LIBRARY, BUILD_GRAPH, LINK;
+    CHECKOUT,
+    RESOLVE_CLASSPATH,
+    BUILD_LIBRARY,
+    BUILD_GRAPH,
+    LINK,
+    ;
 
     companion object {
         fun fromString(value: String): IngestStepType =

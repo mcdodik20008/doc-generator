@@ -23,29 +23,31 @@ class NormalizationStep : QueryStep {
         var normalizedQuery = originalQuery
 
         // Нормализация пробелов
-        normalizedQuery = normalizedQuery
-            .replace(Regex("\\s+"), " ")
-            .trim()
+        normalizedQuery =
+            normalizedQuery
+                .replace(Regex("\\s+"), " ")
+                .trim()
 
         // Удаление лишних знаков препинания в конце
         normalizedQuery = normalizedQuery.trimEnd('?', '!', '.', ',', ';', ':')
 
-        val updatedContext = if (normalizedQuery != originalQuery) {
-            context
-                .updateQuery(normalizedQuery)
-                .setMetadata(QueryMetadataKeys.NORMALIZED, true)
-                .addStep(
-                    ProcessingStep(
-                        advisorName = "NormalizationStep",
-                        input = originalQuery,
-                        output = normalizedQuery,
-                        stepType = type,
-                        status = ProcessingStepStatus.SUCCESS,
-                    ),
-                )
-        } else {
-            context
-        }
+        val updatedContext =
+            if (normalizedQuery != originalQuery) {
+                context
+                    .updateQuery(normalizedQuery)
+                    .setMetadata(QueryMetadataKeys.NORMALIZED, true)
+                    .addStep(
+                        ProcessingStep(
+                            advisorName = "NormalizationStep",
+                            input = originalQuery,
+                            output = normalizedQuery,
+                            stepType = type,
+                            status = ProcessingStepStatus.SUCCESS,
+                        ),
+                    )
+            } else {
+                context
+            }
 
         // Всегда переходим к INTENT_CLASSIFICATION после нормализации
         return StepResult(
@@ -54,9 +56,8 @@ class NormalizationStep : QueryStep {
         )
     }
 
-    override fun getTransitions(): Map<String, ProcessingStepType> {
-        return linkedMapOf(
+    override fun getTransitions(): Map<String, ProcessingStepType> =
+        linkedMapOf(
             "SUCCESS" to ProcessingStepType.INTENT_CLASSIFICATION,
         )
-    }
 }

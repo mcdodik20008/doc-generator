@@ -28,15 +28,23 @@ class LibraryCoordinateParser {
     companion object {
         private val VERSION_REGEX = Regex("""-(\d+(\.\d+).*)$""")
 
-        private val REPO_STOP_WORDS = setOf(
-            "repository", "libs", ".m2", ".gradle", "caches", "maven", "m2",
-        )
+        private val REPO_STOP_WORDS =
+            setOf(
+                "repository",
+                "libs",
+                ".m2",
+                ".gradle",
+                "caches",
+                "maven",
+                "m2",
+            )
 
         // .gradle/caches/modules-2/files-2.1/<group>/<artifact>/<version>/<hash>/<file>.jar
-        private val GRADLE_CACHE_REGEX = Regex(
-            """[/\\]\.gradle[/\\]caches[/\\]modules-\d+[/\\]files-[\d.]+[/\\]([^/\\]+)[/\\]([^/\\]+)[/\\]([^/\\]+)[/\\][^/\\]+[/\\][^/\\]+\.jar$""",
-            RegexOption.IGNORE_CASE,
-        )
+        private val GRADLE_CACHE_REGEX =
+            Regex(
+                """[/\\]\.gradle[/\\]caches[/\\]modules-\d+[/\\]files-[\d.]+[/\\]([^/\\]+)[/\\]([^/\\]+)[/\\]([^/\\]+)[/\\][^/\\]+[/\\][^/\\]+\.jar$""",
+                RegexOption.IGNORE_CASE,
+            )
     }
 
     /**
@@ -173,11 +181,12 @@ class LibraryCoordinateParser {
     // Strategy 3: MANIFEST.MF
     // ============================================================
     private fun findFromManifest(jar: JarFile): LibraryCoordinate? {
-        val manifest = try {
-            jar.manifest
-        } catch (e: Exception) {
-            return null
-        } ?: return null
+        val manifest =
+            try {
+                jar.manifest
+            } catch (e: Exception) {
+                return null
+            } ?: return null
 
         val attrs = manifest.mainAttributes ?: return null
 
@@ -217,7 +226,10 @@ class LibraryCoordinateParser {
      *
      * Пример: "com.bftcom.mylib" → groupId="com.bftcom", artifactId="mylib"
      */
-    private fun splitDottedName(dottedName: String, version: String): LibraryCoordinate? {
+    private fun splitDottedName(
+        dottedName: String,
+        version: String,
+    ): LibraryCoordinate? {
         val lastDot = dottedName.lastIndexOf('.')
         if (lastDot <= 0) return null
 
@@ -264,9 +276,10 @@ class LibraryCoordinateParser {
             }
 
             // Ищем единственный .pom файл в директории
-            val pomFiles = parent.listFiles { f ->
-                f.isFile && f.extension.equals("pom", ignoreCase = true)
-            }
+            val pomFiles =
+                parent.listFiles { f ->
+                    f.isFile && f.extension.equals("pom", ignoreCase = true)
+                }
             if (pomFiles != null && pomFiles.size == 1) {
                 val coord = parsePomXmlCoordinate(pomFiles[0].readText(Charsets.UTF_8))
                 if (coord != null) return coord
@@ -285,9 +298,10 @@ class LibraryCoordinateParser {
             val parent = jarFile.parentFile ?: return null
 
             // Прямо рядом с JAR
-            val moduleFiles = parent.listFiles { f ->
-                f.isFile && f.extension.equals("module", ignoreCase = true)
-            }
+            val moduleFiles =
+                parent.listFiles { f ->
+                    f.isFile && f.extension.equals("module", ignoreCase = true)
+                }
             if (moduleFiles != null) {
                 for (mf in moduleFiles) {
                     val coord = parseGradleModuleFile(mf)
@@ -301,9 +315,10 @@ class LibraryCoordinateParser {
             val siblingDirs = grandParent.listFiles { f -> f.isDirectory } ?: return null
             for (siblingDir in siblingDirs) {
                 if (siblingDir.absolutePath == parent.absolutePath) continue
-                val mods = siblingDir.listFiles { f ->
-                    f.isFile && f.extension.equals("module", ignoreCase = true)
-                }
+                val mods =
+                    siblingDir.listFiles { f ->
+                        f.isFile && f.extension.equals("module", ignoreCase = true)
+                    }
                 if (mods != null) {
                     for (mf in mods) {
                         val coord = parseGradleModuleFile(mf)
@@ -322,8 +337,9 @@ class LibraryCoordinateParser {
     // ============================================================
     private fun recoverFromMavenRepoPath(jarFile: File): LibraryCoordinate? {
         val parts = parseFileName(jarFile) ?: return null
-        val groupId = tryDetectGroupIdFromMavenPath(jarFile, parts.artifactId, parts.version)
-            ?: return null
+        val groupId =
+            tryDetectGroupIdFromMavenPath(jarFile, parts.artifactId, parts.version)
+                ?: return null
 
         return LibraryCoordinate(groupId, parts.artifactId, parts.version)
     }
@@ -378,7 +394,10 @@ class LibraryCoordinateParser {
     // ============================================================
     // Strategy 9: Сканирование пакетов внутри JAR
     // ============================================================
-    private fun recoverFromPackageScan(jar: JarFile, jarFile: File): LibraryCoordinate? {
+    private fun recoverFromPackageScan(
+        jar: JarFile,
+        jarFile: File,
+    ): LibraryCoordinate? {
         try {
             val packages = mutableSetOf<String>()
             val entries = jar.entries()
@@ -401,8 +420,9 @@ class LibraryCoordinateParser {
             val groupId = findCommonPackagePrefix(packages) ?: return null
 
             val parts = parseFileName(jarFile)
-            val artifactId = parts?.artifactId
-                ?: jarFile.name.removeSuffix(".jar").removeSuffix(".JAR")
+            val artifactId =
+                parts?.artifactId
+                    ?: jarFile.name.removeSuffix(".jar").removeSuffix(".JAR")
             val version = parts?.version ?: "unknown"
 
             return LibraryCoordinate(groupId, artifactId, version)
@@ -416,7 +436,10 @@ class LibraryCoordinateParser {
     // Утилиты
     // ============================================================
 
-    private data class FileNameParts(val artifactId: String, val version: String)
+    private data class FileNameParts(
+        val artifactId: String,
+        val version: String,
+    )
 
     /**
      * Парсит имя jar-файла: artifactId-version.jar
@@ -438,30 +461,39 @@ class LibraryCoordinateParser {
         val cleaned = xml.replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
 
         // Выделяем блок <parent> и убираем его для поиска project-level значений
-        val parentBlock = Regex("<parent>(.*?)</parent>", RegexOption.DOT_MATCHES_ALL)
-            .find(cleaned)?.groupValues?.get(1)
-        val withoutParent = if (parentBlock != null) {
-            cleaned.replace(Regex("<parent>.*?</parent>", RegexOption.DOT_MATCHES_ALL), "")
-        } else {
-            cleaned
-        }
+        val parentBlock =
+            Regex("<parent>(.*?)</parent>", RegexOption.DOT_MATCHES_ALL)
+                .find(cleaned)
+                ?.groupValues
+                ?.get(1)
+        val withoutParent =
+            if (parentBlock != null) {
+                cleaned.replace(Regex("<parent>.*?</parent>", RegexOption.DOT_MATCHES_ALL), "")
+            } else {
+                cleaned
+            }
 
         // groupId: сначала project-level, затем из parent
-        val groupId = extractXmlTag(withoutParent, "groupId")
-            ?: parentBlock?.let { extractXmlTag(it, "groupId") }
-            ?: return null
+        val groupId =
+            extractXmlTag(withoutParent, "groupId")
+                ?: parentBlock?.let { extractXmlTag(it, "groupId") }
+                ?: return null
 
         val artifactId = extractXmlTag(withoutParent, "artifactId") ?: return null
 
         // version: сначала project-level, затем из parent
-        val version = extractXmlTag(withoutParent, "version")
-            ?: parentBlock?.let { extractXmlTag(it, "version") }
-            ?: return null
+        val version =
+            extractXmlTag(withoutParent, "version")
+                ?: parentBlock?.let { extractXmlTag(it, "version") }
+                ?: return null
 
         return LibraryCoordinate(groupId, artifactId, version)
     }
 
-    private fun extractXmlTag(xml: String, tag: String): String? {
+    private fun extractXmlTag(
+        xml: String,
+        tag: String,
+    ): String? {
         val match = Regex("<$tag>\\s*(.*?)\\s*</$tag>").find(xml) ?: return null
         val value = match.groupValues[1].trim()
         // Пропускаем Maven property references типа ${project.groupId}
@@ -490,7 +522,10 @@ class LibraryCoordinateParser {
         }
     }
 
-    private fun extractJsonStringValue(json: String, key: String): String? {
+    private fun extractJsonStringValue(
+        json: String,
+        key: String,
+    ): String? {
         val regex = Regex(""""$key"\s*:\s*"([^"]+)"""")
         return regex.find(json)?.groupValues?.get(1)
     }
@@ -563,8 +598,8 @@ class LibraryCoordinateParser {
         return null
     }
 
-    private fun extractGroupFromBuildGradle(file: File): String? {
-        return try {
+    private fun extractGroupFromBuildGradle(file: File): String? =
+        try {
             val text = file.readText(Charsets.UTF_8)
             // group = "com.bftcom" или group = 'com.bftcom' или group "com.bftcom"
             val match = Regex("""group\s*=?\s*["']([^"']+)["']""").find(text)
@@ -572,7 +607,6 @@ class LibraryCoordinateParser {
         } catch (_: Exception) {
             null
         }
-    }
 
     /**
      * Находит общий префикс пакетов (минимум 2 сегмента).

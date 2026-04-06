@@ -8,7 +8,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
  * Запустите этот тест для получения хэша нужного пароля.
  */
 class PasswordHashGenerator {
-
     @Test
     fun `generate BCrypt hash for admin password`() {
         val encoder = BCryptPasswordEncoder()

@@ -65,11 +65,15 @@ class StackInterpreter {
                 value is StackValue.StringValue && sb is StackValue.UnknownValue && sb.type == "StringBuilder" -> {
                     StackValue.StringValue(value.value)
                 }
+
                 value is StackValue.StringValue && sb is StackValue.StringValue -> {
                     // Конкатенация двух строк
                     StackValue.StringValue(sb.value + value.value)
                 }
-                else -> StackValue.UnknownValue("StringBuilder")
+
+                else -> {
+                    StackValue.UnknownValue("StringBuilder")
+                }
             }
 
         push(appendedValue)
@@ -84,7 +88,10 @@ class StackInterpreter {
         val top = stack.removeAt(stack.size - 1)
         // Если это был StringBuilder со строкой, возвращаем строку
         when (top) {
-            is StackValue.StringValue -> push(top)
+            is StackValue.StringValue -> {
+                push(top)
+            }
+
             is StackValue.UnknownValue -> {
                 if (top.type == "StringBuilder") {
                     // Не можем определить значение, но это была строка
@@ -110,15 +117,20 @@ class StackInterpreter {
                 left is StackValue.StringValue && right is StackValue.StringValue -> {
                     StackValue.StringValue(left.value + right.value)
                 }
+
                 left is StackValue.StringValue && right is StackValue.UnknownValue -> {
                     // Левая часть известна, правая нет - сохраняем левую
                     left
                 }
+
                 right is StackValue.StringValue && left is StackValue.UnknownValue -> {
                     // Правая часть известна, левая нет - сохраняем правую
                     right
                 }
-                else -> StackValue.UnknownValue("String")
+
+                else -> {
+                    StackValue.UnknownValue("String")
+                }
             }
 
         push(result)

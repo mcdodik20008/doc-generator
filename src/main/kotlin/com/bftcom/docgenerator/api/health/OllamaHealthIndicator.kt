@@ -18,48 +18,54 @@ import java.time.Duration
 class OllamaHealthIndicator(
     @Value("\${spring.ai.ollama.base-url:http://localhost:11434}") private val ollamaBaseUrl: String,
 ) : HealthIndicator {
-
     private val log = LoggerFactory.getLogger(javaClass)
-    private val httpClient = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofSeconds(3))
-        .build()
+    private val httpClient =
+        HttpClient
+            .newBuilder()
+            .connectTimeout(Duration.ofSeconds(3))
+            .build()
 
-    override fun health(): Health {
-        return try {
-            val request = HttpRequest.newBuilder()
-                .uri(URI.create("$ollamaBaseUrl/api/tags"))
-                .timeout(Duration.ofSeconds(5))
-                .GET()
-                .build()
+    override fun health(): Health =
+        try {
+            val request =
+                HttpRequest
+                    .newBuilder()
+                    .uri(URI.create("$ollamaBaseUrl/api/tags"))
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .build()
 
             val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
 
             if (response.statusCode() == 200) {
-                val modelCount = try {
-                    val body = response.body()
-                    val regex = """"name"\s*:\s*"([^"]+)"""".toRegex()
-                    regex.findAll(body).map { it.groupValues[1] }.toList()
-                } catch (_: Exception) {
-                    emptyList()
-                }
+                val modelCount =
+                    try {
+                        val body = response.body()
+                        val regex = """"name"\s*:\s*"([^"]+)"""".toRegex()
+                        regex.findAll(body).map { it.groupValues[1] }.toList()
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
 
-                Health.up()
+                Health
+                    .up()
                     .withDetail("url", ollamaBaseUrl)
                     .withDetail("models", modelCount.joinToString(", ").ifEmpty { "unknown" })
                     .withDetail("modelCount", modelCount.size)
                     .build()
             } else {
-                Health.down()
+                Health
+                    .down()
                     .withDetail("url", ollamaBaseUrl)
                     .withDetail("httpStatus", response.statusCode())
                     .build()
             }
         } catch (e: Exception) {
             log.debug("Ollama health check failed: {}", e.message)
-            Health.down()
+            Health
+                .down()
                 .withDetail("url", ollamaBaseUrl)
                 .withDetail("error", e.message ?: "Connection failed")
                 .build()
         }
-    }
 }

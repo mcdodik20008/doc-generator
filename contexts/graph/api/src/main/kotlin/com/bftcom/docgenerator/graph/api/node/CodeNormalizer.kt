@@ -11,7 +11,10 @@ interface CodeNormalizer {
      * @param maxSize Максимальный размер в байтах
      * @return Нормализованный код или null, если исходный код был null
      */
-    fun normalize(sourceCode: String?, maxSize: Int): String?
+    fun normalize(
+        sourceCode: String?,
+        maxSize: Int,
+    ): String?
 
     /**
      * Подсчитывает количество строк в нормализованном коде.
@@ -20,4 +23,3 @@ interface CodeNormalizer {
      */
     fun countLines(sourceCode: String): Int
 }
-

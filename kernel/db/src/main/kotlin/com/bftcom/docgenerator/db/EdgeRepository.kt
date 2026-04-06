@@ -33,7 +33,9 @@ interface EdgeRepository : JpaRepository<Edge, Long> {
      * Заменяет два отдельных запроса findAllBySrcIdIn + findAllByDstIdIn.
      */
     @Query("select distinct e from Edge e where e.src.id in :nodeIds or e.dst.id in :nodeIds")
-    fun findAllBySrcIdInOrDstIdIn(@Param("nodeIds") nodeIds: Set<Long>): List<Edge>
+    fun findAllBySrcIdInOrDstIdIn(
+        @Param("nodeIds") nodeIds: Set<Long>,
+    ): List<Edge>
 
     @Modifying
     @Query(

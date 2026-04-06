@@ -27,19 +27,20 @@ class GitLabCheckoutService(
         repoPath: String,
         branch: String,
         appKey: String,
-    ): GitPullSummary = synchronized(locks.computeIfAbsent(appKey) { Any() }) {
-        val checkoutDir: Path = Path.of(gitProps.basePath, appKey)
-        val dir = checkoutDir.toFile()
-        val repoUrl = resolveRepoUrl(gitProps.url, repoPath)
-        val creds = resolveCredentials()
-        val now = OffsetDateTime.now()
+    ): GitPullSummary =
+        synchronized(locks.computeIfAbsent(appKey) { Any() }) {
+            val checkoutDir: Path = Path.of(gitProps.basePath, appKey)
+            val dir = checkoutDir.toFile()
+            val repoUrl = resolveRepoUrl(gitProps.url, repoPath)
+            val creds = resolveCredentials()
+            val now = OffsetDateTime.now()
 
-        return if (isValidRepository(dir)) {
-            updateExisting(dir, branch, repoUrl, appKey, checkoutDir, creds, now)
-        } else {
-            cloneNew(dir, branch, repoUrl, appKey, checkoutDir, creds, now)
+            return if (isValidRepository(dir)) {
+                updateExisting(dir, branch, repoUrl, appKey, checkoutDir, creds, now)
+            } else {
+                cloneNew(dir, branch, repoUrl, appKey, checkoutDir, creds, now)
+            }
         }
-    }
 
     private fun updateExisting(
         dir: File,
@@ -48,15 +49,16 @@ class GitLabCheckoutService(
         appKey: String,
         checkoutDir: Path,
         creds: CredentialsProvider,
-        now: OffsetDateTime
-    ): GitPullSummary {
-        return try {
+        now: OffsetDateTime,
+    ): GitPullSummary =
+        try {
             log.info("Updating existing repo at {} (branch={})", dir, branch)
             Git.open(dir).use { git ->
                 val before = resolveHead(git)
 
                 // 1. Fetch актуальных данных
-                git.fetch()
+                git
+                    .fetch()
                     .setCredentialsProvider(creds)
                     .setRemote("origin")
                     .setCheckFetchedObjects(true)
@@ -64,7 +66,8 @@ class GitLabCheckoutService(
 
                 // 2. Жесткий сброс к состоянию удаленной ветки
                 // Это удаляет локальные изменения и решает проблемы с merge
-                git.reset()
+                git
+                    .reset()
                     .setMode(ResetCommand.ResetType.HARD)
                     .setRef("origin/$branch")
                     .call()
@@ -79,7 +82,7 @@ class GitLabCheckoutService(
                     operation = GitOperation.PULL,
                     beforeHead = before,
                     afterHead = after,
-                    fetchedAt = now
+                    fetchedAt = now,
                 )
             }
         } catch (e: Exception) {
@@ -87,7 +90,6 @@ class GitLabCheckoutService(
             dir.deleteRecursively()
             cloneNew(dir, branch, repoUrl, appKey, checkoutDir, creds, now)
         }
-    }
 
     private fun cloneNew(
         dir: File,
@@ -96,12 +98,13 @@ class GitLabCheckoutService(
         appKey: String,
         checkoutDir: Path,
         creds: CredentialsProvider,
-        now: OffsetDateTime
+        now: OffsetDateTime,
     ): GitPullSummary {
         log.info("Cloning {} into {} (branch={})", repoUrl, dir, branch)
         dir.mkdirs()
 
-        Git.cloneRepository()
+        Git
+            .cloneRepository()
             .setURI(repoUrl)
             .setDirectory(dir)
             .setBranch(branch)
@@ -117,34 +120,41 @@ class GitLabCheckoutService(
                     operation = GitOperation.CLONE,
                     beforeHead = null,
                     afterHead = resolveHead(git),
-                    fetchedAt = now
+                    fetchedAt = now,
                 )
             }
     }
 
-    private fun resolveCredentials(): CredentialsProvider {
-        return when {
-            gitProps.token.isNotBlank() ->
+    private fun resolveCredentials(): CredentialsProvider =
+        when {
+            gitProps.token.isNotBlank() -> {
                 UsernamePasswordCredentialsProvider("oauth2", gitProps.token)
-            gitProps.username.isNotBlank() ->
+            }
+
+            gitProps.username.isNotBlank() -> {
                 UsernamePasswordCredentialsProvider(gitProps.username, gitProps.password ?: "")
-            else -> CredentialsProvider.getDefault()
+            }
+
+            else -> {
+                CredentialsProvider.getDefault()
+            }
         }
-    }
 
-    private fun isValidRepository(dir: File): Boolean {
-        return File(dir, ".git").exists() && try {
-            Git.open(dir).use { it.repository.objectDatabase.exists() }
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
+    private fun isValidRepository(dir: File): Boolean =
+        File(dir, ".git").exists() &&
+            try {
+                Git.open(dir).use { it.repository.objectDatabase.exists() }
+                true
+            } catch (e: Exception) {
+                false
+            }
 
-    private fun resolveHead(git: Git): String? =
-        git.repository.resolve("HEAD")?.name
+    private fun resolveHead(git: Git): String? = git.repository.resolve("HEAD")?.name
 
-    fun resolveRepoUrl(baseUrlOrFull: String, repoPath: String): String =
+    fun resolveRepoUrl(
+        baseUrlOrFull: String,
+        repoPath: String,
+    ): String =
         if (repoPath.startsWith("http") || repoPath.endsWith(".git")) {
             repoPath
         } else {

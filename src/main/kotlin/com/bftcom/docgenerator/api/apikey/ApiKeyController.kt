@@ -54,7 +54,9 @@ class ApiKeyController(
      * Create a new API key. Returns the raw key only once.
      */
     @PostMapping
-    fun create(@RequestBody request: CreateApiKeyRequest): CreateApiKeyResponse {
+    fun create(
+        @RequestBody request: CreateApiKeyRequest,
+    ): CreateApiKeyResponse {
         if (request.name.isBlank()) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "API key name is required")
         }
@@ -63,16 +65,18 @@ class ApiKeyController(
         val rawKey = "dg_${UUID.randomUUID().toString().replace("-", "")}"
         val keyHash = authFilter.hashApiKey(rawKey)
 
-        val expiresAt = request.expiresInDays?.let {
-            OffsetDateTime.now().plusDays(it.toLong())
-        }
+        val expiresAt =
+            request.expiresInDays?.let {
+                OffsetDateTime.now().plusDays(it.toLong())
+            }
 
-        val apiKey = ApiKey(
-            name = request.name,
-            keyHash = keyHash,
-            scopes = request.scopes.toTypedArray(),
-            expiresAt = expiresAt,
-        )
+        val apiKey =
+            ApiKey(
+                name = request.name,
+                keyHash = keyHash,
+                scopes = request.scopes.toTypedArray(),
+                expiresAt = expiresAt,
+            )
 
         val saved = apiKeyRepository.save(apiKey)
         log.info("API key created: name='{}', id={}, scopes={}", saved.name, saved.id, request.scopes)
@@ -90,30 +94,32 @@ class ApiKeyController(
      * List all API keys (without revealing hash).
      */
     @GetMapping
-    fun list(): List<ApiKeyResponse> {
-        return apiKeyRepository.findAll().map { it.toResponse() }
-    }
+    fun list(): List<ApiKeyResponse> = apiKeyRepository.findAll().map { it.toResponse() }
 
     /**
      * Revoke (soft delete) an API key.
      */
     @DeleteMapping("/{id}")
-    fun revoke(@PathVariable id: Long) {
-        val apiKey = apiKeyRepository.findById(id).orElseThrow {
-            ResponseStatusException(HttpStatus.NOT_FOUND, "API key not found: $id")
-        }
+    fun revoke(
+        @PathVariable id: Long,
+    ) {
+        val apiKey =
+            apiKeyRepository.findById(id).orElseThrow {
+                ResponseStatusException(HttpStatus.NOT_FOUND, "API key not found: $id")
+            }
         apiKey.active = false
         apiKeyRepository.save(apiKey)
         log.info("API key revoked: name='{}', id={}", apiKey.name, id)
     }
 
-    private fun ApiKey.toResponse() = ApiKeyResponse(
-        id = id!!,
-        name = name,
-        scopes = scopes.toList(),
-        active = active,
-        createdAt = createdAt,
-        expiresAt = expiresAt,
-        lastUsedAt = lastUsedAt,
-    )
+    private fun ApiKey.toResponse() =
+        ApiKeyResponse(
+            id = id!!,
+            name = name,
+            scopes = scopes.toList(),
+            active = active,
+            createdAt = createdAt,
+            expiresAt = expiresAt,
+            lastUsedAt = lastUsedAt,
+        )
 }

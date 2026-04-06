@@ -27,7 +27,7 @@ class EndpointClassExtractorTest {
     @ParameterizedTest
     @CsvSource(
         "org.springframework.web.bind.annotation.RestController",
-        "org.springframework.stereotype.Controller"
+        "org.springframework.stereotype.Controller",
     )
     fun `refineType returns ENDPOINT for RestController or Controller annotation`(annotation: String) {
         val raw = createRawType(annotationsRepr = listOf(annotation))
@@ -40,9 +40,10 @@ class EndpointClassExtractorTest {
 
     @Test
     fun `refineType returns ENDPOINT for GrpcService annotation`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("net.devh.boot.grpc.server.service.GrpcService")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("net.devh.boot.grpc.server.service.GrpcService"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -52,10 +53,11 @@ class EndpointClassExtractorTest {
 
     @Test
     fun `refineType returns null for regular class`() {
-        val raw = createRawType(
-            simpleName = "RegularClass",
-            annotationsRepr = emptyList()
-        )
+        val raw =
+            createRawType(
+                simpleName = "RegularClass",
+                annotationsRepr = emptyList(),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -65,9 +67,10 @@ class EndpointClassExtractorTest {
 
     @Test
     fun `refineType handles case-insensitive annotations`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.springframework.web.bind.annotation.RESTCONTROLLER")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.springframework.web.bind.annotation.RESTCONTROLLER"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -79,8 +82,8 @@ class EndpointClassExtractorTest {
         simpleName: String = "TestClass",
         pkgFqn: String? = "com.example",
         annotationsRepr: List<String> = emptyList(),
-    ): RawType {
-        return RawType(
+    ): RawType =
+        RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -91,13 +94,11 @@ class EndpointClassExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createContext(): NodeKindContext {
-        return NodeKindContext(
+    private fun createContext(): NodeKindContext =
+        NodeKindContext(
             lang = Lang.kotlin,
             file = null,
             imports = null,
         )
-    }
 }

@@ -3,7 +3,9 @@ package com.bftcom.docgenerator.rag.api
 /**
  * Типы шагов графовой обработки запроса.
  */
-enum class ProcessingStepType(val description: String) {
+enum class ProcessingStepType(
+    val description: String,
+) {
     NORMALIZATION("Подготовка запроса"),
     INTENT_CLASSIFICATION("Определение типа запроса"),
     EXTRACTION("Анализ сущностей"),
@@ -21,5 +23,5 @@ enum class ProcessingStepType(val description: String) {
     RERANKING("Отбор лучших чанков"),
 
     COMPLETED("Ответ сформирован"),
-    FAILED("Информации недостаточно")
+    FAILED("Информации недостаточно"),
 }

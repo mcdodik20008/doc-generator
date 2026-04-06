@@ -20,7 +20,9 @@ import java.time.OffsetDateTime
 
 class GitHubIngestOrchestratorTest {
     @Test
-    fun `runOnce - использует gradleResolver и публикует событие`(@TempDir dir: Path) {
+    fun `runOnce - использует gradleResolver и публикует событие`(
+        @TempDir dir: Path,
+    ) {
         val localPath = dir.resolve("checkout").also { Files.createDirectories(it) }
         Files.writeString(localPath.resolve("gradlew.bat"), "@echo off\r\necho ok\r\n")
 
@@ -66,4 +68,3 @@ class GitHubIngestOrchestratorTest {
         verify(atLeast = 2) { appRepo.save(any()) }
     }
 }
-

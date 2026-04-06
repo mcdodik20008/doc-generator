@@ -28,7 +28,7 @@ class JobWorkerExtractorTest {
     @ParameterizedTest
     @CsvSource(
         "org.quartz.Job",
-        "org.springframework.batch.core.step.tasklet.Tasklet"
+        "org.springframework.batch.core.step.tasklet.Tasklet",
     )
     fun `refineType returns JOB for Job or Tasklet supertypes`(supertype: String) {
         val raw = createRawType(supertypesRepr = listOf(supertype))
@@ -42,7 +42,7 @@ class JobWorkerExtractorTest {
     @ParameterizedTest
     @CsvSource(
         "org.springframework.batch.core.configuration.annotation.JobBuilderFactory",
-        "org.quartz.Scheduler"
+        "org.quartz.Scheduler",
     )
     fun `refineType returns JOB when imports contain Spring Batch or Quartz`(importName: String) {
         val raw = createRawType()
@@ -67,7 +67,7 @@ class JobWorkerExtractorTest {
     @CsvSource(
         "PaymentJob",
         "OrderWorker",
-        "ReportScheduler"
+        "ReportScheduler",
     )
     fun `refineType returns JOB for classes ending with Job, Worker, or Scheduler`(className: String) {
         val raw = createRawType(simpleName = className)
@@ -80,10 +80,11 @@ class JobWorkerExtractorTest {
 
     @Test
     fun `refineType returns JOB for package containing job`() {
-        val raw = createRawType(
-            simpleName = "SomeClass",
-            pkgFqn = "com.example.job"
-        )
+        val raw =
+            createRawType(
+                simpleName = "SomeClass",
+                pkgFqn = "com.example.job",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -93,10 +94,11 @@ class JobWorkerExtractorTest {
 
     @Test
     fun `refineType returns null for regular class`() {
-        val raw = createRawType(
-            simpleName = "RegularClass",
-            pkgFqn = "com.example.service"
-        )
+        val raw =
+            createRawType(
+                simpleName = "RegularClass",
+                pkgFqn = "com.example.service",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -126,21 +128,22 @@ class JobWorkerExtractorTest {
 
     @Test
     fun `refineFunction returns JOB for @Scheduled method`() {
-        val raw = RawFunction(
-            lang = SrcLang.kotlin,
-            filePath = "A.kt",
-            pkgFqn = "com.example",
-            ownerFqn = "com.example.SomeService",
-            name = "cleanup",
-            signatureRepr = "fun cleanup()",
-            paramNames = emptyList(),
-            annotationsRepr = setOf("org.springframework.scheduling.annotation.Scheduled"),
-            rawUsages = emptyList(),
-            throwsRepr = null,
-            kdoc = null,
-            span = null,
-            text = null,
-        )
+        val raw =
+            RawFunction(
+                lang = SrcLang.kotlin,
+                filePath = "A.kt",
+                pkgFqn = "com.example",
+                ownerFqn = "com.example.SomeService",
+                name = "cleanup",
+                signatureRepr = "fun cleanup()",
+                paramNames = emptyList(),
+                annotationsRepr = setOf("org.springframework.scheduling.annotation.Scheduled"),
+                rawUsages = emptyList(),
+                throwsRepr = null,
+                kdoc = null,
+                span = null,
+                text = null,
+            )
         val ctx = createContext()
         val result = extractor.refineFunction(NodeKind.METHOD, raw, ctx)
         assertThat(result).isEqualTo(NodeKind.JOB)
@@ -148,21 +151,22 @@ class JobWorkerExtractorTest {
 
     @Test
     fun `refineFunction returns null for method without @Scheduled`() {
-        val raw = RawFunction(
-            lang = SrcLang.kotlin,
-            filePath = "A.kt",
-            pkgFqn = "com.example",
-            ownerFqn = "com.example.SomeService",
-            name = "doWork",
-            signatureRepr = "fun doWork()",
-            paramNames = emptyList(),
-            annotationsRepr = emptySet(),
-            rawUsages = emptyList(),
-            throwsRepr = null,
-            kdoc = null,
-            span = null,
-            text = null,
-        )
+        val raw =
+            RawFunction(
+                lang = SrcLang.kotlin,
+                filePath = "A.kt",
+                pkgFqn = "com.example",
+                ownerFqn = "com.example.SomeService",
+                name = "doWork",
+                signatureRepr = "fun doWork()",
+                paramNames = emptyList(),
+                annotationsRepr = emptySet(),
+                rawUsages = emptyList(),
+                throwsRepr = null,
+                kdoc = null,
+                span = null,
+                text = null,
+            )
         val ctx = createContext()
         val result = extractor.refineFunction(NodeKind.METHOD, raw, ctx)
         assertThat(result).isNull()
@@ -172,8 +176,8 @@ class JobWorkerExtractorTest {
         simpleName: String = "TestClass",
         pkgFqn: String? = "com.example",
         supertypesRepr: List<String> = emptyList(),
-    ): RawType {
-        return RawType(
+    ): RawType =
+        RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -184,13 +188,11 @@ class JobWorkerExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createContext(imports: List<String>? = null): NodeKindContext {
-        return NodeKindContext(
+    private fun createContext(imports: List<String>? = null): NodeKindContext =
+        NodeKindContext(
             lang = Lang.kotlin,
             file = null,
             imports = imports,
         )
-    }
 }

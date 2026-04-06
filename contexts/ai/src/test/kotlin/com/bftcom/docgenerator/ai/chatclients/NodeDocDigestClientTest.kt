@@ -11,14 +11,14 @@ import org.mockito.kotlin.*
 
 @ExtendWith(MockitoExtension::class)
 class NodeDocDigestClientTest {
-
     @Mock
     private lateinit var directLlm: DirectLlmClient
 
-    private val props = AiClientsProperties(
-        coder = AiClientsProperties.ClientProps(model = "test-coder", temperature = 0.1, topP = 0.9, seed = 42),
-        talker = AiClientsProperties.ClientProps(model = "test-talker"),
-    )
+    private val props =
+        AiClientsProperties(
+            coder = AiClientsProperties.ClientProps(model = "test-coder", temperature = 0.1, topP = 0.9, seed = 42),
+            talker = AiClientsProperties.ClientProps(model = "test-talker"),
+        )
 
     @Test
     fun `generate should call DirectLlmClient with correct parameters`() {
@@ -60,7 +60,10 @@ class NodeDocDigestClientTest {
         client.generate("CLASS", "fqn", "tech", deps)
 
         verify(directLlm).call(captor.capture())
-        val depsLine = captor.firstValue.userPrompt.lines().find { it.startsWith("DEPS=") } ?: ""
+        val depsLine =
+            captor.firstValue.userPrompt
+                .lines()
+                .find { it.startsWith("DEPS=") } ?: ""
         assertThat(depsLine.length).isLessThanOrEqualTo(800 + 5)
     }
 

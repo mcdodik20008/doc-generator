@@ -26,9 +26,10 @@ class JpaRepositoryExtractorTest {
 
     @Test
     fun `refineType returns DB_QUERY for Repository annotation`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.springframework.stereotype.Repository")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.springframework.stereotype.Repository"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.INTERFACE, raw, ctx)
@@ -40,12 +41,13 @@ class JpaRepositoryExtractorTest {
     @CsvSource(
         "org.springframework.data.jpa.repository.JpaRepository",
         "org.springframework.data.repository.CrudRepository",
-        "org.springframework.data.repository.PagingAndSortingRepository"
+        "org.springframework.data.repository.PagingAndSortingRepository",
     )
     fun `refineType returns DB_QUERY for JPA repository supertypes`(supertype: String) {
-        val raw = createRawType(
-            supertypesRepr = listOf(supertype)
-        )
+        val raw =
+            createRawType(
+                supertypesRepr = listOf(supertype),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.INTERFACE, raw, ctx)
@@ -56,13 +58,17 @@ class JpaRepositoryExtractorTest {
     @ParameterizedTest
     @CsvSource(
         "UserRepository, com.example",
-        "OrderDao, com.example"
+        "OrderDao, com.example",
     )
-    fun `refineType returns DB_QUERY for classes ending with Repository or Dao`(className: String, pkg: String) {
-        val raw = createRawType(
-            simpleName = className,
-            pkgFqn = pkg
-        )
+    fun `refineType returns DB_QUERY for classes ending with Repository or Dao`(
+        className: String,
+        pkg: String,
+    ) {
+        val raw =
+            createRawType(
+                simpleName = className,
+                pkgFqn = pkg,
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.INTERFACE, raw, ctx)
@@ -72,10 +78,11 @@ class JpaRepositoryExtractorTest {
 
     @Test
     fun `refineType returns DB_QUERY for package containing repository`() {
-        val raw = createRawType(
-            simpleName = "SomeClass",
-            pkgFqn = "com.example.repository"
-        )
+        val raw =
+            createRawType(
+                simpleName = "SomeClass",
+                pkgFqn = "com.example.repository",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.INTERFACE, raw, ctx)
@@ -85,10 +92,11 @@ class JpaRepositoryExtractorTest {
 
     @Test
     fun `refineType returns null for regular class`() {
-        val raw = createRawType(
-            simpleName = "RegularClass",
-            pkgFqn = "com.example.service"
-        )
+        val raw =
+            createRawType(
+                simpleName = "RegularClass",
+                pkgFqn = "com.example.service",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -98,10 +106,11 @@ class JpaRepositoryExtractorTest {
 
     @Test
     fun `refineType handles case-insensitive matching`() {
-        val raw = createRawType(
-            simpleName = "userrepository",
-            pkgFqn = "com.example"
-        )
+        val raw =
+            createRawType(
+                simpleName = "userrepository",
+                pkgFqn = "com.example",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.INTERFACE, raw, ctx)
@@ -114,8 +123,8 @@ class JpaRepositoryExtractorTest {
         pkgFqn: String? = "com.example",
         annotationsRepr: List<String> = emptyList(),
         supertypesRepr: List<String> = emptyList(),
-    ): RawType {
-        return RawType(
+    ): RawType =
+        RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -126,13 +135,11 @@ class JpaRepositoryExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createContext(): NodeKindContext {
-        return NodeKindContext(
+    private fun createContext(): NodeKindContext =
+        NodeKindContext(
             lang = Lang.kotlin,
             file = null,
             imports = null,
         )
-    }
 }

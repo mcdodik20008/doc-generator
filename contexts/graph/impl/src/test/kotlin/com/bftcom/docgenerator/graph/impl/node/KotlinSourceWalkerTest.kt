@@ -24,19 +24,23 @@ class KotlinSourceWalkerTest {
         val walker = KotlinSourceWalker(kdoc)
 
         val file = Files.createTempFile("not-dir", ".kt")
-        val ex = org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
-            walker.walk(file, visitor = NoopVisitor(), classpath = emptyList())
-        }
+        val ex =
+            org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+                walker.walk(file, visitor = NoopVisitor(), classpath = emptyList())
+            }
         assertThat(ex.message).contains("Source root must be a directory")
     }
 
     @Test
-    fun `walk - вызывает visitor для файла типов полей и функций`(@TempDir root: Path) {
-        val kdoc = mockk<KDocFetcher>(relaxed = true).also {
-            every { it.parseKDoc(any()) } returns null
-            every { it.toDocString(any()) } returns ""
-            every { it.toMeta(any()) } returns null
-        }
+    fun `walk - вызывает visitor для файла типов полей и функций`(
+        @TempDir root: Path,
+    ) {
+        val kdoc =
+            mockk<KDocFetcher>(relaxed = true).also {
+                every { it.parseKDoc(any()) } returns null
+                every { it.toDocString(any()) } returns ""
+                every { it.toMeta(any()) } returns null
+            }
         val walker = KotlinSourceWalker(kdoc)
 
         val src =
@@ -78,7 +82,9 @@ class KotlinSourceWalkerTest {
     }
 
     @Test
-    fun `walk - не обходит build out node_modules git и dependencies`(@TempDir root: Path) {
+    fun `walk - не обходит build out node_modules git и dependencies`(
+        @TempDir root: Path,
+    ) {
         val kdoc = mockk<KDocFetcher>(relaxed = true)
         val walker = KotlinSourceWalker(kdoc)
 
@@ -105,7 +111,9 @@ class KotlinSourceWalkerTest {
     }
 
     @Test
-    fun `walk - для абстрактной функции использует текстовый парсер`(@TempDir root: Path) {
+    fun `walk - для абстрактной функции использует текстовый парсер`(
+        @TempDir root: Path,
+    ) {
         val kdoc = mockk<KDocFetcher>(relaxed = true)
         val walker = KotlinSourceWalker(kdoc)
 
@@ -128,7 +136,9 @@ class KotlinSourceWalkerTest {
     }
 
     @Test
-    fun `walk - определяет kindRepr и throws через PSI`(@TempDir root: Path) {
+    fun `walk - определяет kindRepr и throws через PSI`(
+        @TempDir root: Path,
+    ) {
         val kdoc = mockk<KDocFetcher>(relaxed = true)
         val walker = KotlinSourceWalker(kdoc)
 
@@ -203,4 +213,3 @@ class KotlinSourceWalkerTest {
         }
     }
 }
-

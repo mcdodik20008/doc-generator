@@ -6,19 +6,19 @@ import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.library.LibraryNode
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
-import com.bftcom.docgenerator.shared.node.RawUsage
 import com.bftcom.docgenerator.graph.api.library.LibraryNodeIndex
 import com.bftcom.docgenerator.graph.api.linker.sink.LibraryNodeEdgeProposal
 import com.bftcom.docgenerator.graph.impl.linker.NodeIndexFactory
+import com.bftcom.docgenerator.graph.impl.linker.virtual.VirtualNodeFactory
 import com.bftcom.docgenerator.library.api.integration.IntegrationPoint
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointService
-import com.bftcom.docgenerator.graph.impl.linker.virtual.VirtualNodeFactory
+import com.bftcom.docgenerator.shared.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.RawUsage
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 import org.mockito.kotlin.any
 
 class IntegrationEdgeLinkerTest {
@@ -76,10 +76,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - Simple usage без owner не находит библиотечный метод`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            rawUsages = listOf(RawUsage.Simple("someMethod", isCall = true)),
-            imports = emptyList(),
-        )
+        val meta =
+            NodeMeta(
+                rawUsages = listOf(RawUsage.Simple("someMethod", isCall = true)),
+                imports = emptyList(),
+            )
 
         `when`(libraryNodeIndex.findByMethodFqn(any())).thenReturn(null)
 
@@ -95,10 +96,11 @@ class IntegrationEdgeLinkerTest {
         val owner = node(fqn = "com.example.Owner", name = "Owner", pkg = "com.example", kind = NodeKind.CLASS)
         val fn = node(fqn = "com.example.Owner.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(owner, fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("someMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("someMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         `when`(libraryNodeIndex.findByMethodFqn("com.example.Owner.someMethod")).thenReturn(libraryNode)
@@ -116,10 +118,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - Simple usage через imports находит метод`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            rawUsages = listOf(RawUsage.Simple("someMethod", isCall = true)),
-            imports = listOf("com.example.SomeClass"),
-        )
+        val meta =
+            NodeMeta(
+                rawUsages = listOf(RawUsage.Simple("someMethod", isCall = true)),
+                imports = listOf("com.example.SomeClass"),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         `when`(libraryNodeIndex.findByMethodFqn("com.example.SomeClass.someMethod.someMethod")).thenReturn(null)
@@ -137,10 +140,11 @@ class IntegrationEdgeLinkerTest {
         val receiverType = node(fqn = "com.example.Receiver", name = "Receiver", pkg = "com.example", kind = NodeKind.CLASS)
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(receiverType, fn))
-        val meta = NodeMeta(
-            rawUsages = listOf(RawUsage.Dot(receiver = "Receiver", member = "someMethod", isCall = true)),
-            imports = listOf("com.example.Receiver"),
-        )
+        val meta =
+            NodeMeta(
+                rawUsages = listOf(RawUsage.Dot(receiver = "Receiver", member = "someMethod", isCall = true)),
+                imports = listOf("com.example.Receiver"),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         `when`(libraryNodeIndex.findByMethodFqn("com.example.Receiver.someMethod")).thenReturn(libraryNode)
@@ -157,10 +161,11 @@ class IntegrationEdgeLinkerTest {
         val owner = node(fqn = "com.example.Owner", name = "Owner", pkg = "com.example", kind = NodeKind.CLASS)
         val fn = node(fqn = "com.example.Owner.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(owner, fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Dot(receiver = "owner", member = "someMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Dot(receiver = "owner", member = "someMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         `when`(libraryNodeIndex.findByMethodFqn("com.example.Owner.someMethod")).thenReturn(libraryNode)
@@ -176,10 +181,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - HttpEndpoint создает CALLS_HTTP edge`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         val endpoint = node(fqn = "endpoint://GET http://example.com/api", name = "api", pkg = null, kind = NodeKind.ENDPOINT)
@@ -210,10 +216,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - HttpEndpoint с hasRetry создает RETRIES_TO edge`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         val endpoint = node(fqn = "endpoint://GET http://example.com/api", name = "api", pkg = null, kind = NodeKind.ENDPOINT)
@@ -243,10 +250,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - HttpEndpoint с hasTimeout создает TIMEOUTS_TO edge`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         val endpoint = node(fqn = "endpoint://GET http://example.com/api", name = "api", pkg = null, kind = NodeKind.ENDPOINT)
@@ -276,10 +284,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - HttpEndpoint с hasCircuitBreaker создает CIRCUIT_BREAKER_TO edge`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         val endpoint = node(fqn = "endpoint://GET http://example.com/api", name = "api", pkg = null, kind = NodeKind.ENDPOINT)
@@ -309,10 +318,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - HttpEndpoint со всеми флагами создает все edges`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         val endpoint = node(fqn = "endpoint://GET http://example.com/api", name = "api", pkg = null, kind = NodeKind.ENDPOINT)
@@ -346,10 +356,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - HttpEndpoint с null url использует unknown`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         val endpoint = node(fqn = "endpoint://GET unknown", name = "unknown", pkg = null, kind = NodeKind.ENDPOINT)
@@ -378,10 +389,11 @@ class IntegrationEdgeLinkerTest {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val endpoint = node(fqn = "endpoint://GET http://example.com/api", name = "api", pkg = null, kind = NodeKind.ENDPOINT)
         val index = NodeIndexFactory().create(listOf(fn, endpoint))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
 
@@ -409,10 +421,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - KafkaTopic PRODUCE создает PRODUCES edge`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("kafkaMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("kafkaMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         val topic = node(fqn = "topic://my-topic", name = "my-topic", pkg = null, kind = NodeKind.TOPIC)
@@ -442,10 +455,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - KafkaTopic CONSUME создает CONSUMES edge`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("kafkaMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("kafkaMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         val topic = node(fqn = "topic://my-topic", name = "my-topic", pkg = null, kind = NodeKind.TOPIC)
@@ -474,10 +488,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - KafkaTopic с null topic использует unknown`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("kafkaMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("kafkaMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         val topic = node(fqn = "topic://unknown", name = "unknown", pkg = null, kind = NodeKind.TOPIC)
@@ -505,13 +520,15 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - CamelRoute с http endpointType создает CALLS_HTTP`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("camelMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("camelMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
-        val endpoint = node(fqn = "endpoint://http://camel.example.com", name = "http://camel.example.com", pkg = null, kind = NodeKind.ENDPOINT)
+        val endpoint =
+            node(fqn = "endpoint://http://camel.example.com", name = "http://camel.example.com", pkg = null, kind = NodeKind.ENDPOINT)
 
         `when`(libraryNodeIndex.findByMethodFqn("com.example.Owner.camelMethod")).thenReturn(libraryNode)
         `when`(integrationPointService.extractIntegrationPoints(libraryNode)).thenReturn(
@@ -537,13 +554,15 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - CamelRoute с uri начинающимся с http создает CALLS_HTTP`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("camelMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("camelMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
-        val endpoint = node(fqn = "endpoint://http://camel.example.com", name = "http://camel.example.com", pkg = null, kind = NodeKind.ENDPOINT)
+        val endpoint =
+            node(fqn = "endpoint://http://camel.example.com", name = "http://camel.example.com", pkg = null, kind = NodeKind.ENDPOINT)
 
         `when`(libraryNodeIndex.findByMethodFqn("com.example.Owner.camelMethod")).thenReturn(libraryNode)
         `when`(integrationPointService.extractIntegrationPoints(libraryNode)).thenReturn(
@@ -569,10 +588,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - CamelRoute без http не создает CALLS_HTTP`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("camelMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("camelMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         val endpoint = node(fqn = "endpoint://file:///tmp", name = "/tmp", pkg = null, kind = NodeKind.ENDPOINT)
@@ -601,10 +621,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - CamelRoute с null uri использует unknown`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("camelMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("camelMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         val endpoint = node(fqn = "endpoint://unknown", name = "unknown", pkg = null, kind = NodeKind.ENDPOINT)
@@ -632,9 +653,10 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - Simple usage с FQN методом находит библиотеку`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            rawUsages = listOf(RawUsage.Simple("com.example.SomeClass.method", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                rawUsages = listOf(RawUsage.Simple("com.example.SomeClass.method", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         `when`(libraryNodeIndex.findByMethodFqn("com.example.SomeClass.method")).thenReturn(libraryNode)
@@ -650,10 +672,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - множественные интеграционные точки создают все edges`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("multiMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("multiMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
         val endpoint = node(fqn = "endpoint://GET http://example.com/api", name = "api", pkg = null, kind = NodeKind.ENDPOINT)
@@ -693,10 +716,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - virtualNodeFactory возвращает null для endpoint`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("httpMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
 
@@ -725,10 +749,11 @@ class IntegrationEdgeLinkerTest {
     fun `linkIntegrationEdgesWithNodes - virtualNodeFactory возвращает null для topic`() {
         val fn = node(fqn = "com.example.method", name = "method", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
-        val meta = NodeMeta(
-            ownerFqn = "com.example.Owner",
-            rawUsages = listOf(RawUsage.Simple("kafkaMethod", isCall = true)),
-        )
+        val meta =
+            NodeMeta(
+                ownerFqn = "com.example.Owner",
+                rawUsages = listOf(RawUsage.Simple("kafkaMethod", isCall = true)),
+            )
 
         val libraryNode = mock(LibraryNode::class.java)
 

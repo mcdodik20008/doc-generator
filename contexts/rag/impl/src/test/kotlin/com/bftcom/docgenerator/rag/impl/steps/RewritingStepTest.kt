@@ -26,11 +26,12 @@ class RewritingStepTest {
         every { promptSpec.call() } returns callResponse
         every { chatClient.prompt() } returns promptSpec
 
-        val context = QueryProcessingContext(
-            originalQuery = original,
-            currentQuery = original,
-            sessionId = "s-1",
-        )
+        val context =
+            QueryProcessingContext(
+                originalQuery = original,
+                currentQuery = original,
+                sessionId = "s-1",
+            )
 
         val result = step.execute(context)
 
@@ -43,11 +44,12 @@ class RewritingStepTest {
 
     @Test
     fun `execute - пропускает если уже переформулирован`() {
-        val context = QueryProcessingContext(
-            originalQuery = "test",
-            currentQuery = "test",
-            sessionId = "s-1",
-        ).setMetadata(QueryMetadataKeys.REWRITTEN, true)
+        val context =
+            QueryProcessingContext(
+                originalQuery = "test",
+                currentQuery = "test",
+                sessionId = "s-1",
+            ).setMetadata(QueryMetadataKeys.REWRITTEN, true)
 
         val result = step.execute(context)
 
@@ -62,11 +64,12 @@ class RewritingStepTest {
         every { promptSpec.call() } throws RuntimeException("LLM error")
         every { chatClient.prompt() } returns promptSpec
 
-        val context = QueryProcessingContext(
-            originalQuery = "test",
-            currentQuery = "test",
-            sessionId = "s-1",
-        )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "test",
+                currentQuery = "test",
+                sessionId = "s-1",
+            )
 
         val result = step.execute(context)
 

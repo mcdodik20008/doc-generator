@@ -80,8 +80,7 @@ class RestClientConfig {
                         .custom()
                         .setSoKeepAlive(true)
                         .build(),
-                )
-                .setMaxConnTotal(50)
+                ).setMaxConnTotal(50)
                 .setMaxConnPerRoute(10)
                 .setConnectionTimeToLive(TimeValue.ofMinutes(5))
                 .build()

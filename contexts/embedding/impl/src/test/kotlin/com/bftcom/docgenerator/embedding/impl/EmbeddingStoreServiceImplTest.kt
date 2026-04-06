@@ -1,8 +1,8 @@
 package com.bftcom.docgenerator.embedding.impl
 
-import io.mockk.slot
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -68,4 +68,3 @@ class EmbeddingStoreServiceImplTest {
         assertThat(service.getAllDocuments()).isEmpty()
     }
 }
-

@@ -3,25 +3,30 @@ package com.bftcom.docgenerator.embedding.impl
 import com.bftcom.docgenerator.embedding.api.Document
 import com.bftcom.docgenerator.embedding.api.EmbeddingStoreService
 import org.slf4j.LoggerFactory
-import org.springframework.ai.document.Document as AiDocument
 import org.springframework.ai.vectorstore.SearchRequest
 import org.springframework.ai.vectorstore.VectorStore
 import org.springframework.stereotype.Service
+import org.springframework.ai.document.Document as AiDocument
 
 @Service
 class EmbeddingStoreServiceImpl(
     private val vectorStore: VectorStore,
 ) : EmbeddingStoreService {
-
     private val log = LoggerFactory.getLogger(javaClass)
 
-    override fun addDocument(id: String, content: String, metadata: Map<String, Any>) {
+    override fun addDocument(
+        id: String,
+        content: String,
+        metadata: Map<String, Any>,
+    ) {
         try {
-            val document = AiDocument.builder()
-                .text(content)
-                .metadata(metadata)
-                .id(id)
-                .build()
+            val document =
+                AiDocument
+                    .builder()
+                    .text(content)
+                    .metadata(metadata)
+                    .id(id)
+                    .build()
             vectorStore.add(listOf(document))
             log.debug("Document added successfully: id={}", id)
         } catch (e: Exception) {
@@ -40,11 +45,13 @@ class EmbeddingStoreServiceImpl(
             val enrichedMetadata = metadata.toMutableMap()
             enrichedMetadata["embedding"] = embedding.map { it.toDouble() }
 
-            val document = AiDocument.builder()
-                .text(content)
-                .metadata(enrichedMetadata)
-                .id(id)
-                .build()
+            val document =
+                AiDocument
+                    .builder()
+                    .text(content)
+                    .metadata(enrichedMetadata)
+                    .id(id)
+                    .build()
 
             vectorStore.add(listOf(document))
             log.debug("Document with embedding added successfully: id={}, embedding_size={}", id, embedding.size)
@@ -63,15 +70,17 @@ class EmbeddingStoreServiceImpl(
         }
     }
 
-    override fun getDocument(id: String): Document? {
-        return try {
+    override fun getDocument(id: String): Document? =
+        try {
             // VectorStore не поддерживает прямой get по ID, поэтому используем similarity search
             // с очень высоким порогом сходства и фильтром по metadata
-            val searchRequest = SearchRequest.builder()
-                .query("")
-                .topK(1)
-                .filterExpression("id == '$id'")
-                .build()
+            val searchRequest =
+                SearchRequest
+                    .builder()
+                    .query("")
+                    .topK(1)
+                    .filterExpression("id == '$id'")
+                    .build()
 
             val results = vectorStore.similaritySearch(searchRequest)
 
@@ -80,7 +89,7 @@ class EmbeddingStoreServiceImpl(
                 Document(
                     id = aiDoc.id,
                     content = aiDoc.text,
-                    metadata = aiDoc.metadata
+                    metadata = aiDoc.metadata,
                 )
             } else {
                 log.debug("Document not found: id={}", id)
@@ -90,7 +99,6 @@ class EmbeddingStoreServiceImpl(
             log.error("Failed to get document: id={}", id, e)
             null
         }
-    }
 
     override fun getAllDocuments(): List<Document> {
         log.warn("getAllDocuments() is not efficiently supported by VectorStore - returning empty list")
@@ -100,4 +108,3 @@ class EmbeddingStoreServiceImpl(
         return emptyList()
     }
 }
-

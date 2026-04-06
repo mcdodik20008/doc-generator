@@ -33,11 +33,27 @@ class UpsertFieldHandlerTest {
         every { state.getPackage(any()) } returns null
         every { state.getFileUnit(any()) } returns null
         every { nodeKindRefiner.forField(any(), any(), any()) } returns NodeKind.FIELD
-        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns createFieldNode()
+        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns
+            createFieldNode()
 
         handler.handle(cmd, state, builder)
 
-        verify { builder.upsertNode(any(), any(), any(), packageName = "com.example", any(), any(), any(), any(), any(), any(), any(), any()) }
+        verify {
+            builder.upsertNode(
+                any(),
+                any(),
+                any(),
+                packageName = "com.example",
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
     }
 
     @Test
@@ -50,12 +66,28 @@ class UpsertFieldHandlerTest {
         every { state.getPackage(any()) } returns null
         every { state.getFileUnit(any()) } returns null
         every { nodeKindRefiner.forField(any(), any(), any()) } returns NodeKind.FIELD
-        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns createFieldNode()
+        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns
+            createFieldNode()
 
         handler.handle(cmd, state, builder)
 
         verify { state.getFilePackage(raw.filePath) }
-        verify { builder.upsertNode(any(), any(), any(), packageName = "com.example", any(), any(), any(), any(), any(), any(), any(), any()) }
+        verify {
+            builder.upsertNode(
+                any(),
+                any(),
+                any(),
+                packageName = "com.example",
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
     }
 
     @Test
@@ -69,7 +101,8 @@ class UpsertFieldHandlerTest {
         every { state.getPackage(any()) } returns null
         every { state.getFileUnit(any()) } returns null
         every { nodeKindRefiner.forField(any(), any(), any()) } returns NodeKind.FIELD
-        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns createFieldNode()
+        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns
+            createFieldNode()
 
         handler.handle(cmd, state, builder)
 
@@ -88,7 +121,8 @@ class UpsertFieldHandlerTest {
         every { state.getPackage("com.example") } returns pkg
         every { state.getFileUnit(any()) } returns null
         every { nodeKindRefiner.forField(any(), any(), any()) } returns NodeKind.FIELD
-        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns createFieldNode()
+        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns
+            createFieldNode()
 
         handler.handle(cmd, state, builder)
 
@@ -106,7 +140,8 @@ class UpsertFieldHandlerTest {
         every { state.getPackage(any()) } returns null
         every { state.getFileUnit(any()) } returns null
         every { nodeKindRefiner.forField(any(), any(), any()) } returns NodeKind.FIELD
-        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns createFieldNode()
+        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns
+            createFieldNode()
 
         handler.handle(cmd, state, builder)
 
@@ -123,7 +158,8 @@ class UpsertFieldHandlerTest {
         every { state.getPackage(any()) } returns null
         every { state.getFileUnit(any()) } returns null
         every { nodeKindRefiner.forField(any(), any(), any()) } returns NodeKind.FIELD
-        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns createFieldNode()
+        every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns
+            createFieldNode()
 
         handler.handle(cmd, state, builder)
 
@@ -133,8 +169,8 @@ class UpsertFieldHandlerTest {
     private fun createRawField(
         pkgFqn: String? = "com.example",
         ownerFqn: String? = null,
-    ): RawField {
-        return RawField(
+    ): RawField =
+        RawField(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -146,10 +182,9 @@ class UpsertFieldHandlerTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createFieldNode(): Node {
-        return Node(
+    private fun createFieldNode(): Node =
+        Node(
             id = 1L,
             application = app,
             fqn = "com.example.fieldName",
@@ -158,10 +193,9 @@ class UpsertFieldHandlerTest {
             kind = NodeKind.FIELD,
             lang = Lang.kotlin,
         )
-    }
 
-    private fun createTypeNode(fqn: String): Node {
-        return Node(
+    private fun createTypeNode(fqn: String): Node =
+        Node(
             id = 1L,
             application = app,
             fqn = fqn,
@@ -170,10 +204,9 @@ class UpsertFieldHandlerTest {
             kind = NodeKind.CLASS,
             lang = Lang.kotlin,
         )
-    }
 
-    private fun createPackageNode(pkgFqn: String): Node {
-        return Node(
+    private fun createPackageNode(pkgFqn: String): Node =
+        Node(
             id = 1L,
             application = app,
             fqn = pkgFqn,
@@ -182,5 +215,4 @@ class UpsertFieldHandlerTest {
             kind = NodeKind.PACKAGE,
             lang = Lang.kotlin,
         )
-    }
 }

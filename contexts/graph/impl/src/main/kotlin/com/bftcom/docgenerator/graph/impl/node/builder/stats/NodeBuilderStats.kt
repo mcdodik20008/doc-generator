@@ -39,4 +39,3 @@ class NodeBuilderStatsManager {
         skippedCount = 0
     }
 }
-

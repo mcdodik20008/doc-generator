@@ -385,10 +385,11 @@ class UpsertFunctionHandlerTest {
 
     @Test
     fun `handle should build signature from name and params when signatureRepr is null`() {
-        val raw = createRawFunction(
-            signatureRepr = null,
-            paramNames = listOf("param1", "param2"),
-        )
+        val raw =
+            createRawFunction(
+                signatureRepr = null,
+                paramNames = listOf("param1", "param2"),
+            )
         val cmd = UpsertFunctionCmd(raw)
 
         every { state.getFilePackage(any()) } returns null
@@ -437,10 +438,11 @@ class UpsertFunctionHandlerTest {
 
     @Test
     fun `handle should build signature with empty params when signatureRepr is null and no params`() {
-        val raw = createRawFunction(
-            signatureRepr = null,
-            paramNames = emptyList(),
-        )
+        val raw =
+            createRawFunction(
+                signatureRepr = null,
+                paramNames = emptyList(),
+            )
         val cmd = UpsertFunctionCmd(raw)
 
         every { state.getFilePackage(any()) } returns null
@@ -489,7 +491,10 @@ class UpsertFunctionHandlerTest {
 
     @ParameterizedTest
     @MethodSource("spanTestCases")
-    fun `handle should process span correctly`(span: LineSpan?, expectedSpan: IntRange?) {
+    fun `handle should process span correctly`(
+        span: LineSpan?,
+        expectedSpan: IntRange?,
+    ) {
         val raw = createRawFunction(span = span)
         val cmd = UpsertFunctionCmd(raw)
 
@@ -642,7 +647,10 @@ class UpsertFunctionHandlerTest {
 
     @ParameterizedTest
     @MethodSource("kdocTestCases")
-    fun `handle should process kdoc correctly`(kdoc: String?, shouldHaveKdoc: Boolean) {
+    fun `handle should process kdoc correctly`(
+        kdoc: String?,
+        shouldHaveKdoc: Boolean,
+    ) {
         val raw = createRawFunction(kdoc = kdoc)
         val cmd = UpsertFunctionCmd(raw)
 
@@ -762,20 +770,18 @@ class UpsertFunctionHandlerTest {
 
     companion object {
         @JvmStatic
-        fun spanTestCases(): Stream<Arguments> {
-            return Stream.of(
+        fun spanTestCases(): Stream<Arguments> =
+            Stream.of(
                 Arguments.of(LineSpan(1, 10), 1..10),
                 Arguments.of(null, null),
             )
-        }
 
         @JvmStatic
-        fun kdocTestCases(): Stream<Arguments> {
-            return Stream.of(
+        fun kdocTestCases(): Stream<Arguments> =
+            Stream.of(
                 Arguments.of("Test documentation", true),
                 Arguments.of(null, false),
             )
-        }
     }
 
     private fun createRawFunction(
@@ -785,8 +791,8 @@ class UpsertFunctionHandlerTest {
         paramNames: List<String> = emptyList(),
         span: LineSpan? = null,
         kdoc: String? = null,
-    ): RawFunction {
-        return RawFunction(
+    ): RawFunction =
+        RawFunction(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -801,10 +807,9 @@ class UpsertFunctionHandlerTest {
             span = span,
             text = "fun testMethod() {}",
         )
-    }
 
-    private fun createFunctionNode(fqn: String): Node {
-        return Node(
+    private fun createFunctionNode(fqn: String): Node =
+        Node(
             id = 1L,
             application = app,
             fqn = fqn,
@@ -822,10 +827,9 @@ class UpsertFunctionHandlerTest {
             codeHash = null,
             meta = emptyMap(),
         )
-    }
 
-    private fun createTypeNode(fqn: String): Node {
-        return Node(
+    private fun createTypeNode(fqn: String): Node =
+        Node(
             id = 1L,
             application = app,
             fqn = fqn,
@@ -843,10 +847,9 @@ class UpsertFunctionHandlerTest {
             codeHash = null,
             meta = emptyMap(),
         )
-    }
 
-    private fun createPackageNode(pkgFqn: String): Node {
-        return Node(
+    private fun createPackageNode(pkgFqn: String): Node =
+        Node(
             id = 1L,
             application = app,
             fqn = pkgFqn,
@@ -864,14 +867,12 @@ class UpsertFunctionHandlerTest {
             codeHash = null,
             meta = emptyMap(),
         )
-    }
 
-    private fun createRawFileUnit(): RawFileUnit {
-        return RawFileUnit(
+    private fun createRawFileUnit(): RawFileUnit =
+        RawFileUnit(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = "com.example",
             imports = emptyList(),
         )
-    }
 }

@@ -9,22 +9,18 @@ data class StepEvent(
      * Тип шага FSM
      */
     val stepType: ProcessingStepType,
-
     /**
      * Статус выполнения шага
      */
     val status: StepEventStatus,
-
     /**
      * Человекочитаемое описание текущего действия
      */
     val description: String,
-
     /**
      * Дополнительные данные (опционально)
      */
     val metadata: Map<String, Any> = emptyMap(),
-
     /**
      * Время начала шага
      */

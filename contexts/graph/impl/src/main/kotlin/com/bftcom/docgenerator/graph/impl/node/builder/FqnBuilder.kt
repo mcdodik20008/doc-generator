@@ -21,11 +21,12 @@ object FqnBuilder {
         functionName: String,
         paramTypeNames: List<String> = emptyList(),
     ): String {
-        val base = when {
-            !ownerFqn.isNullOrBlank() -> "$ownerFqn.$functionName"
-            !packageFqn.isNullOrBlank() -> "$packageFqn.$functionName"
-            else -> functionName
-        }
+        val base =
+            when {
+                !ownerFqn.isNullOrBlank() -> "$ownerFqn.$functionName"
+                !packageFqn.isNullOrBlank() -> "$packageFqn.$functionName"
+                else -> functionName
+            }
         return "$base(${paramTypeNames.joinToString(",")})"
     }
 

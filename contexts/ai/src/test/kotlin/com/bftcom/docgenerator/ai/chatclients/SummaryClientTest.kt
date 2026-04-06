@@ -17,7 +17,6 @@ import org.springframework.ai.chat.prompt.Prompt
 
 @ExtendWith(MockitoExtension::class)
 class SummaryClientTest {
-
     @Mock
     private lateinit var chatModel: ChatModel
 
@@ -94,8 +93,10 @@ class SummaryClientTest {
         val promptCaptor = ArgumentCaptor.forClass(Prompt::class.java)
         verify(chatModel).call(promptCaptor.capture())
 
-        val userContent = promptCaptor.value.instructions
-            .find { it.messageType.name == "USER" }?.text ?: ""
+        val userContent =
+            promptCaptor.value.instructions
+                .find { it.messageType.name == "USER" }
+                ?.text ?: ""
         assertThat(userContent).contains(inputText)
     }
 }

@@ -27,26 +27,22 @@ class ChatSession(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null,
-
     /**
      * Пользователь-владелец чата
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     var user: User,
-
     /**
      * UUID сессии (для совместимости с localStorage на фронтенде)
      */
     @Column(name = "session_id", nullable = false, unique = true, length = 36)
     var sessionId: String,
-
     /**
      * Название чата (автогенерируется или задается пользователем)
      */
     @Column(nullable = false, length = 255)
     var title: String,
-
     /**
      * История сообщений в формате JSON.
      * Структура: [{ role: 'user'|'assistant', data: {...}, timestamp: Long }]
@@ -54,19 +50,16 @@ class ChatSession(
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "messages", columnDefinition = "jsonb", nullable = false)
     var messages: String = "[]",
-
     /**
      * ID приложения (если чат привязан к конкретному приложению)
      */
     @Column(name = "application_id")
     var applicationId: Long? = null,
-
     /**
      * Дата создания чата
      */
     @Column(name = "created_at", nullable = false)
     var createdAt: OffsetDateTime = OffsetDateTime.now(),
-
     /**
      * Дата последнего обновления (последнего сообщения)
      */
@@ -79,11 +72,7 @@ class ChatSession(
         return id != null && id == other.id
     }
 
-    override fun hashCode(): Int {
-        return id?.hashCode() ?: 0
-    }
+    override fun hashCode(): Int = id?.hashCode() ?: 0
 
-    override fun toString(): String {
-        return "ChatSession(id=$id, sessionId='$sessionId', title='$title', userId=${user.id})"
-    }
+    override fun toString(): String = "ChatSession(id=$id, sessionId='$sessionId', title='$title', userId=${user.id})"
 }

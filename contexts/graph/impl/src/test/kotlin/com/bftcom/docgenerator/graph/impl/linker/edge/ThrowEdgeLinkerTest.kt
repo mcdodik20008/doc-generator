@@ -5,8 +5,8 @@ import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.impl.linker.NodeIndexFactory
+import com.bftcom.docgenerator.shared.node.NodeMeta
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -50,7 +50,10 @@ class ThrowEdgeLinkerTest {
         val edges =
             ThrowEdgeLinker().link(
                 fn,
-                NodeMeta(throwsTypes = listOf("MyEx1", "MyEx2", "MyEx3"), imports = listOf("com.example.MyEx1", "com.example.MyEx2", "com.example.MyEx3")),
+                NodeMeta(
+                    throwsTypes = listOf("MyEx1", "MyEx2", "MyEx3"),
+                    imports = listOf("com.example.MyEx1", "com.example.MyEx2", "com.example.MyEx3"),
+                ),
                 index,
             )
 
@@ -98,11 +101,12 @@ class ThrowEdgeLinkerTest {
         val fn = node(id = 1L, fqn = "com.example.doIt", name = "doIt", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
 
-        val edges = ThrowEdgeLinker().link(
-            fn,
-            NodeMeta(throwsTypes = emptyList()),
-            index,
-        )
+        val edges =
+            ThrowEdgeLinker().link(
+                fn,
+                NodeMeta(throwsTypes = emptyList()),
+                index,
+            )
 
         assertThat(edges).isEmpty()
     }
@@ -112,11 +116,12 @@ class ThrowEdgeLinkerTest {
         val fn = node(id = 1L, fqn = "com.example.doIt", name = "doIt", pkg = "com.example", kind = NodeKind.METHOD)
         val index = NodeIndexFactory().create(listOf(fn))
 
-        val edges = ThrowEdgeLinker().link(
-            fn,
-            NodeMeta(throwsTypes = null),
-            index,
-        )
+        val edges =
+            ThrowEdgeLinker().link(
+                fn,
+                NodeMeta(throwsTypes = null),
+                index,
+            )
 
         assertThat(edges).isEmpty()
     }
@@ -214,4 +219,3 @@ class ThrowEdgeLinkerTest {
             lang = Lang.kotlin,
         )
 }
-

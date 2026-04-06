@@ -36,54 +36,63 @@ class IngestRunController(
     }
 
     @GetMapping("/runs/{runId}")
-    fun getRunStatus(@PathVariable runId: Long): IngestRunDto {
-        return orchestrator.getRunStatus(runId)
-    }
+    fun getRunStatus(
+        @PathVariable runId: Long,
+    ): IngestRunDto = orchestrator.getRunStatus(runId)
 
     @GetMapping("/runs/{runId}/stream", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
-    fun streamEvents(@PathVariable runId: Long): Flux<ServerSentEvent<String>> {
+    fun streamEvents(
+        @PathVariable runId: Long,
+    ): Flux<ServerSentEvent<String>> {
         log.info("SSE stream requested for runId=$runId")
 
-        return Mono.fromCallable {
-            orchestrator.getEvents(runId)
-        }
-            .subscribeOn(Schedulers.boundedElastic())
+        return Mono
+            .fromCallable {
+                orchestrator.getEvents(runId)
+            }.subscribeOn(Schedulers.boundedElastic())
             .flatMapMany { pastEvents ->
                 // Past events from DB
-                val pastFlux = Flux.fromIterable(pastEvents)
-                    .map { event -> toSse(event) }
+                val pastFlux =
+                    Flux
+                        .fromIterable(pastEvents)
+                        .map { event -> toSse(event) }
 
                 // Live events from sink
-                val liveFlux = sseManager.stream(runId)
-                    .map { event -> toSse(event) }
+                val liveFlux =
+                    sseManager
+                        .stream(runId)
+                        .map { event -> toSse(event) }
 
                 Flux.concat(pastFlux, liveFlux)
-            }
-            .onErrorResume { e ->
+            }.onErrorResume { e ->
                 log.error("SSE stream error for runId=$runId: ${e.message}", e)
-                val errorEvent = ServerSentEvent.builder<String>()
-                    .event("error")
-                    .data(e.message ?: "An error occurred")
-                    .build()
+                val errorEvent =
+                    ServerSentEvent
+                        .builder<String>()
+                        .event("error")
+                        .data(e.message ?: "An error occurred")
+                        .build()
                 Flux.just(errorEvent)
             }
     }
 
     @GetMapping("/runs/app/{appId}")
-    fun getRunsByApp(@PathVariable appId: Long): List<IngestRunDto> {
-        return orchestrator.getRunsByApp(appId)
-    }
+    fun getRunsByApp(
+        @PathVariable appId: Long,
+    ): List<IngestRunDto> = orchestrator.getRunsByApp(appId)
 
     private fun toSse(event: IngestEventDto): ServerSentEvent<String> {
-        val eventType = when {
-            event.level == "ERROR" -> "error"
-            event.message.contains("started") -> "step_started"
-            event.message.contains("completed") || event.message.contains("built") -> "step_completed"
-            event.message.contains("failed") -> "step_failed"
-            event.message.startsWith("Ingest run completed") -> "run_completed"
-            else -> "log"
-        }
-        return ServerSentEvent.builder<String>()
+        val eventType =
+            when {
+                event.level == "ERROR" -> "error"
+                event.message.contains("started") -> "step_started"
+                event.message.contains("completed") || event.message.contains("built") -> "step_completed"
+                event.message.contains("failed") -> "step_failed"
+                event.message.startsWith("Ingest run completed") -> "run_completed"
+                else -> "log"
+            }
+        return ServerSentEvent
+            .builder<String>()
             .event(eventType)
             .data(objectMapper.writeValueAsString(event))
             .build()

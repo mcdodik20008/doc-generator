@@ -5,8 +5,8 @@ import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.impl.linker.NodeIndexFactory
+import com.bftcom.docgenerator.shared.node.NodeMeta
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -57,11 +57,12 @@ class AnnotationEdgeLinkerTest {
         val node = node(id = 1L, fqn = "com.example.Foo", name = "Foo", pkg = "com.example", kind = NodeKind.CLASS)
         val index = NodeIndexFactory().create(listOf(node))
 
-        val edges = AnnotationEdgeLinker().link(
-            node,
-            NodeMeta(annotations = listOf("UnknownAnno"), imports = emptyList()),
-            index,
-        )
+        val edges =
+            AnnotationEdgeLinker().link(
+                node,
+                NodeMeta(annotations = listOf("UnknownAnno"), imports = emptyList()),
+                index,
+            )
 
         assertThat(edges).isEmpty()
     }
@@ -72,11 +73,12 @@ class AnnotationEdgeLinkerTest {
         val node = node(id = 1L, fqn = "com.example.Foo", name = "Foo", pkg = "com.example", kind = NodeKind.CLASS)
         val index = NodeIndexFactory().create(listOf(node, anno))
 
-        val edges = AnnotationEdgeLinker().link(
-            node,
-            NodeMeta(annotations = listOf("MyAnno"), imports = emptyList()),
-            index,
-        )
+        val edges =
+            AnnotationEdgeLinker().link(
+                node,
+                NodeMeta(annotations = listOf("MyAnno"), imports = emptyList()),
+                index,
+            )
 
         assertThat(edges).containsExactlyInAnyOrder(
             Triple(node, anno, EdgeKind.ANNOTATED_WITH),
@@ -91,11 +93,12 @@ class AnnotationEdgeLinkerTest {
         val node = node(id = 1L, fqn = "com.example.Foo", name = "Foo", pkg = "com.example", kind = NodeKind.CLASS)
         val index = NodeIndexFactory().create(listOf(node, anno1, anno2))
 
-        val edges = AnnotationEdgeLinker().link(
-            node,
-            NodeMeta(annotations = listOf("MyAnno1", "MyAnno2"), imports = listOf("com.example.MyAnno1", "com.example.MyAnno2")),
-            index,
-        )
+        val edges =
+            AnnotationEdgeLinker().link(
+                node,
+                NodeMeta(annotations = listOf("MyAnno1", "MyAnno2"), imports = listOf("com.example.MyAnno1", "com.example.MyAnno2")),
+                index,
+            )
 
         assertThat(edges).containsExactlyInAnyOrder(
             Triple(node, anno1, EdgeKind.ANNOTATED_WITH),
@@ -111,11 +114,12 @@ class AnnotationEdgeLinkerTest {
         val node = node(id = 1L, fqn = "com.example.Foo", name = "Foo", pkg = "com.example", kind = NodeKind.CLASS)
         val index = NodeIndexFactory().create(listOf(node, anno1))
 
-        val edges = AnnotationEdgeLinker().link(
-            node,
-            NodeMeta(annotations = listOf("MyAnno1", "UnknownAnno"), imports = listOf("com.example.MyAnno1")),
-            index,
-        )
+        val edges =
+            AnnotationEdgeLinker().link(
+                node,
+                NodeMeta(annotations = listOf("MyAnno1", "UnknownAnno"), imports = listOf("com.example.MyAnno1")),
+                index,
+            )
 
         assertThat(edges).containsExactlyInAnyOrder(
             Triple(node, anno1, EdgeKind.ANNOTATED_WITH),
@@ -130,11 +134,12 @@ class AnnotationEdgeLinkerTest {
         val node = node(id = 1L, fqn = "com.example.Foo", name = "Foo", pkg = "com.example", kind = NodeKind.CLASS)
         val index = NodeIndexFactory().create(listOf(node, anno))
 
-        val edges = AnnotationEdgeLinker().link(
-            node,
-            NodeMeta(annotations = listOf("MyAnno"), imports = null),
-            index,
-        )
+        val edges =
+            AnnotationEdgeLinker().link(
+                node,
+                NodeMeta(annotations = listOf("MyAnno"), imports = null),
+                index,
+            )
 
         assertThat(edges).containsExactlyInAnyOrder(
             Triple(node, anno, EdgeKind.ANNOTATED_WITH),
@@ -148,11 +153,12 @@ class AnnotationEdgeLinkerTest {
         val node = node(id = 1L, fqn = "com.example.Foo", name = "Foo", pkg = null, kind = NodeKind.CLASS)
         val index = NodeIndexFactory().create(listOf(node, anno))
 
-        val edges = AnnotationEdgeLinker().link(
-            node,
-            NodeMeta(annotations = listOf("MyAnno"), imports = listOf("com.example.MyAnno")),
-            index,
-        )
+        val edges =
+            AnnotationEdgeLinker().link(
+                node,
+                NodeMeta(annotations = listOf("MyAnno"), imports = listOf("com.example.MyAnno")),
+                index,
+            )
 
         assertThat(edges).containsExactlyInAnyOrder(
             Triple(node, anno, EdgeKind.ANNOTATED_WITH),
@@ -169,17 +175,19 @@ class AnnotationEdgeLinkerTest {
         val index = NodeIndexFactory().create(listOf(nodeA, nodeB, annoA, annoB))
 
         // A аннотирован AnnoA, который в свою очередь может быть аннотирован AnnoB
-        val edgesA = AnnotationEdgeLinker().link(
-            nodeA,
-            NodeMeta(annotations = listOf("AnnoA"), imports = listOf("com.example.AnnoA")),
-            index,
-        )
+        val edgesA =
+            AnnotationEdgeLinker().link(
+                nodeA,
+                NodeMeta(annotations = listOf("AnnoA"), imports = listOf("com.example.AnnoA")),
+                index,
+            )
 
-        val edgesB = AnnotationEdgeLinker().link(
-            nodeB,
-            NodeMeta(annotations = listOf("AnnoB"), imports = listOf("com.example.AnnoB")),
-            index,
-        )
+        val edgesB =
+            AnnotationEdgeLinker().link(
+                nodeB,
+                NodeMeta(annotations = listOf("AnnoB"), imports = listOf("com.example.AnnoB")),
+                index,
+            )
 
         assertThat(edgesA).contains(Triple(nodeA, annoA, EdgeKind.ANNOTATED_WITH))
         assertThat(edgesB).contains(Triple(nodeB, annoB, EdgeKind.ANNOTATED_WITH))
@@ -190,11 +198,12 @@ class AnnotationEdgeLinkerTest {
         val node = node(id = 1L, fqn = "com.example.Foo", name = "Foo", pkg = "com.example", kind = NodeKind.CLASS)
         val index = NodeIndexFactory().create(listOf(node))
 
-        val edges = AnnotationEdgeLinker().link(
-            node,
-            NodeMeta(annotations = emptyList()),
-            index,
-        )
+        val edges =
+            AnnotationEdgeLinker().link(
+                node,
+                NodeMeta(annotations = emptyList()),
+                index,
+            )
 
         assertThat(edges).isEmpty()
     }
@@ -216,4 +225,3 @@ class AnnotationEdgeLinkerTest {
             lang = Lang.kotlin,
         )
 }
-

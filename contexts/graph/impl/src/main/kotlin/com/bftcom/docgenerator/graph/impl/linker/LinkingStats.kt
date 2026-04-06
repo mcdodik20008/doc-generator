@@ -8,23 +8,23 @@ import java.time.OffsetDateTime
  * этапа и использовании ресурсов.
  */
 data class LinkingStats(
-        val totalNodes: Int,
-        val totalEdges: Int,
-        val newIntegrationNodes: Int,
-        val libraryNodeEdges: Int,
-        val callsErrors: Int,
-        val structuralLinkingDuration: Duration,
-        val parallelLinkingDuration: Duration,
-        val indexUpdateDuration: Duration,
-        val persistenceDuration: Duration,
-        val totalDuration: Duration,
-        val memoryUsedMb: Long,
-        val startedAt: OffsetDateTime,
-        val finishedAt: OffsetDateTime,
+    val totalNodes: Int,
+    val totalEdges: Int,
+    val newIntegrationNodes: Int,
+    val libraryNodeEdges: Int,
+    val callsErrors: Int,
+    val structuralLinkingDuration: Duration,
+    val parallelLinkingDuration: Duration,
+    val indexUpdateDuration: Duration,
+    val persistenceDuration: Duration,
+    val totalDuration: Duration,
+    val memoryUsedMb: Long,
+    val startedAt: OffsetDateTime,
+    val finishedAt: OffsetDateTime,
 ) {
     /** Форматирует статистику в читаемую строку для логирования. */
     fun toLogString(): String =
-            """
+        """
         |Linking completed:
         |  - Total nodes processed: $totalNodes
         |  - Total edges created: $totalEdges

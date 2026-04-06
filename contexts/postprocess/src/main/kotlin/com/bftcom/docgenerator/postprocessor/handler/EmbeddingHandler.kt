@@ -32,8 +32,9 @@ class EmbeddingHandler(
     override fun supports(s: ChunkSnapshot) = enabled && client != null && !s.embeddingPresent
 
     override fun produce(s: ChunkSnapshot): PartialMutation {
-        val client = this.client
-            ?: throw IllegalStateException("EmbeddingHandler.produce() called but client is null")
+        val client =
+            this.client
+                ?: throw IllegalStateException("EmbeddingHandler.produce() called but client is null")
         val content = s.content
         val contentForEmbedding =
             if (content.length > maxContentChars) {
@@ -78,7 +79,11 @@ class EmbeddingHandler(
             .set(FieldKey.EMBED_TS, OffsetDateTime.now())
     }
 
-    private fun embedWithRetry(client: EmbeddingClient, content: String, chunkId: Long): FloatArray {
+    private fun embedWithRetry(
+        client: EmbeddingClient,
+        content: String,
+        chunkId: Long,
+    ): FloatArray {
         var lastException: Throwable? = null
         for (attempt in 1..maxRetryAttempts) {
             try {
@@ -133,7 +138,7 @@ class EmbeddingHandler(
         // Не должно сюда дойти, но на всякий случай
         throw IllegalStateException(
             "Failed to embed chunk $chunkId after $maxRetryAttempts attempts. Last error: ${lastException?.message}",
-            lastException
+            lastException,
         )
     }
 
@@ -146,12 +151,17 @@ class EmbeddingHandler(
             when {
                 // EOF ошибки - соединение разорвано
                 cause is EOFException -> return true
+
                 // Socket ошибки - проблемы с сетью
                 cause is SocketException -> return true
+
                 cause is SocketTimeoutException -> return true
+
                 // Проверяем сообщение об ошибке на EOF
                 cause.message?.contains("EOF", ignoreCase = true) == true -> return true
+
                 cause.message?.contains("Connection reset", ignoreCase = true) == true -> return true
+
                 cause.message?.contains("Broken pipe", ignoreCase = true) == true -> return true
             }
             cause = cause.cause

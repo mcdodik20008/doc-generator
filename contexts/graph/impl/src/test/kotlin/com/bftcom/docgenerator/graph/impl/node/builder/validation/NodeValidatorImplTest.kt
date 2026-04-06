@@ -135,30 +135,32 @@ class NodeValidatorImplTest {
     }
 
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(strings = [
-        "com.example.ValidClass",
-        "com.example.Valid_Class",
-        "com.example.Valid123",
-        "_private.Class",
-        "a.b.c",
-        "ValidClass",
-        "com.example.Class.method(Array)",
-        "com.example.method(Array)",
-        "com.bftcom.rr.uds.main(Array)",
-        "com.example.Class.method(Type1,Type2)",
-        "method(Type1)",
-        "com.example.Class.method(Type1, Type2)",
-        "com.example.Class.method()",
-        "method()",
-        "com.example.Class.method(String?,LocalDate?)",
-        "com.bftcom.rr.uds.service.api.SiaService.findSiaUsers(Set,String?,Set,Set,Set,Set,Set,Set,Set,Set,Set,Set,Set,Set,LocalDate?,String)",
-        "com.example.Class.method(() -> String)",
-        "com.example.Class.method(() -> OffsetDateTime?)",
-        "com.bftcom.rr.uds.service.impl.InactiveExecutorService.processBatch(OffsetDateTime?,() -> OffsetDateTime?)",
-        "com.example.Class.method((param: Int) -> String)",
-        "com.example.Class.method(suspend (pageNo: Int, pageSize: Int) -> C)",
-        "com.bftcom.rr.uds.service.impl.SiaServiceImpl.loadAllPageableData(MC,suspend (pageNo: Int, pageSize: Int) -> C)",
-    ])
+    @org.junit.jupiter.params.provider.ValueSource(
+        strings = [
+            "com.example.ValidClass",
+            "com.example.Valid_Class",
+            "com.example.Valid123",
+            "_private.Class",
+            "a.b.c",
+            "ValidClass",
+            "com.example.Class.method(Array)",
+            "com.example.method(Array)",
+            "com.bftcom.rr.uds.main(Array)",
+            "com.example.Class.method(Type1,Type2)",
+            "method(Type1)",
+            "com.example.Class.method(Type1, Type2)",
+            "com.example.Class.method()",
+            "method()",
+            "com.example.Class.method(String?,LocalDate?)",
+            "com.bftcom.rr.uds.service.api.SiaService.findSiaUsers(Set,String?,Set,Set,Set,Set,Set,Set,Set,Set,Set,Set,Set,Set,LocalDate?,String)",
+            "com.example.Class.method(() -> String)",
+            "com.example.Class.method(() -> OffsetDateTime?)",
+            "com.bftcom.rr.uds.service.impl.InactiveExecutorService.processBatch(OffsetDateTime?,() -> OffsetDateTime?)",
+            "com.example.Class.method((param: Int) -> String)",
+            "com.example.Class.method(suspend (pageNo: Int, pageSize: Int) -> C)",
+            "com.bftcom.rr.uds.service.impl.SiaServiceImpl.loadAllPageableData(MC,suspend (pageNo: Int, pageSize: Int) -> C)",
+        ],
+    )
     fun `validate - валидные форматы FQN`(fqn: String) {
         assertThatCode {
             validator.validate(
@@ -172,17 +174,19 @@ class NodeValidatorImplTest {
     }
 
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(strings = [
-        "1invalid.fqn",
-        "invalid-fqn",
-        "invalid.fqn.with-dash",
-        "invalid.fqn.with space",
-        "invalid.fqn.with@symbol",
-        "",
-        "   ",
-        "invalid.fqn.with space(Param)",
-        "invalid.fqn.with@symbol(Param)",
-    ])
+    @org.junit.jupiter.params.provider.ValueSource(
+        strings = [
+            "1invalid.fqn",
+            "invalid-fqn",
+            "invalid.fqn.with-dash",
+            "invalid.fqn.with space",
+            "invalid.fqn.with@symbol",
+            "",
+            "   ",
+            "invalid.fqn.with space(Param)",
+            "invalid.fqn.with@symbol(Param)",
+        ],
+    )
     fun `validate - невалидные форматы FQN`(fqn: String) {
         assertThatThrownBy {
             validator.validate(
@@ -284,7 +288,10 @@ class NodeValidatorImplTest {
         }.doesNotThrowAnyException()
     }
 
-    private fun node(application: Application, fqn: String): Node =
+    private fun node(
+        application: Application,
+        fqn: String,
+    ): Node =
         Node(
             id = null,
             application = application,
@@ -295,4 +302,3 @@ class NodeValidatorImplTest {
             lang = Lang.kotlin,
         )
 }
-

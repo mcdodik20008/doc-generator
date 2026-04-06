@@ -6,4 +6,3 @@ import org.springframework.context.annotation.Configuration
 @Configuration
 @ComponentScan
 class EmbeddingConfig
-

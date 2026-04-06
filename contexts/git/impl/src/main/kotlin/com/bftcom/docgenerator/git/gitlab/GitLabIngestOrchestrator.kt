@@ -44,48 +44,52 @@ class GitLabIngestOrchestrator(
         val localPath = summary.localPath
         val headSha = summary.afterHead
 
-        val parsed: RepoInfo = try {
-            RepoUrlParser.parse(summary.repoUrl)
-        } catch (e: Exception) {
-            log.warn("Failed to parse repo URL '{}', using fallback: {}", summary.repoUrl, e.message)
-            RepoInfo(provider = "unknown", owner = null, name = appKey)
-        }
+        val parsed: RepoInfo =
+            try {
+                RepoUrlParser.parse(summary.repoUrl)
+            } catch (e: Exception) {
+                log.warn("Failed to parse repo URL '{}', using fallback: {}", summary.repoUrl, e.message)
+                RepoInfo(provider = "unknown", owner = null, name = appKey)
+            }
 
-        val app: Application = try {
-            getOrCreateApp(
-                appKey = appKey,
-                repoUrl = summary.repoUrl,
-                parsed = parsed,
-                branch = branch,
-                headSha = headSha,
-            )
-        } catch (e: Exception) {
-            log.error("Failed to get or create application for appKey={}: {}", appKey, e.message, e)
-            throw e
-        }
+        val app: Application =
+            try {
+                getOrCreateApp(
+                    appKey = appKey,
+                    repoUrl = summary.repoUrl,
+                    parsed = parsed,
+                    branch = branch,
+                    headSha = headSha,
+                )
+            } catch (e: Exception) {
+                log.error("Failed to get or create application for appKey={}: {}", appKey, e.message, e)
+                throw e
+            }
 
-        val savedApp = try {
-            appRepo.save(app)
-        } catch (e: Exception) {
-            log.error("Failed to save application appKey={}: {}", appKey, e.message, e)
-            throw e
-        }
+        val savedApp =
+            try {
+                appRepo.save(app)
+            } catch (e: Exception) {
+                log.error("Failed to save application appKey={}: {}", appKey, e.message, e)
+                throw e
+            }
         log.info("Using application id={} key={}", savedApp.id, savedApp.key)
 
         // --- 4) Выбиваем classpath из gradle-проектов внутри checkout ---
         log.info("Scanning for Gradle projects (gradlew) within [{}]...", localPath)
 
-        val gradleProjectDirs = try {
-            Files
-                .walk(localPath, 5)
-                .filter { it.fileName.toString() == "gradlew" || it.fileName.toString() == "gradlew.bat" }
-                .map { it.parent }
-                .distinct()
-                .toList()
-        } catch (e: Exception) {
-            log.error("Error walking directory {}: {}", localPath, e.message, e)
-            emptyList()
-        }
+        val gradleProjectDirs =
+            try {
+                Files
+                    .walk(localPath, 5)
+                    .filter { it.fileName.toString() == "gradlew" || it.fileName.toString() == "gradlew.bat" }
+                    .map { it.parent }
+                    .distinct()
+                    .toList()
+            } catch (e: Exception) {
+                log.error("Error walking directory {}: {}", localPath, e.message, e)
+                emptyList()
+            }
 
         // NOTE: Consider parallelizing Gradle classpath resolution for multi-project repos
         val classpath: List<File> =
@@ -102,8 +106,7 @@ class GitLabIngestOrchestrator(
                             log.error("Failed to resolve classpath for project {}: {}", projectDir, e.message, e)
                             emptyList()
                         }
-                    }
-                    .distinct()
+                    }.distinct()
             }
 
         if (classpath.isEmpty()) {

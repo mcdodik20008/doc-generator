@@ -22,42 +22,31 @@ class User(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null,
-
     @Column(nullable = false, unique = true, length = 100)
     var username: String,
-
     @Column(name = "password_hash", nullable = false, length = 60)
     var passwordHash: String,
-
     @Column(length = 255)
     var email: String? = null,
-
     @Column(nullable = false)
     var enabled: Boolean = true,
-
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "roles", columnDefinition = "text[]")
     var roles: Array<String> = arrayOf("USER"),
-
     @Column(name = "created_at", nullable = false)
     var createdAt: OffsetDateTime = OffsetDateTime.now(),
-
     @Column(name = "last_login_at")
     var lastLoginAt: OffsetDateTime? = null,
 ) {
     /**
      * Проверяет, имеет ли пользователь указанную роль.
      */
-    fun hasRole(role: String): Boolean {
-        return roles.contains(role)
-    }
+    fun hasRole(role: String): Boolean = roles.contains(role)
 
     /**
      * Проверяет, является ли пользователь администратором.
      */
-    fun isAdmin(): Boolean {
-        return hasRole("ADMIN")
-    }
+    fun isAdmin(): Boolean = hasRole("ADMIN")
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -65,11 +54,7 @@ class User(
         return id != null && id == other.id
     }
 
-    override fun hashCode(): Int {
-        return id?.hashCode() ?: 0
-    }
+    override fun hashCode(): Int = id?.hashCode() ?: 0
 
-    override fun toString(): String {
-        return "User(id=$id, username='$username', enabled=$enabled, roles=${roles.contentToString()})"
-    }
+    override fun toString(): String = "User(id=$id, username='$username', enabled=$enabled, roles=${roles.contentToString()})"
 }

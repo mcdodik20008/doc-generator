@@ -25,9 +25,10 @@ class SpringBootApplicationExtractorTest {
 
     @Test
     fun `refineType returns SERVICE for SpringBootApplication annotation`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.springframework.boot.autoconfigure.SpringBootApplication")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.springframework.boot.autoconfigure.SpringBootApplication"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -37,9 +38,10 @@ class SpringBootApplicationExtractorTest {
 
     @Test
     fun `refineType returns null for class without SpringBootApplication annotation`() {
-        val raw = createRawType(
-            annotationsRepr = emptyList()
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = emptyList(),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -49,9 +51,10 @@ class SpringBootApplicationExtractorTest {
 
     @Test
     fun `refineType returns null for class with other annotations`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.springframework.stereotype.Service")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.springframework.stereotype.Service"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -61,9 +64,10 @@ class SpringBootApplicationExtractorTest {
 
     @Test
     fun `refineType handles case-insensitive annotation matching`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.springframework.boot.autoconfigure.SPRINGBOOTAPPLICATION")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.springframework.boot.autoconfigure.SPRINGBOOTAPPLICATION"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -73,9 +77,10 @@ class SpringBootApplicationExtractorTest {
 
     @Test
     fun `refineType returns SERVICE regardless of base NodeKind`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.springframework.boot.autoconfigure.SpringBootApplication")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.springframework.boot.autoconfigure.SpringBootApplication"),
+            )
         val ctx = createContext()
 
         val result1 = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -91,8 +96,8 @@ class SpringBootApplicationExtractorTest {
         simpleName: String = "TestClass",
         pkgFqn: String? = "com.example",
         annotationsRepr: List<String> = emptyList(),
-    ): RawType {
-        return RawType(
+    ): RawType =
+        RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -103,13 +108,11 @@ class SpringBootApplicationExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createContext(): NodeKindContext {
-        return NodeKindContext(
+    private fun createContext(): NodeKindContext =
+        NodeKindContext(
             lang = Lang.kotlin,
             file = null,
             imports = null,
         )
-    }
 }

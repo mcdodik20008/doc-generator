@@ -30,12 +30,15 @@ class EmbeddingController(
     private val chunkRepository: ChunkRepository,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
+
     /**
      * Поиск документов по текстовому запросу
      */
     @PostMapping("/search")
     @RateLimited(maxRequests = 100, windowSeconds = 60)
-    fun search(@RequestBody @Valid request: SearchRequest): List<SearchResultResponse> {
+    fun search(
+        @RequestBody @Valid request: SearchRequest,
+    ): List<SearchResultResponse> {
         val startTime = System.currentTimeMillis()
         log.info("Embedding search request: query_length=${request.query.length}, topK=${request.topK}")
         try {
@@ -43,7 +46,7 @@ class EmbeddingController(
 
             val duration = System.currentTimeMillis() - startTime
             log.info(
-                "Embedding search completed: results_count=${results.size}, topK=${request.topK}, duration_ms=$duration"
+                "Embedding search completed: results_count=${results.size}, topK=${request.topK}, duration_ms=$duration",
             )
 
             return results.map { result ->
@@ -61,12 +64,12 @@ class EmbeddingController(
             val duration = System.currentTimeMillis() - startTime
             log.error(
                 "Embedding search failed: query_length=${request.query.length}, topK=${request.topK}, duration_ms=$duration, error=${e.message}",
-                e
+                e,
             )
             throw ResponseStatusException(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "Failed to perform embedding search",
-                e
+                e,
             )
         }
     }
@@ -77,7 +80,9 @@ class EmbeddingController(
     @PostMapping("/documents")
     @ResponseStatus(HttpStatus.CREATED)
     @RateLimited(maxRequests = 50, windowSeconds = 60)
-    fun addDocument(@RequestBody @Valid request: AddDocumentRequest) {
+    fun addDocument(
+        @RequestBody @Valid request: AddDocumentRequest,
+    ) {
         try {
             log.info("Adding document: id=${request.id}, content_length=${request.content.length}")
 
@@ -87,7 +92,7 @@ class EmbeddingController(
                 log.warn("Document with id=${request.id} already exists")
                 throw ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Document with id=${request.id} already exists. Use PUT to update or DELETE first."
+                    "Document with id=${request.id} already exists. Use PUT to update or DELETE first.",
                 )
             }
 
@@ -103,7 +108,7 @@ class EmbeddingController(
             throw ResponseStatusException(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "Failed to compute embedding or store document",
-                e
+                e,
             )
         }
     }
@@ -113,7 +118,9 @@ class EmbeddingController(
      */
     @DeleteMapping("/documents/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun deleteDocument(@PathVariable id: String) {
+    fun deleteDocument(
+        @PathVariable id: String,
+    ) {
         try {
             log.info("Deleting document: id=$id")
 
@@ -133,7 +140,7 @@ class EmbeddingController(
             throw ResponseStatusException(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "Failed to delete document",
-                e
+                e,
             )
         }
     }
@@ -149,14 +156,14 @@ class EmbeddingController(
     @ResponseStatus(HttpStatus.OK)
     @Transactional
     fun clearAllPostprocessData(
-        @RequestHeader("X-Confirmation-Token", required = false) confirmationToken: String?
+        @RequestHeader("X-Confirmation-Token", required = false) confirmationToken: String?,
     ): Map<String, Any> {
         // Проверка confirmation token
         val expectedToken = "CONFIRM_CLEAR_POSTPROCESS_DATA"
         if (confirmationToken != expectedToken) {
             throw IllegalArgumentException(
                 "This is a dangerous operation. Please provide confirmation token in X-Confirmation-Token header. " +
-                "Expected value: $expectedToken"
+                    "Expected value: $expectedToken",
             )
         }
 
@@ -165,9 +172,12 @@ class EmbeddingController(
         val duration = System.currentTimeMillis() - startTime
 
         // Audit logging
-        val auditMessage = "CRITICAL OPERATION: clearAllPostprocessData executed. " +
-            "Cleared chunks: $clearedCount, Duration: ${duration}ms"
-        org.slf4j.LoggerFactory.getLogger(javaClass).warn(auditMessage)
+        val auditMessage =
+            "CRITICAL OPERATION: clearAllPostprocessData executed. " +
+                "Cleared chunks: $clearedCount, Duration: ${duration}ms"
+        org.slf4j.LoggerFactory
+            .getLogger(javaClass)
+            .warn(auditMessage)
 
         return mapOf(
             "clearedChunks" to clearedCount,
@@ -176,4 +186,3 @@ class EmbeddingController(
         )
     }
 }
-

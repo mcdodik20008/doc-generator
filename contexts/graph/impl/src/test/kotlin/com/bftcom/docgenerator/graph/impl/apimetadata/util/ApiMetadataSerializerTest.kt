@@ -14,14 +14,15 @@ class ApiMetadataSerializerTest {
 
     @Test
     fun `serialize HttpEndpoint with all fields`() {
-        val metadata = ApiMetadata.HttpEndpoint(
-            method = "GET",
-            path = "/api/users",
-            basePath = "/api",
-            consumes = listOf("application/json"),
-            produces = listOf("application/json"),
-            headers = mapOf("Authorization" to "Bearer token"),
-        )
+        val metadata =
+            ApiMetadata.HttpEndpoint(
+                method = "GET",
+                path = "/api/users",
+                basePath = "/api",
+                consumes = listOf("application/json"),
+                produces = listOf("application/json"),
+                headers = mapOf("Authorization" to "Bearer token"),
+            )
 
         val result = ApiMetadataSerializer.serialize(metadata)
 
@@ -37,14 +38,15 @@ class ApiMetadataSerializerTest {
 
     @Test
     fun `serialize HttpEndpoint filters empty strings`() {
-        val metadata = ApiMetadata.HttpEndpoint(
-            method = "GET",
-            path = "/api/users",
-            basePath = "",
-            consumes = emptyList(),
-            produces = emptyList(),
-            headers = emptyMap(),
-        )
+        val metadata =
+            ApiMetadata.HttpEndpoint(
+                method = "GET",
+                path = "/api/users",
+                basePath = "",
+                consumes = emptyList(),
+                produces = emptyList(),
+                headers = emptyMap(),
+            )
 
         val result = ApiMetadataSerializer.serialize(metadata)
 
@@ -57,14 +59,15 @@ class ApiMetadataSerializerTest {
 
     @Test
     fun `serialize HttpEndpoint with null optional fields`() {
-        val metadata = ApiMetadata.HttpEndpoint(
-            method = "POST",
-            path = "/api/users",
-            basePath = null,
-            consumes = null,
-            produces = null,
-            headers = null,
-        )
+        val metadata =
+            ApiMetadata.HttpEndpoint(
+                method = "POST",
+                path = "/api/users",
+                basePath = null,
+                consumes = null,
+                produces = null,
+                headers = null,
+            )
 
         val result = ApiMetadataSerializer.serialize(metadata)
 
@@ -77,12 +80,13 @@ class ApiMetadataSerializerTest {
 
     @Test
     fun `serialize GraphQLEndpoint with all fields`() {
-        val metadata = ApiMetadata.GraphQLEndpoint(
-            query = "getUser",
-            mutation = "updateUser",
-            subscription = "userUpdates",
-            schema = "/graphql/schema",
-        )
+        val metadata =
+            ApiMetadata.GraphQLEndpoint(
+                query = "getUser",
+                mutation = "updateUser",
+                subscription = "userUpdates",
+                schema = "/graphql/schema",
+            )
 
         val result = ApiMetadataSerializer.serialize(metadata)
 
@@ -96,12 +100,13 @@ class ApiMetadataSerializerTest {
 
     @Test
     fun `serialize GraphQLEndpoint filters empty strings`() {
-        val metadata = ApiMetadata.GraphQLEndpoint(
-            query = "",
-            mutation = "",
-            subscription = "",
-            schema = "",
-        )
+        val metadata =
+            ApiMetadata.GraphQLEndpoint(
+                query = "",
+                mutation = "",
+                subscription = "",
+                schema = "",
+            )
 
         val result = ApiMetadataSerializer.serialize(metadata)
 
@@ -112,12 +117,13 @@ class ApiMetadataSerializerTest {
 
     @Test
     fun `serialize GraphQLEndpoint with null fields`() {
-        val metadata = ApiMetadata.GraphQLEndpoint(
-            query = null,
-            mutation = null,
-            subscription = null,
-            schema = null,
-        )
+        val metadata =
+            ApiMetadata.GraphQLEndpoint(
+                query = null,
+                mutation = null,
+                subscription = null,
+                schema = null,
+            )
 
         val result = ApiMetadataSerializer.serialize(metadata)
 
@@ -128,12 +134,13 @@ class ApiMetadataSerializerTest {
 
     @Test
     fun `serialize GraphQLEndpoint with partial fields`() {
-        val metadata = ApiMetadata.GraphQLEndpoint(
-            query = "getUser",
-            mutation = null,
-            subscription = null,
-            schema = null,
-        )
+        val metadata =
+            ApiMetadata.GraphQLEndpoint(
+                query = "getUser",
+                mutation = null,
+                subscription = null,
+                schema = null,
+            )
 
         val result = ApiMetadataSerializer.serialize(metadata)
 
@@ -145,11 +152,12 @@ class ApiMetadataSerializerTest {
 
     @Test
     fun `serialize GrpcEndpoint with all fields`() {
-        val metadata = ApiMetadata.GrpcEndpoint(
-            service = "UserService",
-            method = "getUser",
-            packageName = "com.example.grpc",
-        )
+        val metadata =
+            ApiMetadata.GrpcEndpoint(
+                service = "UserService",
+                method = "getUser",
+                packageName = "com.example.grpc",
+            )
 
         val result = ApiMetadataSerializer.serialize(metadata)
 
@@ -162,11 +170,12 @@ class ApiMetadataSerializerTest {
 
     @Test
     fun `serialize GrpcEndpoint filters empty packageName`() {
-        val metadata = ApiMetadata.GrpcEndpoint(
-            service = "UserService",
-            method = "getUser",
-            packageName = "",
-        )
+        val metadata =
+            ApiMetadata.GrpcEndpoint(
+                service = "UserService",
+                method = "getUser",
+                packageName = "",
+            )
 
         val result = ApiMetadataSerializer.serialize(metadata)
 
@@ -179,11 +188,12 @@ class ApiMetadataSerializerTest {
 
     @Test
     fun `serialize GrpcEndpoint with null packageName`() {
-        val metadata = ApiMetadata.GrpcEndpoint(
-            service = "UserService",
-            method = "getUser",
-            packageName = null,
-        )
+        val metadata =
+            ApiMetadata.GrpcEndpoint(
+                service = "UserService",
+                method = "getUser",
+                packageName = null,
+            )
 
         val result = ApiMetadataSerializer.serialize(metadata)
 
@@ -196,14 +206,15 @@ class ApiMetadataSerializerTest {
 
     @Test
     fun `serialize MessageBrokerEndpoint with Kafka`() {
-        val metadata = ApiMetadata.MessageBrokerEndpoint(
-            broker = ApiMetadata.BrokerType.KAFKA,
-            topic = "user-events",
-            queue = null,
-            consumerGroup = "my-group",
-            exchange = null,
-            routingKey = null,
-        )
+        val metadata =
+            ApiMetadata.MessageBrokerEndpoint(
+                broker = ApiMetadata.BrokerType.KAFKA,
+                topic = "user-events",
+                queue = null,
+                consumerGroup = "my-group",
+                exchange = null,
+                routingKey = null,
+            )
 
         val result = ApiMetadataSerializer.serialize(metadata)
 
@@ -217,14 +228,15 @@ class ApiMetadataSerializerTest {
 
     @Test
     fun `serialize MessageBrokerEndpoint with RabbitMQ`() {
-        val metadata = ApiMetadata.MessageBrokerEndpoint(
-            broker = ApiMetadata.BrokerType.RABBITMQ,
-            topic = null,
-            queue = "user-queue",
-            consumerGroup = null,
-            exchange = "my-exchange",
-            routingKey = "user.*",
-        )
+        val metadata =
+            ApiMetadata.MessageBrokerEndpoint(
+                broker = ApiMetadata.BrokerType.RABBITMQ,
+                topic = null,
+                queue = "user-queue",
+                consumerGroup = null,
+                exchange = "my-exchange",
+                routingKey = "user.*",
+            )
 
         val result = ApiMetadataSerializer.serialize(metadata)
 
@@ -239,14 +251,15 @@ class ApiMetadataSerializerTest {
 
     @Test
     fun `serialize MessageBrokerEndpoint filters empty strings`() {
-        val metadata = ApiMetadata.MessageBrokerEndpoint(
-            broker = ApiMetadata.BrokerType.NATS,
-            topic = "",
-            queue = "",
-            consumerGroup = "",
-            exchange = "",
-            routingKey = "",
-        )
+        val metadata =
+            ApiMetadata.MessageBrokerEndpoint(
+                broker = ApiMetadata.BrokerType.NATS,
+                topic = "",
+                queue = "",
+                consumerGroup = "",
+                exchange = "",
+                routingKey = "",
+            )
 
         val result = ApiMetadataSerializer.serialize(metadata)
 
@@ -258,18 +271,20 @@ class ApiMetadataSerializerTest {
 
     @Test
     fun `serialize MessageBrokerEndpoint with all broker types`() {
-        val brokerTypes = listOf(
-            ApiMetadata.BrokerType.KAFKA,
-            ApiMetadata.BrokerType.RABBITMQ,
-            ApiMetadata.BrokerType.NATS,
-            ApiMetadata.BrokerType.SQS,
-        )
+        val brokerTypes =
+            listOf(
+                ApiMetadata.BrokerType.KAFKA,
+                ApiMetadata.BrokerType.RABBITMQ,
+                ApiMetadata.BrokerType.NATS,
+                ApiMetadata.BrokerType.SQS,
+            )
 
         brokerTypes.forEach { brokerType ->
-            val metadata = ApiMetadata.MessageBrokerEndpoint(
-                broker = brokerType,
-                topic = "test-topic",
-            )
+            val metadata =
+                ApiMetadata.MessageBrokerEndpoint(
+                    broker = brokerType,
+                    topic = "test-topic",
+                )
 
             val result = ApiMetadataSerializer.serialize(metadata)
 

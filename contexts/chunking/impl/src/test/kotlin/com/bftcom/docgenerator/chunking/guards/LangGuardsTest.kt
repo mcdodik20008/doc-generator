@@ -4,7 +4,6 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 class LangGuardsTest {
-
     @Test
     fun `hasCyrillic - возвращает true для кириллицы`() {
         assertThat(LangGuards.hasCyrillic("Привет")).isTrue()
@@ -60,9 +59,17 @@ class LangGuardsTest {
         // "Тест" = 4 буквы (кириллица), "Test" = 4 буквы (латиница) = 4/8 = 0.5
         assertThat(LangGuards.cyrillicRatio("ТестTest")).isEqualTo(0.5)
         // "Мир" = 3 буквы (кириллица), "World" = 5 букв (латиница) = 3/8 = 0.375
-        assertThat(LangGuards.cyrillicRatio("МирWorld")).isCloseTo(0.375, org.assertj.core.data.Offset.offset(0.01))
+        assertThat(LangGuards.cyrillicRatio("МирWorld")).isCloseTo(
+            0.375,
+            org.assertj.core.data.Offset
+                .offset(0.01),
+        )
         // "Привет" = 6 букв (кириллица), "Hello" = 5 букв (латиница) = 6/11 ≈ 0.545
-        assertThat(LangGuards.cyrillicRatio("ПриветHello")).isCloseTo(0.545, org.assertj.core.data.Offset.offset(0.01))
+        assertThat(LangGuards.cyrillicRatio("ПриветHello")).isCloseTo(
+            0.545,
+            org.assertj.core.data.Offset
+                .offset(0.01),
+        )
     }
 
     @Test
@@ -74,13 +81,21 @@ class LangGuardsTest {
     fun `cyrillicRatio - игнорирует не-буквы`() {
         // "Привет" = 6 букв (кириллица), "Hello" = 5 букв (латиница), 123 - не буквы
         // Итого: 6 кириллических из 11 букв = 6/11 ≈ 0.545
-        assertThat(LangGuards.cyrillicRatio("Привет123Hello")).isCloseTo(0.545, org.assertj.core.data.Offset.offset(0.01))
+        assertThat(LangGuards.cyrillicRatio("Привет123Hello")).isCloseTo(
+            0.545,
+            org.assertj.core.data.Offset
+                .offset(0.01),
+        )
         // "Тест" = 4 буквы (кириллица), "Test" = 4 буквы (латиница), !!! - не буквы
         // Итого: 4 кириллических из 8 букв = 4/8 = 0.5
         assertThat(LangGuards.cyrillicRatio("Тест!!!Test")).isEqualTo(0.5)
         // "Привет" = 6 букв (кириллица), "Hello" = 5 букв (латиница), пробелы и 123 - не буквы
         // Итого: 6 кириллических из 11 букв = 6/11 ≈ 0.545
-        assertThat(LangGuards.cyrillicRatio("Привет 123 Hello")).isCloseTo(0.545, org.assertj.core.data.Offset.offset(0.01))
+        assertThat(LangGuards.cyrillicRatio("Привет 123 Hello")).isCloseTo(
+            0.545,
+            org.assertj.core.data.Offset
+                .offset(0.01),
+        )
     }
 
     @Test
@@ -90,7 +105,11 @@ class LangGuardsTest {
         // Итого: 60 кириллических из 85 букв = 60/85 ≈ 0.7059
         val text = "Привет".repeat(10) + "Hello".repeat(5)
         val ratio = LangGuards.cyrillicRatio(text)
-        assertThat(ratio).isCloseTo(0.706, org.assertj.core.data.Offset.offset(0.01))
+        assertThat(ratio).isCloseTo(
+            0.706,
+            org.assertj.core.data.Offset
+                .offset(0.01),
+        )
     }
 
     @Test

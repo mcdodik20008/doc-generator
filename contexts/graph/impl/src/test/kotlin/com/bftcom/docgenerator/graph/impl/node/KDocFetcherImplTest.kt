@@ -15,18 +15,20 @@ import org.junit.jupiter.api.Test
 
 class KDocFetcherImplTest {
     private val disposable = Disposer.newDisposable()
-    private val psiFactory = run {
-        val cfg = CompilerConfiguration().apply {
-            put(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE)
+    private val psiFactory =
+        run {
+            val cfg =
+                CompilerConfiguration().apply {
+                    put(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE)
+                }
+            val env =
+                KotlinCoreEnvironment.createForProduction(
+                    disposable,
+                    cfg,
+                    EnvironmentConfigFiles.JVM_CONFIG_FILES,
+                )
+            KtPsiFactory(env.project, markGenerated = false)
         }
-        val env =
-            KotlinCoreEnvironment.createForProduction(
-                disposable,
-                cfg,
-                EnvironmentConfigFiles.JVM_CONFIG_FILES,
-            )
-        KtPsiFactory(env.project, markGenerated = false)
-    }
 
     @AfterEach
     fun tearDown() {
@@ -141,4 +143,3 @@ class KDocFetcherImplTest {
         assertThat(parsed).isNull()
     }
 }
-

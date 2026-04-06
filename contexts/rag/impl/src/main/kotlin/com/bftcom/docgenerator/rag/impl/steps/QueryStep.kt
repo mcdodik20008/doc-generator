@@ -15,5 +15,4 @@ interface QueryStep {
      * Карта переходов: какой ключ (transitionKey) ведет к какому шагу (ProcessingStepType)
      */
     fun getTransitions(): Map<String, ProcessingStepType>
-
 }

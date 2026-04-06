@@ -6,7 +6,7 @@ package com.bftcom.docgenerator.domain.dto
 data class CrossAppGraphResponse(
     val nodes: List<CrossAppNode>,
     val edges: List<CrossAppEdge>,
-    val statistics: CrossAppStatistics
+    val statistics: CrossAppStatistics,
 )
 
 /**
@@ -14,20 +14,20 @@ data class CrossAppGraphResponse(
  * Может быть приложением или интеграционной точкой (endpoint/topic).
  */
 data class CrossAppNode(
-    val id: String,              // "app:1" или "integration:ENDPOINT:infra:http:..."
-    val label: String,           // "my-service" или "GET /api/users"
-    val kind: String,            // "APPLICATION", "ENDPOINT", "TOPIC"
-    val metadata: Map<String, Any> = emptyMap()
+    val id: String, // "app:1" или "integration:ENDPOINT:infra:http:..."
+    val label: String, // "my-service" или "GET /api/users"
+    val kind: String, // "APPLICATION", "ENDPOINT", "TOPIC"
+    val metadata: Map<String, Any> = emptyMap(),
 )
 
 /**
  * Ребро в cross-app графе - связь между приложением и интеграционной точкой.
  */
 data class CrossAppEdge(
-    val source: String,          // ID узла-источника
-    val target: String,          // ID узла-назначения
-    val kind: String,            // "CALLS_HTTP", "PRODUCES", "CONSUMES", "CALLS_CAMEL"
-    val methodCount: Int = 1     // Количество методов, использующих эту связь
+    val source: String, // ID узла-источника
+    val target: String, // ID узла-назначения
+    val kind: String, // "CALLS_HTTP", "PRODUCES", "CONSUMES", "CALLS_CAMEL"
+    val methodCount: Int = 1, // Количество методов, использующих эту связь
 )
 
 /**
@@ -40,7 +40,7 @@ data class CrossAppStatistics(
     val camelRoutes: Int,
     val totalEdges: Int,
     val apiContracts: Int = 0,
-    val endpointMatches: Int = 0
+    val endpointMatches: Int = 0,
 )
 
 /**
@@ -49,11 +49,10 @@ data class CrossAppStatistics(
 enum class IntegrationType {
     HTTP,
     KAFKA,
-    CAMEL;
+    CAMEL,
+    ;
 
     companion object {
-        fun fromString(value: String): IntegrationType? {
-            return entries.find { it.name.equals(value, ignoreCase = true) }
-        }
+        fun fromString(value: String): IntegrationType? = entries.find { it.name.equals(value, ignoreCase = true) }
     }
 }

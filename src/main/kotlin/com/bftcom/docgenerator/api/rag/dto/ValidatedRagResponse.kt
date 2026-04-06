@@ -7,7 +7,7 @@ import com.bftcom.docgenerator.rag.api.RagResponse
  * response.
  */
 data class ValidatedRagResponse(
-        val validation: EvaluationResult?,
-        val ragResponse: RagResponse,
-        val validationError: String? = null,
+    val validation: EvaluationResult?,
+    val ragResponse: RagResponse,
+    val validationError: String? = null,
 )

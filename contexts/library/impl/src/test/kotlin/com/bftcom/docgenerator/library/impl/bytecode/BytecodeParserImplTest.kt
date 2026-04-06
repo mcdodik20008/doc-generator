@@ -8,7 +8,9 @@ import java.nio.file.Path
 
 class BytecodeParserImplTest {
     @Test
-    fun `parseJar - извлекает хотя бы class field method`(@TempDir dir: Path) {
+    fun `parseJar - извлекает хотя бы class field method`(
+        @TempDir dir: Path,
+    ) {
         val jar =
             TestJarUtils.writeJar(
                 dir.resolve("lib.jar"),
@@ -27,21 +29,27 @@ class BytecodeParserImplTest {
     }
 
     @Test
-    fun `parseJar - non-jar file returns empty`(@TempDir dir: Path) {
+    fun `parseJar - non-jar file returns empty`(
+        @TempDir dir: Path,
+    ) {
         val file = dir.resolve("x.txt").toFile().apply { writeText("x") }
         val nodes = BytecodeParserImpl().parseJar(file)
         assertThat(nodes).isEmpty()
     }
 
     @Test
-    fun `parseJar - empty jar returns empty`(@TempDir dir: Path) {
+    fun `parseJar - empty jar returns empty`(
+        @TempDir dir: Path,
+    ) {
         val jar = TestJarUtils.emptyJar(dir.resolve("empty.jar"))
         val nodes = BytecodeParserImpl().parseJar(jar)
         assertThat(nodes).isEmpty()
     }
 
     @Test
-    fun `parseJar - извлекает suspend и synthetic признаки`(@TempDir dir: Path) {
+    fun `parseJar - извлекает suspend и synthetic признаки`(
+        @TempDir dir: Path,
+    ) {
         val jar =
             TestJarUtils.writeJar(
                 dir.resolve("lib2.jar"),
@@ -85,4 +93,3 @@ class BytecodeParserImplTest {
         assertThat(enumType.kind).isEqualTo(NodeKind.ENUM)
     }
 }
-

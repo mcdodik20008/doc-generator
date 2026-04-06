@@ -48,9 +48,13 @@ interface NodeDocRepository : JpaRepository<NodeDoc, NodeDocId> {
 
     interface DocChunkSyncRow {
         fun getNodeId(): Long
+
         fun getApplicationId(): Long
+
         fun getLocale(): String
+
         fun getDocPublic(): String?
+
         fun getDocTech(): String?
     }
 
@@ -92,7 +96,9 @@ interface NodeDocRepository : JpaRepository<NodeDoc, NodeDocId> {
         """,
         nativeQuery = true,
     )
-    fun lockNextBatchForChunkSync(@Param("limit") limit: Int): List<DocChunkSyncRow>
+    fun lockNextBatchForChunkSync(
+        @Param("limit") limit: Int,
+    ): List<DocChunkSyncRow>
 
     /**
      * Выборка батча узлов для обработки в словарь синонимов.
@@ -112,9 +118,12 @@ interface NodeDocRepository : JpaRepository<NodeDoc, NodeDocId> {
                 FOR UPDATE SKIP LOCKED
             )
             RETURNING node_id as nodeId, doc_tech as docTech
-        """, nativeQuery = true
+        """,
+        nativeQuery = true,
     )
-    fun lockNextBatchForSynonymIndexing(@Param("batchSize") batchSize: Int): List<SynonymIndexerRow>
+    fun lockNextBatchForSynonymIndexing(
+        @Param("batchSize") batchSize: Int,
+    ): List<SynonymIndexerRow>
 
     /**
      * Обновление статуса обработки синонимов для узла.
@@ -136,4 +145,3 @@ interface NodeDocRepository : JpaRepository<NodeDoc, NodeDocId> {
         @Param("status") status: String,
     ): Int
 }
-

@@ -1,11 +1,11 @@
 package com.bftcom.docgenerator.graph.impl.library
 
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
-import com.bftcom.docgenerator.shared.node.RawUsage
 import com.bftcom.docgenerator.graph.api.library.LibraryNodeEnricher
 import com.bftcom.docgenerator.graph.api.library.LibraryNodeIndex
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointService
+import com.bftcom.docgenerator.shared.node.NodeMeta
+import com.bftcom.docgenerator.shared.node.RawUsage
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
@@ -54,6 +54,7 @@ class LibraryNodeEnricherImpl(
                                 ?: if (u.name.contains('.')) u.name else null
                         }
                     }
+
                     is RawUsage.Dot -> {
                         // Для Dot usage нужно разрешить receiver
                         // Упрощенная версия - используем ownerFqn
@@ -83,6 +84,7 @@ class LibraryNodeEnricherImpl(
                                     ),
                                 )
                             }
+
                             is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.KafkaTopic -> {
                                 point.topic?.let { kafkaTopics.add(it) }
                                 integrationPoints.add(
@@ -94,6 +96,7 @@ class LibraryNodeEnricherImpl(
                                     ),
                                 )
                             }
+
                             is com.bftcom.docgenerator.library.api.integration.IntegrationPoint.CamelRoute -> {
                                 point.uri?.let { camelUris.add(it) }
                                 integrationPoints.add(
@@ -122,15 +125,16 @@ class LibraryNodeEnricherImpl(
             )
 
             return meta.copy(
-                libraryIntegration = mapOf(
-                    "integrationPoints" to integrationPoints,
-                    "httpEndpoints" to httpEndpoints.toList(),
-                    "kafkaTopics" to kafkaTopics.toList(),
-                    "camelUris" to camelUris.toList(),
-                    "hasRetry" to hasRetry,
-                    "hasTimeout" to hasTimeout,
-                    "hasCircuitBreaker" to hasCircuitBreaker,
-                ),
+                libraryIntegration =
+                    mapOf(
+                        "integrationPoints" to integrationPoints,
+                        "httpEndpoints" to httpEndpoints.toList(),
+                        "kafkaTopics" to kafkaTopics.toList(),
+                        "camelUris" to camelUris.toList(),
+                        "hasRetry" to hasRetry,
+                        "hasTimeout" to hasTimeout,
+                        "hasCircuitBreaker" to hasCircuitBreaker,
+                    ),
             )
         }
 

@@ -10,7 +10,10 @@ import org.springframework.stereotype.Component
 class NodeUpdateStrategyImpl : NodeUpdateStrategy {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    override fun update(existing: Node, newData: NodeUpdateData): Node {
+    override fun update(
+        existing: Node,
+        newData: NodeUpdateData,
+    ): Node {
         val changed = applyChanges(existing, newData, execute = true)
 
         if (changed) {
@@ -19,20 +22,29 @@ class NodeUpdateStrategyImpl : NodeUpdateStrategy {
         return existing
     }
 
-    override fun hasChanges(existing: Node, newData: NodeUpdateData): Boolean {
-        return applyChanges(existing, newData, execute = false)
-    }
+    override fun hasChanges(
+        existing: Node,
+        newData: NodeUpdateData,
+    ): Boolean = applyChanges(existing, newData, execute = false)
 
     /**
      * Централизованная логика обработки изменений.
      * @param execute если true — применяет изменения к объекту existing, если false — только проверяет наличие.
      */
-    private fun applyChanges(existing: Node, newData: NodeUpdateData, execute: Boolean): Boolean {
+    private fun applyChanges(
+        existing: Node,
+        newData: NodeUpdateData,
+        execute: Boolean,
+    ): Boolean {
         var anyChanged = false
         val codeHashChanged = existing.codeHash != newData.codeHash
 
         // Вспомогательная функция для обновления полей
-        fun <T> updateField(current: T, new: T, applier: (T) -> Unit) {
+        fun <T> updateField(
+            current: T,
+            new: T,
+            applier: (T) -> Unit,
+        ) {
             if (current != new) {
                 anyChanged = true
                 if (execute) applier(new)
@@ -40,7 +52,11 @@ class NodeUpdateStrategyImpl : NodeUpdateStrategy {
         }
 
         // Вспомогательная функция для "мягкого" обновления (null в newData игнорируется)
-        fun <T> updateFieldIfPresent(current: T, new: T?, applier: (T) -> Unit) {
+        fun <T> updateFieldIfPresent(
+            current: T,
+            new: T?,
+            applier: (T) -> Unit,
+        ) {
             if (new != null && current != new) {
                 anyChanged = true
                 if (execute) applier(new)
@@ -88,7 +104,10 @@ class NodeUpdateStrategyImpl : NodeUpdateStrategy {
         return anyChanged
     }
 
-    private fun mergeMetadata(existingMeta: Map<String, Any>, newMeta: Map<String, Any?>): Map<String, Any> {
+    private fun mergeMetadata(
+        existingMeta: Map<String, Any>,
+        newMeta: Map<String, Any?>,
+    ): Map<String, Any> {
         if (newMeta.isEmpty()) return existingMeta
 
         val merged = existingMeta.toMutableMap()
@@ -102,9 +121,10 @@ class NodeUpdateStrategyImpl : NodeUpdateStrategy {
         return merged
     }
 
-    private fun isValidValue(value: Any): Boolean = when (value) {
-        is Collection<*> -> value.isNotEmpty()
-        is Map<*, *> -> value.isNotEmpty()
-        else -> true
-    }
+    private fun isValidValue(value: Any): Boolean =
+        when (value) {
+            is Collection<*> -> value.isNotEmpty()
+            is Map<*, *> -> value.isNotEmpty()
+            else -> true
+        }
 }

@@ -1,7 +1,7 @@
 package com.bftcom.docgenerator.rag.impl
 
-import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.domain.enums.NodeKind
+import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.embedding.api.SearchResult
 import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
 import com.bftcom.docgenerator.rag.api.QueryProcessingContext
@@ -59,8 +59,10 @@ class ResultFilterService {
         // Для концептуальных запросов используем гипотетические имена как ключевые слова
         val intent = processingContext.getMetadata<String>(QueryMetadataKeys.QUERY_INTENT)
         if (finalClassName.isNullOrBlank() && finalMethodName.isNullOrBlank() && intent == "CONCEPTUAL") {
-            val hypoNames = processingContext.getMetadata<List<*>>(QueryMetadataKeys.HYPOTHETICAL_NAMES)
-                ?.filterIsInstance<String>()
+            val hypoNames =
+                processingContext
+                    .getMetadata<List<*>>(QueryMetadataKeys.HYPOTHETICAL_NAMES)
+                    ?.filterIsInstance<String>()
             if (!hypoNames.isNullOrEmpty()) {
                 log.debug("Используем гипотетические имена для фильтрации: {}", hypoNames)
                 val hypoKeywords = hypoNames.toMutableList()
@@ -83,8 +85,10 @@ class ResultFilterService {
 
         // Дополняем гипотетическими именами если доступны
         if (intent == "CONCEPTUAL") {
-            val hypoNames = processingContext.getMetadata<List<*>>(QueryMetadataKeys.HYPOTHETICAL_NAMES)
-                ?.filterIsInstance<String>()
+            val hypoNames =
+                processingContext
+                    .getMetadata<List<*>>(QueryMetadataKeys.HYPOTHETICAL_NAMES)
+                    ?.filterIsInstance<String>()
             if (hypoNames != null) {
                 keywords.addAll(hypoNames)
             }
@@ -93,21 +97,23 @@ class ResultFilterService {
         // Фильтруем результаты в два этапа:
         // 1. Сначала ищем ТОЧНЫЕ совпадения
         // 2. Если точных совпадений нет, используем нечеткое совпадение
-        val exactMatches = results.filter { result ->
-            containsKeywordsExact(result.content, keywords, finalClassName, finalMethodName)
-        }
-
-        val filtered = if (exactMatches.isNotEmpty()) {
-            // Если есть точные совпадения, используем ТОЛЬКО их
-            log.info("Найдено {} точных совпадений, используем только их", exactMatches.size)
-            exactMatches
-        } else {
-            // Если точных совпадений нет, используем нечеткое совпадение
-            log.info("Точных совпадений не найдено, используем нечеткое совпадение")
+        val exactMatches =
             results.filter { result ->
-                containsKeywordsFuzzy(result.content, keywords, finalClassName, finalMethodName)
+                containsKeywordsExact(result.content, keywords, finalClassName, finalMethodName)
             }
-        }
+
+        val filtered =
+            if (exactMatches.isNotEmpty()) {
+                // Если есть точные совпадения, используем ТОЛЬКО их
+                log.info("Найдено {} точных совпадений, используем только их", exactMatches.size)
+                exactMatches
+            } else {
+                // Если точных совпадений нет, используем нечеткое совпадение
+                log.info("Точных совпадений не найдено, используем нечеткое совпадение")
+                results.filter { result ->
+                    containsKeywordsFuzzy(result.content, keywords, finalClassName, finalMethodName)
+                }
+            }
 
         val removed = results.size - filtered.size
         if (removed > 0) {
@@ -127,18 +133,20 @@ class ResultFilterService {
         className: String?,
         methodName: String?,
     ): List<SearchResult> {
-        val exactMatches = results.filter { result ->
-            containsKeywordsExact(result.content, keywords, className, methodName)
-        }
-        val filtered = if (exactMatches.isNotEmpty()) {
-            log.info("Гипотетическая фильтрация: найдено {} точных совпадений", exactMatches.size)
-            exactMatches
-        } else {
-            log.info("Гипотетическая фильтрация: точных совпадений нет, используем нечеткое")
+        val exactMatches =
             results.filter { result ->
-                containsKeywordsFuzzy(result.content, keywords, className, methodName)
+                containsKeywordsExact(result.content, keywords, className, methodName)
             }
-        }
+        val filtered =
+            if (exactMatches.isNotEmpty()) {
+                log.info("Гипотетическая фильтрация: найдено {} точных совпадений", exactMatches.size)
+                exactMatches
+            } else {
+                log.info("Гипотетическая фильтрация: точных совпадений нет, используем нечеткое")
+                results.filter { result ->
+                    containsKeywordsFuzzy(result.content, keywords, className, methodName)
+                }
+            }
         val removed = results.size - filtered.size
         if (removed > 0) {
             log.info("Гипотетическая фильтрация: отфильтровано {} из {} (осталось {})", removed, results.size, filtered.size)
@@ -194,31 +202,34 @@ class ResultFilterService {
     /**
      * Проверяет наличие ключевого слова с ТОЧНЫМ совпадением.
      * Использует границы слов, чтобы исключить похожие классы.
-     * 
+     *
      * Например:
      * - "Step15Processor" совпадает с "Step15Processor"
      * - "Step15Processor" НЕ совпадает с "Step16Processor"
      * - "Step15Processor" НЕ совпадает с "Step15ProcessorHelper"
      */
-    private fun containsKeywordExact(content: String, keyword: String): Boolean {
+    private fun containsKeywordExact(
+        content: String,
+        keyword: String,
+    ): Boolean {
         if (keyword.isBlank()) {
             return false
         }
-        
+
         val lowerKeyword = keyword.lowercase().trim()
-        
+
         // Для коротких ключевых слов (1-2 символа) пропускаем фильтрацию
         if (lowerKeyword.length <= 2) {
             return true
         }
-        
+
         // Экранируем специальные символы для regex
         val escapedKeyword = Regex.escape(lowerKeyword)
-        
+
         // ТОЧНОЕ совпадение с границами слов (\b)
         // Это гарантирует, что "Step15Processor" не совпадет с "Step16Processor"
         val exactPattern = "\\b$escapedKeyword\\b"
-        
+
         return Regex(exactPattern, RegexOption.IGNORE_CASE).containsMatchIn(content)
     }
 
@@ -227,23 +238,26 @@ class ResultFilterService {
      * Используется как fallback, когда точных совпадений нет.
      * Разрешает частичные совпадения и совпадения частей составных слов.
      */
-    private fun containsKeywordFuzzy(content: String, keyword: String): Boolean {
+    private fun containsKeywordFuzzy(
+        content: String,
+        keyword: String,
+    ): Boolean {
         if (keyword.isBlank()) {
             return false
         }
-        
+
         val lowerKeyword = keyword.lowercase().trim()
-        
+
         // Для коротких ключевых слов (1-2 символа) пропускаем фильтрацию
         if (lowerKeyword.length <= 2) {
             return true
         }
-        
+
         // Простое вхождение (case-insensitive)
         if (content.contains(lowerKeyword, ignoreCase = true)) {
             return true
         }
-        
+
         // Поиск с учетом возможных вариантов написания (CamelCase, snake_case и т.д.)
         val wordParts = splitCamelCase(keyword)
         if (wordParts.size > 1) {
@@ -262,27 +276,31 @@ class ResultFilterService {
                 return content.contains(significantParts.first(), ignoreCase = true)
             }
         }
-        
+
         return false
     }
 
     /**
      * Разбивает CamelCase строку на части.
      */
-    private fun splitCamelCase(str: String): List<String> {
-        return str.split(Regex("(?=[A-Z])|_|-")).filter { it.isNotBlank() }
+    private fun splitCamelCase(str: String): List<String> =
+        str
+            .split(Regex("(?=[A-Z])|_|-"))
+            .filter { it.isNotBlank() }
             .map { it.lowercase() }
-    }
 
     /**
      * Вычисляет релевантность документа на основе TF-IDF-подобной метрики.
      * Можно использовать для дополнительной сортировки после фильтрации.
      */
-    fun calculateRelevance(content: String, keywords: List<String>): Double {
+    fun calculateRelevance(
+        content: String,
+        keywords: List<String>,
+    ): Double {
         val lowerContent = content.lowercase()
         val words = lowerContent.split(Regex("\\W+")).filter { it.isNotBlank() }
         val totalWords = words.size.toDouble()
-        
+
         if (totalWords == 0.0) {
             return 0.0
         }
@@ -291,7 +309,7 @@ class ResultFilterService {
         keywords.forEach { keyword ->
             val lowerKeyword = keyword.lowercase()
             val termFrequency = words.count { it.contains(lowerKeyword) || lowerKeyword.contains(it) } / totalWords
-            
+
             // Простая оценка релевантности (TF без IDF, так как у нас нет корпуса)
             score += termFrequency * 10.0 // Увеличиваем вес для видимости
         }
@@ -299,4 +317,3 @@ class ResultFilterService {
         return score
     }
 }
-

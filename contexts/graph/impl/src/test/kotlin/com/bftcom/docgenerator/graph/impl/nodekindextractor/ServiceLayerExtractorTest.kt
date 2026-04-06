@@ -24,9 +24,10 @@ class ServiceLayerExtractorTest {
 
     @Test
     fun `refineType returns SERVICE for Service annotation`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.springframework.stereotype.Service")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.springframework.stereotype.Service"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -36,11 +37,12 @@ class ServiceLayerExtractorTest {
 
     @Test
     fun `refineType returns SERVICE for Component annotation in service package`() {
-        val raw = createRawType(
-            simpleName = "SomeClass",
-            pkgFqn = "com.example.service",
-            annotationsRepr = listOf("org.springframework.stereotype.Component")
-        )
+        val raw =
+            createRawType(
+                simpleName = "SomeClass",
+                pkgFqn = "com.example.service",
+                annotationsRepr = listOf("org.springframework.stereotype.Component"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -50,10 +52,11 @@ class ServiceLayerExtractorTest {
 
     @Test
     fun `refineType returns SERVICE for class in service package with Service suffix`() {
-        val raw = createRawType(
-            simpleName = "UserService",
-            pkgFqn = "com.example.service"
-        )
+        val raw =
+            createRawType(
+                simpleName = "UserService",
+                pkgFqn = "com.example.service",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -63,11 +66,12 @@ class ServiceLayerExtractorTest {
 
     @Test
     fun `refineType returns null for Component annotation outside service package`() {
-        val raw = createRawType(
-            simpleName = "SomeClass",
-            pkgFqn = "com.example.controller",
-            annotationsRepr = listOf("org.springframework.stereotype.Component")
-        )
+        val raw =
+            createRawType(
+                simpleName = "SomeClass",
+                pkgFqn = "com.example.controller",
+                annotationsRepr = listOf("org.springframework.stereotype.Component"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -77,10 +81,11 @@ class ServiceLayerExtractorTest {
 
     @Test
     fun `refineType returns null for regular class`() {
-        val raw = createRawType(
-            simpleName = "RegularClass",
-            pkgFqn = "com.example.model"
-        )
+        val raw =
+            createRawType(
+                simpleName = "RegularClass",
+                pkgFqn = "com.example.model",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -90,9 +95,10 @@ class ServiceLayerExtractorTest {
 
     @Test
     fun `refineType handles case-insensitive annotations`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.springframework.stereotype.SERVICE")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.springframework.stereotype.SERVICE"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -104,8 +110,8 @@ class ServiceLayerExtractorTest {
         simpleName: String = "TestClass",
         pkgFqn: String? = "com.example",
         annotationsRepr: List<String> = emptyList(),
-    ): RawType {
-        return RawType(
+    ): RawType =
+        RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -116,13 +122,11 @@ class ServiceLayerExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createContext(): NodeKindContext {
-        return NodeKindContext(
+    private fun createContext(): NodeKindContext =
+        NodeKindContext(
             lang = Lang.kotlin,
             file = null,
             imports = null,
         )
-    }
 }

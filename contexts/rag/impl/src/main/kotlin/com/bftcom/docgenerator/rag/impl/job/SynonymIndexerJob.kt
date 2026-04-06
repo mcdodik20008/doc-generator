@@ -43,11 +43,25 @@ class SynonymIndexerJob(
 
     private val chineseCharsRegex = Regex("[\\u4e00-\\u9fa5]")
 
-    private val globalStopTerms = setOf(
-        "назначение", "поведение", "контракт", "описание", "метод", "объект",
-        "экземпляр", "реализация", "функционал", "возвращает", "создание",
-        "инициализация", "сервис", "контроллер", "репозиторий", "бизнес-логика"
-    )
+    private val globalStopTerms =
+        setOf(
+            "назначение",
+            "поведение",
+            "контракт",
+            "описание",
+            "метод",
+            "объект",
+            "экземпляр",
+            "реализация",
+            "функционал",
+            "возвращает",
+            "создание",
+            "инициализация",
+            "сервис",
+            "контроллер",
+            "репозиторий",
+            "бизнес-логика",
+        )
 
     @PostConstruct
     fun validateConfiguration() {
@@ -57,12 +71,13 @@ class SynonymIndexerJob(
         log.info("SynonymIndexerJob initialized with batchSize=$batchSize, locale=$defaultLocale")
     }
 
-    @Scheduled(fixedDelayString = "\${docgen.synonym.indexer.poll-ms:60000}")
+    // @Scheduled(fixedDelayString = "\${docgen.synonym.indexer.poll-ms:60000}")
     fun poll() {
         // 1. Короткая транзакция на захват батча
-        val rows = tx.execute {
-            nodeDocRepo.lockNextBatchForSynonymIndexing(batchSize)
-        } ?: return
+        val rows =
+            tx.execute {
+                nodeDocRepo.lockNextBatchForSynonymIndexing(batchSize)
+            } ?: return
 
         if (rows.isEmpty()) return
 
@@ -100,24 +115,26 @@ class SynonymIndexerJob(
         if (!isBusinessLogicFastCheck(extractContextForJudge(docTech))) return SynonymStatus.SKIPPED_JUDGE
 
         // Этап 3: LLM Extraction
-        val rawPairs = extractSynonymPairs(nodeName, extractContextSections(docTech))
-            .filter { isValidPair(it, nodeName) }
-            .distinctBy { it.term.lowercase().trim() }
+        val rawPairs =
+            extractSynonymPairs(nodeName, extractContextSections(docTech))
+                .filter { isValidPair(it, nodeName) }
+                .distinctBy { it.term.lowercase().trim() }
 
         if (rawPairs.isEmpty()) return SynonymStatus.FAILED_LLM
 
         // Этап 4: Embedding (Network IO)
         // Сначала собираем данные, потом сохраняем в БД в конце
-        val enrichedPairs = rawPairs.mapNotNull { pair ->
-            try {
-                val tEmb = embeddingClient.embed(pair.term).joinToString(",", "[", "]")
-                val dEmb = embeddingClient.embed(pair.description).joinToString(",", "[", "]")
-                EnrichedSynonym(pair.term, pair.description, tEmb, dEmb)
-            } catch (e: Exception) {
-                log.warn("Не удалось создать эмбеддинг для синонима '{}': {}", pair.term, e.message)
-                null
+        val enrichedPairs =
+            rawPairs.mapNotNull { pair ->
+                try {
+                    val tEmb = embeddingClient.embed(pair.term).joinToString(",", "[", "]")
+                    val dEmb = embeddingClient.embed(pair.description).joinToString(",", "[", "]")
+                    EnrichedSynonym(pair.term, pair.description, tEmb, dEmb)
+                } catch (e: Exception) {
+                    log.warn("Не удалось создать эмбеддинг для синонима '{}': {}", pair.term, e.message)
+                    null
+                }
             }
-        }
 
         if (enrichedPairs.isEmpty()) return SynonymStatus.FAILED_LLM
 
@@ -125,30 +142,36 @@ class SynonymIndexerJob(
         return persistSynonyms(nodeId, enrichedPairs)
     }
 
-    private fun persistSynonyms(nodeId: Long, items: List<EnrichedSynonym>): SynonymStatus {
-        return tx.execute {
+    private fun persistSynonyms(
+        nodeId: Long,
+        items: List<EnrichedSynonym>,
+    ): SynonymStatus =
+        tx.execute {
             // Используем getReferenceById, чтобы не делать лишний SELECT Node, нам нужен только FK
             val nodeRef = nodeRepo.getReferenceById(nodeId)
 
             items.forEach { item ->
                 if (!synonymRepo.existsByTermIgnoreCase(item.term)) {
-                    val entity = synonymRepo.save(
-                        SynonymDictionary(
-                            term = item.term,
-                            description = item.description,
-                            sourceNode = nodeRef,
-                            modelName = embeddingClient.modelName
+                    val entity =
+                        synonymRepo.save(
+                            SynonymDictionary(
+                                term = item.term,
+                                description = item.description,
+                                sourceNode = nodeRef,
+                                modelName = embeddingClient.modelName,
+                            ),
                         )
-                    )
                     val entityId = requireNotNull(entity.id) { "SynonymDictionary must have ID after save" }
                     synonymRepo.updateEmbeddings(entityId, item.termEmbedding, item.descEmbedding)
                 }
             }
             SynonymStatus.INDEXED
         } ?: SynonymStatus.FAILED_LLM
-    }
 
-    private fun updateStatusIsolated(nodeId: Long, status: SynonymStatus) {
+    private fun updateStatusIsolated(
+        nodeId: Long,
+        status: SynonymStatus,
+    ) {
         tx.execute {
             nodeDocRepo.updateSynonymStatus(nodeId, defaultLocale, status.name)
         }
@@ -163,15 +186,29 @@ class SynonymIndexerJob(
 
     private fun isBusinessLogicFastCheck(context: String): Boolean {
         val prompt = "Определи, есть ли в тексте описание бизнес-логики. Ответь только 'YES' или 'NO'. Текст: $context"
-        return fastCheckClient.prompt().user(prompt).call().content()?.contains("YES", ignoreCase = true) ?: false
+        return fastCheckClient
+            .prompt()
+            .user(prompt)
+            .call()
+            .content()
+            ?.contains("YES", ignoreCase = true) ?: false
     }
 
-    private fun extractSynonymPairs(nodeName: String, docContent: String): List<SynonymPair> {
+    private fun extractSynonymPairs(
+        nodeName: String,
+        docContent: String,
+    ): List<SynonymPair> {
         val system = "Ты — Senior Backend Engineer. Генерируй ПРИКЛАДНЫЕ синонимы для методов API в формате JSON."
         val user = "Метод: $nodeName\nДокументация: $docContent"
 
         return try {
-            val response = extractionClient.prompt().system(system).user(user).call().content() ?: ""
+            val response =
+                extractionClient
+                    .prompt()
+                    .system(system)
+                    .user(user)
+                    .call()
+                    .content() ?: ""
             val json = response.replace(Regex("(?s)```json(.*?)```"), "$1").trim()
             val tree = objectMapper.readTree(json)
             if (tree.isArray) {
@@ -180,14 +217,19 @@ class SynonymIndexerJob(
                     val d = n.get("description")?.asText()?.trim()
                     if (!t.isNullOrBlank() && !d.isNullOrBlank()) SynonymPair(t, d) else null
                 }
-            } else emptyList()
+            } else {
+                emptyList()
+            }
         } catch (e: Exception) {
             log.warn("Ошибка парсинга LLM ответа: ${e.message}")
             emptyList()
         }
     }
 
-    private fun isValidPair(pair: SynonymPair, nodeName: String): Boolean {
+    private fun isValidPair(
+        pair: SynonymPair,
+        nodeName: String,
+    ): Boolean {
         val term = pair.term.lowercase().trim()
         return when {
             term.length < 5 -> false
@@ -200,25 +242,36 @@ class SynonymIndexerJob(
 
     private fun extractPurposeSection(docTech: String): String? =
         Regex("""(?s)##\s+Назначение\s*\n(.*?)(?=\n##|\z)""", RegexOption.IGNORE_CASE)
-            .find(docTech)?.groupValues?.getOrNull(1)?.trim()?.takeIf { it.isNotBlank() }
+            .find(docTech)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
 
-    private fun extractContextSections(docTech: String): String {
-        return listOf("Назначение", "Контракт", "Поведение").mapNotNull { section ->
-            Regex("""(?s)##\s+$section\s*\n(.*?)(?=\n##|\z)""", RegexOption.IGNORE_CASE)
-                .find(docTech)?.groupValues?.getOrNull(1)?.trim()?.let { "$section: $it" }
-        }.joinToString("\n\n")
-    }
+    private fun extractContextSections(docTech: String): String =
+        listOf("Назначение", "Контракт", "Поведение")
+            .mapNotNull { section ->
+                Regex("""(?s)##\s+$section\s*\n(.*?)(?=\n##|\z)""", RegexOption.IGNORE_CASE)
+                    .find(docTech)
+                    ?.groupValues
+                    ?.getOrNull(1)
+                    ?.trim()
+                    ?.let { "$section: $it" }
+            }.joinToString("\n\n")
 
-    private fun extractContextForJudge(docTech: String): String =
-        extractPurposeSection(docTech)?.take(300) ?: "No context"
+    private fun extractContextForJudge(docTech: String): String = extractPurposeSection(docTech)?.take(300) ?: "No context"
 
     // --- Data Classes ---
 
-    private data class SynonymPair(val term: String, val description: String)
+    private data class SynonymPair(
+        val term: String,
+        val description: String,
+    )
+
     private data class EnrichedSynonym(
         val term: String,
         val description: String,
         val termEmbedding: String,
-        val descEmbedding: String
+        val descEmbedding: String,
     )
 }

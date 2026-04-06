@@ -32,15 +32,15 @@ open class ChunkGraphRepositoryImpl(
         val trimmedKinds = kinds.mapNotNull { it.trim().takeIf { s -> s.isNotEmpty() } }
         val invalidKinds = mutableListOf<String>()
 
-        val nkinds: Set<NodeKind> = trimmedKinds
-            .mapNotNull { s ->
-                runCatching { NodeKind.valueOf(s) }.getOrElse {
-                    invalidKinds.add(s)
-                    null
-                }
-            }
-            .toSet()
-            .ifEmpty { NodeKind.entries.toSet() } // если не пришло — берём все
+        val nkinds: Set<NodeKind> =
+            trimmedKinds
+                .mapNotNull { s ->
+                    runCatching { NodeKind.valueOf(s) }.getOrElse {
+                        invalidKinds.add(s)
+                        null
+                    }
+                }.toSet()
+                .ifEmpty { NodeKind.entries.toSet() } // если не пришло — берём все
 
         if (invalidKinds.isNotEmpty()) {
             log.warn("Invalid NodeKind values in loadNodes: $invalidKinds. Valid values: ${NodeKind.entries.map { it.name }}")
@@ -67,7 +67,7 @@ open class ChunkGraphRepositoryImpl(
         if (nodeIds.size > 10000) {
             log.warn(
                 "nodeIds set size (${nodeIds.size}) exceeds maximum 10000 for loadEdges. " +
-                "This may cause performance issues. Consider batch processing."
+                    "This may cause performance issues. Consider batch processing.",
             )
         }
 
@@ -76,27 +76,30 @@ open class ChunkGraphRepositoryImpl(
 
         // Берём рёбра, где либо src, либо dst в рассматриваемом подграфе
         // Логируем первые и последние IDs для лучшей диагностики проблем
-        val idsPreview = if (ids.size <= 10) {
-            ids.toString()
-        } else {
-            val sortedIds = ids.sorted()
-            "first 5: ${sortedIds.take(5)}, last 5: ${sortedIds.takeLast(5)}"
-        }
+        val idsPreview =
+            if (ids.size <= 10) {
+                ids.toString()
+            } else {
+                val sortedIds = ids.sorted()
+                "first 5: ${sortedIds.take(5)}, last 5: ${sortedIds.takeLast(5)}"
+            }
         log.info("Loading edges for nodeIds=$idsPreview (size=${ids.size}), edgeKinds=${edgeKinds.size}")
         // Используем объединенный запрос вместо двух отдельных (фикс N+1 проблемы)
         // DISTINCT уже в SQL запросе, поэтому не нужен distinctBy в памяти
         val all = edgeRepo.findAllBySrcIdInOrDstIdIn(ids)
 
         // Парсим запрошенные edge kinds; если пусто — возвращаем все
-        val requestedKinds: Set<EdgeKind> = edgeKinds
-            .mapNotNull { s -> runCatching { EdgeKind.valueOf(s.trim()) }.getOrNull() }
-            .toSet()
+        val requestedKinds: Set<EdgeKind> =
+            edgeKinds
+                .mapNotNull { s -> runCatching { EdgeKind.valueOf(s.trim()) }.getOrNull() }
+                .toSet()
 
-        val filtered = if (requestedKinds.isEmpty()) {
-            all
-        } else {
-            all.filter { it.kind in requestedKinds }
-        }
+        val filtered =
+            if (requestedKinds.isEmpty()) {
+                all
+            } else {
+                all.filter { it.kind in requestedKinds }
+            }
 
         log.info("Edges loaded=${all.size}, after filtering=${filtered.size}")
 
@@ -110,25 +113,33 @@ open class ChunkGraphRepositoryImpl(
         val id = nodeId.toLongOrNull() ?: return emptyList()
 
         // Валидация limit: должен быть положительным и не превышать 10000
-        val validatedLimit = when {
-            limit <= 0 -> {
-                log.warn("Invalid limit=$limit for nodeId=$nodeId, using default 100")
-                100
+        val validatedLimit =
+            when {
+                limit <= 0 -> {
+                    log.warn("Invalid limit=$limit for nodeId=$nodeId, using default 100")
+                    100
+                }
+
+                limit > 10000 -> {
+                    log.warn("Limit=$limit exceeds maximum 10000 for nodeId=$nodeId, capping to 10000")
+                    10000
+                }
+
+                else -> {
+                    limit
+                }
             }
-            limit > 10000 -> {
-                log.warn("Limit=$limit exceeds maximum 10000 for nodeId=$nodeId, capping to 10000")
-                10000
-            }
-            else -> limit
-        }
 
         // Используем объединенный запрос вместо двух отдельных (фикс N+1 проблемы)
         val edges = edgeRepo.findAllBySrcIdInOrDstIdIn(setOf(id))
 
         val neighborIds: Set<Long> =
-            edges.mapNotNull { edge ->
-                if (edge.src.id == id) edge.dst.id else edge.src.id
-            }.distinct().take(validatedLimit).toSet()
+            edges
+                .mapNotNull { edge ->
+                    if (edge.src.id == id) edge.dst.id else edge.src.id
+                }.distinct()
+                .take(validatedLimit)
+                .toSet()
 
         if (neighborIds.isEmpty()) return emptyList()
 

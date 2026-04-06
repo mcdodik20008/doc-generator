@@ -14,24 +14,22 @@ import reactor.core.publisher.Mono
 class UserDetailsServiceImpl(
     private val userRepository: UserRepository,
 ) {
-
     /**
      * Получает текущего аутентифицированного пользователя.
      */
-    fun getCurrentUser(): Mono<User> {
-        return ReactiveSecurityContextHolder.getContext()
+    fun getCurrentUser(): Mono<User> =
+        ReactiveSecurityContextHolder
+            .getContext()
             .map { it.authentication }
             .map { it.principal as UserDetails }
             .flatMap { userDetails ->
-                Mono.justOrEmpty(userRepository.findByUsername(userDetails.username))
+                Mono
+                    .justOrEmpty(userRepository.findByUsername(userDetails.username))
                     .switchIfEmpty(Mono.error(IllegalStateException("User not found: ${userDetails.username}")))
             }
-    }
 
     /**
      * Получает ID текущего пользователя.
      */
-    fun getCurrentUserId(): Mono<Long> {
-        return getCurrentUser().map { it.id!! }
-    }
+    fun getCurrentUserId(): Mono<Long> = getCurrentUser().map { it.id!! }
 }

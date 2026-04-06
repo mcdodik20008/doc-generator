@@ -22,4 +22,3 @@ class HashTokensHandler : PostprocessHandler {
             .set(FieldKey.TOKEN_COUNT, tokens)
     }
 }
-

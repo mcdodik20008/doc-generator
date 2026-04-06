@@ -10,18 +10,17 @@ import org.springframework.transaction.PlatformTransactionManager
 
 @Configuration
 class MemoryConfig {
-
     @Bean
     @Primary
     fun chatMemoryRepository(
         jdbcTemplate: JdbcTemplate,
         txManager: PlatformTransactionManager,
-        customDialect: CustomPostgresDialect
-    ): ChatMemoryRepository {
-        return JdbcChatMemoryRepository.builder()
+        customDialect: CustomPostgresDialect,
+    ): ChatMemoryRepository =
+        JdbcChatMemoryRepository
+            .builder()
             .jdbcTemplate(jdbcTemplate)
             .transactionManager(txManager)
             .dialect(customDialect)
             .build()
-    }
 }

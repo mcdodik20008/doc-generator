@@ -19,7 +19,6 @@ import java.time.Duration
  */
 @Configuration
 class RateLimitConfig {
-
     companion object {
         const val DEFAULT_RATE_LIMITER = "default"
         const val HIGH_LOAD_RATE_LIMITER = "highLoad"
@@ -27,20 +26,20 @@ class RateLimitConfig {
     }
 
     @Bean
-    fun rateLimiterRegistry(): RateLimiterRegistry {
-        return RateLimiterRegistry.ofDefaults()
-    }
+    fun rateLimiterRegistry(): RateLimiterRegistry = RateLimiterRegistry.ofDefaults()
 
     /**
      * Default rate limiter: 100 requests per minute with burst of 20
      */
     @Bean
     fun defaultRateLimiter(registry: RateLimiterRegistry): RateLimiter {
-        val config = RateLimiterConfig.custom()
-            .limitRefreshPeriod(Duration.ofMinutes(1))
-            .limitForPeriod(100)
-            .timeoutDuration(Duration.ofSeconds(5))
-            .build()
+        val config =
+            RateLimiterConfig
+                .custom()
+                .limitRefreshPeriod(Duration.ofMinutes(1))
+                .limitForPeriod(100)
+                .timeoutDuration(Duration.ofSeconds(5))
+                .build()
 
         return registry.rateLimiter(DEFAULT_RATE_LIMITER, config)
     }
@@ -50,11 +49,13 @@ class RateLimitConfig {
      */
     @Bean
     fun highLoadRateLimiter(registry: RateLimiterRegistry): RateLimiter {
-        val config = RateLimiterConfig.custom()
-            .limitRefreshPeriod(Duration.ofMinutes(1))
-            .limitForPeriod(30)
-            .timeoutDuration(Duration.ofSeconds(5))
-            .build()
+        val config =
+            RateLimiterConfig
+                .custom()
+                .limitRefreshPeriod(Duration.ofMinutes(1))
+                .limitForPeriod(30)
+                .timeoutDuration(Duration.ofSeconds(5))
+                .build()
 
         return registry.rateLimiter(HIGH_LOAD_RATE_LIMITER, config)
     }
@@ -64,11 +65,13 @@ class RateLimitConfig {
      */
     @Bean
     fun mutationRateLimiter(registry: RateLimiterRegistry): RateLimiter {
-        val config = RateLimiterConfig.custom()
-            .limitRefreshPeriod(Duration.ofMinutes(1))
-            .limitForPeriod(10)
-            .timeoutDuration(Duration.ofSeconds(5))
-            .build()
+        val config =
+            RateLimiterConfig
+                .custom()
+                .limitRefreshPeriod(Duration.ofMinutes(1))
+                .limitForPeriod(10)
+                .timeoutDuration(Duration.ofSeconds(5))
+                .build()
 
         return registry.rateLimiter(MUTATION_RATE_LIMITER, config)
     }

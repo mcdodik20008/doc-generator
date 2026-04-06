@@ -1,10 +1,10 @@
 package com.bftcom.docgenerator.db
 
 import com.bftcom.docgenerator.domain.application.Application
+import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.domain.enums.NodeKind
-import com.bftcom.docgenerator.domain.edge.Edge
 import com.bftcom.docgenerator.domain.node.Node
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.transaction.annotation.Transactional
 
 class EdgeRepositoryTest : BaseRepositoryTest() {
-
     @Autowired
     private lateinit var edgeRepository: EdgeRepository
 
@@ -30,55 +29,61 @@ class EdgeRepositoryTest : BaseRepositoryTest() {
 
     @BeforeEach
     fun setUp() {
-        application = Application(
-            key = "test-app-${System.currentTimeMillis()}",
-            name = "Test Application",
-        )
+        application =
+            Application(
+                key = "test-app-${System.currentTimeMillis()}",
+                name = "Test Application",
+            )
         application = applicationRepository.save(application)
 
-        node1 = Node(
-            application = application,
-            fqn = "com.example.Class1",
-            name = "Class1",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        node1 =
+            Node(
+                application = application,
+                fqn = "com.example.Class1",
+                name = "Class1",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         node1 = nodeRepository.save(node1)
 
-        node2 = Node(
-            application = application,
-            fqn = "com.example.Class2",
-            name = "Class2",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        node2 =
+            Node(
+                application = application,
+                fqn = "com.example.Class2",
+                name = "Class2",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         node2 = nodeRepository.save(node2)
 
-        node3 = Node(
-            application = application,
-            fqn = "com.example.Class3",
-            name = "Class3",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
+        node3 =
+            Node(
+                application = application,
+                fqn = "com.example.Class3",
+                name = "Class3",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
         node3 = nodeRepository.save(node3)
     }
 
     @Test
     fun `findAllBySrcId - возвращает исходящие рёбра`() {
         // Given
-        val edge1 = Edge(
-            src = node1,
-            dst = node2,
-            kind = EdgeKind.DEPENDS_ON,
-            evidence = emptyMap(),
-        )
-        val edge2 = Edge(
-            src = node1,
-            dst = node3,
-            kind = EdgeKind.CALLS_CODE,
-            evidence = emptyMap(),
-        )
+        val edge1 =
+            Edge(
+                src = node1,
+                dst = node2,
+                kind = EdgeKind.DEPENDS_ON,
+                evidence = emptyMap(),
+            )
+        val edge2 =
+            Edge(
+                src = node1,
+                dst = node3,
+                kind = EdgeKind.CALLS_CODE,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge1)
         edgeRepository.save(edge2)
 
@@ -94,18 +99,20 @@ class EdgeRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `findAllByDstId - возвращает входящие рёбра`() {
         // Given
-        val edge1 = Edge(
-            src = node1,
-            dst = node2,
-            kind = EdgeKind.DEPENDS_ON,
-            evidence = emptyMap(),
-        )
-        val edge2 = Edge(
-            src = node3,
-            dst = node2,
-            kind = EdgeKind.CALLS_CODE,
-            evidence = emptyMap(),
-        )
+        val edge1 =
+            Edge(
+                src = node1,
+                dst = node2,
+                kind = EdgeKind.DEPENDS_ON,
+                evidence = emptyMap(),
+            )
+        val edge2 =
+            Edge(
+                src = node3,
+                dst = node2,
+                kind = EdgeKind.CALLS_CODE,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge1)
         edgeRepository.save(edge2)
 
@@ -121,18 +128,20 @@ class EdgeRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `findAllBySrcIdIn - возвращает рёбра для множества источников`() {
         // Given
-        val edge1 = Edge(
-            src = node1,
-            dst = node2,
-            kind = EdgeKind.DEPENDS_ON,
-            evidence = emptyMap(),
-        )
-        val edge2 = Edge(
-            src = node2,
-            dst = node3,
-            kind = EdgeKind.CALLS_CODE,
-            evidence = emptyMap(),
-        )
+        val edge1 =
+            Edge(
+                src = node1,
+                dst = node2,
+                kind = EdgeKind.DEPENDS_ON,
+                evidence = emptyMap(),
+            )
+        val edge2 =
+            Edge(
+                src = node2,
+                dst = node3,
+                kind = EdgeKind.CALLS_CODE,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge1)
         edgeRepository.save(edge2)
 
@@ -147,18 +156,20 @@ class EdgeRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `findAllByDstIdIn - возвращает рёбра для множества целей`() {
         // Given
-        val edge1 = Edge(
-            src = node1,
-            dst = node2,
-            kind = EdgeKind.DEPENDS_ON,
-            evidence = emptyMap(),
-        )
-        val edge2 = Edge(
-            src = node3,
-            dst = node2,
-            kind = EdgeKind.CALLS_CODE,
-            evidence = emptyMap(),
-        )
+        val edge1 =
+            Edge(
+                src = node1,
+                dst = node2,
+                kind = EdgeKind.DEPENDS_ON,
+                evidence = emptyMap(),
+            )
+        val edge2 =
+            Edge(
+                src = node3,
+                dst = node2,
+                kind = EdgeKind.CALLS_CODE,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge1)
         edgeRepository.save(edge2)
 
@@ -173,18 +184,20 @@ class EdgeRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `findAllBySrcIdAndDstIdIn - возвращает рёбра от источника к множеству целей`() {
         // Given
-        val edge1 = Edge(
-            src = node1,
-            dst = node2,
-            kind = EdgeKind.DEPENDS_ON,
-            evidence = emptyMap(),
-        )
-        val edge2 = Edge(
-            src = node1,
-            dst = node3,
-            kind = EdgeKind.CALLS_CODE,
-            evidence = emptyMap(),
-        )
+        val edge1 =
+            Edge(
+                src = node1,
+                dst = node2,
+                kind = EdgeKind.DEPENDS_ON,
+                evidence = emptyMap(),
+            )
+        val edge2 =
+            Edge(
+                src = node1,
+                dst = node3,
+                kind = EdgeKind.CALLS_CODE,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge1)
         edgeRepository.save(edge2)
 
@@ -200,18 +213,20 @@ class EdgeRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `findAllByDstIdAndSrcIdIn - возвращает рёбра к цели от множества источников`() {
         // Given
-        val edge1 = Edge(
-            src = node1,
-            dst = node2,
-            kind = EdgeKind.DEPENDS_ON,
-            evidence = emptyMap(),
-        )
-        val edge2 = Edge(
-            src = node3,
-            dst = node2,
-            kind = EdgeKind.CALLS_CODE,
-            evidence = emptyMap(),
-        )
+        val edge1 =
+            Edge(
+                src = node1,
+                dst = node2,
+                kind = EdgeKind.DEPENDS_ON,
+                evidence = emptyMap(),
+            )
+        val edge2 =
+            Edge(
+                src = node3,
+                dst = node2,
+                kind = EdgeKind.CALLS_CODE,
+                evidence = emptyMap(),
+            )
         edgeRepository.save(edge1)
         edgeRepository.save(edge2)
 

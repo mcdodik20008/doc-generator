@@ -6,7 +6,6 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface UserRepository : JpaRepository<User, Long> {
-
     /**
      * Находит пользователя по имени (используется при логине).
      */

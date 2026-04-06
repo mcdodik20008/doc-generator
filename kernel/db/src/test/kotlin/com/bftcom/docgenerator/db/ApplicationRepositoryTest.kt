@@ -6,18 +6,18 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 
 class ApplicationRepositoryTest : BaseRepositoryTest() {
-
     @Autowired
     private lateinit var applicationRepository: ApplicationRepository
 
     @Test
     fun `findByKey - возвращает Application по ключу`() {
         // Given
-        val application = Application(
-            key = "test-app-1",
-            name = "Test Application",
-            description = "Test Description",
-        )
+        val application =
+            Application(
+                key = "test-app-1",
+                name = "Test Application",
+                description = "Test Description",
+            )
         applicationRepository.save(application)
 
         // When
@@ -42,10 +42,11 @@ class ApplicationRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `save - сохраняет новую Application`() {
         // Given
-        val application = Application(
-            key = "test-app-2",
-            name = "Test Application 2",
-        )
+        val application =
+            Application(
+                key = "test-app-2",
+                name = "Test Application 2",
+            )
 
         // When
         val saved = applicationRepository.save(application)

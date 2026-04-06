@@ -40,7 +40,8 @@ open class DashboardStatsRepository(
     private val em: EntityManager,
 ) {
     fun findApplicationStats(): List<ApplicationStats> {
-        val sql = """
+        val sql =
+            """
             SELECT
                 a.id,
                 a.key,
@@ -81,7 +82,7 @@ open class DashboardStatsRepository(
                 WHERE nsyn.application_id = a.id
             ) sc ON true
             ORDER BY a.name
-        """.trimIndent()
+            """.trimIndent()
 
         @Suppress("UNCHECKED_CAST")
         val rows = em.createNativeQuery(sql).resultList as List<Array<Any?>>
@@ -112,13 +113,14 @@ open class DashboardStatsRepository(
     }
 
     fun findGlobalStats(): GlobalStats {
-        val sql = """
+        val sql =
+            """
             SELECT
                 (SELECT COUNT(*) FROM doc_generator.application),
                 (SELECT COUNT(*) FROM doc_generator.node),
                 (SELECT COUNT(*) FROM doc_generator.chunk),
                 (SELECT COUNT(*) FROM doc_generator.edge)
-        """.trimIndent()
+            """.trimIndent()
 
         @Suppress("UNCHECKED_CAST")
         val row = em.createNativeQuery(sql).singleResult as Array<Any?>
@@ -130,12 +132,13 @@ open class DashboardStatsRepository(
         )
     }
 
-    private fun toOffsetDateTime(value: Any?): OffsetDateTime? = when (value) {
-        null -> null
-        is OffsetDateTime -> value
-        is Instant -> value.atOffset(ZoneOffset.UTC)
-        else -> throw IllegalArgumentException("Cannot convert ${value.javaClass} to OffsetDateTime")
-    }
+    private fun toOffsetDateTime(value: Any?): OffsetDateTime? =
+        when (value) {
+            null -> null
+            is OffsetDateTime -> value
+            is Instant -> value.atOffset(ZoneOffset.UTC)
+            else -> throw IllegalArgumentException("Cannot convert ${value.javaClass} to OffsetDateTime")
+        }
 
     private fun sqlArrayToList(value: Any?): List<String> {
         if (value == null) return emptyList()

@@ -23,15 +23,17 @@ class ResultFilterServiceTest {
     @Test
     fun `filterResults - без метаданных возвращает все результаты`() {
         // Arrange
-        val results = listOf(
-            createSearchResult("1", "Some content", 0.9),
-            createSearchResult("2", "Other content", 0.8),
-        )
-        val context = QueryProcessingContext(
-            originalQuery = "test",
-            currentQuery = "test",
-            sessionId = "session-1",
-        )
+        val results =
+            listOf(
+                createSearchResult("1", "Some content", 0.9),
+                createSearchResult("2", "Other content", 0.8),
+            )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "test",
+                currentQuery = "test",
+                sessionId = "session-1",
+            )
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -44,19 +46,21 @@ class ResultFilterServiceTest {
     @Test
     fun `filterResults - фильтрация по классу с точным совпадением`() {
         // Arrange
-        val results = listOf(
-            createSearchResult("1", "class UserService { }", 0.9),
-            createSearchResult("2", "class UserController { }", 0.8),
-            createSearchResult("3", "class ProductService { }", 0.7),
-        )
-        val context = QueryProcessingContext(
-            originalQuery = "UserService",
-            currentQuery = "UserService",
-            sessionId = "session-1",
-        ).setMetadata(
-            QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-            mapOf("className" to "UserService"),
-        )
+        val results =
+            listOf(
+                createSearchResult("1", "class UserService { }", 0.9),
+                createSearchResult("2", "class UserController { }", 0.8),
+                createSearchResult("3", "class ProductService { }", 0.7),
+            )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "UserService",
+                currentQuery = "UserService",
+                sessionId = "session-1",
+            ).setMetadata(
+                QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+                mapOf("className" to "UserService"),
+            )
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -70,19 +74,21 @@ class ResultFilterServiceTest {
     @Test
     fun `filterResults - фильтрация по методу с точным совпадением`() {
         // Arrange
-        val results = listOf(
-            createSearchResult("1", "fun getUser() { }", 0.9),
-            createSearchResult("2", "fun getProduct() { }", 0.8),
-            createSearchResult("3", "fun createUser() { }", 0.7),
-        )
-        val context = QueryProcessingContext(
-            originalQuery = "getUser",
-            currentQuery = "getUser",
-            sessionId = "session-1",
-        ).setMetadata(
-            QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-            mapOf("methodName" to "getUser"),
-        )
+        val results =
+            listOf(
+                createSearchResult("1", "fun getUser() { }", 0.9),
+                createSearchResult("2", "fun getProduct() { }", 0.8),
+                createSearchResult("3", "fun createUser() { }", 0.7),
+            )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "getUser",
+                currentQuery = "getUser",
+                sessionId = "session-1",
+            ).setMetadata(
+                QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+                mapOf("methodName" to "getUser"),
+            )
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -96,19 +102,21 @@ class ResultFilterServiceTest {
     @Test
     fun `filterResults - фильтрация по классу и методу`() {
         // Arrange
-        val results = listOf(
-            createSearchResult("1", "class UserService { fun getUser() { } }", 0.9),
-            createSearchResult("2", "class UserService { fun getProduct() { } }", 0.8),
-            createSearchResult("3", "class ProductService { fun getUser() { } }", 0.7),
-        )
-        val context = QueryProcessingContext(
-            originalQuery = "UserService getUser",
-            currentQuery = "UserService getUser",
-            sessionId = "session-1",
-        ).setMetadata(
-            QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-            mapOf("className" to "UserService", "methodName" to "getUser"),
-        )
+        val results =
+            listOf(
+                createSearchResult("1", "class UserService { fun getUser() { } }", 0.9),
+                createSearchResult("2", "class UserService { fun getProduct() { } }", 0.8),
+                createSearchResult("3", "class ProductService { fun getUser() { } }", 0.7),
+            )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "UserService getUser",
+                currentQuery = "UserService getUser",
+                sessionId = "session-1",
+            ).setMetadata(
+                QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+                mapOf("className" to "UserService", "methodName" to "getUser"),
+            )
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -121,19 +129,21 @@ class ResultFilterServiceTest {
     @Test
     fun `filterResults - нечеткое совпадение когда нет точных`() {
         // Arrange
-        val results = listOf(
-            createSearchResult("1", "UserServiceHelper class", 0.9),
-            createSearchResult("2", "UserServiceManager class", 0.8),
-            createSearchResult("3", "ProductService class", 0.7),
-        )
-        val context = QueryProcessingContext(
-            originalQuery = "UserService",
-            currentQuery = "UserService",
-            sessionId = "session-1",
-        ).setMetadata(
-            QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-            mapOf("className" to "UserService"),
-        )
+        val results =
+            listOf(
+                createSearchResult("1", "UserServiceHelper class", 0.9),
+                createSearchResult("2", "UserServiceManager class", 0.8),
+                createSearchResult("3", "ProductService class", 0.7),
+            )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "UserService",
+                currentQuery = "UserService",
+                sessionId = "session-1",
+            ).setMetadata(
+                QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+                mapOf("className" to "UserService"),
+            )
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -147,24 +157,27 @@ class ResultFilterServiceTest {
     fun `filterResults - использование имен из точных узлов`() {
         // Arrange
         val application = mockk<Application>()
-        val exactNode = Node(
-            id = 1L,
-            application = application,
-            fqn = "com.example.UserService",
-            name = "UserService",
-            kind = NodeKind.CLASS,
-            lang = Lang.kotlin,
-        )
-        
-        val results = listOf(
-            createSearchResult("1", "class UserService { }", 0.9),
-            createSearchResult("2", "class ProductService { }", 0.8),
-        )
-        val context = QueryProcessingContext(
-            originalQuery = "UserService",
-            currentQuery = "UserService",
-            sessionId = "session-1",
-        ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(exactNode))
+        val exactNode =
+            Node(
+                id = 1L,
+                application = application,
+                fqn = "com.example.UserService",
+                name = "UserService",
+                kind = NodeKind.CLASS,
+                lang = Lang.kotlin,
+            )
+
+        val results =
+            listOf(
+                createSearchResult("1", "class UserService { }", 0.9),
+                createSearchResult("2", "class ProductService { }", 0.8),
+            )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "UserService",
+                currentQuery = "UserService",
+                sessionId = "session-1",
+            ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(exactNode))
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -178,24 +191,27 @@ class ResultFilterServiceTest {
     fun `filterResults - использование имени метода из точного узла`() {
         // Arrange
         val application = mockk<Application>()
-        val exactNode = Node(
-            id = 1L,
-            application = application,
-            fqn = "com.example.UserService.getUser",
-            name = "getUser",
-            kind = NodeKind.METHOD,
-            lang = Lang.kotlin,
-        )
-        
-        val results = listOf(
-            createSearchResult("1", "fun getUser() { }", 0.9),
-            createSearchResult("2", "fun getProduct() { }", 0.8),
-        )
-        val context = QueryProcessingContext(
-            originalQuery = "getUser",
-            currentQuery = "getUser",
-            sessionId = "session-1",
-        ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(exactNode))
+        val exactNode =
+            Node(
+                id = 1L,
+                application = application,
+                fqn = "com.example.UserService.getUser",
+                name = "getUser",
+                kind = NodeKind.METHOD,
+                lang = Lang.kotlin,
+            )
+
+        val results =
+            listOf(
+                createSearchResult("1", "fun getUser() { }", 0.9),
+                createSearchResult("2", "fun getProduct() { }", 0.8),
+            )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "getUser",
+                currentQuery = "getUser",
+                sessionId = "session-1",
+            ).setMetadata(QueryMetadataKeys.EXACT_NODES, listOf(exactNode))
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -208,18 +224,20 @@ class ResultFilterServiceTest {
     @Test
     fun `filterResults - короткие ключевые слова пропускают фильтрацию`() {
         // Arrange
-        val results = listOf(
-            createSearchResult("1", "Content A", 0.9),
-            createSearchResult("2", "Content B", 0.8),
-        )
-        val context = QueryProcessingContext(
-            originalQuery = "A",
-            currentQuery = "A",
-            sessionId = "session-1",
-        ).setMetadata(
-            QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-            mapOf("className" to "A"),
-        )
+        val results =
+            listOf(
+                createSearchResult("1", "Content A", 0.9),
+                createSearchResult("2", "Content B", 0.8),
+            )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "A",
+                currentQuery = "A",
+                sessionId = "session-1",
+            ).setMetadata(
+                QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+                mapOf("className" to "A"),
+            )
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -231,19 +249,21 @@ class ResultFilterServiceTest {
     @Test
     fun `filterResults - исключение похожих классов`() {
         // Arrange
-        val results = listOf(
-            createSearchResult("1", "class Step15Processor { }", 0.9),
-            createSearchResult("2", "class Step16Processor { }", 0.8),
-            createSearchResult("3", "class Step15ProcessorHelper { }", 0.7),
-        )
-        val context = QueryProcessingContext(
-            originalQuery = "Step15Processor",
-            currentQuery = "Step15Processor",
-            sessionId = "session-1",
-        ).setMetadata(
-            QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
-            mapOf("className" to "Step15Processor"),
-        )
+        val results =
+            listOf(
+                createSearchResult("1", "class Step15Processor { }", 0.9),
+                createSearchResult("2", "class Step16Processor { }", 0.8),
+                createSearchResult("3", "class Step15ProcessorHelper { }", 0.7),
+            )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "Step15Processor",
+                currentQuery = "Step15Processor",
+                sessionId = "session-1",
+            ).setMetadata(
+                QueryMetadataKeys.EXACT_NODE_SEARCH_RESULT,
+                mapOf("className" to "Step15Processor"),
+            )
 
         // Act
         val filtered = filterService.filterResults(results, context)
@@ -294,12 +314,15 @@ class ResultFilterServiceTest {
         assertThat(relevance).isEqualTo(0.0)
     }
 
-    private fun createSearchResult(id: String, content: String, similarity: Double): SearchResult {
-        return SearchResult(
+    private fun createSearchResult(
+        id: String,
+        content: String,
+        similarity: Double,
+    ): SearchResult =
+        SearchResult(
             id = id,
             content = content,
             metadata = emptyMap(),
             similarity = similarity,
         )
-    }
 }

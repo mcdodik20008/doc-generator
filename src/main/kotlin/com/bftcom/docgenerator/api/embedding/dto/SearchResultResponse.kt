@@ -6,4 +6,3 @@ data class SearchResultResponse(
     val metadata: Map<String, Any>,
     val similarity: Double,
 )
-

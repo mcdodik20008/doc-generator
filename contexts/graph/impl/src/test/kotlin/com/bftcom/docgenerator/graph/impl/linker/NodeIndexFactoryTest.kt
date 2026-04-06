@@ -69,4 +69,3 @@ class NodeIndexFactoryTest {
             lang = Lang.kotlin,
         )
 }
-

@@ -23,10 +23,12 @@ class GitIngestOrchestratorFactory(
                 log.debug("Selected GitHub orchestrator for URL: {}", repoUrl)
                 gitHubOrchestrator
             }
+
             "gitlab" -> {
                 log.debug("Selected GitLab orchestrator for URL: {}", repoUrl)
                 gitLabOrchestrator
             }
+
             else -> {
                 log.warn("Unknown provider '{}' for URL: {}, defaulting to GitLab", parsed.provider, repoUrl)
                 gitLabOrchestrator
@@ -37,21 +39,21 @@ class GitIngestOrchestratorFactory(
     /**
      * Выбирает оркестратор на основе провайдера из строки
      */
-    fun getOrchestratorByProvider(provider: String?): GitIngestOrchestrator {
-        return when (provider?.lowercase()) {
+    fun getOrchestratorByProvider(provider: String?): GitIngestOrchestrator =
+        when (provider?.lowercase()) {
             "github" -> {
                 log.debug("Selected GitHub orchestrator for provider: {}", provider)
                 gitHubOrchestrator
             }
+
             "gitlab" -> {
                 log.debug("Selected GitLab orchestrator for provider: {}", provider)
                 gitLabOrchestrator
             }
+
             else -> {
                 log.warn("Unknown provider '{}', defaulting to GitLab", provider)
                 gitLabOrchestrator
             }
         }
-    }
 }
-

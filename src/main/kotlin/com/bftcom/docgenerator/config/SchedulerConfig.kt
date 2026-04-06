@@ -13,7 +13,6 @@ class SchedulerConfig(
     @Value("\${docgen.scheduler.pool-size:5}")
     private val poolSize: Int,
 ) : SchedulingConfigurer {
-
     override fun configureTasks(taskRegistrar: ScheduledTaskRegistrar) {
         val scheduler = ThreadPoolTaskScheduler()
         scheduler.poolSize = poolSize

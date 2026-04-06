@@ -10,4 +10,3 @@ data class SearchRequest(
     @field:Max(value = 1000, message = "topK cannot exceed 1000 to prevent OOM")
     val topK: Int = 10,
 )
-

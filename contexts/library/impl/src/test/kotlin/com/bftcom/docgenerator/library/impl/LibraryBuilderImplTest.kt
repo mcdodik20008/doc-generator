@@ -11,9 +11,9 @@ import com.bftcom.docgenerator.library.api.LibraryCoordinate
 import com.bftcom.docgenerator.library.api.RawLibraryNode
 import com.bftcom.docgenerator.library.api.bytecode.BytecodeAnalysisResult
 import com.bftcom.docgenerator.library.api.bytecode.CallGraph
+import com.bftcom.docgenerator.library.api.bytecode.HttpBytecodeAnalyzer
 import com.bftcom.docgenerator.library.api.bytecode.MethodId
 import com.bftcom.docgenerator.library.api.bytecode.MethodSummary
-import com.bftcom.docgenerator.library.api.bytecode.HttpBytecodeAnalyzer
 import com.bftcom.docgenerator.library.impl.coordinate.LibraryCoordinateParser
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
@@ -27,13 +27,16 @@ import java.nio.file.Path
 
 class LibraryBuilderImplTest {
     @Test
-    fun `buildLibraries - агрегирует результаты и собирает ошибки`(@TempDir dir: Path) {
+    fun `buildLibraries - агрегирует результаты и собирает ошибки`(
+        @TempDir dir: Path,
+    ) {
         val jar1 = dir.resolve("a.jar").toFile().apply { writeBytes(byteArrayOf()) }
         val jar2 = dir.resolve("b.jar").toFile().apply { writeBytes(byteArrayOf()) }
         val nonJar = dir.resolve("c.txt").toFile().apply { writeText("x") }
 
         val self = mockk<LibraryBuilderImpl>()
-        every { self.processSingleLibrary(jar1) } returns LibraryBuilderImpl.SingleLibraryResult(librariesProcessed = 1, librariesSkipped = 0, nodesCreated = 2)
+        every { self.processSingleLibrary(jar1) } returns
+            LibraryBuilderImpl.SingleLibraryResult(librariesProcessed = 1, librariesSkipped = 0, nodesCreated = 2)
         every { self.processSingleLibrary(jar2) } throws RuntimeException("boom")
 
         val builder =
@@ -54,7 +57,9 @@ class LibraryBuilderImplTest {
     }
 
     @Test
-    fun `processSingleLibrary - пропускает jar без координат`(@TempDir dir: Path) {
+    fun `processSingleLibrary - пропускает jar без координат`(
+        @TempDir dir: Path,
+    ) {
         val jar = dir.resolve("x.jar").toFile().apply { writeBytes(byteArrayOf()) }
 
         val coordinateParser = mockk<LibraryCoordinateParser>()
@@ -78,7 +83,9 @@ class LibraryBuilderImplTest {
     }
 
     @Test
-    fun `processSingleLibrary - пропускает внешнюю библиотеку (не company)`(@TempDir dir: Path) {
+    fun `processSingleLibrary - пропускает внешнюю библиотеку (не company)`(
+        @TempDir dir: Path,
+    ) {
         val jar = dir.resolve("x.jar").toFile().apply { writeBytes(byteArrayOf()) }
 
         val coordinateParser = mockk<LibraryCoordinateParser>()
@@ -102,7 +109,9 @@ class LibraryBuilderImplTest {
     }
 
     @Test
-    fun `processSingleLibrary - создает library и nodes на минимальном наборе rawNodes`(@TempDir dir: Path) {
+    fun `processSingleLibrary - создает library и nodes на минимальном наборе rawNodes`(
+        @TempDir dir: Path,
+    ) {
         val jar = dir.resolve("x.jar").toFile().apply { writeBytes(byteArrayOf()) }
 
         val coordinate = LibraryCoordinate("com.bftcom", "lib", "1.0")
@@ -186,14 +195,23 @@ class LibraryBuilderImplTest {
     }
 
     @Test
-    fun `processSingleLibrary - если library уже есть, возвращает skipped`(@TempDir dir: Path) {
+    fun `processSingleLibrary - если library уже есть, возвращает skipped`(
+        @TempDir dir: Path,
+    ) {
         val jar = dir.resolve("x.jar").toFile().apply { writeBytes(byteArrayOf()) }
 
         val coordinate = LibraryCoordinate("com.bftcom", "lib", "1.0")
         val coordinateParser = mockk<LibraryCoordinateParser>()
         every { coordinateParser.parseCoordinate(jar) } returns coordinate
 
-        val existing = Library(id = 1L, coordinate = coordinate.coordinate, groupId = coordinate.groupId, artifactId = coordinate.artifactId, version = coordinate.version)
+        val existing =
+            Library(
+                id = 1L,
+                coordinate = coordinate.coordinate,
+                groupId = coordinate.groupId,
+                artifactId = coordinate.artifactId,
+                version = coordinate.version,
+            )
         val libraryRepo = mockk<LibraryRepository>()
         every { libraryRepo.findByCoordinate(any()) } returns existing
 
@@ -215,7 +233,9 @@ class LibraryBuilderImplTest {
     }
 
     @Test
-    fun `processSingleLibrary - если анализатор падает, продолжаем без analysisResult`(@TempDir dir: Path) {
+    fun `processSingleLibrary - если анализатор падает, продолжаем без analysisResult`(
+        @TempDir dir: Path,
+    ) {
         val jar = dir.resolve("x.jar").toFile().apply { writeBytes(byteArrayOf()) }
 
         val coordinate = LibraryCoordinate("com.bftcom", "lib", "1.0")
@@ -269,4 +289,3 @@ class LibraryBuilderImplTest {
         assertThat(res.nodesCreated).isGreaterThanOrEqualTo(1)
     }
 }
-

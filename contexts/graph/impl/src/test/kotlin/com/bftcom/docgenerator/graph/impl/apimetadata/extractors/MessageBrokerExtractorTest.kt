@@ -24,9 +24,10 @@ class MessageBrokerExtractorTest {
 
     @Test
     fun `extractFunctionMetadata returns Kafka endpoint for KafkaListener annotation`() {
-        val function = createRawFunction(
-            annotationsRepr = setOf("""org.springframework.kafka.annotation.KafkaListener(topics = ["user-events"])""")
-        )
+        val function =
+            createRawFunction(
+                annotationsRepr = setOf("""org.springframework.kafka.annotation.KafkaListener(topics = ["user-events"])"""),
+            )
         val ctx = createContext()
 
         val result = extractor.extractFunctionMetadata(function, null, ctx)
@@ -39,9 +40,13 @@ class MessageBrokerExtractorTest {
 
     @Test
     fun `extractFunctionMetadata extracts groupId from KafkaListener`() {
-        val function = createRawFunction(
-            annotationsRepr = setOf("""org.springframework.kafka.annotation.KafkaListener(topics = ["events"], groupId = "my-group")""")
-        )
+        val function =
+            createRawFunction(
+                annotationsRepr =
+                    setOf(
+                        """org.springframework.kafka.annotation.KafkaListener(topics = ["events"], groupId = "my-group")""",
+                    ),
+            )
         val ctx = createContext()
 
         val result = extractor.extractFunctionMetadata(function, null, ctx)
@@ -53,9 +58,10 @@ class MessageBrokerExtractorTest {
 
     @Test
     fun `extractFunctionMetadata returns RabbitMQ endpoint for RabbitListener annotation`() {
-        val function = createRawFunction(
-            annotationsRepr = setOf("""org.springframework.amqp.rabbit.annotation.RabbitListener(queues = ["user-queue"])""")
-        )
+        val function =
+            createRawFunction(
+                annotationsRepr = setOf("""org.springframework.amqp.rabbit.annotation.RabbitListener(queues = ["user-queue"])"""),
+            )
         val ctx = createContext()
 
         val result = extractor.extractFunctionMetadata(function, null, ctx)
@@ -68,9 +74,13 @@ class MessageBrokerExtractorTest {
 
     @Test
     fun `extractFunctionMetadata extracts exchange and routingKey from RabbitListener`() {
-        val function = createRawFunction(
-            annotationsRepr = setOf("""org.springframework.amqp.rabbit.annotation.RabbitListener(exchange = "my-exchange", routingKey = "user.*")""")
-        )
+        val function =
+            createRawFunction(
+                annotationsRepr =
+                    setOf(
+                        """org.springframework.amqp.rabbit.annotation.RabbitListener(exchange = "my-exchange", routingKey = "user.*")""",
+                    ),
+            )
         val ctx = createContext()
 
         val result = extractor.extractFunctionMetadata(function, null, ctx)
@@ -83,9 +93,10 @@ class MessageBrokerExtractorTest {
 
     @Test
     fun `extractFunctionMetadata returns NATS endpoint for NatsListener annotation`() {
-        val function = createRawFunction(
-            annotationsRepr = setOf("""io.nats.client.NatsListener(subject = "user.events")""")
-        )
+        val function =
+            createRawFunction(
+                annotationsRepr = setOf("""io.nats.client.NatsListener(subject = "user.events")"""),
+            )
         val ctx = createContext()
 
         val result = extractor.extractFunctionMetadata(function, null, ctx)
@@ -110,9 +121,10 @@ class MessageBrokerExtractorTest {
 
     @Test
     fun `extractFunctionMetadata returns null for non-broker annotations`() {
-        val function = createRawFunction(
-            annotationsRepr = setOf("org.springframework.stereotype.Service")
-        )
+        val function =
+            createRawFunction(
+                annotationsRepr = setOf("org.springframework.stereotype.Service"),
+            )
         val ctx = createContext()
 
         val result = extractor.extractFunctionMetadata(function, null, ctx)
@@ -122,9 +134,10 @@ class MessageBrokerExtractorTest {
 
     @Test
     fun `extractFunctionMetadata handles single quotes in annotation parameters`() {
-        val function = createRawFunction(
-            annotationsRepr = setOf("""org.springframework.kafka.annotation.KafkaListener(topics = ['user-events'])""")
-        )
+        val function =
+            createRawFunction(
+                annotationsRepr = setOf("""org.springframework.kafka.annotation.KafkaListener(topics = ['user-events'])"""),
+            )
         val ctx = createContext()
 
         val result = extractor.extractFunctionMetadata(function, null, ctx)
@@ -144,10 +157,8 @@ class MessageBrokerExtractorTest {
         assertThat(result).isNull()
     }
 
-    private fun createRawFunction(
-        annotationsRepr: Set<String> = emptySet(),
-    ): RawFunction {
-        return RawFunction(
+    private fun createRawFunction(annotationsRepr: Set<String> = emptySet()): RawFunction =
+        RawFunction(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = "com.example",
@@ -162,10 +173,9 @@ class MessageBrokerExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createRawType(): com.bftcom.docgenerator.graph.api.model.rawdecl.RawType {
-        return com.bftcom.docgenerator.graph.api.model.rawdecl.RawType(
+    private fun createRawType(): com.bftcom.docgenerator.graph.api.model.rawdecl.RawType =
+        com.bftcom.docgenerator.graph.api.model.rawdecl.RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = "com.example",
@@ -176,13 +186,11 @@ class MessageBrokerExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createContext(imports: List<String>? = null): NodeKindContext {
-        return NodeKindContext(
+    private fun createContext(imports: List<String>? = null): NodeKindContext =
+        NodeKindContext(
             lang = Lang.kotlin,
             file = null,
             imports = imports,
         )
-    }
 }

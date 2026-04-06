@@ -25,11 +25,12 @@ class ExtractionStepTest {
         every { promptSpec.call() } returns callResponse
         every { chatClient.prompt() } returns promptSpec
 
-        val context = QueryProcessingContext(
-            originalQuery = "что делает getUser в UserService",
-            currentQuery = "что делает getUser в UserService",
-            sessionId = "s-1",
-        )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "что делает getUser в UserService",
+                currentQuery = "что делает getUser в UserService",
+                sessionId = "s-1",
+            )
 
         val result = step.execute(context)
 
@@ -51,11 +52,12 @@ class ExtractionStepTest {
         every { promptSpec.call() } returns callResponse
         every { chatClient.prompt() } returns promptSpec
 
-        val context = QueryProcessingContext(
-            originalQuery = "как работает авторизация",
-            currentQuery = "как работает авторизация",
-            sessionId = "s-1",
-        )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "как работает авторизация",
+                currentQuery = "как работает авторизация",
+                sessionId = "s-1",
+            )
 
         val result = step.execute(context)
 
@@ -73,11 +75,12 @@ class ExtractionStepTest {
         every { promptSpec.call() } returns callResponse
         every { chatClient.prompt() } returns promptSpec
 
-        val context = QueryProcessingContext(
-            originalQuery = "test query",
-            currentQuery = "test query",
-            sessionId = "s-1",
-        )
+        val context =
+            QueryProcessingContext(
+                originalQuery = "test query",
+                currentQuery = "test query",
+                sessionId = "s-1",
+            )
 
         val result = step.execute(context)
 

@@ -26,31 +26,37 @@ class IngestController(
         private const val INGEST_TIMEOUT_SECONDS = 600L
     }
 
-    @PostMapping("/run")
     // NOTE: Consider full async processing (@Async + task ID tracking) for very large repos
+    @PostMapping("/run")
     fun run(
         @RequestBody @Valid req: IngestRunRequest,
     ): IngestSummary {
         // Audit logging для критичной операции
         val repoPath = req.repoPath()
         log.info("Ingest operation started: appKey=${req.appKey}, repoPath=$repoPath, branch=${req.branch ?: "develop"}")
-        val repoUrl = if (repoPath.startsWith("http://") || repoPath.startsWith("https://")) {
-            repoPath
-        } else {
-            null // Будет определен позже в orchestrator
-        }
+        val repoUrl =
+            if (repoPath.startsWith("http://") || repoPath.startsWith("https://")) {
+                repoPath
+            } else {
+                null // Будет определен позже в orchestrator
+            }
 
         val orchestrator = orchestratorFactory.getOrchestrator(repoUrl)
 
         return try {
-            val summary: IngestSummary = CompletableFuture.supplyAsync {
-                orchestrator.runOnce(
-                    appKey = req.appKey,
-                    repoPath = repoPath,
-                    branch = req.branch ?: "develop",
-                )
-            }.orTimeout(INGEST_TIMEOUT_SECONDS, TimeUnit.SECONDS).get()
-            log.info("Ingest operation completed successfully: appKey=${req.appKey}, nodesProcessed=${summary.nodes}, edgesCreated=${summary.edges}")
+            val summary: IngestSummary =
+                CompletableFuture
+                    .supplyAsync {
+                        orchestrator.runOnce(
+                            appKey = req.appKey,
+                            repoPath = repoPath,
+                            branch = req.branch ?: "develop",
+                        )
+                    }.orTimeout(INGEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .get()
+            log.info(
+                "Ingest operation completed successfully: appKey=${req.appKey}, nodesProcessed=${summary.nodes}, edgesCreated=${summary.edges}",
+            )
             summary
         } catch (e: TimeoutException) {
             log.error("Ingest operation timed out after ${INGEST_TIMEOUT_SECONDS}s: appKey=${req.appKey}, repoPath=$repoPath")
@@ -60,5 +66,4 @@ class IngestController(
             throw e
         }
     }
-
 }

@@ -31,8 +31,9 @@ sealed class RawUsage {
     /**
      * Утилитный метод для проверки, является ли использование вызовом.
      */
-    fun checkIsCall(): Boolean = when (this) {
-        is Dot -> isCall
-        is Simple -> isCall
-    }
+    fun checkIsCall(): Boolean =
+        when (this) {
+            is Dot -> isCall
+            is Simple -> isCall
+        }
 }

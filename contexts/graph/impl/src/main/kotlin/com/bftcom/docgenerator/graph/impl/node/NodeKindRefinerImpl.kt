@@ -68,6 +68,8 @@ class NodeKindRefinerImpl(
             .firstOrNull() ?: base
     }
 
-    private fun buildCtx(raw: RawDecl, fileUnit: RawFileUnit?): NodeKindContext =
-        NodeKindContext(lang = raw.lang.toLang(), file = fileUnit, imports = fileUnit?.imports)
+    private fun buildCtx(
+        raw: RawDecl,
+        fileUnit: RawFileUnit?,
+    ): NodeKindContext = NodeKindContext(lang = raw.lang.toLang(), file = fileUnit, imports = fileUnit?.imports)
 }

@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Configuration
 
 @Configuration
 @EnableConfigurationProperties(
-        GitLabProps::class,
-        GitHubProps::class,
-        DocEvaluatorProperties::class
+    GitLabProps::class,
+    GitHubProps::class,
+    DocEvaluatorProperties::class,
 )
 class PropsConfig

@@ -32,7 +32,10 @@ class NodeDocContextBuilder(
         val hasCode: Boolean,
     )
 
-    fun build(node: Node, locale: String): BuildResult =
+    fun build(
+        node: Node,
+        locale: String,
+    ): BuildResult =
         when (node.kind) {
             NodeKind.METHOD -> buildMethod(node, locale)
             NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.ENUM, NodeKind.RECORD -> buildType(node, locale)
@@ -43,7 +46,10 @@ class NodeDocContextBuilder(
             else -> buildLeaf(node)
         }
 
-    private fun buildMethod(node: Node, locale: String): BuildResult {
+    private fun buildMethod(
+        node: Node,
+        locale: String,
+    ): BuildResult {
         val nodeId = node.id ?: error("node.id is null")
         val edges = edgeRepo.findAllBySrcId(nodeId)
         val prio =
@@ -144,7 +150,10 @@ class NodeDocContextBuilder(
         )
     }
 
-    private fun buildType(node: Node, locale: String): BuildResult {
+    private fun buildType(
+        node: Node,
+        locale: String,
+    ): BuildResult {
         val nodeId = node.id ?: error("node.id is null")
         val children =
             nodeRepo
@@ -206,7 +215,11 @@ class NodeDocContextBuilder(
         )
     }
 
-    private fun buildContainer(node: Node, locale: String, containerKind: String): BuildResult {
+    private fun buildContainer(
+        node: Node,
+        locale: String,
+        containerKind: String,
+    ): BuildResult {
         val nodeId = node.id ?: error("node.id is null")
         val children = nodeRepo.findAllByParentId(nodeId).take(childrenTopK)
 
@@ -349,4 +362,3 @@ class NodeDocContextBuilder(
         )
     }
 }
-

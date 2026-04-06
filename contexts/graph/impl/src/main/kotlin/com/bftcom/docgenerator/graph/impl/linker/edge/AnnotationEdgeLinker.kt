@@ -2,9 +2,9 @@ package com.bftcom.docgenerator.graph.impl.linker.edge
 
 import com.bftcom.docgenerator.domain.enums.EdgeKind
 import com.bftcom.docgenerator.domain.node.Node
-import com.bftcom.docgenerator.shared.node.NodeMeta
 import com.bftcom.docgenerator.graph.api.linker.EdgeLinker
 import com.bftcom.docgenerator.graph.api.linker.indexing.NodeIndex
+import com.bftcom.docgenerator.shared.node.NodeMeta
 import org.springframework.stereotype.Component
 
 /**
@@ -12,7 +12,11 @@ import org.springframework.stereotype.Component
  */
 @Component
 class AnnotationEdgeLinker : EdgeLinker {
-    override fun link(node: Node, meta: NodeMeta, index: NodeIndex): List<Triple<Node, Node, EdgeKind>> {
+    override fun link(
+        node: Node,
+        meta: NodeMeta,
+        index: NodeIndex,
+    ): List<Triple<Node, Node, EdgeKind>> {
         val res = mutableListOf<Triple<Node, Node, EdgeKind>>()
         val annotations = meta.annotations ?: return emptyList()
         val imports = meta.imports ?: emptyList()
@@ -26,4 +30,3 @@ class AnnotationEdgeLinker : EdgeLinker {
         return res
     }
 }
-

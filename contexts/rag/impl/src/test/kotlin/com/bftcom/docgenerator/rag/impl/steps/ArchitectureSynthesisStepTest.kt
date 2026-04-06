@@ -23,17 +23,19 @@ class ArchitectureSynthesisStepTest {
 
     @Test
     fun `general architecture query collects node counts`() {
-        val nodes = listOf(
-            makeNode(1, NodeKind.ENDPOINT, "getUsers", meta = mapOf("httpMethod" to "GET", "path" to "/api/users")),
-            makeNode(2, NodeKind.CLASS, "UserService"),
-            makeNode(3, NodeKind.MODULE, "core"),
-        )
+        val nodes =
+            listOf(
+                makeNode(1, NodeKind.ENDPOINT, "getUsers", meta = mapOf("httpMethod" to "GET", "path" to "/api/users")),
+                makeNode(2, NodeKind.CLASS, "UserService"),
+                makeNode(3, NodeKind.MODULE, "core"),
+            )
         every { nodeRepository.findAllByApplicationId(1L, any()) } returns nodes
         every { nodeRepository.findAllByApplicationIdAndKindIn(1L, any(), any()) } returns emptyList()
         every { edgeRepository.findAllBySrcIdIn(any<Set<Long>>()) } returns emptyList()
 
-        val context = makeContext("какая архитектура проекта?")
-            .setMetadata(QueryMetadataKeys.APPLICATION_ID, 1L)
+        val context =
+            makeContext("какая архитектура проекта?")
+                .setMetadata(QueryMetadataKeys.APPLICATION_ID, 1L)
 
         val result = step.execute(context)
 
@@ -51,13 +53,16 @@ class ArchitectureSynthesisStepTest {
 
         every { nodeRepository.findAllByApplicationId(1L, any()) } returns listOf(infraNode, clientNode)
         every { nodeRepository.findAllByApplicationIdAndKindIn(1L, match { NodeKind.CLIENT in it }, any()) } returns listOf(clientNode)
-        every { nodeRepository.findAllByApplicationIdAndKindIn(1L, match { NodeKind.INFRASTRUCTURE in it && NodeKind.CLIENT in it }, any()) } returns listOf(clientNode, infraNode)
+        every {
+            nodeRepository.findAllByApplicationIdAndKindIn(1L, match { NodeKind.INFRASTRUCTURE in it && NodeKind.CLIENT in it }, any())
+        } returns listOf(clientNode, infraNode)
         every { nodeRepository.findAllByApplicationIdAndKindIn(1L, any(), any()) } returns listOf(clientNode, infraNode)
         every { edgeRepository.findAllBySrcIdIn(any<Set<Long>>()) } returns emptyList()
         every { edgeRepository.findAllByDstIdIn(any()) } returns emptyList()
 
-        val context = makeContext("какие интеграции есть в проекте?")
-            .setMetadata(QueryMetadataKeys.APPLICATION_ID, 1L)
+        val context =
+            makeContext("какие интеграции есть в проекте?")
+                .setMetadata(QueryMetadataKeys.APPLICATION_ID, 1L)
 
         val result = step.execute(context)
 
@@ -89,8 +94,8 @@ class ArchitectureSynthesisStepTest {
         kind: NodeKind,
         name: String,
         meta: Map<String, Any> = emptyMap(),
-    ): Node {
-        return Node(
+    ): Node =
+        Node(
             id = id,
             application = app,
             fqn = "com.example.$name",
@@ -99,13 +104,11 @@ class ArchitectureSynthesisStepTest {
             lang = Lang.kotlin,
             meta = meta,
         )
-    }
 
-    private fun makeContext(query: String): QueryProcessingContext {
-        return QueryProcessingContext(
+    private fun makeContext(query: String): QueryProcessingContext =
+        QueryProcessingContext(
             originalQuery = query,
             currentQuery = query,
             sessionId = "test-session",
         )
-    }
 }

@@ -20,4 +20,3 @@ class CodeHasherImplTest {
         assertThat(hasher.computeHash("abc")).isEqualTo(expected)
     }
 }
-

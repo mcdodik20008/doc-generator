@@ -61,16 +61,17 @@ class OllamaTalkerClient(
             }
 
         val operation = {
-            val rawResult = directLlm.call(
-                DirectLlmClient.LlmRequest(
-                    model = props.talker.model,
-                    systemPrompt = rewriteSystemPrompt,
-                    userPrompt = userPrompt,
-                    temperature = props.talker.temperature,
-                    topP = props.talker.topP,
-                    seed = props.talker.seed,
-                ),
-            )
+            val rawResult =
+                directLlm.call(
+                    DirectLlmClient.LlmRequest(
+                        model = props.talker.model,
+                        systemPrompt = rewriteSystemPrompt,
+                        userPrompt = userPrompt,
+                        temperature = props.talker.temperature,
+                        topP = props.talker.topP,
+                        seed = props.talker.seed,
+                    ),
+                )
             thinkRegex.matcher(rawResult).replaceAll("").trim()
         }
 

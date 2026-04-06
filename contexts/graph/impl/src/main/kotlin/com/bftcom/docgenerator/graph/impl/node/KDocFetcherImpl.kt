@@ -19,9 +19,12 @@ class KDocFetcherImpl : KDocFetcher {
     override fun parseKDoc(decl: KtDeclaration): KDocParsed? {
         val kdoc = decl.docComment ?: findKDocAbove(decl) ?: return null
 
-        val defaultSection = try {
-            kdoc.getDefaultSection()
-        } catch (e: Exception) { null }
+        val defaultSection =
+            try {
+                kdoc.getDefaultSection()
+            } catch (e: Exception) {
+                null
+            }
 
         val raw = stripCommentMarkers(kdoc.text).trim()
         val defContent = defaultSection?.getContent()?.trim().orEmpty()
@@ -38,30 +41,51 @@ class KDocFetcherImpl : KDocFetcher {
         kdoc.getAllSections().forEach { section ->
             parseSectionTags(section) { name, subject, content ->
                 when (name) {
-                    "param" -> if (subject != null) params[subject] = content
-                    "property" -> if (subject != null) properties[subject] = content
-                    "return", "returns" -> returns = content
-                    "throws", "exception" -> if (subject != null) throws[subject] = content
-                    "see" -> seeAlso += content.ifBlank { subject ?: "" }
-                    "since" -> since = content.ifBlank { subject ?: "" }
-                    else -> other.getOrPut(name) { mutableListOf() } +=
-                        if (content.isNotBlank()) content else (subject ?: "")
+                    "param" -> {
+                        if (subject != null) params[subject] = content
+                    }
+
+                    "property" -> {
+                        if (subject != null) properties[subject] = content
+                    }
+
+                    "return", "returns" -> {
+                        returns = content
+                    }
+
+                    "throws", "exception" -> {
+                        if (subject != null) throws[subject] = content
+                    }
+
+                    "see" -> {
+                        seeAlso += content.ifBlank { subject ?: "" }
+                    }
+
+                    "since" -> {
+                        since = content.ifBlank { subject ?: "" }
+                    }
+
+                    else -> {
+                        other.getOrPut(name) { mutableListOf() } +=
+                            if (content.isNotBlank()) content else (subject ?: "")
+                    }
                 }
             }
         }
 
-        val result = KDocParsed(
-            raw = raw,
-            summary = summary.ifBlank { null },
-            description = description.ifBlank { null },
-            params = params,
-            properties = properties,
-            returns = returns?.ifBlank { null },
-            throws = throws,
-            seeAlso = seeAlso.filter { it.isNotBlank() },
-            since = since?.ifBlank { null },
-            otherTags = other.mapValues { it.value.filter { s -> s.isNotBlank() } }
-        )
+        val result =
+            KDocParsed(
+                raw = raw,
+                summary = summary.ifBlank { null },
+                description = description.ifBlank { null },
+                params = params,
+                properties = properties,
+                returns = returns?.ifBlank { null },
+                throws = throws,
+                seeAlso = seeAlso.filter { it.isNotBlank() },
+                since = since?.ifBlank { null },
+                otherTags = other.mapValues { it.value.filter { s -> s.isNotBlank() } },
+            )
 
         // Проверка на пустоту (чтобы тест на пустой коммент вернул null)
         return if (isKDocEmpty(result)) null else result
@@ -69,7 +93,10 @@ class KDocFetcherImpl : KDocFetcher {
 
     override fun toDocString(k: KDocParsed): String {
         val out = StringBuilder()
-        fun ln(s: String = "") { out.appendLine(s) }
+
+        fun ln(s: String = "") {
+            out.appendLine(s)
+        }
 
         k.summary?.let { ln(it) }
         if (!k.description.isNullOrBlank()) {
@@ -109,25 +136,26 @@ class KDocFetcherImpl : KDocFetcher {
         return out.toString().trim()
     }
 
-    override fun toMeta(k: KDocParsed?): Map<String, Any?>? = k?.let {
-        mapOf(
-            "summary" to it.summary,
-            "description" to it.description,
-            "params" to it.params,
-            "properties" to it.properties,
-            "returns" to it.returns,
-            "throws" to it.throws,
-            "seeAlso" to it.seeAlso,
-            "since" to it.since,
-            "otherTags" to it.otherTags,
-        )
-    }
+    override fun toMeta(k: KDocParsed?): Map<String, Any?>? =
+        k?.let {
+            mapOf(
+                "summary" to it.summary,
+                "description" to it.description,
+                "params" to it.params,
+                "properties" to it.properties,
+                "returns" to it.returns,
+                "throws" to it.throws,
+                "seeAlso" to it.seeAlso,
+                "since" to it.since,
+                "otherTags" to it.otherTags,
+            )
+        }
 
     // ---------------- Helpers ----------------
 
     private fun parseSectionTags(
         section: KDocSection,
-        onTag: (name: String, subject: String?, content: String) -> Unit
+        onTag: (name: String, subject: String?, content: String) -> Unit,
     ) {
         section.children.forEach { child ->
             val node = child.node
@@ -135,36 +163,42 @@ class KDocFetcherImpl : KDocFetcher {
             if (tagNameNode != null) {
                 val name = tagNameNode.text.removePrefix("@").lowercase()
 
-                val subject = try {
-                    val m = child.javaClass.getMethod("getSubjectName")
-                    m.invoke(child) as? String
-                } catch (e: Exception) {
-                    child.children.firstOrNull { it.node.elementType.toString().contains("VALUE") }?.text
-                }
+                val subject =
+                    try {
+                        val m = child.javaClass.getMethod("getSubjectName")
+                        m.invoke(child) as? String
+                    } catch (e: Exception) {
+                        child.children
+                            .firstOrNull {
+                                it.node.elementType
+                                    .toString()
+                                    .contains("VALUE")
+                            }?.text
+                    }
 
-                val content = try {
-                    val m = child.javaClass.getMethod("getContent")
-                    m.invoke(child) as? String ?: ""
-                } catch (e: Exception) {
-                    child.text.substringAfter(subject ?: name).trim()
-                }
+                val content =
+                    try {
+                        val m = child.javaClass.getMethod("getContent")
+                        m.invoke(child) as? String ?: ""
+                    } catch (e: Exception) {
+                        child.text.substringAfter(subject ?: name).trim()
+                    }
 
                 onTag(name, subject, content.trim())
             }
         }
     }
 
-    private fun isKDocEmpty(k: KDocParsed): Boolean {
-        return k.summary.isNullOrBlank() &&
-                k.description.isNullOrBlank() &&
-                k.params.isEmpty() &&
-                k.properties.isEmpty() &&
-                k.returns.isNullOrBlank() &&
-                k.throws.isEmpty() &&
-                k.seeAlso.isEmpty() &&
-                k.since.isNullOrBlank() &&
-                k.otherTags.isEmpty()
-    }
+    private fun isKDocEmpty(k: KDocParsed): Boolean =
+        k.summary.isNullOrBlank() &&
+            k.description.isNullOrBlank() &&
+            k.params.isEmpty() &&
+            k.properties.isEmpty() &&
+            k.returns.isNullOrBlank() &&
+            k.throws.isEmpty() &&
+            k.seeAlso.isEmpty() &&
+            k.since.isNullOrBlank() &&
+            k.otherTags.isEmpty()
 
     private fun findKDocAbove(decl: KtDeclaration): KDoc? {
         var cur: PsiElement? = decl.prevSibling
@@ -182,14 +216,19 @@ class KDocFetcherImpl : KDocFetcher {
         return (parts.getOrNull(0)?.trim().orEmpty()) to (parts.getOrNull(1)?.trim().orEmpty())
     }
 
-    private fun stripCommentMarkers(text: String): String {
-        return text.removePrefix("/**").removeSuffix("*/")
+    private fun stripCommentMarkers(text: String): String =
+        text
+            .removePrefix("/**")
+            .removeSuffix("*/")
             .lineSequence()
             .map { it.trimStart().removePrefix("*").trimStart() }
             .joinToString("\n")
-    }
 
-    private fun appendMap(sb: StringBuilder, header: String, data: Map<String, String>) {
+    private fun appendMap(
+        sb: StringBuilder,
+        header: String,
+        data: Map<String, String>,
+    ) {
         if (data.isNotEmpty()) {
             if (sb.isNotEmpty()) sb.appendLine()
             sb.appendLine(header)

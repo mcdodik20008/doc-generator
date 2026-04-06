@@ -6,20 +6,20 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 
 class LibraryRepositoryTest : BaseRepositoryTest() {
-
     @Autowired
     private lateinit var libraryRepository: LibraryRepository
 
     @Test
     fun `findByCoordinate - возвращает Library по координату`() {
         // Given
-        val library = Library(
-            coordinate = "org.springframework:spring-webflux:6.1.0",
-            groupId = "org.springframework",
-            artifactId = "spring-webflux",
-            version = "6.1.0",
-            kind = "external",
-        )
+        val library =
+            Library(
+                coordinate = "org.springframework:spring-webflux:6.1.0",
+                groupId = "org.springframework",
+                artifactId = "spring-webflux",
+                version = "6.1.0",
+                kind = "external",
+            )
         libraryRepository.save(library)
 
         // When
@@ -46,13 +46,14 @@ class LibraryRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `save - сохраняет новую Library`() {
         // Given
-        val library = Library(
-            coordinate = "com.example:test-lib:1.0.0",
-            groupId = "com.example",
-            artifactId = "test-lib",
-            version = "1.0.0",
-            metadata = mapOf("license" to "MIT", "url" to "https://example.com"),
-        )
+        val library =
+            Library(
+                coordinate = "com.example:test-lib:1.0.0",
+                groupId = "com.example",
+                artifactId = "test-lib",
+                version = "1.0.0",
+                metadata = mapOf("license" to "MIT", "url" to "https://example.com"),
+            )
 
         // When
         val saved = libraryRepository.save(library)
@@ -67,18 +68,20 @@ class LibraryRepositoryTest : BaseRepositoryTest() {
     @Test
     fun `findAll - возвращает все Library`() {
         // Given
-        val lib1 = Library(
-            coordinate = "lib-1:artifact:1.0.0",
-            groupId = "lib-1",
-            artifactId = "artifact",
-            version = "1.0.0",
-        )
-        val lib2 = Library(
-            coordinate = "lib-2:artifact:2.0.0",
-            groupId = "lib-2",
-            artifactId = "artifact",
-            version = "2.0.0",
-        )
+        val lib1 =
+            Library(
+                coordinate = "lib-1:artifact:1.0.0",
+                groupId = "lib-1",
+                artifactId = "artifact",
+                version = "1.0.0",
+            )
+        val lib2 =
+            Library(
+                coordinate = "lib-2:artifact:2.0.0",
+                groupId = "lib-2",
+                artifactId = "artifact",
+                version = "2.0.0",
+            )
         libraryRepository.save(lib1)
         libraryRepository.save(lib2)
 

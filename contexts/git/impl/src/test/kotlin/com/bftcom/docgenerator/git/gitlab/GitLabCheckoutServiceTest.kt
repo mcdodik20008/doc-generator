@@ -11,17 +11,24 @@ import java.nio.file.Path
 
 class GitLabCheckoutServiceTest {
     @Test
-    fun `checkoutOrUpdate - clone затем pull на локальном bare репозитории`(@TempDir dir: Path) {
+    fun `checkoutOrUpdate - clone затем pull на локальном bare репозитории`(
+        @TempDir dir: Path,
+    ) {
         val originWork = dir.resolve("origin-work")
         Git.init().setDirectory(originWork.toFile()).call().use { git ->
             Files.writeString(originWork.resolve("README.md"), "hello")
             git.add().addFilepattern("README.md").call()
-            git.commit().setMessage("init").setAuthor("t", "t@t").call()
+            git
+                .commit()
+                .setMessage("init")
+                .setAuthor("t", "t@t")
+                .call()
         }
 
         // делаем bare-копию с суффиксом .git
         val originBare = dir.resolve("origin.git")
-        Git.cloneRepository()
+        Git
+            .cloneRepository()
             .setURI(originWork.toUri().toString())
             .setDirectory(originBare.toFile())
             .setBare(true)
@@ -63,4 +70,3 @@ class GitLabCheckoutServiceTest {
             .isEqualTo("https://x/y.git")
     }
 }
-

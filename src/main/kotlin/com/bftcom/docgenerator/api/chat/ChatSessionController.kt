@@ -150,7 +150,7 @@ class ChatSessionController(
         val deleted = chatSessionService.deleteChat(id, userId)
         return mapOf(
             "success" to deleted,
-            "message" to if (deleted) "Chat deleted successfully" else "Chat not found or access denied"
+            "message" to if (deleted) "Chat deleted successfully" else "Chat not found or access denied",
         )
     }
 
@@ -186,7 +186,6 @@ data class CreateChatRequest(
     @field:NotBlank(message = "Title cannot be blank")
     @field:Size(max = 255, message = "Title cannot exceed 255 characters")
     val title: String,
-
     val applicationId: Long? = null,
 )
 
@@ -196,7 +195,6 @@ data class CreateChatRequest(
 data class GetOrCreateChatRequest(
     @field:NotBlank(message = "Session ID cannot be blank")
     val sessionId: String,
-
     val title: String? = null,
 )
 

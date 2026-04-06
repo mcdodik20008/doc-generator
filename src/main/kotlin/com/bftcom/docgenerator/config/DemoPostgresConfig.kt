@@ -12,7 +12,6 @@ import javax.sql.DataSource
 @Configuration
 @Profile("demo")
 class DemoPostgresConfig {
-
     private val log = LoggerFactory.getLogger(javaClass)
 
     private var pg: EmbeddedPostgres? = null
@@ -21,8 +20,10 @@ class DemoPostgresConfig {
     @Primary
     fun dataSource(): DataSource {
         log.info("Starting embedded PostgreSQL for demo profile...")
-        val embeddedPg = EmbeddedPostgres.builder()
-            .start()
+        val embeddedPg =
+            EmbeddedPostgres
+                .builder()
+                .start()
         pg = embeddedPg
         val ds = embeddedPg.postgresDatabase
         log.info("Embedded PostgreSQL started on port {}", embeddedPg.port)

@@ -8,13 +8,12 @@ import java.security.MessageDigest
 import java.time.OffsetDateTime
 
 class HashTokensHandlerTest {
-
     private val handler = HashTokensHandler()
 
     @Test
     fun `supports - всегда возвращает true`() {
         val snapshot = createSnapshot(content = "test")
-        
+
         assertThat(handler.supports(snapshot)).isTrue()
     }
 
@@ -29,14 +28,15 @@ class HashTokensHandlerTest {
     fun `produce - вычисляет правильный SHA-256 хэш`() {
         val content = "hello world"
         val snapshot = createSnapshot(content = content)
-        
+
         val result = handler.produce(snapshot)
-        
-        val expectedHash = MessageDigest
-            .getInstance("SHA-256")
-            .digest(content.toByteArray())
-            .joinToString("") { "%02x".format(it) }
-        
+
+        val expectedHash =
+            MessageDigest
+                .getInstance("SHA-256")
+                .digest(content.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+
         assertThat(result.provided[FieldKey.CONTENT_HASH]).isEqualTo(expectedHash)
     }
 
@@ -44,23 +44,24 @@ class HashTokensHandlerTest {
     fun `produce - вычисляет правильное количество токенов`() {
         val content = "hello world test"
         val snapshot = createSnapshot(content = content)
-        
+
         val result = handler.produce(snapshot)
-        
+
         assertThat(result.provided[FieldKey.TOKEN_COUNT]).isEqualTo(3)
     }
 
     @Test
     fun `produce - обрабатывает пустой контент`() {
         val snapshot = createSnapshot(content = "")
-        
+
         val result = handler.produce(snapshot)
-        
-        val expectedHash = MessageDigest
-            .getInstance("SHA-256")
-            .digest("".toByteArray())
-            .joinToString("") { "%02x".format(it) }
-        
+
+        val expectedHash =
+            MessageDigest
+                .getInstance("SHA-256")
+                .digest("".toByteArray())
+                .joinToString("") { "%02x".format(it) }
+
         assertThat(result.provided[FieldKey.CONTENT_HASH]).isEqualTo(expectedHash)
         assertThat(result.provided[FieldKey.TOKEN_COUNT]).isEqualTo(0)
     }
@@ -69,9 +70,9 @@ class HashTokensHandlerTest {
     fun `produce - обрабатывает контент с множественными пробелами`() {
         val content = "  hello   world  test  "
         val snapshot = createSnapshot(content = content)
-        
+
         val result = handler.produce(snapshot)
-        
+
         assertThat(result.provided[FieldKey.TOKEN_COUNT]).isEqualTo(3)
     }
 
@@ -79,9 +80,9 @@ class HashTokensHandlerTest {
     fun `produce - обрабатывает контент с переносами строк`() {
         val content = "hello\nworld\ntest"
         val snapshot = createSnapshot(content = content)
-        
+
         val result = handler.produce(snapshot)
-        
+
         assertThat(result.provided[FieldKey.TOKEN_COUNT]).isEqualTo(3)
     }
 
@@ -89,9 +90,9 @@ class HashTokensHandlerTest {
     fun `produce - обрабатывает контент с табуляцией`() {
         val content = "hello\tworld\ttest"
         val snapshot = createSnapshot(content = content)
-        
+
         val result = handler.produce(snapshot)
-        
+
         assertThat(result.provided[FieldKey.TOKEN_COUNT]).isEqualTo(3)
     }
 
@@ -99,9 +100,9 @@ class HashTokensHandlerTest {
     fun `produce - обрабатывает контент с различными символами`() {
         val content = "hello, world! test 123"
         val snapshot = createSnapshot(content = content)
-        
+
         val result = handler.produce(snapshot)
-        
+
         assertThat(result.provided[FieldKey.TOKEN_COUNT]).isEqualTo(4)
     }
 
@@ -109,14 +110,15 @@ class HashTokensHandlerTest {
     fun `produce - обрабатывает кириллицу`() {
         val content = "Привет, мир!"
         val snapshot = createSnapshot(content = content)
-        
+
         val result = handler.produce(snapshot)
-        
-        val expectedHash = MessageDigest
-            .getInstance("SHA-256")
-            .digest(content.toByteArray())
-            .joinToString("") { "%02x".format(it) }
-        
+
+        val expectedHash =
+            MessageDigest
+                .getInstance("SHA-256")
+                .digest(content.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+
         assertThat(result.provided[FieldKey.CONTENT_HASH]).isEqualTo(expectedHash)
         assertThat(result.provided[FieldKey.TOKEN_COUNT]).isEqualTo(2)
     }
@@ -126,10 +128,10 @@ class HashTokensHandlerTest {
         val content = "test content"
         val snapshot1 = createSnapshot(content = content)
         val snapshot2 = createSnapshot(content = content)
-        
+
         val result1 = handler.produce(snapshot1)
         val result2 = handler.produce(snapshot2)
-        
+
         assertThat(result1.provided[FieldKey.CONTENT_HASH])
             .isEqualTo(result2.provided[FieldKey.CONTENT_HASH])
         assertThat(result1.provided[FieldKey.TOKEN_COUNT])
@@ -140,10 +142,10 @@ class HashTokensHandlerTest {
     fun `produce - разный контент дает разный хэш`() {
         val snapshot1 = createSnapshot(content = "content1")
         val snapshot2 = createSnapshot(content = "content2")
-        
+
         val result1 = handler.produce(snapshot1)
         val result2 = handler.produce(snapshot2)
-        
+
         assertThat(result1.provided[FieldKey.CONTENT_HASH])
             .isNotEqualTo(result2.provided[FieldKey.CONTENT_HASH])
     }
@@ -151,9 +153,9 @@ class HashTokensHandlerTest {
     @Test
     fun `produce - устанавливает оба поля`() {
         val snapshot = createSnapshot(content = "test")
-        
+
         val result = handler.produce(snapshot)
-        
+
         assertThat(result.provided).containsKey(FieldKey.CONTENT_HASH)
         assertThat(result.provided).containsKey(FieldKey.TOKEN_COUNT)
         assertThat(result.provided.size).isEqualTo(2)
@@ -162,9 +164,9 @@ class HashTokensHandlerTest {
     @Test
     fun `produce - хэш имеет правильный формат (64 hex символа)`() {
         val snapshot = createSnapshot(content = "test")
-        
+
         val result = handler.produce(snapshot)
-        
+
         val hash = result.provided[FieldKey.CONTENT_HASH] as String
         assertThat(hash).hasSize(64)
         assertThat(hash).matches("[0-9a-f]{64}")
@@ -178,8 +180,8 @@ class HashTokensHandlerTest {
         embeddingPresent: Boolean = false,
         embedModel: String? = null,
         embedTs: OffsetDateTime? = null,
-    ): ChunkSnapshot {
-        return ChunkSnapshot(
+    ): ChunkSnapshot =
+        ChunkSnapshot(
             id = id,
             content = content,
             contentHash = contentHash,
@@ -188,5 +190,4 @@ class HashTokensHandlerTest {
             embedModel = embedModel,
             embedTs = embedTs,
         )
-    }
 }

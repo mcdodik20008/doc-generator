@@ -4,7 +4,6 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 class PpUtilTest {
-
     @Test
     fun `sha256Hex - вычисляет правильный хэш для пустой строки`() {
         val result = PpUtil.sha256Hex("")
@@ -223,7 +222,7 @@ class PpUtilTest {
         val text = "Short text"
         val tokens = 2
         val result = PpUtil.explainMd(text, tokens)
-        
+
         assertThat(result).contains("### Summary")
         assertThat(result).contains("length: ${text.length}")
         assertThat(result).contains("tokens: $tokens")
@@ -237,7 +236,7 @@ class PpUtilTest {
         val longText = "a".repeat(300)
         val tokens = 50
         val result = PpUtil.explainMd(longText, tokens)
-        
+
         assertThat(result).contains("length: 300")
         assertThat(result).contains("tokens: $tokens")
         assertThat(result).contains("#### Preview")
@@ -250,7 +249,7 @@ class PpUtilTest {
         val text = "Line 1\nLine 2\nLine 3"
         val tokens = 6
         val result = PpUtil.explainMd(text, tokens)
-        
+
         // Проверяем, что в preview переносы строк заменены на пробелы
         assertThat(result).contains("Line 1 Line 2 Line 3")
         // Проверяем, что preview не содержит переносов строк (они заменены на пробелы в take(240))
@@ -265,7 +264,7 @@ class PpUtilTest {
         val text = "a".repeat(240)
         val tokens = 50
         val result = PpUtil.explainMd(text, tokens)
-        
+
         assertThat(result).contains("a".repeat(240))
         assertThat(result).doesNotContain("…")
     }
@@ -275,7 +274,7 @@ class PpUtilTest {
         val text = "a".repeat(241)
         val tokens = 50
         val result = PpUtil.explainMd(text, tokens)
-        
+
         assertThat(result).contains("a".repeat(240))
         assertThat(result).contains("…")
     }
@@ -283,7 +282,7 @@ class PpUtilTest {
     @Test
     fun `explainMd - обрабатывает пустую строку`() {
         val result = PpUtil.explainMd("", 0)
-        
+
         assertThat(result).contains("length: 0")
         assertThat(result).contains("tokens: 0")
         assertThat(result).doesNotContain("…")
@@ -294,7 +293,7 @@ class PpUtilTest {
         val text = "\n\n\n"
         val tokens = 0
         val result = PpUtil.explainMd(text, tokens)
-        
+
         assertThat(result).contains("length: 3")
         assertThat(result).contains("### Preview")
         assertThat(result).contains("   ") // Переносы строк заменены на пробелы
@@ -349,124 +348,124 @@ class PpUtilTest {
         val result = PpUtil.spanCharsRange(longText)
         assertThat(result).isEqualTo("[0,1000000)")
     }
-    
+
     @Test
     fun `usesMarkdown - возвращает true для заголовка с табуляцией`() {
         assertThat(PpUtil.usesMarkdown("\t# Header")).isTrue()
         assertThat(PpUtil.usesMarkdown("\t\t## Header")).isTrue()
     }
-    
+
     @Test
     fun `usesMarkdown - возвращает true для ссылки в тексте`() {
         assertThat(PpUtil.usesMarkdown("See [link](url) for more")).isTrue()
     }
-    
+
     @Test
     fun `usesMarkdown - возвращает true для кода в тексте`() {
         assertThat(PpUtil.usesMarkdown("Use `code()` function")).isTrue()
     }
-    
+
     @Test
     fun `usesMarkdown - возвращает true для списка с отступом`() {
         assertThat(PpUtil.usesMarkdown("  - item")).isTrue()
         assertThat(PpUtil.usesMarkdown("   * item")).isTrue()
     }
-    
+
     @Test
     fun `usesMarkdown - возвращает true для жирного текста в предложении`() {
         assertThat(PpUtil.usesMarkdown("This is **important** text")).isTrue()
         assertThat(PpUtil.usesMarkdown("This is __important__ text")).isTrue()
     }
-    
+
     @Test
     fun `usesMarkdown - возвращает false для текста с решеткой не в начале строки`() {
         assertThat(PpUtil.usesMarkdown("Text # not a header")).isFalse()
     }
-    
+
     @Test
     fun `usesMarkdown - возвращает false для текста с квадратными скобками без ссылки`() {
         assertThat(PpUtil.usesMarkdown("Text [not a link]")).isFalse()
     }
-    
+
     @Test
     fun `usesMarkdown - возвращает false для текста с одинарными кавычками`() {
         assertThat(PpUtil.usesMarkdown("Text 'not code'")).isFalse()
     }
-    
+
     @Test
     fun `usesMarkdown - возвращает false для текста с дефисом не в начале строки`() {
         assertThat(PpUtil.usesMarkdown("Text - not a list")).isFalse()
     }
-    
+
     @Test
     fun `usesMarkdown - возвращает false для текста с звездочкой не в начале строки`() {
         assertThat(PpUtil.usesMarkdown("Text * not a list")).isFalse()
     }
-    
+
     @Test
     fun `explainQualityJson - граничное значение tokens = 300 len = 1999 возвращает A`() {
         val result = PpUtil.explainQualityJson(tokens = 300, len = 1999)
         assertThat(result).contains("\"grade\":\"A\"")
     }
-    
+
     @Test
     fun `explainQualityJson - граничное значение tokens = 299 len = 2000 возвращает A`() {
         val result = PpUtil.explainQualityJson(tokens = 299, len = 2000)
         assertThat(result).contains("\"grade\":\"A\"")
     }
-    
+
     @Test
     fun `explainQualityJson - граничное значение tokens = 120 len = 799 возвращает B`() {
         val result = PpUtil.explainQualityJson(tokens = 120, len = 799)
         assertThat(result).contains("\"grade\":\"B\"")
     }
-    
+
     @Test
     fun `explainQualityJson - граничное значение tokens = 119 len = 800 возвращает B`() {
         val result = PpUtil.explainQualityJson(tokens = 119, len = 800)
         assertThat(result).contains("\"grade\":\"B\"")
     }
-    
+
     @Test
     fun `explainMd - обрабатывает текст с множественными переносами строк`() {
         val text = "Line 1\n\n\nLine 2\n\nLine 3"
         val tokens = 6
         val result = PpUtil.explainMd(text, tokens)
-        
+
         assertThat(result).contains("Line 1")
         assertThat(result).contains("Line 2")
         assertThat(result).contains("Line 3")
     }
-    
+
     @Test
     fun `explainMd - обрабатывает текст с табуляцией`() {
         val text = "Line 1\tLine 2\tLine 3"
         val tokens = 6
         val result = PpUtil.explainMd(text, tokens)
-        
+
         assertThat(result).contains("Line 1")
     }
-    
+
     @Test
     fun `tokenCount - обрабатывает текст с только табуляцией`() {
         assertThat(PpUtil.tokenCount("\t\t\t")).isEqualTo(0)
     }
-    
+
     @Test
     fun `tokenCount - обрабатывает текст с только переносами строк`() {
         assertThat(PpUtil.tokenCount("\n\n\n")).isEqualTo(0)
     }
-    
+
     @Test
     fun `tokenCount - обрабатывает текст с только возвратом каретки`() {
         assertThat(PpUtil.tokenCount("\r\r\r")).isEqualTo(0)
     }
-    
+
     @Test
     fun `tokenCount - обрабатывает текст с смешанными пробелами и табуляцией`() {
         assertThat(PpUtil.tokenCount("hello\tworld\nfoo\rbar")).isEqualTo(4)
     }
-    
+
     @Test
     fun `sha256Hex - обрабатывает очень длинную строку`() {
         val longText = "a".repeat(100000)
@@ -474,7 +473,7 @@ class PpUtilTest {
         assertThat(result).isNotEmpty
         assertThat(result).hasSize(64)
     }
-    
+
     @Test
     fun `sha256Hex - обрабатывает строку с спецсимволами`() {
         val text = "!@#$%^&*()_+-=[]{}|;':\",./<>?"
@@ -482,7 +481,7 @@ class PpUtilTest {
         assertThat(result).isNotEmpty
         assertThat(result).hasSize(64)
     }
-    
+
     @Test
     fun `sha256Hex - обрабатывает строку с эмодзи`() {
         val text = "Hello 😀 World 🌍"
@@ -490,7 +489,7 @@ class PpUtilTest {
         assertThat(result).isNotEmpty
         assertThat(result).hasSize(64)
     }
-    
+
     @Test
     fun `sha256Hex - детерминированность для одинаковых строк`() {
         val text = "test string with special chars: !@#$%"

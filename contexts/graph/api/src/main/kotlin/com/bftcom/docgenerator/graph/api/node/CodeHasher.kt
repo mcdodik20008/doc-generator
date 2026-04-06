@@ -12,4 +12,3 @@ interface CodeHasher {
      */
     fun computeHash(sourceCode: String?): String?
 }
-

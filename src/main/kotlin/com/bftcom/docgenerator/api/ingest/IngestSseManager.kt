@@ -13,17 +13,22 @@ class IngestSseManager {
 
     private val sinks = ConcurrentHashMap<Long, Sinks.Many<IngestEventDto>>()
 
-    fun emit(runId: Long, event: IngestEventDto) {
-        val sink = sinks.computeIfAbsent(runId) {
-            Sinks.many().multicast().onBackpressureBuffer()
-        }
+    fun emit(
+        runId: Long,
+        event: IngestEventDto,
+    ) {
+        val sink =
+            sinks.computeIfAbsent(runId) {
+                Sinks.many().multicast().onBackpressureBuffer()
+            }
         sink.tryEmitNext(event)
     }
 
     fun stream(runId: Long): Flux<IngestEventDto> {
-        val sink = sinks.computeIfAbsent(runId) {
-            Sinks.many().multicast().onBackpressureBuffer()
-        }
+        val sink =
+            sinks.computeIfAbsent(runId) {
+                Sinks.many().multicast().onBackpressureBuffer()
+            }
         return sink.asFlux()
     }
 

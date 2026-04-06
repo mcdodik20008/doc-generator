@@ -6,7 +6,6 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface ApiKeyRepository : JpaRepository<ApiKey, Long> {
-
     fun findByKeyHash(keyHash: String): ApiKey?
 
     fun findAllByActiveTrue(): List<ApiKey>

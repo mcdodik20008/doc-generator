@@ -4,74 +4,75 @@ package com.bftcom.docgenerator.rag.api
  * Enum для всех ключей метаданных запроса.
  * Используется для типобезопасного доступа к метаданным и предотвращения опечаток.
  */
-enum class QueryMetadataKeys(val key: String) {
-        // Переформулировка запроса
-        REWRITTEN("rewritten"),
-        REWRITTEN_QUERY("rewrittenQuery"),
-        PREVIOUS_QUERY("previousQuery"),
+enum class QueryMetadataKeys(
+    val key: String,
+) {
+    // Переформулировка запроса
+    REWRITTEN("rewritten"),
+    REWRITTEN_QUERY("rewrittenQuery"),
+    PREVIOUS_QUERY("previousQuery"),
 
-        // Расширение запроса
-        EXPANDED("expanded"),
-        EXPANDED_QUERIES("expandedQueries"),
-        EXPANDED_SYNONYMS("expandedSynonyms"),
+    // Расширение запроса
+    EXPANDED("expanded"),
+    EXPANDED_QUERIES("expandedQueries"),
+    EXPANDED_SYNONYMS("expandedSynonyms"),
 
-        // Нормализация
-        NORMALIZED("normalized"),
+    // Нормализация
+    NORMALIZED("normalized"),
 
-        // Извлечение намерения
-        INTENT("intent"),
+    // Извлечение намерения
+    INTENT("intent"),
 
-        // Ключевые слова
-        KEYWORDS("keywords"),
+    // Ключевые слова
+    KEYWORDS("keywords"),
 
-        // Метрики качества
-        QUALITY_METRICS("qualityMetrics"),
+    // Метрики качества
+    QUALITY_METRICS("qualityMetrics"),
 
-        // История разговора
-        CONVERSATION_HISTORY("conversationHistory"),
-        HAS_HISTORY("hasHistory"),
-        HISTORY_ERROR("historyError"),
+    // История разговора
+    CONVERSATION_HISTORY("conversationHistory"),
+    HAS_HISTORY("hasHistory"),
+    HISTORY_ERROR("historyError"),
 
-        // Ошибки обработки (динамические, формат: error_<advisorName>)
-        ERROR_PREFIX("error_"),
+    // Ошибки обработки (динамические, формат: error_<advisorName>)
+    ERROR_PREFIX("error_"),
 
-        // Точный поиск узлов
-        EXACT_NODES("exactNodes"),
-        EXACT_NODE_SEARCH_RESULT("exactNodeSearchResult"),
+    // Точный поиск узлов
+    EXACT_NODES("exactNodes"),
+    EXACT_NODE_SEARCH_RESULT("exactNodeSearchResult"),
 
-        // Расширение окрестности (соседние узлы)
-        NEIGHBOR_NODES("neighborNodes"),
-        NEIGHBOR_EXPANSION_RADIUS("neighborExpansionRadius"),
+    // Расширение окрестности (соседние узлы)
+    NEIGHBOR_NODES("neighborNodes"),
+    NEIGHBOR_EXPANSION_RADIUS("neighborExpansionRadius"),
 
-        // Результаты поиска по чанкам
-        CHUNKS("chunks"),
-        FILTERED_CHUNKS("filteredChunks"),
+    // Результаты поиска по чанкам
+    CHUNKS("chunks"),
+    FILTERED_CHUNKS("filteredChunks"),
 
-        // Текстовые связи графа
-        GRAPH_RELATIONS_TEXT("graphRelationsText"),
+    // Текстовые связи графа
+    GRAPH_RELATIONS_TEXT("graphRelationsText"),
 
-        // ID приложения для фильтрации
-        APPLICATION_ID("applicationId"),
+    // ID приложения для фильтрации
+    APPLICATION_ID("applicationId"),
 
-        // Классификация намерения запроса
-        QUERY_INTENT("queryIntent"),
+    // Классификация намерения запроса
+    QUERY_INTENT("queryIntent"),
 
-        // Генерация гипотез
-        HYPOTHETICAL_NAMES("hypotheticalNames"),
-        HYPOTHETICAL_CODE("hypotheticalCode"),
+    // Генерация гипотез
+    HYPOTHETICAL_NAMES("hypotheticalNames"),
+    HYPOTHETICAL_CODE("hypotheticalCode"),
 
-        // Архитектурный контекст
-        ARCHITECTURE_CONTEXT_TEXT("architectureContextText"),
+    // Архитектурный контекст
+    ARCHITECTURE_CONTEXT_TEXT("architectureContextText"),
 
-        // Стектрейс-анализ
-        STACKTRACE_FRAMES("stacktraceFrames"),
-        STACKTRACE_APP_FRAMES("stacktraceAppFrames"),
-        STACKTRACE_EXCEPTION_TYPE("stacktraceExceptionType"),
-        STACKTRACE_EXCEPTION_MESSAGE("stacktraceExceptionMessage"),
-        STACKTRACE_ROOT_CAUSE_FRAME("stacktraceRootCauseFrame"),
-        STACKTRACE_ANALYSIS_TEXT("stacktraceAnalysisText"),
+    // Стектрейс-анализ
+    STACKTRACE_FRAMES("stacktraceFrames"),
+    STACKTRACE_APP_FRAMES("stacktraceAppFrames"),
+    STACKTRACE_EXCEPTION_TYPE("stacktraceExceptionType"),
+    STACKTRACE_EXCEPTION_MESSAGE("stacktraceExceptionMessage"),
+    STACKTRACE_ROOT_CAUSE_FRAME("stacktraceRootCauseFrame"),
+    STACKTRACE_ANALYSIS_TEXT("stacktraceAnalysisText"),
 
-        // Статус обработки
-        PROCESSING_STATUS("processingStatus"),
+    // Статус обработки
+    PROCESSING_STATUS("processingStatus"),
 }
-

@@ -27,9 +27,10 @@ class ConfigExtractorTest {
 
     @Test
     fun `refineType returns CONFIG for ConfigurationProperties annotation`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.springframework.boot.context.properties.ConfigurationProperties")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.springframework.boot.context.properties.ConfigurationProperties"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -39,9 +40,10 @@ class ConfigExtractorTest {
 
     @Test
     fun `refineType returns CONFIG for Configuration annotation`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.springframework.context.annotation.Configuration")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.springframework.context.annotation.Configuration"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -52,13 +54,17 @@ class ConfigExtractorTest {
     @ParameterizedTest
     @CsvSource(
         "AppConfig, com.example",
-        "MyConfiguration, com.example"
+        "MyConfiguration, com.example",
     )
-    fun `refineType returns CONFIG for classes with config naming`(className: String, pkg: String) {
-        val raw = createRawType(
-            simpleName = className,
-            pkgFqn = pkg
-        )
+    fun `refineType returns CONFIG for classes with config naming`(
+        className: String,
+        pkg: String,
+    ) {
+        val raw =
+            createRawType(
+                simpleName = className,
+                pkgFqn = pkg,
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -68,10 +74,11 @@ class ConfigExtractorTest {
 
     @Test
     fun `refineType returns CONFIG for package containing config`() {
-        val raw = createRawType(
-            simpleName = "SomeClass",
-            pkgFqn = "com.example.config"
-        )
+        val raw =
+            createRawType(
+                simpleName = "SomeClass",
+                pkgFqn = "com.example.config",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -81,10 +88,11 @@ class ConfigExtractorTest {
 
     @Test
     fun `refineType returns null for regular class`() {
-        val raw = createRawType(
-            simpleName = "RegularClass",
-            pkgFqn = "com.example.service"
-        )
+        val raw =
+            createRawType(
+                simpleName = "RegularClass",
+                pkgFqn = "com.example.service",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -94,10 +102,11 @@ class ConfigExtractorTest {
 
     @Test
     fun `refineType returns null for Properties suffix without config package`() {
-        val raw = createRawType(
-            simpleName = "UserProperties",
-            pkgFqn = "com.example.dto"
-        )
+        val raw =
+            createRawType(
+                simpleName = "UserProperties",
+                pkgFqn = "com.example.dto",
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -107,9 +116,10 @@ class ConfigExtractorTest {
 
     @Test
     fun `refineType handles case-insensitive annotations`() {
-        val raw = createRawType(
-            annotationsRepr = listOf("org.springframework.boot.context.properties.CONFIGURATIONPROPERTIES")
-        )
+        val raw =
+            createRawType(
+                annotationsRepr = listOf("org.springframework.boot.context.properties.CONFIGURATIONPROPERTIES"),
+            )
         val ctx = createContext()
 
         val result = extractor.refineType(NodeKind.CLASS, raw, ctx)
@@ -121,8 +131,8 @@ class ConfigExtractorTest {
         simpleName: String = "TestClass",
         pkgFqn: String? = "com.example",
         annotationsRepr: List<String> = emptyList(),
-    ): RawType {
-        return RawType(
+    ): RawType =
+        RawType(
             lang = SrcLang.kotlin,
             filePath = "Test.kt",
             pkgFqn = pkgFqn,
@@ -133,13 +143,11 @@ class ConfigExtractorTest {
             span = null,
             text = null,
         )
-    }
 
-    private fun createContext(): NodeKindContext {
-        return NodeKindContext(
+    private fun createContext(): NodeKindContext =
+        NodeKindContext(
             lang = Lang.kotlin,
             file = null,
             imports = null,
         )
-    }
 }

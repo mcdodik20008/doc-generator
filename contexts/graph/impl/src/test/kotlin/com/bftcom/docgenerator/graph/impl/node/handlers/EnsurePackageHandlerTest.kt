@@ -24,13 +24,14 @@ class EnsurePackageHandlerTest {
 
     @Test
     fun `handle should create full package hierarchy for multi-segment FQN`() {
-        val cmd = EnsurePackageCmd(
-            pkgFqn = "com.example.subpackage",
-            filePath = "Test.kt",
-            spanStart = 1,
-            spanEnd = 10,
-            sourceText = "package com.example.subpackage",
-        )
+        val cmd =
+            EnsurePackageCmd(
+                pkgFqn = "com.example.subpackage",
+                filePath = "Test.kt",
+                spanStart = 1,
+                spanEnd = 10,
+                sourceText = "package com.example.subpackage",
+            )
 
         // Builder создаёт ноду и возвращает её
         every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } answers {
@@ -43,20 +44,73 @@ class EnsurePackageHandlerTest {
         verify(exactly = 3) { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
 
         // Проверяем каждый пакет
-        verify { builder.upsertNode(fqn = "com", kind = NodeKind.PACKAGE, name = "com", any(), parent = null, any(), any(), any(), any(), any(), any(), any()) }
-        verify { builder.upsertNode(fqn = "com.example", kind = NodeKind.PACKAGE, name = "example", any(), parent = match { it?.fqn == "com" }, any(), any(), any(), any(), any(), any(), any()) }
-        verify { builder.upsertNode(fqn = "com.example.subpackage", kind = NodeKind.PACKAGE, name = "subpackage", any(), parent = match { it?.fqn == "com.example" }, any(), any(), any(), any(), any(), any(), any()) }
+        verify {
+            builder.upsertNode(
+                fqn = "com",
+                kind = NodeKind.PACKAGE,
+                name = "com",
+                any(),
+                parent = null,
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
+        verify {
+            builder.upsertNode(
+                fqn = "com.example",
+                kind = NodeKind.PACKAGE,
+                name = "example",
+                any(),
+                parent =
+                    match {
+                        it?.fqn == "com"
+                    },
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
+        verify {
+            builder.upsertNode(
+                fqn = "com.example.subpackage",
+                kind = NodeKind.PACKAGE,
+                name = "subpackage",
+                any(),
+                parent =
+                    match {
+                        it?.fqn ==
+                            "com.example"
+                    },
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
     }
 
     @Test
     fun `handle should set filePath and sourceText only on leaf package`() {
-        val cmd = EnsurePackageCmd(
-            pkgFqn = "com.example",
-            filePath = "Test.kt",
-            spanStart = 1,
-            spanEnd = 10,
-            sourceText = "package com.example",
-        )
+        val cmd =
+            EnsurePackageCmd(
+                pkgFqn = "com.example",
+                filePath = "Test.kt",
+                spanStart = 1,
+                spanEnd = 10,
+                sourceText = "package com.example",
+            )
 
         every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } answers {
             createPackageNode(firstArg(), parent = arg(4))
@@ -65,9 +119,39 @@ class EnsurePackageHandlerTest {
         handler.handle(cmd, state, builder)
 
         // Промежуточный "com" — без filePath и sourceCode
-        verify { builder.upsertNode(fqn = "com", any(), any(), any(), any(), any(), filePath = null, span = null, any(), sourceCode = null, any(), any()) }
+        verify {
+            builder.upsertNode(
+                fqn = "com",
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                filePath = null,
+                span = null,
+                any(),
+                sourceCode = null,
+                any(),
+                any(),
+            )
+        }
         // Листовой "com.example" — с filePath и sourceCode
-        verify { builder.upsertNode(fqn = "com.example", any(), any(), any(), any(), any(), filePath = "Test.kt", span = 1..10, any(), sourceCode = "package com.example", any(), any()) }
+        verify {
+            builder.upsertNode(
+                fqn = "com.example",
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                filePath = "Test.kt",
+                span = 1..10,
+                any(),
+                sourceCode = "package com.example",
+                any(),
+                any(),
+            )
+        }
     }
 
     @Test
@@ -90,10 +174,11 @@ class EnsurePackageHandlerTest {
 
     @Test
     fun `handle should work with single segment package`() {
-        val cmd = EnsurePackageCmd(
-            pkgFqn = "utils",
-            filePath = "Utils.kt",
-        )
+        val cmd =
+            EnsurePackageCmd(
+                pkgFqn = "utils",
+                filePath = "Utils.kt",
+            )
 
         every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } answers {
             createPackageNode(firstArg(), parent = arg(4))
@@ -101,15 +186,31 @@ class EnsurePackageHandlerTest {
 
         handler.handle(cmd, state, builder)
 
-        verify(exactly = 1) { builder.upsertNode(fqn = "utils", kind = NodeKind.PACKAGE, name = "utils", any(), parent = null, any(), any(), any(), any(), any(), any(), any()) }
+        verify(exactly = 1) {
+            builder.upsertNode(
+                fqn = "utils",
+                kind = NodeKind.PACKAGE,
+                name = "utils",
+                any(),
+                parent = null,
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
     }
 
     @Test
     fun `handle should set parent correctly through deep hierarchy`() {
-        val cmd = EnsurePackageCmd(
-            pkgFqn = "com.bftcom.rr.uds.config.rabbit",
-            filePath = "Rabbit.kt",
-        )
+        val cmd =
+            EnsurePackageCmd(
+                pkgFqn = "com.bftcom.rr.uds.config.rabbit",
+                filePath = "Rabbit.kt",
+            )
 
         every { builder.upsertNode(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } answers {
             createPackageNode(firstArg(), parent = arg(4))
@@ -149,19 +250,23 @@ class EnsurePackageHandlerTest {
             createPackageNode(firstArg(), parent = arg(4))
         }
 
-        val result = ensurePackageChain(
-            pkgFqn = "com.example.service",
-            state = state,
-            builder = builder,
-            filePath = "Service.kt",
-        )
+        val result =
+            ensurePackageChain(
+                pkgFqn = "com.example.service",
+                state = state,
+                builder = builder,
+                filePath = "Service.kt",
+            )
 
         assertThat(result.fqn).isEqualTo("com.example.service")
         assertThat(result.kind).isEqualTo(NodeKind.PACKAGE)
     }
 
-    private fun createPackageNode(pkgFqn: String, parent: Node? = null): Node {
-        return Node(
+    private fun createPackageNode(
+        pkgFqn: String,
+        parent: Node? = null,
+    ): Node =
+        Node(
             id = nodeIdCounter++,
             application = app,
             fqn = pkgFqn,
@@ -171,5 +276,4 @@ class EnsurePackageHandlerTest {
             lang = Lang.kotlin,
             parent = parent,
         )
-    }
 }

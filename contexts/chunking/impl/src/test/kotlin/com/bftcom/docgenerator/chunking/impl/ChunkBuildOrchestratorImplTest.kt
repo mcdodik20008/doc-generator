@@ -42,13 +42,14 @@ class ChunkBuildOrchestratorImplTest {
         chunkWriter = mockk(relaxed = true)
         runStore = mockk(relaxed = true)
 
-        orchestrator = ChunkBuildOrchestratorImpl(
-            nodeRepo = nodeRepo,
-            edgeRepo = edgeRepo,
-            strategies = strategies,
-            chunkWriter = chunkWriter,
-            runStore = runStore,
-        )
+        orchestrator =
+            ChunkBuildOrchestratorImpl(
+                nodeRepo = nodeRepo,
+                edgeRepo = edgeRepo,
+                strategies = strategies,
+                chunkWriter = chunkWriter,
+                runStore = runStore,
+            )
     }
 
     @Test
@@ -148,7 +149,9 @@ class ChunkBuildOrchestratorImplTest {
         // КЛЮЧЕВОЙ МОМЕНТ: Используем слот
         val idSlot = slot<Collection<Long>>()
         every { edgeRepo.findAllBySrcIdIn(capture(idSlot)) } returns listOf(edge)
-        every { chunkWriter.savePlan(any()) } returns com.bftcom.docgenerator.chunking.api.ChunkWriter.SaveResult(1, 0)
+        every { chunkWriter.savePlan(any()) } returns
+            com.bftcom.docgenerator.chunking.api.ChunkWriter
+                .SaveResult(1, 0)
 
         orchestrator.start(req)
 
@@ -199,35 +202,39 @@ class ChunkBuildOrchestratorImplTest {
         verify { runStore.markFailed("r1", any()) }
     }
 
-    private fun createNode(id: Long) = Node(
-        application = Application(key = "app", name = "app").apply { this.id = 1L },
-        fqn = "Node$id",
-        kind = NodeKind.CLASS,
-        lang = Lang.kotlin
-    ).apply { this.id = id }
+    private fun createNode(id: Long) =
+        Node(
+            application = Application(key = "app", name = "app").apply { this.id = 1L },
+            fqn = "Node$id",
+            kind = NodeKind.CLASS,
+            lang = Lang.kotlin,
+        ).apply { this.id = id }
 
     private fun createChunkPlan(
         node: Node,
         source: String,
-        kind: String
-    ): ChunkPlan = ChunkPlan(
-        id = "${node.id}:$source:$kind",
-        nodeId = node.id ?: 0L,
-        source = source,
-        kind = kind,
-        lang = "kotlin",
-        title = node.fqn,
-        node = node,
-        spanLines = null,
-        sectionPath = emptyList(),
-        relations = emptyList(),
-        pipeline = PipelinePlan(
-            stages = emptyList(),
-            params = emptyMap(),
-            service = ServiceMeta(
-                strategy = "per-node",
-                priority = 0
-            )
+        kind: String,
+    ): ChunkPlan =
+        ChunkPlan(
+            id = "${node.id}:$source:$kind",
+            nodeId = node.id ?: 0L,
+            source = source,
+            kind = kind,
+            lang = "kotlin",
+            title = node.fqn,
+            node = node,
+            spanLines = null,
+            sectionPath = emptyList(),
+            relations = emptyList(),
+            pipeline =
+                PipelinePlan(
+                    stages = emptyList(),
+                    params = emptyMap(),
+                    service =
+                        ServiceMeta(
+                            strategy = "per-node",
+                            priority = 0,
+                        ),
+                ),
         )
-    )
 }

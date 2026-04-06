@@ -149,4 +149,3 @@ class GitHubIngestOrchestrator(
             this.updatedAt = java.time.OffsetDateTime.now()
         }
 }
-

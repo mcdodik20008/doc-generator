@@ -24,6 +24,7 @@ class NodeDocGenerator(
     private val promptRegistry: NodeDocPromptRegistry,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
+
     data class GeneratedDoc(
         val docTech: String,
         val docPublic: String,
@@ -58,12 +59,13 @@ class NodeDocGenerator(
             )
 
         val rawDigest = digestClient.generate(node.kind.name, node.fqn, docTech, built.depsForDigest)
-        val digest = if (rawDigest.isNotBlank()) {
-            rawDigest
-        } else {
-            log.warn("nodedoc: digestClient returned blank for nodeId={}, using docTech truncation as fallback", node.id)
-            docTech.take(500).ifBlank { "no-content" }
-        }
+        val digest =
+            if (rawDigest.isNotBlank()) {
+                rawDigest
+            } else {
+                log.warn("nodedoc: digestClient returned blank for nodeId={}, using docTech truncation as fallback", node.id)
+                docTech.take(500).ifBlank { "no-content" }
+            }
 
         val modelMeta =
             linkedMapOf(
@@ -86,7 +88,11 @@ class NodeDocGenerator(
         )
     }
 
-    fun store(nodeId: Long, locale: String, generated: GeneratedDoc) {
+    fun store(
+        nodeId: Long,
+        locale: String,
+        generated: GeneratedDoc,
+    ) {
         val docPublic = generated.docPublic.ifBlank { null }
         val docTech = generated.docTech.ifBlank { null }
         if (docPublic == null) {
