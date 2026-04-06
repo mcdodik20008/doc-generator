@@ -211,6 +211,22 @@ class AiClientsConfig {
     }
 
     /**
+     * ChatClient для Deep Research (ReAct agent).
+     * Использует coderChatModel, без ChatMemory (контекст управляется вручную в ReAct loop),
+     * с temperature=0.3 для баланса между точностью и креативностью.
+     */
+    @Bean
+    @Qualifier("researchChatClient")
+    fun researchChatClient(
+        @Qualifier("coderChatModel") coderChatModel: ChatModel,
+        loggingAdvisor: ChatClientLoggingAdvisor,
+    ): ChatClient =
+        ChatClient
+            .builder(coderChatModel)
+            .defaultAdvisors(loggingAdvisor)
+            .build()
+
+    /**
      * Fast-Check клиент для LLM-Судьи (Quality Gate этап 2).
      * Использует быструю модель Qwen 1.5B для проверки наличия бизнес-логики.
      */
