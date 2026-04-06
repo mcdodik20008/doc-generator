@@ -1,0 +1,13 @@
+.git
+.idea
+.gradle
+**/build/tmp
+**/build/classes
+**/build/generated
+**/build/reports
+**/build/test-results
+**/src
+sample-project
+doc-evaluator
+temp_hash.kt
+*.md
