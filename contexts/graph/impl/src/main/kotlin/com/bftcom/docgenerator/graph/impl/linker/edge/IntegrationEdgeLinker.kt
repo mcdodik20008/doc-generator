@@ -61,9 +61,20 @@ class IntegrationEdgeLinker(
 
         val (node, isNew) = virtualNodeFactory.getOrCreateEndpointNode(pt.url ?: "unknown", pt.httpMethod, idx, app)
         if (node == null) return
-        if (isNew) newNodes.add(node)
+        if (isNew) {
+            // Enrich node meta with evidence
+            val meta = node.meta.toMutableMap()
+            meta["evidence"] = mapOf(
+                "source" to src.fqn,
+                "libraryFqn" to lib.fqn,
+                "httpMethod" to (pt.httpMethod ?: "UNKNOWN"),
+                "url" to (pt.url ?: "unknown"),
+            )
+            meta["confidence"] = 0.80
+            meta["relationStrength"] = "normal"
+            newNodes.add(node)
+        }
 
-        // Связываем
         fun addEdge(kind: EdgeKind) {
             res.add(Triple(src, node, kind))
             props.add(LibraryNodeEdgeProposal(kind, src, lib))
@@ -81,7 +92,18 @@ class IntegrationEdgeLinker(
 
         val (node, isNew) = virtualNodeFactory.getOrCreateTopicNode(pt.topic ?: "unknown", idx, app)
         if (node == null) return
-        if (isNew) newNodes.add(node)
+        if (isNew) {
+            val meta = node.meta.toMutableMap()
+            meta["evidence"] = mapOf(
+                "source" to src.fqn,
+                "libraryFqn" to lib.fqn,
+                "topic" to (pt.topic ?: "unknown"),
+                "operation" to (pt.operation ?: "UNKNOWN"),
+            )
+            meta["confidence"] = 0.80
+            meta["relationStrength"] = "normal"
+            newNodes.add(node)
+        }
 
         val kind = if (pt.operation == "PRODUCE") EdgeKind.PRODUCES else EdgeKind.CONSUMES
         res.add(Triple(src, node, kind))

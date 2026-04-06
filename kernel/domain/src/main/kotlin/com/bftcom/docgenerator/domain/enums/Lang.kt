@@ -6,6 +6,7 @@ package com.bftcom.docgenerator.domain.enums
  * Возможные значения:
  * - kotlin — код на Kotlin
  * - java — код на Java
+ * - proto — Protocol Buffers (.proto)
  * - sql — SQL-запросы, миграции
  * - yaml — конфигурационные файлы
  * - md — Markdown-документация
@@ -14,6 +15,7 @@ package com.bftcom.docgenerator.domain.enums
 enum class Lang {
     kotlin,
     java,
+    proto,
     sql,
     yaml,
     md,

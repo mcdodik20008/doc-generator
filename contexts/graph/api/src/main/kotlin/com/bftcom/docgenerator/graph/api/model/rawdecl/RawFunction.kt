@@ -24,6 +24,8 @@ data class RawFunction(
     val paramTypeNames: List<String> = emptyList(),
     /** Аннотации, применённые к функции. */
     val annotationsRepr: Set<String>,
+    /** Структурированные аннотации с распарсенными параметрами. */
+    val annotations: List<RawAnnotation> = emptyList(),
     /** Список "сырых" упоминаний/вызовов, найденных в теле функции. */
     val rawUsages: List<RawUsage>,
     /** Список типов исключений, которые выбрасываются из функции. */

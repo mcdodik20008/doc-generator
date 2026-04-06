@@ -18,6 +18,8 @@ data class RawField(
     val typeRepr: String?,
     /** Аннотации, применённые к полю (короткие или полные имена). */
     val annotationsRepr: List<String>,
+    /** Структурированные аннотации с распарсенными параметрами. */
+    val annotations: List<RawAnnotation> = emptyList(),
     /** Сырой KDoc комментарий, если присутствует. */
     val kdoc: String?,
     override val span: LineSpan?,

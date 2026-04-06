@@ -3,6 +3,7 @@ package com.bftcom.docgenerator.graph.impl.apimetadata.extractors
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.graph.api.apimetadata.ApiMetadata
 import com.bftcom.docgenerator.graph.api.apimetadata.ApiMetadataExtractor
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawAnnotation
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
@@ -22,15 +23,9 @@ class HttpEndpointExtractor : ApiMetadataExtractor {
         "RequestMapping" to "GET"
     )
 
-    /**
-     * Regex 1: Извлекает имя аннотации (группа 1) и содержимое скобок (группа 2).
-     * Поддерживает: @org.sfw.GetMapping("/path"), @GetMapping, RequestMapping(value="/")
-     */
-    private val annPattern = """@?(?:[\w.]+\.)?(\w+)(?:\s*\((.*)\))?""".toRegex()
+    // ===== Regex fallback (legacy) =====
 
-    /**
-     * Regex 2: Ищет строку в кавычках внутри содержимого скобок.
-     */
+    private val annPattern = """@?(?:[\w.]+\.)?(\w+)(?:\s*\((.*)\))?""".toRegex()
     private val pathPattern = """"([^"]+)"""".toRegex()
 
     override fun extractFunctionMetadata(
@@ -38,21 +33,99 @@ class HttpEndpointExtractor : ApiMetadataExtractor {
         ownerType: RawType?,
         ctx: NodeKindContext,
     ): ApiMetadata? {
-        val annotations = function.annotationsRepr
+        // Structured annotations first
+        if (function.annotations.isNotEmpty()) {
+            val result = extractFromStructured(function.annotations, ownerType)
+            if (result != null) return result
+        }
+        // Fallback to regex-based extraction
+        return extractFromAnnotationsRepr(function.annotationsRepr, ownerType)
+    }
 
-        // 1. Ищем подходящую аннотацию
+    override fun extractTypeMetadata(type: RawType, ctx: NodeKindContext): ApiMetadata? {
+        // Structured first
+        if (type.annotations.isNotEmpty()) {
+            val path = extractPathFromStructured(type.annotations)
+            if (path != null) {
+                return ApiMetadata.HttpEndpoint(method = "*", path = path, basePath = path)
+            }
+        }
+        // Fallback
+        val path = extractPathFromRaw(type.annotationsRepr) ?: return null
+        return ApiMetadata.HttpEndpoint(method = "*", path = path, basePath = path)
+    }
+
+    // ===== Structured annotation extraction =====
+
+    private fun extractFromStructured(
+        annotations: List<RawAnnotation>,
+        ownerType: RawType?,
+    ): ApiMetadata? {
+        for (ann in annotations) {
+            val method = mappingToMethod[ann.name] ?: continue
+
+            // Extract path: try "value", then "path", then array forms
+            val extractedPath = ann.getString("value")
+                ?: ann.getString("path")
+                ?: ann.getStringArray("value")?.firstOrNull()
+                ?: ann.getStringArray("path")?.firstOrNull()
+
+            // For @RequestMapping, resolve HTTP method from "method" parameter
+            val finalMethod = if (ann.name == "RequestMapping") {
+                resolveRequestMappingMethod(ann)
+            } else {
+                method
+            }
+
+            val basePath = ownerType?.let {
+                extractPathFromStructured(it.annotations) ?: extractPathFromRaw(it.annotationsRepr)
+            }
+
+            return ApiMetadata.HttpEndpoint(
+                method = finalMethod,
+                path = normalizePath(extractedPath ?: "/"),
+                basePath = basePath
+            )
+        }
+        return null
+    }
+
+    private fun extractPathFromStructured(annotations: List<RawAnnotation>): String? {
+        for (ann in annotations) {
+            if (ann.name != "RequestMapping" && !ann.name.endsWith("Mapping")) continue
+            val path = ann.getString("value")
+                ?: ann.getString("path")
+                ?: ann.getStringArray("value")?.firstOrNull()
+                ?: ann.getStringArray("path")?.firstOrNull()
+            if (path != null) return normalizePath(path)
+        }
+        return null
+    }
+
+    private fun resolveRequestMappingMethod(ann: RawAnnotation): String {
+        val methodParam = ann.getString("method")
+            ?: ann.getStringArray("method")?.firstOrNull()
+            ?: return "GET"
+        // Handle "RequestMethod.POST" -> "POST"
+        return methodParam.substringAfterLast('.').uppercase()
+    }
+
+    // ===== Regex fallback =====
+
+    private fun extractFromAnnotationsRepr(
+        annotations: Set<String>,
+        ownerType: RawType?,
+    ): ApiMetadata? {
         for (ann in annotations) {
             val match = annPattern.matchEntire(ann) ?: continue
             val annName = match.groupValues[1]
             val method = mappingToMethod[annName] ?: continue
 
-            // 2. Извлекаем путь (если есть скобки и кавычки)
             val parenthesesContent = match.groupValues.getOrNull(2)
             val extractedPath = parenthesesContent?.let {
                 pathPattern.find(it)?.groupValues?.get(1)
             }
 
-            // 3. Обработка RequestMethod (для RequestMapping)
             val finalMethod = if (annName == "RequestMapping") {
                 extractMethodFromRequestMapping(ann)
             } else method
@@ -66,15 +139,6 @@ class HttpEndpointExtractor : ApiMetadataExtractor {
             )
         }
         return null
-    }
-
-    override fun extractTypeMetadata(type: RawType, ctx: NodeKindContext): ApiMetadata? {
-        val path = extractPathFromRaw(type.annotationsRepr) ?: return null
-        return ApiMetadata.HttpEndpoint(
-            method = "*",
-            path = path,
-            basePath = path
-        )
     }
 
     private fun extractPathFromRaw(annotations: Collection<String>): String? {

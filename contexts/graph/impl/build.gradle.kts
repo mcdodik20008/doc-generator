@@ -28,6 +28,12 @@ dependencies {
     // === YAML parsing для YamlConfigScanner ===
     implementation("org.yaml:snakeyaml")
 
+    // === Java source parsing ===
+    implementation("com.github.javaparser:javaparser-symbol-solver-core:3.26.2")
+
+    // === Proto file parsing ===
+    implementation("com.squareup.wire:wire-schema:5.1.0")
+
     // ===== JSON для сериализации/десериализации =====
     implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")

@@ -28,6 +28,7 @@ dependencies {
     implementation("org.springframework.ai:spring-ai-starter-model-chat-memory-repository-jdbc")
     implementation("org.springframework.ai:spring-ai-markdown-document-reader")
     implementation("org.springframework.ai:spring-ai-starter-model-openai")
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
     testImplementation(kotlin("test"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")

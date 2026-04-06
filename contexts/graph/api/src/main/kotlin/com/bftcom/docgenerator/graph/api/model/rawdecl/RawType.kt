@@ -17,6 +17,8 @@ data class RawType(
     val supertypesRepr: List<String>,
     /** Список аннотаций (короткие или полные имена). */
     val annotationsRepr: List<String>,
+    /** Структурированные аннотации с распарсенными параметрами. */
+    val annotations: List<RawAnnotation> = emptyList(),
     override val span: LineSpan?,
     override val text: String?,
     override val attributes: Map<String, Any?> = emptyMap(),

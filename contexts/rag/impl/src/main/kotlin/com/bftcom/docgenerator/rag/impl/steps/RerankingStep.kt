@@ -7,12 +7,14 @@ import com.bftcom.docgenerator.rag.api.ProcessingStepType
 import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
 import com.bftcom.docgenerator.rag.api.QueryProcessingContext
 import com.bftcom.docgenerator.rag.impl.ResultFilterService
+import com.bftcom.docgenerator.rag.impl.reranker.CrossEncoderReranker
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 @Component
 class RerankingStep(
     private val resultFilterService: ResultFilterService,
+    private val crossEncoderReranker: CrossEncoderReranker,
 ) : QueryStep {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -25,7 +27,13 @@ class RerankingStep(
 
         val filteredChunks = if (chunks.isNotEmpty()) {
             val distinctChunks = chunks.distinctBy { it.id }
-            resultFilterService.filterResults(distinctChunks, context)
+            // Cross-encoder reranking (opt-in), then keyword filtering
+            val reranked = if (crossEncoderReranker.isEnabled()) {
+                crossEncoderReranker.rerank(context.currentQuery, distinctChunks)
+            } else {
+                distinctChunks
+            }
+            resultFilterService.filterResults(reranked, context)
         } else {
             emptyList()
         }

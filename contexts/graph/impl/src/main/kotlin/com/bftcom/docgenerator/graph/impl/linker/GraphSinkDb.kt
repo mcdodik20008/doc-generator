@@ -29,6 +29,10 @@ class GraphSinkDb(
             if (srcId != null && dstId != null) {
                 try {
                     edgeRepository.upsert(srcId, dstId, e.kind.name)
+                    if (e.evidence.isNotEmpty() || e.confidence < 1.0) {
+                        log.trace("Edge evidence: src={}, dst={}, kind={}, confidence={}, strength={}, evidenceCount={}",
+                            srcId, dstId, e.kind, e.confidence, e.relationStrength, e.evidence.size)
+                    }
                     written++
                 } catch (ex: Exception) {
                     errors++

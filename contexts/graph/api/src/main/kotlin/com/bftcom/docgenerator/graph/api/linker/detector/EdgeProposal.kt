@@ -10,4 +10,6 @@ interface EdgeProposal {
     val target: Node
     val evidence: List<Evidence>
     val confidence: Double
+    /** Сила связи: "strong", "normal", "weak". */
+    val relationStrength: String get() = "normal"
 }

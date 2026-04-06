@@ -17,8 +17,10 @@ import com.bftcom.docgenerator.graph.impl.config.ConfigPropertyLinker
 import com.bftcom.docgenerator.graph.impl.config.YamlConfigScanner
 import com.bftcom.docgenerator.graph.impl.profile.ArchitectureProfileBuilder
 import com.bftcom.docgenerator.graph.impl.node.CommandExecutorImpl
+import com.bftcom.docgenerator.graph.impl.node.JavaSourceWalker
 import com.bftcom.docgenerator.graph.impl.node.KotlinSourceWalker
 import com.bftcom.docgenerator.graph.impl.node.KotlinToDomainVisitor
+import com.bftcom.docgenerator.graph.impl.node.ProtoSourceWalker
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -33,6 +35,8 @@ class KotlinGraphBuilder(
     private val nodeRepo: NodeRepository,
     private val edgeRepo: EdgeRepository,
     private val kotlinWalker: KotlinSourceWalker,
+    private val javaWalker: JavaSourceWalker,
+    private val protoWalker: ProtoSourceWalker,
     private val graphLinker: GraphLinker,
     private val transactionManager: PlatformTransactionManager,
     private val objectMapper: ObjectMapper,
@@ -79,6 +83,8 @@ class KotlinGraphBuilder(
                     )
                 val visitor = KotlinToDomainVisitor(exec = exec, planners = planners)
                 kotlinWalker.walk(sourceRoot, visitor, classpath)
+                javaWalker.walk(sourceRoot, visitor, classpath)
+                protoWalker.walk(sourceRoot, visitor, classpath)
                 exec
             } ?: throw IllegalStateException("Failed to create nodes: transaction returned null")
 

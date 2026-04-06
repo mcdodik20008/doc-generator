@@ -6,6 +6,7 @@ import com.bftcom.docgenerator.graph.api.model.rawdecl.SrcLang
 fun SrcLang.toLang(): Lang = when (this) {
     SrcLang.kotlin, SrcLang.kts -> Lang.kotlin
     SrcLang.java -> Lang.java
+    SrcLang.proto -> Lang.proto
     SrcLang.unknown -> Lang.other
 }
 

@@ -12,6 +12,7 @@ import com.bftcom.docgenerator.shared.node.RawUsage
 import com.bftcom.docgenerator.library.api.integration.IntegrationPoint
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointLinker
 import com.bftcom.docgenerator.library.api.integration.IntegrationPointService
+import com.bftcom.docgenerator.shared.util.UrlNormalizer
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
@@ -72,7 +73,10 @@ class IntegrationPointLinkerImpl(
                 // ЛОГ 1: Вход в метод
                 val meta =
                     runCatching { objectMapper.convertValue(method.meta, NodeMeta::class.java) }
-                        .onFailure { log.error("Failed to convert meta for method ${method.fqn}: ${it.message}") }
+                        .onFailure {
+                            log.error("Failed to convert meta for method ${method.fqn}: ${it.message}")
+                            errors.add("Meta conversion failed for ${method.fqn}: ${it.message}")
+                        }
                         .getOrNull()
 
                 val usages = meta?.rawUsages.orEmpty().filter { it.checkIsCall() }
@@ -86,6 +90,7 @@ class IntegrationPointLinkerImpl(
                     // ЛОГ 2: Результат резолва
                     if (calledFqn == null) {
                         log.warn("FQN not resolved for usage '{}' in method '{}'", usage, method.fqn)
+                        errors.add("FQN not resolved for usage '$usage' in method '${method.fqn}'")
                         return@forEach
                     }
 
@@ -131,15 +136,26 @@ class IntegrationPointLinkerImpl(
             // Сохраняем новые инфраструктурные узлы
             if (nodesToCreate.isNotEmpty()) {
                 log.info("Creating {} new infrastructure nodes", nodesToCreate.size)
-                val savedNodes = nodeRepo.saveAll(nodesToCreate)
-                savedNodes.forEach { infraNodeCache[it.fqn] = it }
+                try {
+                    val savedNodes = nodeRepo.saveAll(nodesToCreate)
+                    savedNodes.forEach { infraNodeCache[it.fqn] = it }
+                } catch (e: Exception) {
+                    log.error("Failed to save infrastructure nodes: {}", e.message, e)
+                    errors.add("Node save failure: ${e.message}")
+                }
             }
 
             // Создаем ребра
             pendingEdges.forEach { (src, dst, kind) ->
                 val srcId = src.id
                 val dstId = dst.id ?: infraNodeCache[dst.fqn]?.id
-                if (srcId != null && dstId != null) {
+                if (srcId == null || dstId == null) {
+                    val detail = "srcId=${srcId}, dstId=${dstId}, src.fqn=${src.fqn}, dst.fqn=${dst.fqn}"
+                    log.warn("Null ID for edge: {}", detail)
+                    errors.add("Null ID for edge: $detail")
+                    return@forEach
+                }
+                try {
                     edgeRepo.upsert(srcId, dstId, kind.name)
                     when (kind) {
                         EdgeKind.CALLS_HTTP -> httpEdgesCreated++
@@ -147,6 +163,9 @@ class IntegrationPointLinkerImpl(
                         EdgeKind.CALLS_CAMEL -> camelEdgesCreated++
                         else -> {}
                     }
+                } catch (e: Exception) {
+                    log.error("Edge upsert failed: srcId={}, dstId={}, kind={}: {}", srcId, dstId, kind, e.message, e)
+                    errors.add("Edge upsert failed: srcId=$srcId, dstId=$dstId, kind=$kind: ${e.message}")
                 }
             }
 
@@ -175,7 +194,8 @@ class IntegrationPointLinkerImpl(
                 is IntegrationPoint.HttpEndpoint -> {
                     val url = point.url ?: "unknown"
                     val method = point.httpMethod ?: "UNKNOWN"
-                    Triple("infra:http:$method:$url", NodeKind.ENDPOINT, "$method $url")
+                    val normalizedUrl = UrlNormalizer.normalizePath(url) ?: url
+                    Triple("infra:http:$method:$normalizedUrl", NodeKind.ENDPOINT, "$method $normalizedUrl")
                 }
                 is IntegrationPoint.KafkaTopic -> {
                     val topic = point.topic ?: "unknown"

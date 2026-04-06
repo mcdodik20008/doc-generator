@@ -10,6 +10,7 @@ import com.bftcom.docgenerator.rag.api.ProcessingStepStatus
 import com.bftcom.docgenerator.rag.api.ProcessingStepType
 import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
 import com.bftcom.docgenerator.rag.api.QueryProcessingContext
+import com.bftcom.docgenerator.rag.impl.pathfinding.GraphPathFinder
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Component
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Component
 class ArchitectureSynthesisStep(
     private val nodeRepository: NodeRepository,
     private val edgeRepository: EdgeRepository,
+    private val graphPathFinder: GraphPathFinder,
 ) : QueryStep {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -60,8 +62,17 @@ class ArchitectureSynthesisStep(
             emptyList()
         }
 
+        // Find paths between architecture nodes
+        val archTextWithPaths = if (exactNodes.size >= 2) {
+            val nodeIds = exactNodes.mapNotNull { it.id }
+            val paths = graphPathFinder.findPathsBetweenNodes(nodeIds)
+            if (paths.isNotEmpty()) {
+                archText + "\n\n" + graphPathFinder.formatPaths(paths)
+            } else archText
+        } else archText
+
         val updatedContext = context
-            .setMetadata(QueryMetadataKeys.ARCHITECTURE_CONTEXT_TEXT, archText)
+            .setMetadata(QueryMetadataKeys.ARCHITECTURE_CONTEXT_TEXT, archTextWithPaths)
             .apply {
                 if (exactNodes.isNotEmpty()) {
                     setMetadata(QueryMetadataKeys.EXACT_NODES, exactNodes)
@@ -71,13 +82,13 @@ class ArchitectureSynthesisStep(
                 ProcessingStep(
                     advisorName = "ArchitectureSynthesisStep",
                     input = context.currentQuery,
-                    output = "Архитектурный контекст: ${archText.length} символов, узлов: ${exactNodes.size}",
+                    output = "Архитектурный контекст: ${archTextWithPaths.length} символов, узлов: ${exactNodes.size}",
                     stepType = type,
                     status = ProcessingStepStatus.SUCCESS,
                 ),
             )
 
-        log.info("ARCHITECTURE_SYNTHESIS: context_length={}, nodes={}", archText.length, exactNodes.size)
+        log.info("ARCHITECTURE_SYNTHESIS: context_length={}, nodes={}", archTextWithPaths.length, exactNodes.size)
         return StepResult(context = updatedContext, transitionKey = "SUCCESS")
     }
 

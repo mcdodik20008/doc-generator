@@ -7,6 +7,7 @@ import com.bftcom.docgenerator.domain.dto.*
 import com.bftcom.docgenerator.domain.enums.NodeKind
 import com.bftcom.docgenerator.domain.node.Node
 import com.bftcom.docgenerator.graph.api.CrossAppGraphService
+import com.bftcom.docgenerator.shared.util.UrlNormalizer
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -295,7 +296,22 @@ class CrossAppGraphServiceImpl(
         var kafkaCount = 0
         var camelCount = 0
 
-        normalizedGroups.entries.take(limit).forEach { (fqn, groupNodes) ->
+        val limitedEntries = normalizedGroups.entries.take(limit)
+
+        // Batch-load all edges for all nodes across all groups (fix N+1)
+        val allNodeIds = limitedEntries.flatMap { (_, groupNodes) ->
+            groupNodes.map { requireNotNull(it.id) { "Node must have ID" } }
+        }.toSet()
+
+        val allEdges = if (allNodeIds.isNotEmpty()) {
+            edgeRepo.findAllBySrcIdInOrDstIdIn(allNodeIds)
+        } else {
+            emptyList()
+        }
+        val edgesBySrcId = allEdges.groupBy { it.src.id!! }
+        val edgesByDstId = allEdges.groupBy { it.dst.id!! }
+
+        limitedEntries.forEach { (fqn, groupNodes) ->
             val representative = groupNodes.first()
             val integrationKind = representative.kind.name
             val integrationId = "integration:$integrationKind:$fqn"
@@ -323,13 +339,13 @@ class CrossAppGraphServiceImpl(
                 val nodeId = requireNotNull(node.id) { "Node must have ID" }
                 val appId = requireNotNull(node.application.id) { "Application must have ID" }
 
-                val incomingEdges = edgeRepo.findAllByDstId(nodeId)
+                val incomingEdges = edgesByDstId[nodeId].orEmpty()
                 incomingEdges.forEach { edge ->
                     val key = AggregationKey(appId, integrationId, edge.kind.name)
                     edgeCountMap[key] = (edgeCountMap[key] ?: 0) + 1
                 }
 
-                val outgoingEdges = edgeRepo.findAllBySrcId(nodeId)
+                val outgoingEdges = edgesBySrcId[nodeId].orEmpty()
                 outgoingEdges.forEach { edge ->
                     val key = AggregationKey(appId, integrationId, edge.kind.name)
                     edgeCountMap[key] = (edgeCountMap[key] ?: 0) + 1
@@ -402,9 +418,9 @@ class CrossAppGraphServiceImpl(
 
                 val method = afterPrefix.substring(0, colonIdx).uppercase()
                 val url = afterPrefix.substring(colonIdx + 1)
-                val path = extractPathFromUrl(url) ?: continue
+                val path = UrlNormalizer.normalizePath(url) ?: continue
 
-                val key = "$method:${normalizeHttpPath(path)}"
+                val key = "$method:$path"
                 clientEntries.add(ClientEntry(key, appId, node))
             } else {
                 // Server-side node: check for apiMetadata
@@ -417,7 +433,7 @@ class CrossAppGraphServiceImpl(
 
                 // Resolve basePath from parent node
                 val basePath = getParentBasePath(node) ?: ""
-                val fullPath = normalizeHttpPath(basePath + endpointPath)
+                val fullPath = UrlNormalizer.canonicalize(basePath + endpointPath)
 
                 val key = "$method:$fullPath"
                 serverEntries.add(ServerEntry(key, appId, node))
@@ -508,45 +524,12 @@ class CrossAppGraphServiceImpl(
     }
 
     /**
-     * Извлекает путь из URL, убирая scheme://host:port.
-     * "https://ups-service:8080/ups/v1/findEstoDto" → "/ups/v1/findEstoDto"
-     * Returns null if URL contains unresolved variables (e.g., ${...}).
-     */
-    private fun extractPathFromUrl(url: String): String? {
-        if (url.contains("\${")) {
-            log.debug("Skipping URL with unresolved variables: {}", url)
-            return null
-        }
-        return try {
-            val withoutScheme = if (url.contains("://")) {
-                url.substringAfter("://")
-            } else {
-                url
-            }
-            val pathStart = withoutScheme.indexOf('/')
-            if (pathStart < 0) "/" else withoutScheme.substring(pathStart)
-        } catch (e: Exception) {
-            log.warn("Failed to extract path from URL: {}", url, e)
-            null
-        }
-    }
-
-    /**
      * Получает basePath из apiMetadata родительской ноды (REST controller).
      */
     private fun getParentBasePath(node: Node): String? {
         val parent = node.parent ?: return null
         val parentApi = parent.meta["apiMetadata"] as? Map<*, *> ?: return null
         return parentApi["basePath"] as? String
-    }
-
-    /**
-     * Нормализует HTTP-путь: ведущий /, без trailing /, lowercase.
-     */
-    private fun normalizeHttpPath(path: String): String {
-        val trimmed = path.trim()
-        val withLeadingSlash = if (trimmed.startsWith("/")) trimmed else "/$trimmed"
-        return withLeadingSlash.trimEnd('/').lowercase()
     }
 
     // =====================================================================

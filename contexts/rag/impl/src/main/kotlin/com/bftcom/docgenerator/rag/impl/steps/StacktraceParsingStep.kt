@@ -53,13 +53,15 @@ class StacktraceParsingStep : QueryStep {
         val exceptionInfo = parseExceptionInfo(query)
         val rootCauseFrame = findRootCauseFrame(query, appFrames, frames)
 
-        val updatedContext = context
+        var updatedContext = context
             .setMetadata(QueryMetadataKeys.STACKTRACE_FRAMES, frames)
             .setMetadata(QueryMetadataKeys.STACKTRACE_APP_FRAMES, appFrames)
             .setMetadata(QueryMetadataKeys.STACKTRACE_EXCEPTION_TYPE, exceptionInfo.first)
             .setMetadata(QueryMetadataKeys.STACKTRACE_EXCEPTION_MESSAGE, exceptionInfo.second)
-            .setMetadata(QueryMetadataKeys.STACKTRACE_ROOT_CAUSE_FRAME, rootCauseFrame)
-            .addStep(
+        if (rootCauseFrame != null) {
+            updatedContext = updatedContext.setMetadata(QueryMetadataKeys.STACKTRACE_ROOT_CAUSE_FRAME, rootCauseFrame)
+        }
+        updatedContext = updatedContext.addStep(
                 ProcessingStep(
                     advisorName = "StacktraceParsingStep",
                     input = query.take(200),

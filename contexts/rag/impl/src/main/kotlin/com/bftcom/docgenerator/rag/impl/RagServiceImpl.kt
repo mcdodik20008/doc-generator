@@ -10,6 +10,7 @@ import com.bftcom.docgenerator.rag.api.RagPreparedContext
 import com.bftcom.docgenerator.rag.api.RagResponse
 import com.bftcom.docgenerator.rag.api.RagService
 import com.bftcom.docgenerator.rag.api.RagSource
+import com.bftcom.docgenerator.rag.impl.cache.RagCacheService
 import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.chat.memory.ChatMemory.DEFAULT_CONVERSATION_ID
@@ -25,6 +26,7 @@ class RagServiceImpl(
     @Qualifier("ragChatClient")
     private val chatClient: ChatClient,
     private val graphRequestProcessor: GraphRequestProcessor,
+    private val ragCacheService: RagCacheService,
     @Value("\${docgen.rag.max-node-code-chars:3000}") private val maxNodeCodeChars: Int = 3000,
     @Value("\${docgen.rag.max-context-chars:30000}") private val maxContextChars: Int = 30000,
     @Value("\${docgen.rag.max-exact-nodes:5}") private val maxExactNodes: Int = 5,
@@ -36,6 +38,17 @@ class RagServiceImpl(
     private val log = LoggerFactory.getLogger(javaClass)
 
     override fun ask(query: String, sessionId: String, applicationId: Long?): RagResponse {
+        // Check response cache
+        val cachedResponse = ragCacheService.getCachedResponse(query, sessionId)
+        if (cachedResponse != null) {
+            log.info("RAG response cache hit for query: '{}'", query.take(50))
+            return RagResponse(
+                answer = cachedResponse,
+                sources = emptyList(),
+                metadata = RagQueryMetadata(originalQuery = query),
+            )
+        }
+
         val prepared = prepareContext(query, sessionId, applicationId)
 
         val prompt = prepared.prompt
@@ -43,6 +56,11 @@ class RagServiceImpl(
             callLlm(prompt, prepared.sessionId)
         } else {
             prepared.fallbackAnswer ?: "Не удалось получить ответ."
+        }
+
+        // Cache successful LLM responses
+        if (prompt != null) {
+            ragCacheService.cacheResponse(query, sessionId, answer)
         }
 
         return RagResponse(

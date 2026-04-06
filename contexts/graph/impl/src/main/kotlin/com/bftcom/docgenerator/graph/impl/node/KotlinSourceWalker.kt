@@ -3,6 +3,7 @@ package com.bftcom.docgenerator.graph.impl.node
 import com.bftcom.docgenerator.shared.node.RawUsage
 import com.bftcom.docgenerator.graph.api.model.RawAttrKey
 import com.bftcom.docgenerator.graph.api.model.rawdecl.LineSpan
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawAnnotation
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawField
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFileUnit
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
@@ -18,21 +19,28 @@ import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
 import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtClassLiteralExpression
 import org.jetbrains.kotlin.psi.KtClassOrObject
+import org.jetbrains.kotlin.psi.KtCollectionLiteralExpression
+import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPsiFactory
+import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtThrowExpression
 import org.jetbrains.kotlin.psi.KtTreeVisitorVoid
+import org.jetbrains.kotlin.psi.KtValueArgument
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.io.File
@@ -182,6 +190,7 @@ class KotlinSourceWalker(
             val kdocText = kdocParsed?.let { kDocFetcher.toDocString(it) }
             val kdocMeta = kDocFetcher.toMeta(kdocParsed)
             val annotations = getAnnotationShortNames(decl).toList()
+            val structuredAnnotations = extractAnnotations(decl)
 
             visitor.onDecl(
                 RawType(
@@ -192,6 +201,7 @@ class KotlinSourceWalker(
                     kindRepr = kindRepr,
                     supertypesRepr = supertypesRepr,
                     annotationsRepr = annotations,
+                    annotations = structuredAnnotations,
                     span = span,
                     text = sourceText,
                     attributes =
@@ -210,6 +220,7 @@ class KotlinSourceWalker(
                 val ptext = prop.text
                 val pkdoc = kDocFetcher.parseKDoc(prop)?.let { kDocFetcher.toDocString(it) }
                 val annotationsField = getAnnotationShortNames(prop).toList()
+                val structuredAnnotationsField = extractAnnotations(prop)
 
                 visitor.onDecl(
                     RawField(
@@ -220,6 +231,7 @@ class KotlinSourceWalker(
                         name = prop.name ?: return@forEach,
                         typeRepr = prop.typeReference?.text,
                         annotationsRepr = annotationsField,
+                        annotations = structuredAnnotationsField,
                         kdoc = pkdoc,
                         span = pspan,
                         text = ptext,
@@ -256,6 +268,7 @@ class KotlinSourceWalker(
                 val fsig = signatureFromFunction(funDecl)
                 val fkdoc = kDocFetcher.parseKDoc(funDecl)?.let { kDocFetcher.toDocString(it) }
                 val annotationsFun = getAnnotationShortNames(funDecl)
+                val structuredAnnotationsFun = extractAnnotations(funDecl)
 
                 visitor.onDecl(
                     RawFunction(
@@ -270,6 +283,7 @@ class KotlinSourceWalker(
                             it.typeReference?.text?.substringBefore('<')?.substringAfterLast('.')
                         },
                         annotationsRepr = annotationsFun,
+                        annotations = structuredAnnotationsFun,
                         rawUsages = rawUsages,
                         throwsRepr = throwsRepr,
                         kdoc = fkdoc,
@@ -309,6 +323,7 @@ class KotlinSourceWalker(
             val sig = signatureFromFunction(funDecl)
             val kdoc = kDocFetcher.parseKDoc(funDecl)?.let { kDocFetcher.toDocString(it) }
             val annotations = getAnnotationShortNames(funDecl)
+            val structuredAnnotationsTl = extractAnnotations(funDecl)
 
             visitor.onDecl(
                 RawFunction(
@@ -323,6 +338,7 @@ class KotlinSourceWalker(
                         it.typeReference?.text?.substringBefore('<')?.substringAfterLast('.')
                     },
                     annotationsRepr = annotations,
+                    annotations = structuredAnnotationsTl,
                     rawUsages = rawUsages,
                     throwsRepr = throwsRepr,
                     kdoc = kdoc,
@@ -488,6 +504,76 @@ class KotlinSourceWalker(
             .removeSuffix("{")
             .trimEnd()
             .ifBlank { null }
+    }
+
+    /** Извлекает структурированные аннотации из PSI-декларации. */
+    private fun extractAnnotations(decl: KtDeclaration): List<RawAnnotation> =
+        decl.annotationEntries.mapNotNull { entry ->
+            val name = entry.shortName?.asString() ?: return@mapNotNull null
+            val params = extractAnnotationParams(entry)
+            RawAnnotation(name = name, params = params)
+        }
+
+    /** Извлекает параметры из KtAnnotationEntry. */
+    private fun extractAnnotationParams(entry: KtAnnotationEntry): Map<String, Any> {
+        val args = entry.valueArguments
+        if (args.isEmpty()) return emptyMap()
+
+        val result = mutableMapOf<String, Any>()
+        args.forEachIndexed { index, arg ->
+            if (arg !is KtValueArgument) return@forEachIndexed
+            val key = arg.getArgumentName()?.asName?.asString()
+                ?: if (index == 0) "value" else "_positional_$index"
+            val expr = arg.getArgumentExpression() ?: return@forEachIndexed
+            val value = parseAnnotationValue(expr) ?: return@forEachIndexed
+            result[key] = value
+        }
+        return result
+    }
+
+    /** Парсит значение аргумента аннотации из PSI-выражения. */
+    private fun parseAnnotationValue(expr: KtExpression): Any? = when (expr) {
+        is KtStringTemplateExpression -> {
+            // Простая строка или шаблон
+            expr.entries.joinToString("") { it.text }
+        }
+        is KtConstantExpression -> {
+            val text = expr.text
+            when {
+                text == "true" -> true
+                text == "false" -> false
+                text.toIntOrNull() != null -> text.toInt()
+                text.toLongOrNull() != null -> text.toLong()
+                text.toDoubleOrNull() != null -> text.toDouble()
+                else -> text
+            }
+        }
+        is KtCollectionLiteralExpression -> {
+            // [a, b, c]
+            expr.getInnerExpressions().mapNotNull { parseAnnotationValue(it) }
+        }
+        is KtDotQualifiedExpression -> {
+            // Enum values like RequestMethod.POST
+            expr.text
+        }
+        is KtNameReferenceExpression -> {
+            expr.getReferencedName()
+        }
+        is KtClassLiteralExpression -> {
+            expr.text
+        }
+        is KtCallExpression -> {
+            // arrayOf(...), listOf(...) — extract inner values
+            val callee = expr.calleeExpression?.text
+            if (callee == "arrayOf" || callee == "listOf") {
+                expr.valueArguments.mapNotNull { arg ->
+                    (arg as? KtValueArgument)?.getArgumentExpression()?.let { parseAnnotationValue(it) }
+                }
+            } else {
+                expr.text
+            }
+        }
+        else -> expr.text
     }
 
     private fun getAnnotationShortNames(decl: KtDeclaration): Set<String> =

@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component
 class GrpcEndpointExtractor : ApiMetadataExtractor {
     override fun id() = "grpc-endpoint"
 
-    override fun supports(lang: Lang) = (lang == Lang.kotlin)
+    override fun supports(lang: Lang) = (lang == Lang.kotlin || lang == Lang.java)
 
     override fun extractFunctionMetadata(
         function: RawFunction,

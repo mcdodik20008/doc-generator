@@ -151,11 +151,20 @@ docgen:
     batch-size: 50
   embed:
     enabled: true
+  embedding:
+    # Минимальный порог косинусного сходства для результатов поиска
+    similarity-threshold: 0.3
   graph:
     # Максимальное количество узлов для загрузки при линковке графа
     # Защита от OOM при обработке очень больших графов
     # Если узлов больше, будут загружены только первые max-nodes
     max-nodes: 100000
+    # Таймаут на параллельную линковку узлов (минуты)
+    parallel-linking-timeout-minutes: 10
+    # Таймаут на структурную линковку (минуты)
+    structural-linking-timeout-minutes: 5
+    # Поведение при превышении max-nodes: WARN (логировать предупреждение) или ERROR (бросить исключение)
+    max-nodes-behavior: WARN
   rag:
     # Таймаут на весь пайплайн обработки запроса (секунды)
     # Увеличено для удаленной LLM (Mac mini M4 через сеть)
@@ -181,6 +190,30 @@ docgen:
     # Максимум соседних нод в контексте
     # Уменьшено с 10 до 5 для меньшего контекста
     max-neighbor-nodes: ${RAG_MAX_NEIGHBOR_NODES:5}
+    # Режим поиска: VECTOR (только эмбеддинги), FTS (только полнотекстовый), HYBRID (FTS + Vector + RRF)
+    search-mode: ${RAG_SEARCH_MODE:HYBRID}
+    # Настройки расширения графа
+    graph-expansion:
+      radius:
+        default: 1
+        architecture: 2
+        stacktrace: 2
+        max: 3
+      max-neighbors-per-hop: 50
+    # Cross-encoder re-ranking через Ollama (opt-in)
+    reranker:
+      enabled: ${RAG_RERANKER_ENABLED:false}
+      model: ${RAG_RERANKER_MODEL:bge-reranker-v2-m3}
+      base-url: http://${OLLAMA_HOSTNAME:localhost}:${OLLAMA_PORT:11434}
+      top-n: 10
+      timeout-seconds: 15
+    # Кэширование RAG-результатов в Redis
+    cache:
+      enabled: ${RAG_CACHE_ENABLED:true}
+      # TTL кэша эмбеддинг-результатов (минуты)
+      embedding-ttl-minutes: 60
+      # TTL кэша LLM-ответов (минуты)
+      response-ttl-minutes: 15
   library:
     # Префиксы groupId для обработки библиотек (через запятую)
     whitelist: com.bftcom,ru.bftcom,ru.supercode,rrbpm

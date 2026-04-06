@@ -11,13 +11,26 @@ import com.bftcom.docgenerator.rag.api.ProcessingStepStatus
 import com.bftcom.docgenerator.rag.api.ProcessingStepType
 import com.bftcom.docgenerator.rag.api.QueryMetadataKeys
 import com.bftcom.docgenerator.rag.api.QueryProcessingContext
+import com.bftcom.docgenerator.rag.impl.pathfinding.GraphPathFinder
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 
 @Component
 class GraphExpansionStep(
     private val edgeRepository: EdgeRepository,
     private val nodeRepository: NodeRepository,
+    private val graphPathFinder: GraphPathFinder,
+    @Value("\${docgen.rag.graph-expansion.radius.default:1}")
+    private val defaultRadius: Int = 1,
+    @Value("\${docgen.rag.graph-expansion.radius.architecture:2}")
+    private val architectureRadius: Int = 2,
+    @Value("\${docgen.rag.graph-expansion.radius.stacktrace:2}")
+    private val stacktraceRadius: Int = 2,
+    @Value("\${docgen.rag.graph-expansion.radius.max:3}")
+    private val maxRadius: Int = 3,
+    @Value("\${docgen.rag.graph-expansion.max-neighbors-per-hop:50}")
+    private val maxNeighborsPerHop: Int = 50,
 ) : QueryStep {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -44,8 +57,10 @@ class GraphExpansionStep(
             )
         }
 
-        val radius = (context.getMetadata<Int>(QueryMetadataKeys.NEIGHBOR_EXPANSION_RADIUS) ?: 1)
-            .coerceIn(1, 2)
+        // Intent-aware radius selection
+        val intent = context.getMetadata<String>(QueryMetadataKeys.QUERY_INTENT)
+        val explicitRadius = context.getMetadata<Int>(QueryMetadataKeys.NEIGHBOR_EXPANSION_RADIUS)
+        val radius = (explicitRadius ?: selectRadiusByIntent(intent)).coerceIn(1, maxRadius)
 
         val seedIds = exactNodes.mapNotNull { it.id }.toSet()
         val visitedIds = seedIds.toMutableSet()
@@ -56,10 +71,21 @@ class GraphExpansionStep(
             if (frontier.isEmpty()) return@repeat
             val edges = findRelevantEdges(frontier)
             collectedEdges.addAll(edges)
-            val newIds = edges.flatMap { listOfNotNull(it.src.id, it.dst.id) }.toSet()
-            val nextFrontier = newIds - visitedIds
+
+            // Collect neighbor IDs, cap at maxNeighborsPerHop sorted by edge weight
+            val neighborEdges = edges.flatMap { edge ->
+                val w = EDGE_WEIGHTS[edge.kind] ?: 0.5
+                listOfNotNull(edge.src.id?.let { it to w }, edge.dst.id?.let { it to w })
+            }
+            val newIds = neighborEdges
+                .filter { (id, _) -> id !in visitedIds }
+                .sortedByDescending { (_, weight) -> weight }
+                .take(maxNeighborsPerHop)
+                .map { (id, _) -> id }
+                .toSet()
+
             visitedIds.addAll(newIds)
-            frontier = nextFrontier
+            frontier = newIds
         }
 
         val neighborIds = (visitedIds - seedIds)
@@ -69,7 +95,17 @@ class GraphExpansionStep(
             emptyList()
         }
 
-        val graphText = buildGraphRelationsText(collectedEdges, exactNodes, neighborNodes)
+        var graphText = buildGraphRelationsText(collectedEdges, exactNodes, neighborNodes)
+
+        // For ARCHITECTURE intent, find shortest paths between exact nodes
+        if (intent?.uppercase() == "ARCHITECTURE" && seedIds.size >= 2) {
+            val paths = graphPathFinder.findPathsBetweenNodes(seedIds.toList())
+            if (paths.isNotEmpty()) {
+                val pathsText = graphPathFinder.formatPaths(paths)
+                graphText = if (graphText.isNotBlank()) "$graphText\n\n$pathsText" else pathsText
+            }
+        }
+
         val updatedContext = context
             .setMetadata(QueryMetadataKeys.NEIGHBOR_NODES, neighborNodes)
             .setMetadata(QueryMetadataKeys.GRAPH_RELATIONS_TEXT, graphText)
@@ -77,17 +113,23 @@ class GraphExpansionStep(
                 ProcessingStep(
                     advisorName = "GraphExpansionStep",
                     input = context.currentQuery,
-                    output = "Ребер: ${collectedEdges.size}, соседних узлов: ${neighborNodes.size}",
+                    output = "Ребер: ${collectedEdges.size}, соседних узлов: ${neighborNodes.size}, radius: $radius, intent: $intent",
                     stepType = type,
                     status = ProcessingStepStatus.SUCCESS,
                 ),
             )
 
-        log.info("GRAPH_EXPANSION: edges={}, neighbors={}", collectedEdges.size, neighborNodes.size)
+        log.info("GRAPH_EXPANSION: edges={}, neighbors={}, radius={}, intent={}", collectedEdges.size, neighborNodes.size, radius, intent)
         return StepResult(
             context = updatedContext,
             transitionKey = "SUCCESS",
         )
+    }
+
+    private fun selectRadiusByIntent(intent: String?): Int = when (intent?.uppercase()) {
+        "ARCHITECTURE" -> architectureRadius
+        "STACKTRACE" -> stacktraceRadius
+        else -> defaultRadius
     }
 
     private fun findRelevantEdges(nodeIds: Set<Long>): List<Edge> {
@@ -150,6 +192,10 @@ class GraphExpansionStep(
             EdgeKind.IMPLEMENTS -> "реализует"
             EdgeKind.READS -> "читает из"
             EdgeKind.WRITES -> "пишет в"
+            EdgeKind.CALLS_HTTP -> "вызывает HTTP"
+            EdgeKind.PRODUCES -> "публикует в"
+            EdgeKind.CONSUMES -> "потребляет из"
+            EdgeKind.CONTAINS -> "содержит"
             else -> "связан с"
         }
     }
@@ -168,6 +214,23 @@ class GraphExpansionStep(
             EdgeKind.IMPLEMENTS,
             EdgeKind.READS,
             EdgeKind.WRITES,
+            EdgeKind.CALLS_HTTP,
+            EdgeKind.PRODUCES,
+            EdgeKind.CONSUMES,
+            EdgeKind.CONTAINS,
+        )
+
+        /** Веса рёбер для приоритизации соседей при BFS. */
+        val EDGE_WEIGHTS: Map<EdgeKind, Double> = mapOf(
+            EdgeKind.CALLS_CODE to 1.0,
+            EdgeKind.IMPLEMENTS to 0.8,
+            EdgeKind.DEPENDS_ON to 0.7,
+            EdgeKind.CALLS_HTTP to 0.7,
+            EdgeKind.PRODUCES to 0.6,
+            EdgeKind.CONSUMES to 0.6,
+            EdgeKind.READS to 0.5,
+            EdgeKind.WRITES to 0.5,
+            EdgeKind.CONTAINS to 0.5,
         )
     }
 }

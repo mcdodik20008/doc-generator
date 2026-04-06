@@ -48,10 +48,15 @@ class GraphLinkerImpl(
         private val integrationEdgeLinker: IntegrationEdgeLinker,
         @Value("\${docgen.graph.max-nodes:100000}")
         private val maxNodesToLoad: Int,
+        @Value("\${docgen.graph.parallel-linking-timeout-minutes:10}")
+        private val parallelLinkingTimeoutMinutes: Long = 10L,
+        @Value("\${docgen.graph.structural-linking-timeout-minutes:5}")
+        private val structuralLinkingTimeoutMinutes: Long = 5L,
+        @Value("\${docgen.graph.max-nodes-behavior:WARN}")
+        private val maxNodesBehavior: String = "WARN",
 ) : GraphLinker {
     companion object {
         private val log = LoggerFactory.getLogger(GraphLinker::class.java)
-        private const val PARALLEL_LINKING_TIMEOUT_MINUTES = 10L
         private const val MAX_ERROR_THRESHOLD = 100
     }
 
@@ -74,11 +79,15 @@ class GraphLinkerImpl(
         }
 
         if (all.size >= maxNodesToLoad) {
-            log.warn(
-                "WARNING: Loaded maximum allowed nodes ($maxNodesToLoad). " +
+            val msg = "Loaded maximum allowed nodes ($maxNodesToLoad). " +
                 "There may be more nodes in the database. " +
                 "Consider increasing docgen.graph.max-nodes configuration or implementing batch processing."
-            )
+            if (maxNodesBehavior.uppercase() == "ERROR") {
+                log.error(msg)
+                throw IllegalStateException(msg)
+            } else {
+                log.warn(msg)
+            }
         }
 
         log.info("Fetched ${all.size} total nodes to link.")
@@ -104,7 +113,19 @@ class GraphLinkerImpl(
 
         // 3. Структурная линковка (последовательно, так как требует полного обзора)
         val structuralStart = System.currentTimeMillis()
-        val structuralEdges = structuralEdgeLinker.linkContains(all, index, ::metaOf)
+        val structuralEdges = try {
+            val pool = java.util.concurrent.ForkJoinPool(1)
+            try {
+                pool.submit<List<Triple<Node, Node, EdgeKind>>> {
+                    structuralEdgeLinker.linkContains(all, index, ::metaOf)
+                }.get(structuralLinkingTimeoutMinutes, TimeUnit.MINUTES)
+            } finally {
+                pool.shutdown()
+            }
+        } catch (e: TimeoutException) {
+            log.error("Structural linking timed out after {} minutes for app [id={}]", structuralLinkingTimeoutMinutes, application.id)
+            throw IllegalStateException("Structural linking timed out after ${structuralLinkingTimeoutMinutes} minutes", e)
+        }
         val structuralDuration = System.currentTimeMillis() - structuralStart
         log.info(
                 "Structural linking completed in ${structuralDuration}ms, created ${structuralEdges.size} edges"
@@ -132,10 +153,10 @@ class GraphLinkerImpl(
                         linkSingleNode(node, metaOf(node), index, application)
                     }
                     .toList()
-            }.get(PARALLEL_LINKING_TIMEOUT_MINUTES, TimeUnit.MINUTES)
+            }.get(parallelLinkingTimeoutMinutes, TimeUnit.MINUTES)
         } catch (e: TimeoutException) {
-            log.error("Parallel linking timed out after {} minutes for app [id={}]", PARALLEL_LINKING_TIMEOUT_MINUTES, application.id)
-            throw IllegalStateException("Graph linking timed out after ${PARALLEL_LINKING_TIMEOUT_MINUTES} minutes", e)
+            log.error("Parallel linking timed out after {} minutes for app [id={}]", parallelLinkingTimeoutMinutes, application.id)
+            throw IllegalStateException("Graph linking timed out after ${parallelLinkingTimeoutMinutes} minutes", e)
         } finally {
             customPool.shutdown()
         }

@@ -3,6 +3,7 @@ package com.bftcom.docgenerator.graph.impl.apimetadata.extractors
 import com.bftcom.docgenerator.domain.enums.Lang
 import com.bftcom.docgenerator.graph.api.apimetadata.ApiMetadata
 import com.bftcom.docgenerator.graph.api.apimetadata.ApiMetadataExtractor
+import com.bftcom.docgenerator.graph.api.model.rawdecl.RawAnnotation
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawFunction
 import com.bftcom.docgenerator.graph.api.model.rawdecl.RawType
 import com.bftcom.docgenerator.graph.api.nodekindextractor.NodeKindContext
@@ -20,9 +21,52 @@ class MessageBrokerExtractor : ApiMetadataExtractor {
         ownerType: RawType?,
         ctx: NodeKindContext,
     ): ApiMetadata.MessageBrokerEndpoint? {
-        val annotations = function.annotationsRepr
+        // Structured annotations first
+        if (function.annotations.isNotEmpty()) {
+            val result = extractFromStructured(function.annotations)
+            if (result != null) return result
+        }
+        // Fallback to regex-based extraction
+        return extractFromAnnotationsRepr(function.annotationsRepr, ctx)
+    }
 
-        // 1. Пытаемся определить по аннотациям
+    override fun extractTypeMetadata(type: RawType, ctx: NodeKindContext): ApiMetadata? = null
+
+    // ===== Structured annotation extraction =====
+
+    private fun extractFromStructured(annotations: List<RawAnnotation>): ApiMetadata.MessageBrokerEndpoint? {
+        for (ann in annotations) {
+            when (ann.name) {
+                "KafkaListener" -> return ApiMetadata.MessageBrokerEndpoint(
+                    broker = ApiMetadata.BrokerType.KAFKA,
+                    topic = ann.getString("topics") ?: ann.getString("topic") ?: ann.value(),
+                    consumerGroup = ann.getString("groupId") ?: ann.getString("group")
+                )
+                "RabbitListener" -> return ApiMetadata.MessageBrokerEndpoint(
+                    broker = ApiMetadata.BrokerType.RABBITMQ,
+                    queue = ann.getString("queues") ?: ann.getString("queue") ?: ann.value(),
+                    exchange = ann.getString("exchange"),
+                    routingKey = ann.getString("key") ?: ann.getString("routingKey")
+                )
+                "NatsListener" -> return ApiMetadata.MessageBrokerEndpoint(
+                    broker = ApiMetadata.BrokerType.NATS,
+                    topic = ann.getString("subject") ?: ann.value()
+                )
+                "SqsListener" -> return ApiMetadata.MessageBrokerEndpoint(
+                    broker = ApiMetadata.BrokerType.SQS,
+                    queue = ann.getString("queueNames") ?: ann.getString("queue") ?: ann.value()
+                )
+            }
+        }
+        return null
+    }
+
+    // ===== Regex fallback =====
+
+    private fun extractFromAnnotationsRepr(
+        annotations: Set<String>,
+        ctx: NodeKindContext,
+    ): ApiMetadata.MessageBrokerEndpoint? {
         for (ann in annotations) {
             val match = annPattern.matchEntire(ann) ?: continue
             val annName = match.groupValues[1]
@@ -44,22 +88,24 @@ class MessageBrokerExtractor : ApiMetadataExtractor {
                     broker = ApiMetadata.BrokerType.NATS,
                     topic = extractParam(content, "subject", "value")
                 )
+                "SqsListener" -> return ApiMetadata.MessageBrokerEndpoint(
+                    broker = ApiMetadata.BrokerType.SQS,
+                    queue = extractParam(content, "queueNames", "queue", "value")
+                )
             }
         }
 
-        // 2. Если аннотаций нет, проверяем импорты (Implicit NATS)
+        // Implicit NATS via imports
         val imports = ctx.imports ?: emptyList()
         if (imports.any { it.contains("io.nats") }) {
             return ApiMetadata.MessageBrokerEndpoint(
                 broker = ApiMetadata.BrokerType.NATS,
-                topic = null // В данном случае топик не определен без аннотации
+                topic = null
             )
         }
 
         return null
     }
-
-    override fun extractTypeMetadata(type: RawType, ctx: NodeKindContext): ApiMetadata? = null
 
     private fun extractParam(content: String, vararg paramNames: String): String? {
         if (content.isBlank()) return null
